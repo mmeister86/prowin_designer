@@ -538,6 +538,33 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       if (d.reqId) parent.postMessage({ type: 'doop:html-result', reqId: d.reqId }, '*')
     }
     if (d.type === 'doop:edit') setEdit(!!d.on)
+    // Mirror the Layers eye in the live document, including during text edits.
+    if (d.type === 'doop:visibility') {
+      var hideEl = null
+      try { hideEl = d.selector ? document.querySelector(d.selector) : null } catch (e) { /* bad selector */ }
+      if (hideEl && hideEl.hasAttribute('data-doop-hidden') !== !!d.hidden) {
+        var hideStyle = hideEl.style
+        if (d.hidden) {
+          if (hideStyle.display) {
+            var priority = hideStyle.getPropertyPriority('display')
+            hideEl.setAttribute('data-doop-display', hideStyle.display + (priority ? ' !' + priority : ''))
+          }
+          hideEl.setAttribute('data-doop-hidden', 'true')
+          hideStyle.setProperty('display', 'none', 'important')
+          if (activeEl && hideEl.contains(activeEl)) deactivate()
+        } else {
+          var prior = hideEl.getAttribute('data-doop-display')
+          hideEl.removeAttribute('data-doop-hidden')
+          hideEl.removeAttribute('data-doop-display')
+          if (prior) {
+            var parts = prior.split(' !')
+            hideStyle.setProperty('display', parts[0], parts[1] || '')
+          } else hideStyle.removeProperty('display')
+          if (!hideEl.getAttribute('style')) hideEl.removeAttribute('style')
+        }
+      }
+      parent.postMessage({ type: 'doop:visibility-result', reqId: d.reqId, ok: !!hideEl }, '*')
+    }
     /* a lock set from the Layers panel lands on the live element too: while
        editing, the parent withholds html, and the next text save serializes
        this document — the attribute has to be here or the save drops it. A

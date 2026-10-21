@@ -165,6 +165,8 @@ export function setLayerHidden(frame: Frame, selector: string, hidden: boolean):
   const html = setElementHidden(frame.html, selector, hidden)
   if (html === null) return false
   if (html !== frame.html) saveFrameHtml(frame, html)
+  // Text editing withholds HTML updates; its next save serializes the live iframe.
+  void requestFrame(frame.id, 'doop:visibility', { selector, hidden })
   return true
 }
 

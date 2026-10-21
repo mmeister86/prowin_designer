@@ -9,7 +9,9 @@ vi.mock('../src/lib/api', () => ({
   api: { updateFrame: (id: string, patch: Partial<Frame>) => updateFrame(id, patch) },
   errorMessage: (_err: unknown, fallback: string) => fallback,
 }))
+vi.mock('../src/lib/frameBridge', () => ({ requestFrame: vi.fn(async () => null) }))
 
+const { requestFrame } = await import('../src/lib/frameBridge')
 const { useStore } = await import('../src/lib/store')
 const { LayersPanel } = await import('../src/components/LayersPanel')
 const { TooltipProvider } = await import('../src/components/ui/tooltip')
@@ -115,11 +117,13 @@ describe('LayersPanel eye', () => {
     const html = useStore.getState().canvas?.frames[0]?.html ?? ''
     expect(html).toContain('<div data-doop-hidden="true" style="display: none !important;"><p>A</p></div>')
     expect(updateFrame).toHaveBeenCalledWith('f1', { html })
+    expect(requestFrame).toHaveBeenCalledWith('f1', 'doop:visibility', { selector: DIV, hidden: true })
     expect(eye(key).getAttribute('aria-label')).toBe('Show')
     act(() => eye(key).click())
     const shown = useStore.getState().canvas?.frames[0]?.html ?? ''
     expect(shown).toContain('<div><p>A</p></div>')
     expect(shown).not.toContain('data-doop')
+    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:visibility', { selector: DIV, hidden: false })
     expect(eye(key).getAttribute('aria-label')).toBe('Hide')
   })
 })
