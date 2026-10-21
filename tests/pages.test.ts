@@ -9,6 +9,7 @@ beforeAll(async () => {
   server = await startServer()
   owner = new Client(server)
   await owner.signUp('pages-owner@test.dev', 'Page Owner')
+  expect((await owner.post('/api/prowin/creator')).status).toBe(200)
   outsider = new Client(server)
   await outsider.signUp('pages-outsider@test.dev', 'Outsider')
 }, 60_000)
@@ -133,6 +134,8 @@ it('duplicates a page with its frames right after the source, numbering the name
       width: 300,
       height: 200,
       html: '<h1>Hero</h1>',
+      hidden: true,
+      locked: true,
     })
   ).json()
   const card = await (
@@ -180,6 +183,8 @@ it('duplicates a page with its frames right after the source, numbering the name
     width: 300,
     height: 200,
     html: '<h1>Hero</h1>',
+    hidden: true,
+    locked: true,
   })
   expect(copiedHero.id).not.toBe(hero.id)
   expect(copy.frames.find((f) => f.name === 'Card')).toMatchObject({
@@ -220,6 +225,15 @@ it('duplicates a page with its frames right after the source, numbering the name
   expect(onPage(again.page.id)).toHaveLength(2)
   expect(onPage(nested.page.id)).toHaveLength(2)
   expect(onPage(second.id)).toHaveLength(1)
+  for (const pageId of [copy.page.id, again.page.id, nested.page.id]) {
+    expect(onPage(pageId).find((f: { name: string }) => f.name === 'Hero')).toMatchObject({
+      hidden: true,
+      locked: true,
+    })
+    const card = onPage(pageId).find((f: { name: string }) => f.name === 'Card')
+    expect(card.hidden).toBeFalsy()
+    expect(card.locked).toBeFalsy()
+  }
 }, 60_000)
 
 it('serializes concurrent duplicates so names stay unique and the page limit holds', async () => {

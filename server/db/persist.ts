@@ -302,6 +302,8 @@ export async function savePageCopy(c: Canvas, frames: Frame[]): Promise<void> {
         updatedAt: frame.updatedAt,
         updatedBy: frame.updatedBy,
         demo: frame.demo ?? null,
+        hidden: frame.hidden ?? null,
+        locked: frame.locked ?? null,
       })),
     )
     const refs = frames.flatMap((frame) =>
