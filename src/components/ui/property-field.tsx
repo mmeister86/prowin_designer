@@ -121,17 +121,20 @@ export function TextField({
 export function SelectField<T extends string>({
   value,
   options,
+  label,
   className,
   onChange,
 }: {
   value: T
   options: { value: T; label: string }[]
+  label?: string
   className?: string
   onChange: (v: T) => void
 }) {
   return (
     <span className={cn(fieldCls, 'relative font-sans text-[11.5px]', className)}>
       <select
+        aria-label={label}
         className="w-full min-w-0 appearance-none bg-transparent pr-3 text-ink outline-none"
         value={value}
         /* a native select only ever reports one of the options it was given */

@@ -433,6 +433,17 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
      The panel cannot read computed styles across the sandbox, so it asks for
      a summary of one element and writes changes back as inline styles; the
      edited document then goes to the parent through the usual save path. */
+  function notifyFrameUpdated() {
+    parent.postMessage({ type: 'doop:frame-updated' }, '*')
+  }
+  document.fonts.addEventListener('loadingdone', notifyFrameUpdated)
+  /* A linked sheet can declare unused faces without loading any font files.
+     Capture its non-bubbling load event, including links added by later renders. */
+  document.addEventListener('load', function (ev) {
+    var el = ev.target
+    if (el && el.tagName === 'LINK' && el.relList.contains('stylesheet')) notifyFrameUpdated()
+  }, true)
+
   function px(v) {
     var n = parseFloat(v)
     return isNaN(n) ? null : Math.round(n * 100) / 100
@@ -456,6 +467,10 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     var classes = (el.getAttribute('class') || '').trim().split(/[ ]+/).filter(Boolean)
     var text = ''
     for (var n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3) text += n.nodeValue
+    var fontFamilies = []
+    document.fonts.forEach(function (font) {
+      if (fontFamilies.indexOf(font.family) === -1) fontFamilies.push(font.family)
+    })
     var sides = ['Top', 'Right', 'Bottom', 'Left']
     var drawn = 'Top'
     for (var b = 0; b < sides.length; b++) {
@@ -499,7 +514,9 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       fontSize: px(cs.fontSize),
       fontWeight: cs.fontWeight,
       fontFamily: cs.fontFamily,
+      fontFamilies: fontFamilies,
       textAlign: cs.textAlign,
+      direction: cs.direction,
     }
   }
 
@@ -535,6 +552,7 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     }
     if (d.type === 'doop:html' && typeof d.html === 'string' && !editing) {
       render(d.html)
+      notifyFrameUpdated()
       if (d.reqId) parent.postMessage({ type: 'doop:html-result', reqId: d.reqId }, '*')
     }
     if (d.type === 'doop:edit') setEdit(!!d.on)

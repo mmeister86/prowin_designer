@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from 'react'
+      import { createRoot } from 'react-dom/client'
+      import { FrameView } from '/src/components/FrameView.tsx'
+      import { ElementPanel } from '/src/components/ElementPanel.tsx'
+      import { TooltipProvider } from '/src/components/ui/tooltip.tsx'
+      import { useStore } from '/src/lib/store.ts'
+      import { undo } from '/src/lib/history.ts'
+      import '/src/styles.css'
+      window.elementPanelHarness = {
+        seed: (frame) => {
+          useStore.getState().setCanvas({
+            id: 'c',
+            name: 'Typography',
+            frames: [frame],
+            createdAt: 0,
+            updatedAt: 0,
+          })
+        },
+        select: (selector) => useStore.getState().setSelectedElement({ frameId: 'f', selector }),
+        undo,
+      }
+      function Fixture() {
+        const frame = useStore((s) => s.canvas?.frames[0])
+        const selected = useStore((s) => s.selectedElement)
+        if (!frame) return null
+        return React.createElement(
+          TooltipProvider,
+          null,
+          React.createElement(FrameView, { frame, raster: 1 }),
+          selected && React.createElement(ElementPanel, { frame, selector: selected.selector, style: { right: 12 } }),
+        )
+      }
+      createRoot(document.getElementById('root')).render(React.createElement(Fixture))
+    </script>
+  </body>
+</html>

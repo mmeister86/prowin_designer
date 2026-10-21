@@ -41,7 +41,10 @@ export interface ElementInfo {
   fontSize: number | null
   fontWeight: string
   fontFamily: string
+  /** Font faces declared by this frame, including linked web fonts. */
+  fontFamilies: string[]
   textAlign: string
+  direction: string
 }
 
 /** Inline style changes: a null or empty value removes the property. */
@@ -58,7 +61,7 @@ interface PendingAsk {
 const REPLY_TIMEOUT_MS = 2000
 
 const windows = new Map<string, Window>()
-const readyListeners = new Map<string, Set<() => void>>()
+const changeListeners = new Map<string, Set<() => void>>()
 const pending = new Map<number, PendingAsk>()
 let nextReq = 0
 let listening = false
@@ -68,6 +71,12 @@ function listen() {
   listening = true
   window.addEventListener('message', (ev: MessageEvent) => {
     const data = ev.data as { type?: string; reqId?: number } | null
+    if (data?.type === 'doop:frame-updated') {
+      for (const [frameId, win] of windows) {
+        if (ev.source === win) changeListeners.get(frameId)?.forEach((cb) => cb())
+      }
+      return
+    }
     if (typeof data?.type !== 'string' || typeof data.reqId !== 'number') return
     const ask = pending.get(data.reqId)
     /* the reply must come from the window that was asked — request ids are
@@ -80,22 +89,23 @@ function listen() {
 
 export function registerFrameWindow(frameId: string, win: Window) {
   windows.set(frameId, win)
-  readyListeners.get(frameId)?.forEach((cb) => cb())
+  changeListeners.get(frameId)?.forEach((cb) => cb())
 }
 
 export function unregisterFrameWindow(frameId: string, win: Window) {
   if (windows.get(frameId) === win) windows.delete(frameId)
 }
 
-/** Runs `cb` each time the frame's runtime (re)registers — a panel opened
- *  before the frame was ready uses this to ask again. Returns the unsubscribe. */
-export function onFrameReady(frameId: string, cb: () => void): () => void {
-  const set = readyListeners.get(frameId) ?? new Set()
+/** Re-read after the runtime registers, renders HTML, or loads font faces.
+ *  Store updates can precede the frame's throttled render. */
+export function onFrameChange(frameId: string, cb: () => void): () => void {
+  listen()
+  const set = changeListeners.get(frameId) ?? new Set()
   set.add(cb)
-  readyListeners.set(frameId, set)
+  changeListeners.set(frameId, set)
   return () => {
     set.delete(cb)
-    if (set.size === 0) readyListeners.delete(frameId)
+    if (set.size === 0) changeListeners.delete(frameId)
   }
 }
 

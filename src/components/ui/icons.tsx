@@ -13,6 +13,10 @@
 import type { ComponentType, SVGProps } from 'react'
 import {
   Activity,
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   ArrowLeft,
   ArrowRight,
   ArrowUp,
@@ -140,6 +144,10 @@ export const TrashIcon = icon(Trash2)
 export const CheckIcon = icon(Check)
 export const ChevronRightIcon = icon(ChevronRight)
 export const ChevronDownIcon = icon(ChevronDown)
+export const AlignLeftIcon = icon(AlignLeft)
+export const AlignCenterIcon = icon(AlignCenter)
+export const AlignRightIcon = icon(AlignRight)
+export const AlignJustifyIcon = icon(AlignJustify)
 /** Lucide dropped its brand marks; this is its last GitHub outline, kept on
  *  the same grid and stroke as the rest of the set. */
 export function GithubIcon(props: IconProps) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Frame } from '../../shared/types'
 import { useStore } from '../lib/store'
-import { inspectElement, onFrameReady, styleElement, type ElementInfo, type StylePatch } from '../lib/frameBridge'
+import { inspectElement, onFrameChange, styleElement, type ElementInfo, type StylePatch } from '../lib/frameBridge'
 import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '../lib/layers'
 import { replaceLayerHtml } from '../lib/layerEdits'
 import {
@@ -28,7 +28,8 @@ import {
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Tooltip } from './ui/tooltip'
-import { ArrowUpIcon } from './ui/icons'
+import { AlignCenterIcon, AlignJustifyIcon, AlignLeftIcon, AlignRightIcon, ArrowUpIcon } from './ui/icons'
+import { Segmented, SegmentedItem } from './ui/segmented'
 import {
   ColorField,
   FieldUnit,
@@ -88,7 +89,7 @@ export function ElementPanel({
   const parentNode = useMemo(() => ancestorsOf(tree, selector)?.at(-1) ?? null, [tree, selector])
 
   /* re-read after every html change — remote edits and our own saves alike —
-     and again if the frame's runtime comes up after the panel did */
+     and when the runtime finishes rendering or loading fonts */
   useEffect(() => {
     let live = true
     let timer: number | null = null
@@ -103,7 +104,7 @@ export function ElementPanel({
       }, INSPECT_DELAY_MS)
     }
     read()
-    const off = onFrameReady(frame.id, read)
+    const off = onFrameChange(frame.id, read)
     return () => {
       live = false
       off()
@@ -214,7 +215,51 @@ const DISPLAYS: { value: string; label: string }[] = [
 ]
 const POSITIONS = ['static', 'relative', 'absolute', 'fixed', 'sticky']
 const WEIGHTS = ['300', '400', '500', '600', '700', '800']
-const ALIGNS = ['left', 'center', 'right', 'justify']
+const ALIGNS = [
+  { value: 'left', label: 'Align left', Icon: AlignLeftIcon },
+  { value: 'center', label: 'Align center', Icon: AlignCenterIcon },
+  { value: 'right', label: 'Align right', Icon: AlignRightIcon },
+  { value: 'justify', label: 'Justify', Icon: AlignJustifyIcon },
+]
+const SYSTEM_FONTS = [
+  { value: 'system-ui, sans-serif', label: 'System UI' },
+  { value: 'Arial, sans-serif', label: 'Arial' },
+  { value: 'Helvetica, sans-serif', label: 'Helvetica' },
+  { value: 'Verdana, sans-serif', label: 'Verdana' },
+  { value: 'Trebuchet MS, sans-serif', label: 'Trebuchet MS' },
+  { value: 'Georgia, serif', label: 'Georgia' },
+  { value: 'Times New Roman, serif', label: 'Times New Roman' },
+  { value: 'Courier New, monospace', label: 'Courier New' },
+  { value: 'ui-monospace, monospace', label: 'Monospace' },
+]
+
+function fontName(value: string) {
+  return (
+    value
+      .match(/^(?:"([^"]+)"|'([^']+)'|([^,]+))/)
+      ?.slice(1)
+      .find(Boolean)
+      ?.trim() ?? value
+  )
+}
+
+/** Keep the current stack intact, and offer fonts already supplied by the
+ *  frame alongside system faces that need no additional font download. */
+function fontOptions(info: ElementInfo) {
+  const seen = new Set<string>()
+  return [
+    ...[info.fontFamily, ...info.fontFamilies].map((value) => ({
+      value,
+      label: fontName(value),
+    })),
+    ...SYSTEM_FONTS,
+  ].filter(({ value }) => {
+    const family = fontName(value).toLowerCase()
+    if (seen.has(family)) return false
+    seen.add(family)
+    return true
+  })
+}
 const SIZE_MODES: { value: SizeMode; label: string }[] = [
   { value: 'fixed', label: 'Fixed' },
   { value: 'fill', label: 'Fill' },
@@ -240,6 +285,16 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
   const borderColor = rgbToHex(info.borderColor)
   const gapMixed = info.rowGap !== info.columnGap
   const border = borderSummary(info.borderWidths)
+  const textAlign =
+    info.textAlign === 'start'
+      ? info.direction === 'rtl'
+        ? 'right'
+        : 'left'
+      : info.textAlign === 'end'
+        ? info.direction === 'rtl'
+          ? 'left'
+          : 'right'
+        : info.textAlign
   function setSize(axis: 'width' | 'height', mode: SizeMode) {
     if (mode === 'fixed') apply({ [axis]: `${info[axis] ?? 0}px` })
     else if (mode === 'fill') apply({ [axis]: '100%' })
@@ -371,6 +426,14 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
       </PropertySection>
       {info.hasText && (
         <PropertySection title="Text">
+          <PropertyRow label="Font">
+            <SelectField
+              label="Font family"
+              value={info.fontFamily}
+              options={fontOptions(info)}
+              onChange={(v) => apply({ 'font-family': v })}
+            />
+          </PropertyRow>
           <PropertyRow label="Size">
             <NumberField value={info.fontSize} unit="px" onCommit={(v) => apply({ 'font-size': `${v}px` })} />
             <SelectField
@@ -384,11 +447,24 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
             <ColorField value={rgbToHex(info.color)} onCommit={(v) => apply({ color: v })} />
           </PropertyRow>
           <PropertyRow label="Align">
-            <SelectField
-              value={ALIGNS.includes(info.textAlign) ? info.textAlign : 'left'}
-              options={ALIGNS.map((a) => ({ value: a, label: a }))}
-              onChange={(v) => apply({ 'text-align': v })}
-            />
+            <Segmented
+              aria-label="Text alignment"
+              className="w-full gap-1 rounded-none bg-transparent p-0"
+              value={textAlign}
+              onValueChange={(v) => apply({ 'text-align': v })}
+            >
+              {ALIGNS.map(({ value, label, Icon }) => (
+                <SegmentedItem
+                  key={value}
+                  value={value}
+                  aria-label={label}
+                  title={label}
+                  className="grid h-[26px] min-h-0 flex-1 place-items-center rounded-[6px] bg-sub p-0 hover:bg-paper-deep sm:flex-1"
+                >
+                  <Icon size="rail" />
+                </SegmentedItem>
+              ))}
+            </Segmented>
           </PropertyRow>
         </PropertySection>
       )}
