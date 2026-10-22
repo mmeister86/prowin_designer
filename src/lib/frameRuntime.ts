@@ -308,6 +308,31 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     return { x: r.left, y: r.top, width: r.width, height: r.height }
   }
 
+  /* Elements whose box takes a width/height: everything but inline text
+     boxes. Replaced inline elements (an img) still size, so they count. */
+  var REPLACED = ['img', 'video', 'canvas', 'svg', 'iframe', 'input', 'select', 'textarea', 'button', 'embed', 'object']
+  function sizable(el) {
+    var cs = getComputedStyle(el)
+    if (cs.display === 'contents' || cs.display === 'none') return false
+    /* a drag is measured along the element's own axes: a scale converts, a
+       rotation or skew (or a 3D matrix) does not, so those get no grips */
+    var m = /^matrix\\(([^)]+)\\)$/.exec(cs.transform)
+    if (cs.transform.indexOf('matrix3d') === 0) return false
+    if (m) {
+      var parts = m[1].split(',')
+      if (Math.abs(parseFloat(parts[1])) > 1e-6 || Math.abs(parseFloat(parts[2])) > 1e-6) return false
+    }
+    return cs.display !== 'inline' || REPLACED.indexOf(el.tagName.toLowerCase()) !== -1
+  }
+
+  /* how far the rendered box is from the layout box: the element's own and
+     its ancestors' scale, which a drag's pointer delta has to be divided by */
+  function renderScale(el, rect) {
+    var w = el.offsetWidth
+    var h = el.offsetHeight
+    return { x: w > 0 && rect.width > 0 ? rect.width / w : 1, y: h > 0 && rect.height > 0 ? rect.height / h : 1 }
+  }
+
   function hitInfo(el) {
     var snippet = el.outerHTML || ''
     if (snippet.length > 400) snippet = snippet.slice(0, 397) + '...'
@@ -317,6 +342,9 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       text: (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 80),
       snippet: snippet,
       rect: designRect(el),
+      /* the stage's resize grips: shown only where a drag can change the box */
+      sizable: sizable(el),
+      locked: isLocked(el),
     }
   }
 
@@ -608,6 +636,7 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       hasText: text.replace(/\\s+/g, '') !== '',
       rect: designRect(el),
       geometry: elementGeometry(el),
+      scale: renderScale(el, designRect(el)),
       position: cs.position,
       display: cs.display,
       flexDirection: cs.flexDirection,

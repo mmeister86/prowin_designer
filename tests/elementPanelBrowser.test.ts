@@ -11,6 +11,10 @@ declare global {
       seed: (frame: Frame) => void
       remote: (frame: Frame) => void
       select: (selector: string) => void
+      selectFrame: () => void
+      deselect: () => void
+      setTool: (tool: 'select' | 'hand') => void
+      setZoom: (zoom: number) => void
       undo: () => Promise<void>
       geometry: (selector: string, edit: GeometryEdit) => Promise<ElementInfo | null>
       redo: () => Promise<void>

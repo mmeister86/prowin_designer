@@ -36,6 +36,8 @@ export interface ElementInfo {
     enabled: boolean
     canAlign: boolean
   }
+  /** rendered box over layout box: the element's own and inherited scale */
+  scale: { x: number; y: number }
   position: string
   display: string
   flexDirection: string

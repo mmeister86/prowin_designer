@@ -28,6 +28,7 @@ import { Button } from './ui/button'
 import { Tooltip } from './ui/tooltip'
 import { EyeClosedIcon, LockIcon } from './ui/icons'
 import { AgentIcon } from './AgentIcon'
+import { ElementResizeHandles } from './ElementResizeHandles'
 
 /** ?comment=<rootId> — the link in a comment email. The thread opens once
  *  Stage has selected the linked frame (deselection closes popovers, and on
@@ -127,6 +128,10 @@ interface ProbeHit {
   text: string
   snippet: string
   rect: { x: number; y: number; width: number; height: number }
+  /** whether a width/height applies to the box (not an inline text run) */
+  sizable?: boolean
+  /** inside a locked layer: selectable, but it takes no edits */
+  locked?: boolean
 }
 
 type DragRect = { id: string; x: number; y: number; width: number; height: number }
@@ -164,6 +169,9 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
   const me = getIdentity().clientId
   const editors = Object.values(presences).filter((p) => p.activeFrameId === frame.id && p.clientId !== me)
   const [dragging, setDragging] = useState(false)
+  /* a grip on the selected element is being dragged: no hover outlines
+     meanwhile, and the selection outline follows the element */
+  const [resizing, setResizing] = useState(false)
   /* ⌥⇧-drag (Figma-style duplicate): the original stays behind, the copy
      rides the cursor — the doubled cursor shows from the moment ⌥⇧ is held */
   const [duping, setDuping] = useState(false)
@@ -906,7 +914,16 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
             onPointerMove={(e) => {
               /* the Hand only pans, and a locked frame has nothing to pick: no
                  element outlines in either case */
-              if (editing || pathEdit || dragging || frame.locked || !frame.html || !runtimeReady || tool === 'hand')
+              if (
+                editing ||
+                pathEdit ||
+                dragging ||
+                resizing ||
+                frame.locked ||
+                !frame.html ||
+                !runtimeReady ||
+                tool === 'hand'
+              )
                 return
               /* screen px → design px: the frame lives inside the zoomed stage */
               const r = e.currentTarget.getBoundingClientRect()
@@ -948,9 +965,9 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
             {/* shield keeps pointer events on the canvas, not the iframe;
             lifted while editing so clicks land in the editable document */}
             {(!editing || panMode || tool !== 'select') && <div className="absolute inset-0" />}
-            {hover && !editing && !pathEdit && !dragging && (
+            {hover && !editing && !pathEdit && !dragging && !resizing && (
               <div
-                className="pointer-events-none absolute z-[3] bg-[rgba(60,130,246,0.06)] shadow-[inset_0_0_0_calc(1.5px/var(--zoom,1))_#3c82f6]"
+                className="pointer-events-none absolute z-[3] bg-[rgba(60,130,246,0.06)] shadow-[inset_0_0_0_calc(1px/var(--zoom,1))_#3c82f6]"
                 style={{ left: hover.rect.x, top: hover.rect.y, width: hover.rect.width, height: hover.rect.height }}
               >
                 <span
@@ -967,10 +984,33 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
             )}
             {probe && selected && !editing && !pathEdit && !dragging && (
               <div
-                className="pointer-events-none absolute z-[3] shadow-[inset_0_0_0_calc(1.5px/var(--zoom,1))_#3c82f6,0_0_0_calc(1.5px/var(--zoom,1))_rgba(60,130,246,0.35)]"
+                /* a one-pixel hairline, the way Paper outlines a selection */
+                className="pointer-events-none absolute z-[3] shadow-[inset_0_0_0_calc(1px/var(--zoom,1))_#3c82f6]"
                 style={{ left: probe.rect.x, top: probe.rect.y, width: probe.rect.width, height: probe.rect.height }}
               />
             )}
+            {/* the grips: only where a drag can change the box, and never on
+                a locked layer or frame, or under the Comment tool */}
+            {probe &&
+              selected &&
+              !editing &&
+              !pathEdit &&
+              !dragging &&
+              tool === 'select' &&
+              probe.sizable &&
+              !probe.locked &&
+              !frame.locked && (
+                <ElementResizeHandles
+                  frame={frame}
+                  selector={probe.selector}
+                  rect={probe.rect}
+                  onRect={(rect) => setProbe((p) => (p && p.selector === probe.selector ? { ...p, rect } : p))}
+                  onResizing={(on) => {
+                    if (on) clearHover()
+                    setResizing(on)
+                  }}
+                />
+              )}
             {flash && (
               <div
                 className="pointer-events-none absolute -inset-px rounded-[6px] animate-[frame-flash_1.2s_ease-out_forwards]"

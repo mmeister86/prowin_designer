@@ -78,6 +78,20 @@
   moving drawings into, between, and out of frames. Transfers save the destination before
   removing the source and use one undo entry; a failed prerequisite leaves the original intact.
   Rollback keeps a detached copy if its content, name, geometry, page, or flags changed after creation.
+- A selected element inside a frame is dressed the way Paper draws a selection: a one-pixel
+  outline, a square grip in each corner, grabbable unmarked edges, and a `W × H` badge underneath
+  (`ElementResizeHandles.tsx`; geometry in `src/lib/elementResize.ts`). A drag opens the runtime's
+  style gesture (`styleGesture` begin / commit / cancel in `frameBridge.ts`), previews inline
+  `width` / `height` in the live document on every move and commits once on release as a discrete
+  undo step, the same properties the Design panel's Size fields write. Pulling a west or north
+  side outward still grows the box (flow layout places the element; the drag changes its size,
+  never its place). Deltas are measured from the computed size, so a content-box element keeps
+  its padding, divided by the element's render scale, and re-anchored while a pinch owns the
+  finger. Shift keeps the aspect ratio (letting go puts the other axis back); Esc, or the grips
+  leaving mid-drag, cancels. The runtime's hit info carries `sizable` and `locked`, so inline
+  text runs, rotated or skewed elements, locked layers, locked frames and the Comment tool get no
+  grips. `tests/elementResize.test.ts` covers the geometry and `tests/elementResizeBrowser.test.ts`
+  drags the grips in Chromium.
 - `tests/drawing.test.ts` covers geometry, serialization and persistence; `drawingBrowser.test.ts`
   exercises the toolbar and gestures in Chromium, including Bézier paths, frame transfers,
   cancellation, mobile input, and coexistence with canvas comment pins and reply fields.

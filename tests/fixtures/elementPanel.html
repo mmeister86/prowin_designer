@@ -31,6 +31,13 @@
         remote: (frame) => useStore.getState().setCanvas({ ...useStore.getState().canvas, frames: [frame] }),
         select: (selector) => useStore.getState().setSelectedElement({ frameId: 'f', selector }),
         geometry: (selector, edit) => editElementGeometry('f', selector, edit),
+        selectFrame: () => useStore.getState().select('f'),
+        deselect: () => useStore.getState().setSelectedElement(null),
+        setTool: (tool) => useStore.getState().setTool(tool),
+        setZoom: (zoom) => {
+          useStore.getState().setViewport({ x: 0, y: 0, zoom })
+          document.documentElement.style.setProperty('--zoom', String(zoom))
+        },
         undo,
         redo,
       }
