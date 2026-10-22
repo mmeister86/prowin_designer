@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { Frame } from '../../shared/types'
 import { useStore } from '../lib/store'
 import { gesture } from '../lib/gesture'
+import { flexSizeAxis } from '../lib/flexLayout'
 import { styleElement, styleGesture, type ElementInfo, type StylePatch } from '../lib/frameBridge'
 import {
   RESIZE_CORNERS,
@@ -88,6 +89,7 @@ export function ElementResizeHandles({
     /* the size the live document shows after the last applied move */
     let current: Size | null = null
     let original: StylePatch | null = null
+    let flexAxis: 'width' | 'height' | null = null
     /* a scaled element renders larger than its layout box: the pointer's
        travel is divided by that scale so the box follows the pointer */
     let scale = { x: 1, y: 1 }
@@ -97,7 +99,10 @@ export function ElementResizeHandles({
     const ready = styleGesture(frame.id, selector, 'begin').then((info) => {
       if (!info) return false
       base = { width: info.width ?? info.rect.width, height: info.height ?? info.rect.height }
-      original = { width: info.inline['width'] ?? null, height: info.inline['height'] ?? null }
+      original = Object.fromEntries(
+        ['width', 'height', 'flex-grow', 'flex-shrink', 'flex-basis'].map((key) => [key, info.inline[key] ?? null]),
+      )
+      flexAxis = flexSizeAxis(info)
       scale = info.scale
       return true
     })
@@ -140,10 +145,13 @@ export function ElementResizeHandles({
       const delta = { dx: (pos.x - origin.x) / zoom / scale.x, dy: (pos.y - origin.y) / zoom / scale.y }
       const keepRatio = pos.shift
       if (keepRatio) ratioUsed = true
-      const patch = resizePatch(handle, resizedSize(handle, base, delta, { keepRatio }), { keepRatio })
+      const patch = resizePatch(handle, resizedSize(handle, base, delta, { keepRatio }), { keepRatio, flexAxis })
       if (ratioUsed && !keepRatio && original) {
         if (!movesWidth(handle)) patch.width = original.width ?? null
         if (!movesHeight(handle)) patch.height = original.height ?? null
+        if ((flexAxis === 'width' && !movesWidth(handle)) || (flexAxis === 'height' && !movesHeight(handle))) {
+          for (const key of ['flex-grow', 'flex-shrink', 'flex-basis']) patch[key] = original[key] ?? null
+        }
       }
       return patch
     }

@@ -611,6 +611,12 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     var cs = getComputedStyle(el)
     var parentEl = el.parentElement
     var pcs = parentEl ? getComputedStyle(parentEl) : null
+    var layoutParent = parentEl
+    var layoutStyle = pcs
+    while (layoutParent && layoutStyle.display === 'contents') {
+      layoutParent = layoutParent.parentElement
+      layoutStyle = layoutParent ? getComputedStyle(layoutParent) : null
+    }
     var siblings = parentEl ? parentEl.children : [el]
     var index = 0
     for (var i = 0; i < siblings.length; i++) if (siblings[i] === el) index = i + 1
@@ -637,6 +643,9 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       classes: classes,
       parent: parentEl && parentEl !== document.documentElement
         ? { tag: parentEl.tagName.toLowerCase(), id: parentEl.id || '', className: (parentEl.getAttribute('class') || '').trim().split(/[ ]+/)[0] || '', display: pcs.display, flexDirection: pcs.flexDirection, writingMode: pcs.writingMode }
+        : null,
+      layoutParent: layoutStyle
+        ? { display: layoutStyle.display, flexDirection: layoutStyle.flexDirection, writingMode: layoutStyle.writingMode }
         : null,
       index: index,
       count: siblings.length,
@@ -700,17 +709,23 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     try { el = selector ? document.querySelector(selector) : null } catch (e) { /* bad selector */ }
     return el
   }
-  function patchStyle(style, styles) {
+  function patchStyle(style, styles, original) {
     for (var k in styles) {
       if (!Object.prototype.hasOwnProperty.call(styles, k)) continue
       if (styles[k] === null || styles[k] === '') style.removeProperty(k)
-      else style.setProperty(k, String(styles[k]))
+      else {
+        // Returning to a gesture's original value must also restore its priority.
+        var priority = original && styles[k] === original.getPropertyValue(k) ? original.getPropertyPriority(k) : ''
+        style.setProperty(k, String(styles[k]), priority)
+      }
     }
   }
   function previewStyle(el, styles) {
     var before = document.createElement('div').style
     before.cssText = el.style.cssText
-    patchStyle(el.style, styles)
+    var original = document.createElement('div').style
+    original.cssText = styleEdit.original
+    patchStyle(el.style, styles, original)
     // CSS enumerates longhands, so padding/border shorthands and !important
     // declarations can be restored without replacing unrelated inline styles.
     var names = {}

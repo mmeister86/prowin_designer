@@ -74,10 +74,18 @@ function clamp(size: Size): Size {
 
 /** The inline styles the resize writes: only the axes the gesture changed,
  *  so a width-only drag leaves an auto height alone. */
-export function resizePatch(handle: ResizeHandle, size: Size, { keepRatio = false } = {}): StylePatch {
+export function resizePatch(
+  handle: ResizeHandle,
+  size: Size,
+  { keepRatio = false, flexAxis = null }: { keepRatio?: boolean; flexAxis?: 'width' | 'height' | null } = {},
+): StylePatch {
   const patch: StylePatch = {}
   if (movesWidth(handle) || keepRatio) patch.width = `${size.width}px`
   if (movesHeight(handle) || keepRatio) patch.height = `${size.height}px`
+  // A flex basis or grow/shrink would otherwise override the requested size.
+  if (flexAxis && patch[flexAxis]) {
+    Object.assign(patch, { 'flex-grow': '0', 'flex-shrink': '0', 'flex-basis': 'auto' })
+  }
   return patch
 }
 

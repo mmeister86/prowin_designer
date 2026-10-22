@@ -23,6 +23,7 @@ import {
   sizeMode,
   type SizeMode,
 } from '../lib/cssValues'
+import { flexSizeAxis } from '../lib/flexLayout'
 import { cn } from '@/lib/utils'
 import { LayerKindIcon } from './LayerKindIcon'
 import { FlexLayoutControls, PaddingControls } from './FlexLayoutControls'
@@ -359,14 +360,7 @@ function DesignTab({
           ? 'left'
           : 'right'
         : info.textAlign
-  const verticalWriting = /^(vertical|sideways)-/.test(info.parent?.writingMode ?? '')
-  // Flex rows follow the inline axis; columns follow the block axis.
-  const flexAxis =
-    info.position !== 'absolute' && info.position !== 'fixed' && info.parent?.display.includes('flex')
-      ? info.parent.flexDirection.startsWith('column') !== verticalWriting
-        ? 'height'
-        : 'width'
-      : null
+  const flexAxis = flexSizeAxis(info)
   function modeFor(axis: 'width' | 'height') {
     return flexAxis === axis && info.flexGrow > 0 ? 'fill' : sizeMode(info[`${axis}Value`])
   }

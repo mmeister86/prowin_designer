@@ -20,6 +20,8 @@ export interface ElementInfo {
     flexDirection: string
     writingMode: string
   } | null
+  /** Nearest ancestor with a layout box, skipping display: contents wrappers. */
+  layoutParent?: { display: string; flexDirection: string; writingMode: string } | null
   /** 1-based place among the parent's children, and how many there are */
   index: number
   count: number
