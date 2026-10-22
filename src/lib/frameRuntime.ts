@@ -314,13 +314,21 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
   function sizable(el) {
     var cs = getComputedStyle(el)
     if (cs.display === 'contents' || cs.display === 'none') return false
-    /* a drag is measured along the element's own axes: a scale converts, a
-       rotation or skew (or a 3D matrix) does not, so those get no grips */
-    var m = /^matrix\\(([^)]+)\\)$/.exec(cs.transform)
-    if (cs.transform.indexOf('matrix3d') === 0) return false
-    if (m) {
-      var parts = m[1].split(',')
-      if (Math.abs(parseFloat(parts[1])) > 1e-6 || Math.abs(parseFloat(parts[2])) > 1e-6) return false
+    /* Screen deltas can only resize boxes whose axes still point right/down.
+       Individual transforms and every ancestor contribute to those axes. */
+    for (var node = el; node; node = node.parentElement) {
+      var transform = getComputedStyle(node)
+      if (transform.rotate !== 'none' && parseFloat(transform.rotate.split(/\\s+/).pop()) !== 0) return false
+      if (transform.perspective !== 'none' || transform.transform.indexOf('matrix3d') === 0) return false
+      if (transform.scale !== 'none') {
+        var scales = transform.scale.split(/\\s+/).map(parseFloat)
+        if (scales.length > 2 || scales.some(function (value) { return value <= 0 })) return false
+      }
+      var m = /^matrix\\(([^)]+)\\)$/.exec(transform.transform)
+      if (m) {
+        var parts = m[1].split(',').map(parseFloat)
+        if (parts[0] <= 0 || parts[3] <= 0 || Math.abs(parts[1]) > 1e-6 || Math.abs(parts[2]) > 1e-6) return false
+      }
     }
     return cs.display !== 'inline' || REPLACED.indexOf(el.tagName.toLowerCase()) !== -1
   }
@@ -869,7 +877,7 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
         var target = d.selector ? document.querySelector(d.selector) : null
         if (target) found = designRect(target)
       } catch (e) { /* bad selector -> null */ }
-      parent.postMessage({ type: 'doop:located', reqId: d.reqId, rect: found }, '*')
+      parent.postMessage({ type: 'doop:located', reqId: d.reqId, selector: d.selector, rect: found, sizable: !!target && sizable(target) }, '*')
     }
   })
   parent.postMessage({ type: 'doop:frame-ready' }, '*')

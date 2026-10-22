@@ -38,6 +38,14 @@ const HTML = `<!doctype html><html><head><style>
   <div id="locked" data-doop-locked=""></div>
   <div id="scaled" style="width: 100px; height: 50px; transform: scale(2); transform-origin: 0 0; background: #ccf"></div>
   <div id="turned" style="width: 100px; height: 50px; margin-top: 60px; transform: rotate(30deg); background: #fcf"></div>
+  <div id="individual-rotate" style="width: 100px; height: 50px; rotate: 30deg"></div>
+  <div style="rotate: 20deg"><div><div id="ancestor-rotate" style="width: 100px; height: 50px"></div></div></div>
+  <div style="transform: skewX(20deg)"><div id="ancestor-skew" style="width: 100px; height: 50px"></div></div>
+  <div style="transform: rotate(180deg)"><div id="ancestor-half-turn" style="width: 100px; height: 50px"></div></div>
+  <div style="transform: rotateY(20deg)"><div id="ancestor-3d" style="width: 100px; height: 50px"></div></div>
+  <div style="position: absolute; left: 20px; top: 20px; transform: scale(2)">
+    <div id="ancestor-scale" style="width: 100px; height: 50px; rotate: 0deg"></div>
+  </div>
 </body></html>`
 
 describe.skipIf(!findBrowserPath())('element resize handles', () => {
@@ -411,6 +419,36 @@ describe.skipIf(!findBrowserPath())('element resize handles', () => {
     await page.waitForFunction(() => document.querySelector('[data-element-size]')?.textContent === '240 × 100')
     await page.evaluate((s) => window.elementPanelHarness.select(s), '#turned')
     await page.waitForFunction(() => !document.querySelector('[data-resize-handles]'))
+  }, 20_000)
+
+  it.each(['individual-rotate', 'ancestor-rotate', 'ancestor-skew', 'ancestor-half-turn', 'ancestor-3d'])(
+    'offers no resize handles on #%s',
+    async (id) => {
+      await reset()
+      // Start with visible handles, so their disappearance waits for the new hit reply.
+      await select('#box')
+      await page.evaluate((s) => window.elementPanelHarness.select(s), `#${id}`)
+      await page.waitForFunction(() => !document.querySelector('[data-resize-handles]'))
+    },
+    20_000,
+  )
+
+  it('removes handles after the Rotation control rotates an element', async () => {
+    await reset()
+    await select('#box')
+    await page.evaluate(() => window.elementPanelHarness.geometry('#box', { kind: 'rotate', value: 30 }))
+    await page.waitForFunction(() => !document.querySelector('[data-resize-handles]'))
+    await expect.poll(() => saved.html).toContain('rotate: 30deg')
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await page.waitForSelector('[data-resize-handles]')
+  }, 20_000)
+
+  it('still resizes through positive ancestor scales and a zero individual rotation', async () => {
+    await reset()
+    await select('#ancestor-scale')
+    await drag('e', 40, 0)
+    await expect.poll(() => computed('#ancestor-scale', 'width')).toBe('120px')
+    await expect.poll(() => saved.html).toContain('width: 120px')
   }, 20_000)
 
   it('offers no grips on an inline run or a locked layer', async () => {

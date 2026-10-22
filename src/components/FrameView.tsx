@@ -681,9 +681,12 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
           return
         }
         if (ev.data.reqId === '__probe__') {
-          /* re-glue the selected element's outline after the html changed */
+          /* Refresh both the outline and handle eligibility after style edits. */
           const rect = ev.data.rect as ProbeHit['rect'] | null
-          setProbe((p) => (p && rect ? { ...p, rect } : rect ? p : null))
+          setProbe((p) => {
+            if (!p || p.selector !== ev.data.selector) return p
+            return rect ? { ...p, rect, sizable: ev.data.sizable === true } : null
+          })
           return
         }
         const rect = ev.data.rect as { x: number; y: number; width: number } | null
