@@ -3,12 +3,13 @@ import { nanoid } from 'nanoid'
 import { canvasPages } from '../../shared/pages'
 import type { CanvasPageInfo } from '../../shared/types'
 import { useStore } from '../lib/store'
-import { savePages, duplicatePage } from '../lib/pageEdits'
+import { savePages, duplicatePage, moveFramesToPage } from '../lib/pageEdits'
 import { ApiError } from '../lib/api'
 import { Button } from './ui/button'
 import { PageIcon, PlusIcon } from './ui/icons'
 import { cn } from '../lib/utils'
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from './ui/context-menu'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 
 /** The small grey sub-heading over a section of the Layers panel, shared with
  *  its "Layers" row: the two must read as one family (a browser test checks
@@ -19,6 +20,7 @@ const sectionBtn = 'size-5 rounded-[5px] text-ink-faint hover:bg-paper-deep hove
 export function PagesPanel({ fill = false }: { fill?: boolean }) {
   const canvas = useStore((s) => s.canvas)
   const activePageId = useStore((s) => s.activePageId)
+  const selectedIds = useStore((s) => s.selectedIds)
   const [busy, setBusy] = useState(false)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -28,6 +30,20 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
   useEffect(() => () => stopDrag.current?.(), [])
   if (!canvas) return null
   const pages = canvasPages(canvas)
+  const movableIds = canvas.frames.filter((f) => selectedIds.includes(f.id) && !f.locked).map((f) => f.id)
+
+  async function moveSelection(pageId: string) {
+    if (!canvas || busy || !movableIds.length) return
+    setBusy(true)
+    try {
+      await moveFramesToPage(canvas, movableIds, pageId)
+    } catch {
+      if (useStore.getState().canvas?.id === canvas.id)
+        useStore.getState().pushNotice('Could not move all selected frames to the page')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function save(next: CanvasPageInfo[], selectId?: string) {
     if (!canvas || busy) return
@@ -246,6 +262,28 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
         {addPage}
       </div>
       <div className={cn('overflow-y-auto px-2 pb-1', fill ? 'min-h-0 flex-1' : 'max-h-[30vh]')}>{list}</div>
+      {selectedIds.length > 0 && pages.length > 1 && (
+        /* the canvas shortcuts listen on window: ⌫ would delete the frames
+           being moved and typed letters would switch tools, so the picker's
+           keys stop here; React bubbles the portalled list's keys through this
+           div too, before the native event reaches window */
+        <div className="px-2 pb-2" onKeyDown={(e) => e.stopPropagation()}>
+          <Select value="" disabled={busy || !movableIds.length} onValueChange={(id) => void moveSelection(id)}>
+            <SelectTrigger size="sm" className="w-full" aria-label="Move selection to page">
+              <SelectValue placeholder="Move selection to page…" />
+            </SelectTrigger>
+            <SelectContent>
+              {pages
+                .filter((page) => page.id !== activePageId)
+                .map((page) => (
+                  <SelectItem key={page.id} value={page.id}>
+                    {page.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   )
 }

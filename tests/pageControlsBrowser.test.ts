@@ -67,7 +67,7 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     const completed = page
       .waitForRequest(
         (request) =>
-          ['PUT', 'POST', 'DELETE'].includes(request.method()) &&
+          ['PUT', 'PATCH', 'POST', 'DELETE'].includes(request.method()) &&
           /^\/api\/(canvases|frames)\//.test(new URL(request.url()).pathname),
       )
       .then(async (request) => {
@@ -172,5 +172,62 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     await page.type('input[aria-label="Page name"]', 'Main')
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => document.querySelector('[data-page-id]')?.textContent?.includes('Main'))
+  }, 20_000)
+
+  it('moves a selected frame through the page picker and undoes the move', async () => {
+    /* runs on whatever single page the previous test left (or the fresh
+       canvas's own), so it reads the destination's name instead of assuming it */
+    const pageCount = (await page.$$('[data-page-id]')).length
+    await page.click('button[aria-label="Add page"]')
+    await page.waitForFunction((n) => document.querySelectorAll('[data-page-id]').length === n + 1, {}, pageCount)
+    await page.waitForFunction(
+      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Add page"]')!.disabled,
+    )
+    const source = await page.$eval(
+      '[aria-current="page"]',
+      (button) => button.closest<HTMLElement>('[data-page-id]')!.dataset.pageId!,
+    )
+    const destination = await page.$eval(
+      '[data-page-id] > button:first-of-type:not([aria-current="page"])',
+      (button) => button.textContent!,
+    )
+    await page.click('button[aria-label="New frame"]')
+    await page.waitForSelector('iframe[data-doop-frame]')
+    /* the room's broadcast can paint the frame before the create response
+       selects it, and the picker only shows for a selection */
+    await page.waitForSelector('[aria-label="Move selection to page"]:not([disabled])')
+    await page.click('[aria-label="Move selection to page"]')
+    await page.waitForSelector('[role="option"]')
+    expect(await page.$$('[role="option"]')).toHaveLength(1)
+    expect(await page.$eval('[role="option"]', (option) => option.textContent)).toBe(destination)
+    /* keys in the open list stay with it: ⌫ must not delete the frame being
+       moved, nor a letter switch the canvas tool */
+    await page.keyboard.press('Backspace')
+    await page.keyboard.press('r')
+    expect(await page.$$('iframe[data-doop-frame]')).toHaveLength(1)
+    expect(await page.$eval('button[aria-label="Rectangle"]', (b) => b.getAttribute('aria-pressed'))).toBe('false')
+    expect(await page.$('[role="option"]')).not.toBeNull()
+    await page.screenshot({ path: '/tmp/doop-page-move.png' })
+    await page.click('[role="option"]')
+    await page.waitForFunction(
+      (name) => document.querySelector('[aria-current="page"]')?.textContent === name,
+      {},
+      destination,
+    )
+    await page.waitForSelector('iframe[data-doop-frame]')
+    await shortcut()
+    await page.waitForFunction(
+      (id) => document.querySelector(`[data-page-id="${id}"] [aria-current="page"]`),
+      {},
+      source,
+    )
+    await page.waitForSelector('iframe[data-doop-frame]')
+    await shortcut(true)
+    await page.waitForFunction(
+      (name) => document.querySelector('[aria-current="page"]')?.textContent === name,
+      {},
+      destination,
+    )
+    await page.waitForSelector('iframe[data-doop-frame]')
   }, 20_000)
 })
