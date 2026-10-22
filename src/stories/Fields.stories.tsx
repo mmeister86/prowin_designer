@@ -5,6 +5,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Field } from '@/components/ui/field'
 import { Checkbox, CheckboxCard } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
+import { NumberField, ColorField } from '@/components/ui/property-field'
+import { CircleDashedIcon } from '@/components/ui/icons'
 import { SearchField } from '@/components/ui/search-field'
 
 const meta = { title: 'Primitives/Fields' } satisfies Meta
@@ -100,4 +102,26 @@ export const ProgressBar: Story = {
       <span className="text-caption text-ink-faint">3 of 10 free tasks left.</span>
     </div>
   ),
+}
+
+export const InspectorFields: Story = {
+  render: function InspectorFields() {
+    const [x, setX] = useState(24)
+    const [rotation, setRotation] = useState(0)
+    const [color, setColor] = useState<string | null>('#0177d3')
+    return (
+      <div className="flex w-[220px] flex-col gap-2">
+        <NumberField label="X position" prefix="X" value={x} unit="" onCommit={setX} />
+        <NumberField
+          label="Rotation"
+          prefix={<CircleDashedIcon size="rail" />}
+          value={rotation}
+          unit="°"
+          onCommit={setRotation}
+        />
+        <NumberField label="Disabled position" prefix="Y" value={0} unit="" disabled onCommit={() => {}} />
+        <ColorField label="Fill color" value={color} onCommit={setColor} />
+      </div>
+    )
+  },
 }

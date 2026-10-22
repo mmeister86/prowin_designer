@@ -458,6 +458,116 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     return isNaN(n) ? null : Math.round(n * 100) / 100
   }
 
+  function parentBounds(el) {
+    var p = el.parentElement
+    // The body's containing canvas is the viewport, even when all children are absolute.
+    return p === document.body || !p || p === document.documentElement
+      ? { x: 0, y: 0, width: innerWidth, height: innerHeight }
+      : designRect(p)
+  }
+
+  function elementGeometry(el) {
+    var cs = getComputedStyle(el)
+    var rect = designRect(el)
+    var bounds = parentBounds(el)
+    var matrix = new DOMMatrix(cs.transform === 'none' ? undefined : cs.transform)
+    var rotation = cs.rotate === 'none' ? 0 : parseFloat(cs.rotate)
+    var scale = cs.scale === 'none' ? [1, 1] : cs.scale.split(' ').map(Number)
+    var enabled = !isLocked(el) && matrix.is2D && (cs.rotate === 'none' || /^-?[\\d.]+deg$/.test(cs.rotate))
+      && scale.length <= 2 && (cs.display !== 'inline' || /^(IMG|VIDEO|IFRAME|CANVAS|OBJECT|EMBED)$/.test(el.tagName) || el instanceof SVGSVGElement)
+      && cs.display !== 'contents' && cs.display !== 'none'
+      && (el instanceof HTMLElement || el instanceof SVGSVGElement)
+    // A perspective ancestor makes translation non-linear; don't offer 2D geometry there.
+    for (var p = el.parentElement; enabled && p; p = p.parentElement) {
+      var ps = getComputedStyle(p)
+      if (ps.perspective !== 'none' || !new DOMMatrix(ps.transform === 'none' ? undefined : ps.transform).is2D
+        || (ps.rotate !== 'none' && !/^-?[\\d.]+deg$/.test(ps.rotate))) enabled = false
+    }
+    return {
+      x: px(String(rect.x - bounds.x)), y: px(String(rect.y - bounds.y)),
+      rotation: px(String(rotation + Math.atan2(matrix.b, matrix.a) * 180 / Math.PI)),
+      scaleX: scale[0], scaleY: scale[1] === undefined ? scale[0] : scale[1],
+      enabled: enabled, canAlign: enabled && el !== document.body && !!el.parentElement,
+    }
+  }
+
+  function editGeometry(selector, edit) {
+    var el = null
+    try { el = selector ? document.querySelector(selector) : null } catch (e) {}
+    if (!el || el === document.documentElement || isLocked(el) || !edit) return false
+    var geometry = elementGeometry(el)
+    if (!geometry.enabled) return false
+    var cs = getComputedStyle(el)
+    if (edit.kind === 'rotate' && isFinite(edit.value)) {
+      var current = cs.rotate === 'none' ? 0 : parseFloat(cs.rotate)
+      return applyStyle(selector, { rotate: (current + edit.value - geometry.rotation) + 'deg' })
+    }
+    if (edit.kind === 'flip' && (edit.axis === 'x' || edit.axis === 'y')) {
+      return applyStyle(selector, { scale: (geometry.scaleX * (edit.axis === 'x' ? -1 : 1)) + ' '
+        + (geometry.scaleY * (edit.axis === 'y' ? -1 : 1)) })
+    }
+    var axis = edit.axis
+    if (axis !== 'x' && axis !== 'y') return false
+    var rect = designRect(el)
+    var bounds = parentBounds(el)
+    var target
+    if (edit.kind === 'position' && isFinite(edit.value)) target = bounds[axis] + edit.value
+    else if (edit.kind === 'align' && geometry.canAlign) {
+      var size = axis === 'x' ? 'width' : 'height'
+      var fraction = { start: 0, center: 0.5, end: 1 }[edit.edge]
+      if (fraction === undefined) return false
+      target = bounds[axis] + (bounds[size] - rect[size]) * fraction
+    } else return false
+    var dx = axis === 'x' ? target - rect.x : 0
+    var dy = axis === 'y' ? target - rect.y : 0
+    // Probe the local translation basis. This handles scaled/rotated ancestors and
+    // percentage translations without flattening the element's existing transform.
+    // All temporary styles are restored synchronously, before painting or saving.
+    var original = el.getAttribute('style')
+    var finalTranslate = null
+    var zero, right, down
+    var translate = cs.translate.match(/calc\\([^)]*\\)|[^\\s]+/g) || []
+    var z = translate.length === 3 ? ' ' + translate[2] : ''
+    try {
+      el.style.setProperty('transition', 'none', 'important')
+      el.style.setProperty('translate', '0px 0px' + z, 'important')
+      zero = designRect(el)
+      el.style.setProperty('translate', '100px 0px' + z, 'important')
+      right = designRect(el)
+      el.style.setProperty('translate', '0px 100px' + z, 'important')
+      down = designRect(el)
+      var a = (right.x - zero.x) / 100, b = (right.y - zero.y) / 100
+      var c = (down.x - zero.x) / 100, d = (down.y - zero.y) / 100
+      var determinant = a * d - b * c
+      if (Math.abs(determinant) >= 0.000001) {
+        var x = rect.x + dx - zero.x, y = rect.y + dy - zero.y
+        finalTranslate = ((d * x - c * y) / determinant) + 'px '
+          + ((a * y - b * x) / determinant) + 'px' + z
+      }
+    } finally {
+      if (original === null) el.removeAttribute('style')
+      else el.setAttribute('style', original)
+      // Apply through the gesture path so dragging X/Y can save as one edit
+      // or restore the original translation on Escape.
+      if (finalTranslate !== null) applyStyle(selector, { translate: finalTranslate })
+      var settledStyle = el.getAttribute('style')
+      // Flush the final position with transitions still disabled. Restoring the
+      // authored declarations before this read would animate from the last probe.
+      // Also settle the original position when the translation basis is singular.
+      el.style.setProperty('transition', 'none', 'important')
+      designRect(el)
+      if (settledStyle === null) el.removeAttribute('style')
+      else el.setAttribute('style', settledStyle)
+    }
+    return finalTranslate !== null
+  }
+
+  function dimensionValue(el, axis, cs) {
+    // Unlike getComputedStyle's used px size, Typed OM retains stylesheet percentages/auto.
+    try { if (el.computedStyleMap) return String(el.computedStyleMap().get(axis)) } catch (e) {}
+    return el.style.getPropertyValue(axis) || cs[axis]
+  }
+
   function inspect(selector) {
     var el = null
     try { el = selector ? document.querySelector(selector) : null } catch (e) { /* bad selector */ }
@@ -490,18 +600,31 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       id: el.id || '',
       classes: classes,
       parent: parentEl && parentEl !== document.documentElement
-        ? { tag: parentEl.tagName.toLowerCase(), id: parentEl.id || '', className: (parentEl.getAttribute('class') || '').trim().split(/[ ]+/)[0] || '', display: pcs.display, flexDirection: pcs.flexDirection }
+        ? { tag: parentEl.tagName.toLowerCase(), id: parentEl.id || '', className: (parentEl.getAttribute('class') || '').trim().split(/[ ]+/)[0] || '', display: pcs.display, flexDirection: pcs.flexDirection, writingMode: pcs.writingMode }
         : null,
       index: index,
       count: siblings.length,
       inline: inline,
       hasText: text.replace(/\\s+/g, '') !== '',
       rect: designRect(el),
+      geometry: elementGeometry(el),
       position: cs.position,
       display: cs.display,
       flexDirection: cs.flexDirection,
+      flexWrap: cs.flexWrap,
+      justifyContent: cs.justifyContent,
+      alignItems: cs.alignItems,
+      writingMode: cs.writingMode,
       width: px(cs.width),
       height: px(cs.height),
+      widthValue: dimensionValue(el, 'width', cs),
+      heightValue: dimensionValue(el, 'height', cs),
+      flexGrow: px(cs.flexGrow),
+      boxSizing: cs.boxSizing,
+      boxExtras: {
+        width: parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight) + parseFloat(cs.borderLeftWidth) + parseFloat(cs.borderRightWidth),
+        height: parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth),
+      },
       aspectRatio: cs.aspectRatio,
       naturalAspectRatio: el.naturalWidth && el.naturalHeight ? el.naturalWidth / el.naturalHeight
         : el.videoWidth && el.videoHeight ? el.videoWidth / el.videoHeight : null,
@@ -511,6 +634,7 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       padding: [px(cs.paddingTop), px(cs.paddingRight), px(cs.paddingBottom), px(cs.paddingLeft)],
       opacity: px(cs.opacity),
       visibility: cs.visibility,
+      clipsContent: /^(hidden|clip)$/.test(cs.overflowX) && /^(hidden|clip)$/.test(cs.overflowY),
       backgroundColor: cs.backgroundColor,
       /* rounded: the crisp-render zoom snaps hairlines to device pixels */
       borderWidths: [
@@ -588,6 +712,15 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
         else el.style.removeProperty(name)
       }
       if (!el.getAttribute('style')) el.removeAttribute('style')
+      if (edit.touched.translate || edit.touched.rotate || edit.touched.scale) {
+        // A cancelled geometry drag must report its restored coordinates,
+        // rather than the first frame of a transition back to them.
+        var restoredStyle = el.getAttribute('style')
+        el.style.setProperty('transition', 'none', 'important')
+        designRect(el)
+        if (restoredStyle === null) el.removeAttribute('style')
+        else el.setAttribute('style', restoredStyle)
+      }
     } else if (Object.keys(edit.touched).length) postEdited(true)
     return true
   }
@@ -620,6 +753,10 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     if (d.type === 'doop:style' && d.styles && typeof d.styles === 'object') {
       var applied = applyStyle(d.selector, d.styles)
       parent.postMessage({ type: 'doop:style-result', reqId: d.reqId, ok: applied, info: applied ? inspect(d.selector) : null }, '*')
+    }
+    if (d.type === 'doop:geometry') {
+      var changed = editGeometry(d.selector, d.edit)
+      parent.postMessage({ type: 'doop:geometry-result', reqId: d.reqId, ok: changed, info: changed ? inspect(d.selector) : null }, '*')
     }
     if (d.type === 'doop:style-gesture') {
       var changed = d.phase === 'begin' ? beginStyleEdit(d.selector)

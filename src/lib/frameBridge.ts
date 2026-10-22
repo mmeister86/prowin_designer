@@ -12,18 +12,45 @@ export interface ElementInfo {
   tag: string
   id: string
   classes: string[]
-  parent: { tag: string; id: string; className: string; display: string; flexDirection: string } | null
+  parent: {
+    tag: string
+    id: string
+    className: string
+    display: string
+    flexDirection: string
+    writingMode: string
+  } | null
   /** 1-based place among the parent's children, and how many there are */
   index: number
   count: number
   inline: Record<string, string>
   hasText: boolean
   rect: { x: number; y: number; width: number; height: number }
+  /** Rendered bounds relative to the parent's border box, in frame pixels. */
+  geometry: {
+    x: number
+    y: number
+    rotation: number | null
+    scaleX: number
+    scaleY: number
+    enabled: boolean
+    canAlign: boolean
+  }
   position: string
   display: string
   flexDirection: string
+  flexWrap: string
+  justifyContent: string
+  alignItems: string
+  writingMode: string
   width: number | null
   height: number | null
+  widthValue: string
+  heightValue: string
+  flexGrow: number
+  boxSizing: string
+  /** Unrounded computed padding and border sums, for content-box sizing. */
+  boxExtras: { width: number; height: number }
   aspectRatio: string
   naturalAspectRatio: number | null
   minWidth: string
@@ -32,6 +59,7 @@ export interface ElementInfo {
   padding: [number | null, number | null, number | null, number | null]
   opacity: number | null
   visibility: string
+  clipsContent: boolean
   backgroundColor: string
   /** top, right, bottom, left */
   borderWidths: [number | null, number | null, number | null, number | null]
@@ -51,6 +79,20 @@ export interface ElementInfo {
 
 /** Inline style changes: a null or empty value removes the property. */
 export type StylePatch = Record<string, string | null>
+
+export type GeometryEdit =
+  | { kind: 'position'; axis: 'x' | 'y'; value: number }
+  | { kind: 'align'; axis: 'x' | 'y'; edge: 'start' | 'center' | 'end' }
+  | { kind: 'rotate'; value: number }
+  | { kind: 'flip'; axis: 'x' | 'y' }
+
+export async function editElementGeometry(
+  frameId: string,
+  selector: string,
+  edit: GeometryEdit,
+): Promise<ElementInfo | null> {
+  return infoOf(await requestFrame(frameId, 'doop:geometry', { selector, edit }))
+}
 
 /* A request `doop:<name>` is answered by `doop:<name>-result` carrying the
    same reqId — the convention every runtime request already follows. */

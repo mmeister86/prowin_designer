@@ -5,12 +5,12 @@ import { useValueScrub } from '@/hooks/use-value-scrub'
 import { ChevronDownIcon } from './icons'
 
 /* The dense property controls of an inspector rail: a 26px row with a label
-   column and one or more 24px fields, each carrying a faint unit at its
+   column and one or more 26px fields, each carrying a faint unit at its
    right edge. Every field keeps a draft while it is being typed into and
    commits on blur or Enter; a new value from outside replaces the draft. */
 
 const fieldCls =
-  'flex h-[26px] min-w-0 flex-1 items-center gap-1 rounded-[7px] bg-sub px-2 font-mono text-[11px] text-ink focus-within:bg-surface focus-within:shadow-elevation-1-focus'
+  'flex h-[26px] min-h-[26px] min-w-0 flex-1 shrink-0 items-center gap-1 rounded-[7px] bg-sub px-2 font-mono text-[11px] text-ink focus-within:bg-surface focus-within:shadow-elevation-1-focus'
 const unitCls = 'ml-auto flex-none font-sans text-[10.5px] text-ink-ghost'
 const scrubUnitCls =
   'self-stretch content-center -mr-2 pr-2 pl-1 cursor-ew-resize touch-none select-none hover:text-ink'
@@ -42,7 +42,7 @@ export function PropertySection({
 }) {
   return (
     <section className="border-b border-line-soft px-3 pt-[7px] pb-2.5">
-      <div className="mb-[5px] flex h-5 items-center justify-between">
+      <div className="mb-[5px] flex min-h-5 items-center justify-between">
         <h3 className="text-[12px] font-normal text-ink-soft">{title}</h3>
         {action}
       </div>
@@ -53,9 +53,9 @@ export function PropertySection({
 
 export function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="mt-1 grid min-h-[26px] grid-cols-[58px_1fr] items-center gap-1.5">
+    <div className="mt-1.5 grid min-h-[26px] grid-cols-[58px_1fr] items-center gap-1.5">
       <span className="text-[11.5px] text-ink-faint">{label}</span>
-      <div className="flex min-w-0 gap-1">{children}</div>
+      <div className="flex min-w-0 gap-1.5">{children}</div>
     </div>
   )
 }
@@ -64,6 +64,9 @@ export function NumberField({
   label,
   value,
   unit: u,
+  prefix,
+  disabled,
+  placeholder,
   className,
   onCommit,
   min = 0,
@@ -72,6 +75,9 @@ export function NumberField({
   label?: string
   value: number | null
   unit: string
+  prefix?: ReactNode
+  disabled?: boolean
+  placeholder?: string
   className?: string
   onCommit: (v: number) => void
   min?: number
@@ -84,7 +90,7 @@ export function NumberField({
   const scrub = useValueScrub({
     ...scrubLifecycle,
     value: draft,
-    enabled: Number.isFinite(Number(draft)),
+    enabled: !disabled && draft.trim() !== '' && Number.isFinite(Number(draft)),
     min,
     max,
     onChange: (v) => {
@@ -108,10 +114,17 @@ export function NumberField({
     } else setDraft(shown)
   }
   return (
-    <label className={cn(fieldCls, className)}>
+    <label className={cn(fieldCls, disabled && 'opacity-50', className)}>
+      {prefix && (
+        <span className="grid size-3.5 flex-none place-items-center font-sans text-ink-faint" aria-hidden>
+          {prefix}
+        </span>
+      )}
       <input
         aria-label={label}
-        className="w-full min-w-0 bg-transparent font-mono text-[11px] text-ink outline-none"
+        disabled={disabled}
+        placeholder={placeholder}
+        className="w-full min-w-0 bg-transparent font-mono text-[11px] text-ink outline-none placeholder:text-ink-faint"
         value={draft}
         inputMode="decimal"
         onChange={(e) => setDraft(e.target.value)}
@@ -293,10 +306,12 @@ export function ToggleField({
  *  the text removes the colour. */
 export function ColorField({
   value,
+  label,
   className,
   onCommit,
 }: {
   value: string | null
+  label?: string
   className?: string
   onCommit: (v: string | null) => void
 }) {
@@ -324,13 +339,14 @@ export function ColorField({
         <span className="absolute inset-0" style={{ background: value ?? 'transparent' }} />
         <input
           type="color"
-          aria-label="Pick colour"
+          aria-label={label ? `Pick ${label.toLowerCase()}` : 'Pick colour'}
           className="absolute -inset-1 cursor-pointer opacity-0"
           value={value ?? '#ffffff'}
           onChange={(e) => onCommit(e.target.value)}
         />
       </span>
       <input
+        aria-label={label}
         className="w-full min-w-0 bg-transparent font-mono text-[11px] uppercase text-ink outline-none placeholder:normal-case placeholder:text-ink-faint"
         value={draft}
         placeholder="none"

@@ -13,11 +13,23 @@
 import type { ComponentType, SVGProps } from 'react'
 import {
   Activity,
+  AlignStartVertical,
+  AlignCenterVertical,
+  AlignEndVertical,
+  AlignStartHorizontal,
+  AlignCenterHorizontal,
+  AlignEndHorizontal,
+  FlipHorizontal2,
+  FlipVertical2,
+  CircleDashed,
+  Droplet,
+  Radius,
   AlignCenter,
   AlignJustify,
   AlignLeft,
   AlignRight,
   ArrowLeft,
+  ArrowDown,
   ArrowRight,
   ArrowUp,
   Bell,
@@ -86,6 +98,10 @@ import {
   Share,
   Share2,
   SlidersHorizontal,
+  AlignHorizontalSpaceAround,
+  AlignVerticalSpaceAround,
+  WrapText,
+  SquareDashed,
   Shield,
   Sparkles,
   Square,
@@ -139,6 +155,11 @@ function icon(Base: ComponentType<SvgProps>) {
 }
 
 export const XIcon = icon(X)
+export const ArrowDownIcon = icon(ArrowDown)
+export const HorizontalPaddingIcon = icon(AlignHorizontalSpaceAround)
+export const VerticalPaddingIcon = icon(AlignVerticalSpaceAround)
+export const WrapTextIcon = icon(WrapText)
+export const SquareDashedIcon = icon(SquareDashed)
 export const MoreHorizontalIcon = icon(Ellipsis)
 export const ShareIcon = icon(Share2)
 export const CopyIcon = icon(Copy)
@@ -146,6 +167,17 @@ export const TrashIcon = icon(Trash2)
 export const CheckIcon = icon(Check)
 export const ChevronRightIcon = icon(ChevronRight)
 export const ChevronDownIcon = icon(ChevronDown)
+export const AlignStartVerticalIcon = icon(AlignStartVertical)
+export const AlignCenterVerticalIcon = icon(AlignCenterVertical)
+export const AlignEndVerticalIcon = icon(AlignEndVertical)
+export const AlignStartHorizontalIcon = icon(AlignStartHorizontal)
+export const AlignCenterHorizontalIcon = icon(AlignCenterHorizontal)
+export const AlignEndHorizontalIcon = icon(AlignEndHorizontal)
+export const FlipHorizontal2Icon = icon(FlipHorizontal2)
+export const FlipVertical2Icon = icon(FlipVertical2)
+export const CircleDashedIcon = icon(CircleDashed)
+export const DropletIcon = icon(Droplet)
+export const RadiusIcon = icon(Radius)
 export const AlignLeftIcon = icon(AlignLeft)
 export const AlignCenterIcon = icon(AlignCenter)
 export const AlignRightIcon = icon(AlignRight)

@@ -2,11 +2,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Frame } from '../../shared/types'
 import { useStore } from '../lib/store'
 import {
+  editElementGeometry,
   inspectElement,
   onFrameChange,
   styleElement,
   styleGesture,
   type ElementInfo,
+  type GeometryEdit,
   type StylePatch,
 } from '../lib/frameBridge'
 import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '../lib/layers'
@@ -14,15 +16,16 @@ import { replaceLayerHtml } from '../lib/layerEdits'
 import {
   aspectRatio,
   borderSummary,
-  compactBox,
+  colorAlpha,
+  colorWithAlpha,
   lengthValue,
   rgbToHex,
-  shorthandValue,
   sizeMode,
   type SizeMode,
 } from '../lib/cssValues'
 import { cn } from '@/lib/utils'
 import { LayerKindIcon } from './LayerKindIcon'
+import { FlexLayoutControls, PaddingControls } from './FlexLayoutControls'
 import {
   Panel,
   PanelBody,
@@ -44,20 +47,32 @@ import {
   ArrowUpIcon,
   LinkIcon,
   UnlinkIcon,
+  AlignStartVerticalIcon,
+  AlignCenterVerticalIcon,
+  AlignEndVerticalIcon,
+  AlignStartHorizontalIcon,
+  AlignCenterHorizontalIcon,
+  AlignEndHorizontalIcon,
+  FlipHorizontal2Icon,
+  FlipVertical2Icon,
+  CircleDashedIcon,
+  DropletIcon,
+  RadiusIcon,
+  EyeIcon,
+  EyeClosedIcon,
 } from './ui/icons'
+import { Switch } from './ui/switch'
 import { Segmented, SegmentedItem } from './ui/segmented'
 import {
   ColorField,
   FieldUnit,
-  LengthField,
   NumberField,
-  PropertyRow,
+  LengthField,
   PropertyScrubContext,
+  PropertyRow,
   PropertySection,
   SelectField,
   StaticField,
-  TextField,
-  ToggleField,
 } from './ui/property-field'
 
 const TAB_KEY = 'doop:element-panel-tab'
@@ -130,23 +145,24 @@ export function ElementPanel({
     }
   }, [frame.id, frame.html, selector])
 
-  function apply(styles: StylePatch) {
-    if (!info) return // nothing fresh to edit against yet
-    styleElement(frame.id, selector, styles)
+  function updateRead(request: Promise<ElementInfo | null>) {
+    request
       .then((next) => {
-        /* a reply for an element no longer selected must not replace the
-           values of the one that is */
         if (next) setRead((r) => (r && r.selector !== selector ? r : { selector, info: next }))
       })
       .catch(console.error)
   }
 
+  function apply(styles: StylePatch) {
+    if (info) updateRead(styleElement(frame.id, selector, styles))
+  }
+
+  function editGeometry(edit: GeometryEdit) {
+    if (info) updateRead(editElementGeometry(frame.id, selector, edit))
+  }
+
   function scrub(phase: 'begin' | 'commit' | 'cancel') {
-    styleGesture(frame.id, selector, phase)
-      .then((next) => {
-        if (next) setRead((r) => (r && r.selector !== selector ? r : { selector, info: next }))
-      })
-      .catch(console.error)
+    updateRead(styleGesture(frame.id, selector, phase))
   }
 
   function selectTab(next: Tab) {
@@ -208,11 +224,11 @@ export function ElementPanel({
               <PropertyScrubContext.Provider
                 value={{ onStart: () => scrub('begin'), onEnd: (cancel) => scrub(cancel ? 'cancel' : 'commit') }}
               >
-                <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} />
+                <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
               </PropertyScrubContext.Provider>
             ) : stale ? (
               <div aria-busy className="pointer-events-none opacity-50" title="Reading the element…">
-                <DesignTab info={stale} apply={apply} />
+                <DesignTab info={stale} apply={apply} editGeometry={editGeometry} />
               </div>
             ) : (
               <Waiting />
@@ -235,8 +251,7 @@ function Waiting() {
 
 const DISPLAYS: { value: string; label: string }[] = [
   { value: 'block', label: 'block' },
-  { value: 'flex-row', label: 'flex · row' },
-  { value: 'flex-column', label: 'flex · column' },
+  { value: 'flex', label: 'flex' },
   { value: 'grid', label: 'grid' },
   { value: 'inline-block', label: 'inline-block' },
   { value: 'inline-flex', label: 'inline-flex' },
@@ -244,7 +259,15 @@ const DISPLAYS: { value: string; label: string }[] = [
   { value: 'none', label: 'none' },
 ]
 const POSITIONS = ['static', 'relative', 'absolute', 'fixed', 'sticky']
-const WEIGHTS = ['300', '400', '500', '600', '700', '800']
+const WEIGHTS = ['100', '200', '300', '400', '500', '600', '700', '800', '900']
+const LAYER_ALIGNS = [
+  { axis: 'x', edge: 'start', label: 'Align layer left', Icon: AlignStartVerticalIcon },
+  { axis: 'x', edge: 'center', label: 'Center layer horizontally', Icon: AlignCenterVerticalIcon },
+  { axis: 'x', edge: 'end', label: 'Align layer right', Icon: AlignEndVerticalIcon },
+  { axis: 'y', edge: 'start', label: 'Align layer top', Icon: AlignStartHorizontalIcon },
+  { axis: 'y', edge: 'center', label: 'Center layer vertically', Icon: AlignCenterHorizontalIcon },
+  { axis: 'y', edge: 'end', label: 'Align layer bottom', Icon: AlignEndHorizontalIcon },
+] as const
 const ALIGNS = [
   { value: 'left', label: 'Align left', Icon: AlignLeftIcon },
   { value: 'center', label: 'Align center', Icon: AlignCenterIcon },
@@ -291,13 +314,13 @@ function fontOptions(info: ElementInfo) {
   })
 }
 const SIZE_MODES: { value: SizeMode; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
   { value: 'fixed', label: 'Fixed' },
   { value: 'fill', label: 'Fill' },
   { value: 'hug', label: 'Hug' },
 ]
 
 function displayValue(info: ElementInfo): string {
-  if (info.display === 'flex') return info.flexDirection.startsWith('column') ? 'flex-column' : 'flex-row'
   return DISPLAYS.some((d) => d.value === info.display) ? info.display : 'block'
 }
 
@@ -309,13 +332,22 @@ function parentLayout(info: ElementInfo): string {
   return p.display
 }
 
-function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePatch) => void }) {
+function DesignTab({
+  info,
+  apply,
+  editGeometry,
+}: {
+  info: ElementInfo
+  apply: (styles: StylePatch) => void
+  editGeometry: (edit: GeometryEdit) => void
+}) {
   const ratio = aspectRatio(info.aspectRatio, info.naturalAspectRatio)
   const canLink = (info.width ?? 0) > 0 && (info.height ?? 0) > 0
   const visible = info.visibility !== 'hidden'
-  const fill = rgbToHex(info.backgroundColor)
+  const fill = rgbToHex(info.backgroundColor, true)
+  const fillAlpha = colorAlpha(info.backgroundColor)
   const borderColor = rgbToHex(info.borderColor)
-  const gapMixed = info.rowGap !== info.columnGap
+  const isFlex = info.display === 'flex' || info.display === 'inline-flex'
   const border = borderSummary(info.borderWidths)
   const textAlign =
     info.textAlign === 'start'
@@ -327,53 +359,156 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           ? 'left'
           : 'right'
         : info.textAlign
-  function setDimension(axis: 'width' | 'height', value: number) {
-    const other = axis === 'width' ? 'height' : 'width'
-    const paired = ratio === null ? null : axis === 'width' ? value / ratio : value * ratio
-    apply({
-      [axis]: `${value}px`,
-      ...(paired === null ? {} : { [other]: `${Math.round(paired * 100) / 100}px` }),
-    })
+  const verticalWriting = /^(vertical|sideways)-/.test(info.parent?.writingMode ?? '')
+  // Flex rows follow the inline axis; columns follow the block axis.
+  const flexAxis =
+    info.position !== 'absolute' && info.position !== 'fixed' && info.parent?.display.includes('flex')
+      ? info.parent.flexDirection.startsWith('column') !== verticalWriting
+        ? 'height'
+        : 'width'
+      : null
+  function modeFor(axis: 'width' | 'height') {
+    return flexAxis === axis && info.flexGrow > 0 ? 'fill' : sizeMode(info[`${axis}Value`])
   }
-  function setSize(axis: 'width' | 'height', mode: SizeMode) {
-    if (mode === 'fixed') setDimension(axis, info[axis] ?? 0)
-    else
+  function fixedSize(axis: 'width' | 'height', value: number): StylePatch {
+    return {
+      [axis]: `${Math.round(Math.max(0, value) * 100) / 100}px`,
+      ...(axis === flexAxis ? { 'flex-grow': '0', 'flex-shrink': '0', 'flex-basis': 'auto' } : {}),
+    }
+  }
+  function automaticSize(axis: 'width' | 'height'): StylePatch {
+    return {
+      [axis]: 'auto',
+      ...(axis === flexAxis ? { 'flex-grow': '0', 'flex-shrink': '0', 'flex-basis': 'auto' } : {}),
+    }
+  }
+  function setSize(axis: 'width' | 'height', mode: SizeMode, value = info[axis] ?? 0) {
+    const other = axis === 'width' ? 'height' : 'width'
+    const paired = ratio === null ? {} : automaticSize(other)
+    const flex: StylePatch = axis === flexAxis ? { 'flex-grow': '0', 'flex-shrink': '0', 'flex-basis': 'auto' } : {}
+    if (mode === 'fixed') {
       apply({
-        [axis]: mode === 'fill' ? '100%' : ratio === null ? null : 'auto',
-        // An automatic opposite dimension lets CSS preserve the linked ratio
-        // as a Fill/Hug size changes with its container or content.
-        ...(ratio === null ? {} : { [axis === 'width' ? 'height' : 'width']: 'auto' }),
+        ...fixedSize(axis, value),
+        ...(ratio === null ? {} : fixedSize(other, axis === 'width' ? value / ratio : value * ratio)),
       })
+    } else if (mode === 'fill' && axis === flexAxis) {
+      apply({
+        ...paired,
+        [axis]: 'auto',
+        'flex-grow': '1',
+        'flex-shrink': '1',
+        'flex-basis': '0px',
+        [`min-${axis}`]: '0px',
+      })
+    } else if (mode === 'fill') {
+      // A 100% content box would overflow by its own padding and borders.
+      const extra = info.boxSizing === 'border-box' ? 0 : info.boxExtras[axis]
+      apply({ ...paired, [axis]: extra ? `calc(100% - ${extra}px)` : '100%' })
+    } else apply({ ...paired, ...flex, [axis]: mode === 'hug' ? 'fit-content' : 'auto' })
   }
   function toggleRatio() {
     if (ratio === null) {
       apply({
         'aspect-ratio': `${info.width} / ${info.height}`,
-        ...(sizeMode(info.inline.width) === 'fill'
-          ? { height: 'auto' }
-          : sizeMode(info.inline.height) === 'fill'
-            ? { width: 'auto' }
+        ...(modeFor('width') === 'fill'
+          ? automaticSize('height')
+          : modeFor('height') === 'fill'
+            ? automaticSize('width')
             : {}),
       })
       return
     }
-    // Unlinking must not collapse a dimension that CSS was deriving from the
-    // ratio. Without an inline size either dimension may come from a stylesheet,
-    // so preserve both ambiguous dimensions while leaving explicit Fill intact.
+    // Preserve dimensions that CSS derived from the ratio, including authored
+    // auto/fit-content, while keeping existing fixed and Fill sizes responsive.
     apply({
       'aspect-ratio': 'auto',
-      ...(sizeMode(info.inline.width) === 'hug' && info.width !== null ? { width: `${info.width}px` } : {}),
-      ...(sizeMode(info.inline.height) === 'hug' && info.height !== null ? { height: `${info.height}px` } : {}),
+      ...(['auto', 'hug'].includes(modeFor('width')) && info.width !== null ? fixedSize('width', info.width) : {}),
+      ...(['auto', 'hug'].includes(modeFor('height')) && info.height !== null ? fixedSize('height', info.height) : {}),
     })
   }
   return (
     <>
+      <PropertySection title="Alignment">
+        <div className="flex gap-1" role="group" aria-label="Layer alignment within parent">
+          {LAYER_ALIGNS.map(({ axis, edge, label, Icon }) => (
+            <Button
+              key={label}
+              variant="bare"
+              size="icon-sm"
+              className="h-[26px] min-w-0 flex-1 rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep"
+              aria-label={label}
+              title={`${label} within parent`}
+              disabled={!info.geometry.canAlign}
+              onClick={() => editGeometry({ kind: 'align', axis, edge })}
+            >
+              <Icon size="rail" />
+            </Button>
+          ))}
+        </div>
+      </PropertySection>
       <PropertySection title="Position">
+        <div className="grid grid-cols-2 gap-1.5" title="Rendered position relative to parent, in frame pixels">
+          <NumberField
+            label="X position"
+            min={-Infinity}
+            prefix="X"
+            value={info.geometry.x}
+            unit="px"
+            disabled={!info.geometry.enabled}
+            onCommit={(value) => editGeometry({ kind: 'position', axis: 'x', value })}
+          />
+          <NumberField
+            label="Y position"
+            min={-Infinity}
+            prefix="Y"
+            value={info.geometry.y}
+            unit="px"
+            disabled={!info.geometry.enabled}
+            onCommit={(value) => editGeometry({ kind: 'position', axis: 'y', value })}
+          />
+        </div>
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          <NumberField
+            label="Rotation"
+            min={-Infinity}
+            prefix={<CircleDashedIcon size="rail" />}
+            value={info.geometry.rotation}
+            unit="°"
+            disabled={!info.geometry.enabled}
+            onCommit={(value) => editGeometry({ kind: 'rotate', value })}
+          />
+          <div className="grid grid-cols-2 gap-1.5">
+            {(['x', 'y'] as const).map((axis) => {
+              const Icon = axis === 'x' ? FlipHorizontal2Icon : FlipVertical2Icon
+              const label = axis === 'x' ? 'Flip horizontally' : 'Flip vertically'
+              const pressed = (axis === 'x' ? info.geometry.scaleX : info.geometry.scaleY) < 0
+              return (
+                <Button
+                  key={axis}
+                  variant="bare"
+                  size="icon-sm"
+                  aria-label={label}
+                  title={label}
+                  aria-pressed={pressed}
+                  disabled={!info.geometry.enabled}
+                  className={cn(
+                    'h-[26px] w-full rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep',
+                    pressed && 'bg-paper-deep text-ink',
+                  )}
+                  onClick={() => editGeometry({ kind: 'flip', axis })}
+                >
+                  <Icon size="rail" />
+                </Button>
+              )
+            })}
+          </div>
+        </div>
         <PropertyRow label="Type">
           <SelectField
+            label="Position type"
             value={info.position}
             options={POSITIONS.map((p) => ({ value: p, label: p }))}
-            onChange={(v) => apply({ position: v === 'static' ? null : v })}
+            onChange={(v) => apply({ position: v })}
           />
         </PropertyRow>
         <PropertyRow label="Order">
@@ -387,7 +522,7 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
         </PropertyRow>
       </PropertySection>
       <PropertySection
-        title="Size"
+        title="Layout"
         action={
           <Tooltip
             label={
@@ -403,7 +538,7 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
                 variant="bare"
                 size="icon-sm"
                 className={cn(
-                  'size-[22px] rounded-[5px]',
+                  'size-5 rounded-tag',
                   ratio !== null ? 'bg-ink text-paper hover:bg-ink/85 hover:text-paper' : 'text-ink-faint',
                 )}
                 aria-label="Link width and height"
@@ -417,26 +552,25 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           </Tooltip>
         }
       >
-        <PropertyRow label="Width">
-          <NumberField label="Width" value={info.width} unit="px" onCommit={(v) => setDimension('width', v)} />
-          <SelectField
-            label="Width sizing"
-            className="flex-[0_0_66px]"
-            value={sizeMode(info.inline['width'])}
-            options={SIZE_MODES}
-            onChange={(v) => setSize('width', v)}
-          />
-        </PropertyRow>
-        <PropertyRow label="Height">
-          <NumberField label="Height" value={info.height} unit="px" onCommit={(v) => setDimension('height', v)} />
-          <SelectField
-            label="Height sizing"
-            className="flex-[0_0_66px]"
-            value={sizeMode(info.inline['height'])}
-            options={SIZE_MODES}
-            onChange={(v) => setSize('height', v)}
-          />
-        </PropertyRow>
+        <div className="grid grid-cols-2 gap-1.5">
+          {(['width', 'height'] as const).map((axis) => (
+            <div key={axis} className="flex min-w-0 flex-col gap-1">
+              <NumberField
+                label={axis === 'width' ? 'Width' : 'Height'}
+                prefix={axis === 'width' ? 'W' : 'H'}
+                value={info[axis]}
+                unit="px"
+                onCommit={(v) => setSize(axis, 'fixed', v)}
+              />
+              <SelectField
+                label={`${axis === 'width' ? 'Width' : 'Height'} sizing`}
+                value={modeFor(axis)}
+                options={SIZE_MODES}
+                onChange={(v) => setSize(axis, v)}
+              />
+            </div>
+          ))}
+        </div>
         <PropertyRow label="Min width">
           <LengthField
             label="Minimum width"
@@ -445,69 +579,107 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
             onCommit={(v) => apply({ 'min-width': lengthValue(v) })}
           />
         </PropertyRow>
-      </PropertySection>
-      <PropertySection title="Layout">
         <PropertyRow label="Display">
           <SelectField
+            label="Display"
             value={displayValue(info)}
             options={DISPLAYS}
-            onChange={(v) =>
-              v.startsWith('flex-')
-                ? apply({ display: 'flex', 'flex-direction': v === 'flex-column' ? 'column' : 'row' })
-                : apply({ display: v, 'flex-direction': null })
-            }
+            onChange={(v) => apply({ display: v })}
           />
         </PropertyRow>
-        <PropertyRow label="Gap">
-          <NumberField
-            label="Gap"
-            value={info.rowGap ?? 0}
-            unit={gapMixed ? 'row' : 'px'}
-            onCommit={(v) => apply({ gap: `${v}px` })}
-          />
-          <TextField
-            label="Padding"
-            className="flex-[0_0_78px]"
-            value={compactBox(info.padding)}
-            unit="pad"
-            scrub
-            min={0}
-            onCommit={(v) => apply({ padding: shorthandValue(v) })}
-          />
-        </PropertyRow>
+        {!isFlex && (
+          <>
+            {info.display.includes('grid') && (
+              <PropertyRow label="Gap">
+                <NumberField
+                  label="Row gap"
+                  value={info.rowGap ?? 0}
+                  unit="px"
+                  onCommit={(v) => apply({ 'row-gap': `${Math.max(0, v)}px` })}
+                />
+                <NumberField
+                  label="Column gap"
+                  value={info.columnGap ?? 0}
+                  unit="px"
+                  onCommit={(v) => apply({ 'column-gap': `${Math.max(0, v)}px` })}
+                />
+              </PropertyRow>
+            )}
+            <PaddingControls info={info} apply={apply} />
+          </>
+        )}
       </PropertySection>
-      <PropertySection title="Styles">
-        <PropertyRow label="Opacity">
+      {isFlex && <FlexLayoutControls info={info} apply={apply} />}
+      <PropertySection
+        title="Appearance"
+        action={
+          <Button
+            variant="bare"
+            size="icon-sm"
+            className="size-5 rounded-tag text-ink-faint"
+            aria-label={visible ? 'Hide element' : 'Show element'}
+            title={visible ? 'Hide element' : 'Show element'}
+            aria-pressed={!visible}
+            onClick={() => apply({ visibility: visible ? 'hidden' : 'visible' })}
+          >
+            {visible ? <EyeIcon size="rail" /> : <EyeClosedIcon size="rail" />}
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-2 gap-1.5">
           <NumberField
-            label="Opacity percentage"
-            className="flex-[0_0_52px]"
+            label="Element opacity"
+            max={100}
+            prefix={<DropletIcon size="rail" />}
             value={info.opacity === null ? null : Math.round(info.opacity * 100)}
             unit="%"
-            max={100}
             onCommit={(v) => apply({ opacity: String(Math.min(100, Math.max(0, v)) / 100) })}
           />
-          <input
-            type="range"
-            min={0}
-            max={100}
-            aria-label="Opacity"
-            className="h-6 min-w-0 flex-1 accent-ink"
-            value={info.opacity === null ? 100 : Math.round(info.opacity * 100)}
-            onChange={(e) => apply({ opacity: String(Number(e.target.value) / 100) })}
+          <NumberField
+            label="Corner radius"
+            prefix={<RadiusIcon size="rail" />}
+            value={info.borderRadius}
+            unit="px"
+            onCommit={(v) => apply({ 'border-radius': `${Math.max(0, v)}px` })}
           />
-        </PropertyRow>
-        <PropertyRow label="Visible">
-          <ToggleField
-            value={visible}
-            labels={['Yes', 'No']}
-            onChange={(on) => apply({ visibility: on ? null : 'hidden' })}
+        </div>
+        <label className="mt-2 flex h-5 cursor-pointer items-center justify-between text-[11.5px] text-ink-soft">
+          Clip content
+          <Switch
+            size="sm"
+            aria-label="Clip content"
+            className="data-[state=checked]:bg-ink"
+            checked={info.clipsContent}
+            onCheckedChange={(on) => apply({ overflow: on ? 'hidden' : 'visible' })}
           />
-        </PropertyRow>
-        <PropertyRow label="Fill">
-          <ColorField value={fill} onCommit={(v) => apply({ 'background-color': v ?? 'transparent' })} />
-        </PropertyRow>
-        <PropertyRow label="Border">
+        </label>
+      </PropertySection>
+      <PropertySection title="Fill">
+        <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
           <ColorField
+            label="Fill color"
+            value={fillAlpha === 0 && fill === '#000000' ? null : fill}
+            onCommit={(v) =>
+              apply({
+                'background-color': v
+                  ? colorWithAlpha(v, fillAlpha === 0 && (!fill || fill === '#000000') ? 1 : fillAlpha)
+                  : 'transparent',
+              })
+            }
+          />
+          <NumberField
+            label="Fill opacity"
+            max={100}
+            value={Math.round(fillAlpha * 100)}
+            unit="%"
+            onCommit={(v) => apply({ 'background-color': colorWithAlpha(fill ?? info.backgroundColor, v / 100) })}
+          />
+        </div>
+      </PropertySection>
+      <PropertySection title="Stroke">
+        <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
+          <ColorField
+            label="Border color"
             value={borderColor}
             onCommit={(v) =>
               apply({ 'border-color': v, ...(v && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}) })
@@ -515,25 +687,17 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           />
           <NumberField
             label="Border width"
-            className="flex-[0_0_78px]"
             value={border.width}
-            unit={border.sides || 'px'}
+            unit="px"
             onCommit={(v) =>
               apply({
-                'border-width': `${v}px`,
+                'border-width': `${Math.max(0, v)}px`,
                 ...(v > 0 && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}),
               })
             }
           />
-        </PropertyRow>
-        <PropertyRow label="Radius">
-          <NumberField
-            label="Radius"
-            value={info.borderRadius}
-            unit="px"
-            onCommit={(v) => apply({ 'border-radius': `${v}px` })}
-          />
-        </PropertyRow>
+        </div>
+        {border.sides && <p className="mt-1 text-[10.5px] text-ink-faint">Sides: {border.sides}</p>}
       </PropertySection>
       {info.hasText && (
         <PropertySection title="Text">
@@ -554,8 +718,11 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
             />
             <SelectField
               className="flex-[0_0_66px]"
-              value={WEIGHTS.includes(info.fontWeight) ? info.fontWeight : '400'}
-              options={WEIGHTS.map((w) => ({ value: w, label: w }))}
+              label="Font weight"
+              value={info.fontWeight}
+              options={[...new Set([...WEIGHTS, info.fontWeight])]
+                .sort((a, b) => Number(a) - Number(b))
+                .map((w) => ({ value: w, label: w }))}
               onChange={(v) => apply({ 'font-weight': v })}
             />
           </PropertyRow>
@@ -575,7 +742,7 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
                   value={value}
                   aria-label={label}
                   title={label}
-                  className="grid h-[26px] min-h-0 flex-1 place-items-center rounded-[6px] bg-sub p-0 hover:bg-paper-deep sm:flex-1"
+                  className="grid h-[26px] min-h-0 flex-1 place-items-center rounded-[7px] bg-sub p-0 hover:bg-paper-deep sm:flex-1"
                 >
                   <Icon size="rail" />
                 </SegmentedItem>

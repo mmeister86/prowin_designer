@@ -28,6 +28,7 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     server = await startServer({ PORT: String(port), BETTER_AUTH_URL: origin })
     browser = await getBrowser()
     page = await browser.newPage()
+    page.setDefaultTimeout(10_000)
     await page.setViewport({ width: 1400, height: 900 })
     await page.goto(origin)
     const canvasId = await page.evaluate(async () => {
@@ -60,14 +61,33 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
   })
 
   async function shortcut(redo = false) {
+    // The WebSocket can paint the result before the HTTP response releases
+    // history's busy guard. Wait for this shortcut's own request to finish
+    // before sending the next one, including when an earlier save is in flight.
+    const completed = page
+      .waitForRequest(
+        (request) =>
+          ['PUT', 'POST', 'DELETE'].includes(request.method()) &&
+          /^\/api\/(canvases|frames)\//.test(new URL(request.url()).pathname),
+      )
+      .then(async (request) => {
+        const response =
+          request.response() ?? (await page.waitForResponse((response) => response.request() === request))
+        await response.text()
+        expect(response.ok()).toBe(true)
+      })
     await page.keyboard.down('Meta')
     if (redo) await page.keyboard.down('Shift')
     await page.keyboard.press('z')
     if (redo) await page.keyboard.up('Shift')
     await page.keyboard.up('Meta')
+    await completed
+    await page.evaluate(() => new Promise(requestAnimationFrame))
   }
 
   it('drags pages, double-clicks to rename, and restores a deleted page and frame with Cmd+Z', async () => {
+    // Exercise the ordering that made this test race on CI: broadcasts land first.
+    await page.emulateNetworkConditions({ offline: false, download: -1, upload: -1, latency: 150 })
     const framePlus = await page.$eval('button[aria-label="New frame"] svg', (el) => el.outerHTML)
     const typography = (element: Element) => {
       const style = getComputedStyle(element)
@@ -122,6 +142,7 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     )
     await page.click('button[aria-label="New frame"]')
     await page.waitForSelector('iframe[data-doop-frame]')
+    await page.waitForSelector('[role="treeitem"][aria-selected="true"]')
     expect(selectedColor).toBe(
       await page.$eval('[role="treeitem"][aria-selected="true"]', (row) => getComputedStyle(row).backgroundColor),
     )

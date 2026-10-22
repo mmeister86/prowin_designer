@@ -3,13 +3,16 @@ import { createServer, type ViteDevServer } from 'vite'
 import type { Browser, Page } from 'puppeteer-core'
 import { findBrowserPath, getBrowser } from '../server/screenshot'
 import type { Frame } from '../shared/types'
+import type { ElementInfo, GeometryEdit } from '../src/lib/frameBridge'
 
 declare global {
   interface Window {
     elementPanelHarness: {
       seed: (frame: Frame) => void
+      remote: (frame: Frame) => void
       select: (selector: string) => void
       undo: () => Promise<void>
+      geometry: (selector: string, edit: GeometryEdit) => Promise<ElementInfo | null>
       redo: () => Promise<void>
     }
   }
@@ -72,7 +75,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   }, 60_000)
 
   afterAll(async () => {
-    await page?.screenshot({ path: '/tmp/doop-element-typography.png' })
+    await page?.screenshot({ path: '/tmp/narwhal-element-panel.png' })
     await page?.close()
     await browser?.close()
     await vite?.close()
@@ -124,7 +127,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.click('[aria-label="Justify"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#text')!).textAlign === 'justify')
     await expect.poll(() => saved.html).toContain('text-align: justify')
-    await page.screenshot({ path: '/tmp/doop-element-typography.png' })
+    await page.screenshot({ path: '/tmp/narwhal-element-panel.png' })
 
     await page.evaluate(() => window.elementPanelHarness.select('#rtl'))
     await page.waitForSelector('[aria-label="Align right"][data-state="on"]')
@@ -180,9 +183,416 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       ),
     ).toBe('unloaded')
   }, 15_000)
+  async function selectLayer(selector: string) {
+    await page.evaluate(async (value) => {
+      window.elementPanelHarness.select(value)
+      await new Promise(requestAnimationFrame)
+    }, selector)
+    await page.waitForFunction(() => !document.querySelector('[aria-busy]'))
+  }
+
+  async function seedPanel(html: string, selector: string) {
+    const fixture = String(++seedId)
+    saved = { ...saved, html: html.replace('<body', `<body data-panel-fixture="${fixture}"`) }
+    await page.evaluate((value) => window.elementPanelHarness.seed(value), saved)
+    const frame = (await (await page.$('iframe'))!.contentFrame())!
+    await frame.waitForFunction((fixture) => document.body.dataset.panelFixture === fixture, {}, fixture)
+    await frame.waitForSelector(selector)
+    await selectLayer(selector)
+    // Selection may initially show the previous read while the new one is debounced.
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '120')
+    return frame
+  }
+
+  async function number(label: string, value: number | string) {
+    const selector = `input[aria-label="${label}"]`
+    await page.click(selector, { count: 3 })
+    await page.keyboard.press('Backspace')
+    await page.type(selector, String(value))
+    await page.keyboard.press('Enter')
+  }
+
+  it('edits flex direction, alignment, spacing and padding without overwriting the other axes; saves and undoes', async () => {
+    const frame = await seedPanel(
+      `<!doctype html><html><head><style>
+        #flex { display: inline-flex; width: 120px; height: 160px; gap: 7px 11px; padding: 8px 12px 16px 20px; align-items: center; justify-content: center }
+        #flex > div { flex: none; width: 20px; height: 20px }
+      </style></head><body><div id="flex"><div>A</div><div>B</div></div></body></html>`,
+      '#flex',
+    )
+    await page.waitForSelector('[aria-label="Align children middle center"][aria-pressed="true"]')
+    expect(await page.$eval('[aria-label="Horizontal padding"]', (el) => (el as HTMLInputElement).placeholder)).toBe(
+      'Mixed',
+    )
+    expect(await page.$eval('[aria-label="Horizontal padding"]', (el) => (el as HTMLInputElement).value)).toBe('')
+    await page.click('[aria-label="Space between"]')
+    await frame.waitForFunction(
+      () => getComputedStyle(document.querySelector('#flex')!).justifyContent === 'space-between',
+    )
+    await page.click('[aria-label="Align children bottom right"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).alignItems === 'flex-end')
+    expect(await frame.$eval('#flex', (el) => getComputedStyle(el).justifyContent)).toBe('space-between')
+    await number('Gap', 14)
+    expect(await frame.$eval('#flex', (el) => getComputedStyle(el).rowGap)).toBe('7px')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).columnGap === '14px')
+    await page.click('[aria-label="Column direction"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).flexDirection === 'column')
+    expect(await frame.$eval('#flex', (el) => getComputedStyle(el).display)).toBe('inline-flex')
+    await page.click('[aria-label="Reverse direction"]')
+    await frame.waitForFunction(
+      () => getComputedStyle(document.querySelector('#flex')!).flexDirection === 'column-reverse',
+    )
+    await page.click('[aria-label="Wrap children"]')
+    await page.waitForSelector('[aria-label="Line gap"]')
+    await number('Line gap', 18)
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).columnGap === '18px')
+    expect(await frame.$eval('#flex', (el) => getComputedStyle(el).rowGap)).toBe('7px')
+    await number('Horizontal padding', 24)
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).padding === '8px 24px 16px')
+    await expect.poll(() => saved.html).toContain('padding-right: 24px')
+    // Reopen the saved result, starting a fresh undo history outside the edit burst.
+    await seedPanel(saved.html, '#flex')
+    await page.click('[aria-label="Individual padding"]')
+    await number('Padding top', 30)
+    await expect.poll(() => saved.html).toContain('padding-top: 30px')
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).padding === '8px 24px 16px')
+    await page.waitForFunction(
+      () => document.querySelector<HTMLInputElement>('[aria-label="Padding top"]')?.value === '8',
+    )
+  }, 20_000)
+
+  it.each([
+    ['row', 'ltr', 'horizontal-tb', 'nowrap'],
+    ['column', 'ltr', 'horizontal-tb', 'nowrap'],
+    ['row-reverse', 'ltr', 'horizontal-tb', 'nowrap'],
+    ['column-reverse', 'ltr', 'horizontal-tb', 'nowrap'],
+    ['row', 'rtl', 'horizontal-tb', 'nowrap'],
+    ['row', 'ltr', 'vertical-rl', 'nowrap'],
+    ['column', 'ltr', 'vertical-lr', 'nowrap'],
+    ['row', 'ltr', 'sideways-lr', 'nowrap'],
+    ['row', 'ltr', 'horizontal-tb', 'wrap-reverse'],
+  ])('aligns children to the physical bottom right in %s / %s / %s / %s', async (direction, bidi, writing, wrap) => {
+    const frame = await seedPanel(
+      `<!doctype html><html><head><style>
+        #flex { display: flex; width: 120px; height: 120px; flex-direction: ${direction}; direction: ${bidi}; writing-mode: ${writing}; flex-wrap: ${wrap} }
+        #flex > div { flex: none; width: 20px; height: 20px }
+      </style></head><body><div id="flex"><div></div><div></div></div></body></html>`,
+      '#flex',
+    )
+    await page.click('[aria-label="Align children bottom right"]')
+    await frame.waitForFunction(() => {
+      const parent = document.querySelector('#flex')!
+      const bounds = parent.getBoundingClientRect()
+      const children = [...parent.children].map((el) => el.getBoundingClientRect())
+      return (
+        Math.abs(Math.max(...children.map((r) => r.right)) - bounds.right) < 0.1 &&
+        Math.abs(Math.max(...children.map((r) => r.bottom)) - bounds.bottom) < 0.1 &&
+        Math.min(...children.map((r) => r.left)) > bounds.left + 60 &&
+        Math.min(...children.map((r) => r.top)) > bounds.top + 60
+      )
+    })
+    await page.waitForSelector('[aria-label="Align children bottom right"][aria-pressed="true"]')
+  })
+
+  it('positions and aligns transformed layers without disturbing siblings; saves and undoes geometry', async () => {
+    const frame = await seedPanel(
+      `<!doctype html><html><head><style>
+      body { margin: 0 }
+      #parent { display: flex; width: 400px; height: 240px; margin: 60px; transform: scale(.8); transform-origin: top left }
+      #box { width: 120px; height: 80px; flex: none; background: #ddd; transform: rotate(20deg); scale: 1.2 .8; translate: 10% 5px }
+      #sibling { width: 60px; height: 40px; flex: none }
+    </style></head><body><div id="parent"><div id="box">Move me</div><div id="sibling" data-doop-locked>Sibling</div></div><span id="inline">Inline text</span><canvas id="canvas" width="20" height="20"></canvas></body></html>`,
+      '#box',
+    )
+    const sibling = await frame.$eval('#sibling', (el) => el.getBoundingClientRect().toJSON())
+    const originalTransform = await frame.$eval('#box', (el) => getComputedStyle(el).transform)
+    const before = await frame.$eval('#box', (el) => (el as HTMLElement).style.translate)
+    await number('X position', 40)
+    await frame.waitForFunction(
+      () =>
+        Math.abs(
+          document.querySelector('#box')!.getBoundingClientRect().x -
+            document.querySelector('#parent')!.getBoundingClientRect().x -
+            40,
+        ) < 0.1,
+    )
+    await number('Y position', 30)
+    await frame.waitForFunction(
+      () =>
+        Math.abs(
+          document.querySelector('#box')!.getBoundingClientRect().y -
+            document.querySelector('#parent')!.getBoundingClientRect().y -
+            30,
+        ) < 0.1,
+    )
+
+    for (const [label, axis, fraction] of [
+      ['Align layer left', 'x', 0],
+      ['Center layer horizontally', 'x', 0.5],
+      ['Align layer right', 'x', 1],
+      ['Align layer top', 'y', 0],
+      ['Center layer vertically', 'y', 0.5],
+      ['Align layer bottom', 'y', 1],
+    ] as const) {
+      await page.click(`[aria-label="${label}"]`)
+      await frame.waitForFunction(
+        (axis, fraction) => {
+          const box = document.querySelector('#box')!.getBoundingClientRect()
+          const parent = document.querySelector('#parent')!.getBoundingClientRect()
+          const size = axis === 'x' ? 'width' : 'height'
+          return Math.abs(box[axis] - parent[axis] - (parent[size] - box[size]) * fraction) < 0.1
+        },
+        {},
+        axis,
+        fraction,
+      )
+    }
+    expect(await frame.$eval('#sibling', (el) => el.getBoundingClientRect().toJSON())).toEqual(sibling)
+    expect(await frame.$eval('#box', (el) => getComputedStyle(el).position)).toBe('static')
+    await number('Rotation', 45)
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).rotate === '25deg')
+    await page.click('[aria-label="Flip horizontally"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).scale === '-1.2 0.8')
+    await page.click('[aria-label="Flip horizontally"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).scale === '1.2 0.8')
+    await page.click('[aria-label="Flip vertically"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).scale === '1.2 -0.8')
+    expect(await frame.$eval('#box', (el) => getComputedStyle(el).transform)).toBe(originalTransform)
+    await expect.poll(() => saved.html).toContain('scale: 1.2 -0.8')
+    const previousSave = saved.html
+    await number('X position', 80)
+    await expect.poll(() => saved.html).not.toBe(previousSave)
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(
+      (before) => document.querySelector<HTMLElement>('#box')?.style.translate === before,
+      {},
+      before,
+    )
+    await page.waitForFunction(
+      () => document.querySelector<HTMLInputElement>('[aria-label="Rotation"]')?.value === '20',
+    )
+    await page.screenshot({ path: '/tmp/narwhal-panel-controls.png' })
+    await selectLayer('#sibling')
+    await page.waitForSelector('[aria-label="X position"][disabled]')
+    expect(await frame.$eval('#sibling', (el) => el.getAttribute('style'))).toBeNull()
+    await selectLayer('#inline')
+    await page.waitForFunction(
+      () => document.querySelector<HTMLSelectElement>('[aria-label="Display"]')?.value === 'inline',
+    )
+    expect(await page.$eval('[aria-label="Rotation"]', (el) => (el as HTMLInputElement).disabled)).toBe(true)
+    await selectLayer('#canvas')
+    await page.waitForSelector('[aria-label="Rotation"]:not([disabled])')
+  }, 30_000)
+
+  it('preserves fill RGB/alpha independently of element opacity, clips content, and reads nonstandard weights', async () => {
+    const frame = await seedPanel(
+      `<!doctype html><html><head><style>
+      #paint { width: 120px; height: 80px; overflow: hidden; opacity: .5; background: rgba(10,20,30,.35); font-weight: 450 }
+      #modern { width: 120px; height: 80px; background: oklch(60% .15 30 / .4) }
+    </style></head><body><div id="paint">Appearance controls</div><div id="modern">Modern color</div></body></html>`,
+      '#paint',
+    )
+    await page.waitForFunction(
+      () => document.querySelector<HTMLInputElement>('[aria-label="Fill opacity"]')?.value === '35',
+    )
+    expect(await page.$eval('[aria-label="Font weight"]', (el) => (el as HTMLSelectElement).value)).toBe('450')
+    await number('Fill opacity', 80)
+    await frame.waitForFunction(
+      () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(10, 20, 30, 0.8)',
+    )
+    await number('Fill color', '#e5533c')
+    await frame.waitForFunction(
+      () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(229, 83, 60, 0.8)',
+    )
+    await number('Fill opacity', 0)
+    await frame.waitForFunction(
+      () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(229, 83, 60, 0)',
+    )
+    await number('Fill opacity', 60)
+    await frame.waitForFunction(
+      () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(229, 83, 60, 0.6)',
+    )
+    expect(await frame.$eval('#paint', (el) => getComputedStyle(el).opacity)).toBe('0.5')
+    await page.click('[aria-label="Clip content"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).overflow === 'visible')
+    await number('Corner radius', 12)
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).borderRadius === '12px')
+    await expect.poll(() => saved.html).toContain('overflow: visible')
+    await page.click('[aria-label="Hide element"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).visibility === 'hidden')
+    await page.click('[aria-label="Show element"]')
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).visibility === 'visible')
+    await selectLayer('#modern')
+    await page.waitForFunction(
+      () => document.querySelector<HTMLInputElement>('[aria-label="Fill opacity"]')?.value === '40',
+    )
+    await number('Fill opacity', 25)
+    await frame.waitForFunction(() =>
+      getComputedStyle(document.querySelector('#modern')!).backgroundColor.endsWith('/ 0.25)'),
+    )
+    expect(await frame.$eval('#modern', (el) => (el as HTMLElement).style.backgroundColor)).toContain('oklch')
+  }, 20_000)
+
+  it('reads stylesheet sizes and switches between flex fill, fixed, and content sizing', async () => {
+    const frame = await seedPanel(
+      `<!doctype html><html><head><style>
+      #row { display: flex; width: 400px; height: 240px; gap: 16px }
+      #sized { width: 120px; height: 80px; padding: 10px; border: 2px solid; }
+      #other { width: 60px; flex: none }
+    </style></head><body><div id="row"><div id="sized">Size</div><div id="other">Other</div></div></body></html>`,
+      '#sized',
+    )
+    expect(await page.$eval('[aria-label="Width sizing"]', (el) => (el as HTMLSelectElement).value)).toBe('fixed')
+    await page.select('[aria-label="Width sizing"]', 'fill')
+    await frame.waitForFunction(() => document.querySelector('#sized')!.getBoundingClientRect().width === 324)
+    await page.select('[aria-label="Height sizing"]', 'fill')
+    await frame.waitForFunction(() => document.querySelector('#sized')!.getBoundingClientRect().height === 240)
+    await page.waitForFunction(
+      () => document.querySelector<HTMLSelectElement>('[aria-label="Height sizing"]')?.value === 'fill',
+    )
+    await number('Width', 140)
+    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#sized')!).width === '140px')
+    expect(await frame.$eval('#sized', (el) => getComputedStyle(el).flexGrow)).toBe('0')
+    await page.select('[aria-label="Width sizing"]', 'hug')
+    await frame.waitForFunction(() => document.querySelector<HTMLElement>('#sized')!.style.width === 'fit-content')
+    expect(await frame.$eval('#sized', (el) => el.getBoundingClientRect().width)).toBeLessThan(120)
+    await page.select('[aria-label="Width sizing"]', 'auto')
+    await frame.waitForFunction(() => document.querySelector<HTMLElement>('#sized')!.style.width === 'auto')
+    await expect.poll(() => saved.html).toContain('width: auto')
+  }, 20_000)
+  it.each(['stylesheet', 'inline'])(
+    'settles position and alignment before restoring %s transitions',
+    async (source) => {
+      const inline =
+        source === 'inline'
+          ? 'style="transition-property: all !important; transition-duration: 1s; transition-delay: .1s"'
+          : ''
+      const frame = await seedPanel(
+        `<!doctype html><html><head><style>
+      body { margin: 0 }
+      #transition-parent { width: 400px; height: 240px }
+      #transition-layer { width: 120px; height: 80px; translate: 10% 5px; ${source === 'stylesheet' ? 'transition: all 1s' : ''} }
+    </style></head><body><div id="transition-parent"><div id="transition-layer" ${inline}>Animated layer</div></div></body></html>`,
+        '#transition-layer',
+      )
+      // Morphing this fixture over the previous document can itself start a transition.
+      await frame.$eval('#transition-layer', (el) => el.getAnimations().forEach((animation) => animation.finish()))
+      const before = await frame.$eval('#transition-layer', (el) => {
+        const css = getComputedStyle(el)
+        return [
+          css.transitionProperty,
+          css.transitionDuration,
+          css.transitionDelay,
+          (el as HTMLElement).style.getPropertyPriority('transition-property'),
+        ]
+      })
+      const position = await page.evaluate(() =>
+        window.elementPanelHarness.geometry('#transition-layer', { kind: 'position', axis: 'x', value: 40 }),
+      )
+      expect(position?.geometry.x).toBe(40)
+      expect(position?.geometry.y).toBe(5)
+      const aligned = await page.evaluate(() =>
+        window.elementPanelHarness.geometry('#transition-layer', { kind: 'align', axis: 'y', edge: 'end' }),
+      )
+      expect(aligned?.geometry.x).toBe(40)
+      expect(aligned?.geometry.y).toBe(160)
+      expect(
+        await frame.$eval(
+          '#transition-layer',
+          (el) => el.getAnimations().filter((animation) => animation instanceof CSSTransition).length,
+        ),
+      ).toBe(0)
+      expect(
+        await frame.$eval('#transition-layer', (el) => {
+          const css = getComputedStyle(el)
+          return [
+            css.transitionProperty,
+            css.transitionDuration,
+            css.transitionDelay,
+            (el as HTMLElement).style.getPropertyPriority('transition-property'),
+          ]
+        }),
+      ).toEqual(before)
+      await expect.poll(() => saved.html).toContain('translate: 40px 160px')
+      expect(saved.html).not.toContain('transition: none')
+    },
+    15_000,
+  )
+
+  it.each(['row', 'column'])(
+    'fills the physical dimensions of a vertical-writing flex %s',
+    async (direction) => {
+      const frame = await seedPanel(
+        `<!doctype html><html><head><style>
+      #vertical { writing-mode: vertical-rl; display: flex; flex-direction: ${direction}; width: 400px; height: 240px; gap: 16px }
+      #vertical-child { width: 120px; height: 80px }
+      #vertical-sibling { width: 60px; height: 40px; flex: none }
+    </style></head><body><div id="vertical"><div id="vertical-child">Size</div><div id="vertical-sibling">Other</div></div></body></html>`,
+        '#vertical-child',
+      )
+      const main = direction === 'row' ? 'Height' : 'Width'
+      const cross = direction === 'row' ? 'Width' : 'Height'
+      await page.select(`[aria-label="${cross} sizing"]`, 'fill')
+      await frame.waitForFunction(
+        (direction) => {
+          const r = document.querySelector('#vertical-child')!.getBoundingClientRect()
+          return direction === 'row' ? r.width === 400 && r.height === 80 : r.width === 120 && r.height === 240
+        },
+        {},
+        direction,
+      )
+      expect(await frame.$eval('#vertical-child', (el) => getComputedStyle(el).flexGrow)).toBe('0')
+      await page.select(`[aria-label="${main} sizing"]`, 'fill')
+      await frame.waitForFunction(
+        (direction) => {
+          const r = document.querySelector('#vertical-child')!.getBoundingClientRect()
+          return direction === 'row' ? r.width === 400 && r.height === 184 : r.width === 324 && r.height === 240
+        },
+        {},
+        direction,
+      )
+      await number(main, 100)
+      await frame.waitForFunction(
+        (direction) =>
+          getComputedStyle(document.querySelector('#vertical-child')!)[direction === 'row' ? 'height' : 'width'] ===
+          '100px',
+        {},
+        direction,
+      )
+      expect(await frame.$eval('#vertical-child', (el) => getComputedStyle(el).flexGrow)).toBe('0')
+      await expect.poll(() => saved.html).toContain(`${main.toLowerCase()}: 100px`)
+    },
+    15_000,
+  )
+
+  it('fills to the parent edge with fractional borders and padding', async () => {
+    const frame = await seedPanel(
+      `<!doctype html><html><head><style>
+      #fractional { zoom: 2; width: 200px; height: 160px }
+      #fractional-child { width: 120px; height: 80px; border: 1.5px solid; padding: 3.25px }
+    </style></head><body><div id="fractional"><div id="fractional-child">Size</div></div></body></html>`,
+      '#fractional-child',
+    )
+    expect(await frame.$eval('#fractional-child', (el) => getComputedStyle(el).borderLeftWidth)).toBe('1.5px')
+    for (const axis of ['Width', 'Height']) {
+      await page.select(`[aria-label="${axis} sizing"]`, 'fill')
+      await frame.waitForFunction(
+        (axis) => {
+          const parent = document.querySelector('#fractional')!.getBoundingClientRect()
+          const child = document.querySelector('#fractional-child')!.getBoundingClientRect()
+          return Math.abs(axis === 'Width' ? parent.right - child.right : parent.bottom - child.bottom) < 0.01
+        },
+        {},
+        axis,
+      )
+    }
+    await expect.poll(() => saved.html).toContain('calc(100% - 9.5px)')
+  }, 15_000)
+
   async function seedScrubTarget(
     styles = 'width:120px;height:80px;min-width:1.5rem;padding:4px 8px 12px 16px;gap:6px;column-gap:10px;opacity:0.8;border-left:2px solid black;border-radius:3px;font-size:18px',
-    { css = '', target = `<div id="scrub" style="${styles}">Scrub me</div>` } = {},
+    { css = '', target = `<div id="scrub" style="display:flex;${styles}">Scrub me</div>` } = {},
   ) {
     const seed = String(++seedId)
     saved = {
@@ -203,11 +613,12 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       {},
       width,
     )
+    await page.click('[aria-label="Individual padding"]')
     return frame
   }
 
   async function startScrub(label: string) {
-    const unit = (await page.$(`label:has(input[aria-label="${label}"]) > span`))!
+    const unit = (await page.$(`label:has(input[aria-label="${label}"]) > span:last-child`))!
     await unit.scrollIntoView()
     expect(await unit.evaluate((el) => getComputedStyle(el).cursor)).toBe('ew-resize')
     const box = (await unit.boundingBox())!
@@ -225,6 +636,36 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.mouse.up()
     if (modifier) await page.keyboard.up(modifier)
   }
+
+  it('scrubs negative geometry without probe animations and restores translations on cancel and undo', async () => {
+    const frame = await seedPanel(
+      `<!doctype html><html><head><style>
+        body { margin: 0 } #box { width: 120px; height: 80px }
+      </style></head><body><div id="box" style="translate: 10px 5px">Move</div></body></html>`,
+      '#box',
+    )
+    await frame.$eval('#box', (el) => {
+      ;(el as HTMLElement).style.transition = 'all 1s'
+    })
+    const original = saved.html
+    const point = await startScrub('X position')
+    await page.mouse.move(point.x - 30, point.y)
+    await frame.waitForFunction(() => (document.querySelector('#box') as HTMLElement).style.translate === '-20px 5px')
+    expect(await frame.$eval('#box', (el) => el.getBoundingClientRect().x)).toBe(-20)
+    expect(await frame.$eval('#box', (el) => el.getAnimations().length)).toBe(0)
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await frame.waitForFunction(() => (document.querySelector('#box') as HTMLElement).style.translate === '10px 5px')
+    expect(saved.html).toBe(original)
+    await frame.$eval('#box', (el) => el.getAnimations().forEach((animation) => animation.finish()))
+    await page.waitForFunction(
+      () => document.querySelector<HTMLInputElement>('[aria-label="X position"]')?.value === '10',
+    )
+    await drag('X position', -30)
+    await expect.poll(() => saved.html).toContain('translate: -20px 5px')
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => (document.querySelector('#box') as HTMLElement).style.translate === '10px 5px')
+  }, 15_000)
 
   it('scrubs live in both directions, saves, and undoes/redoes the edit', async () => {
     const frame = await seedScrubTarget()
@@ -261,12 +702,12 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     const frame = await seedScrubTarget()
     for (const [label, dx, property, expected, modifier] of [
       ['Height', 4, 'height', '120px', 'Shift'],
-      ['Gap', 8, 'gap', '14px'],
-      ['Padding', 5, 'padding', '9px 13px 17px 21px'],
-      ['Opacity percentage', 40, 'opacity', '1'],
-      ['Opacity percentage', -150, 'opacity', '0'],
+      ['Gap', 8, 'column-gap', '18px'],
+      ['Padding top', 5, 'padding-top', '9px'],
+      ['Element opacity', 40, 'opacity', '1'],
+      ['Element opacity', -150, 'opacity', '0'],
       ['Border width', 4, 'border-width', '6px'],
-      ['Radius', -10, 'border-radius', '0px'],
+      ['Corner radius', -10, 'border-radius', '0px'],
       ['Font size', 4, 'font-size', '18.4px', 'Alt'],
       ['Minimum width', 5, 'min-width', '2rem', 'Alt'],
     ] as const) {
@@ -280,7 +721,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       )
     }
     // Reversing after hitting a bound responds immediately, without a dead zone.
-    const { x, y } = await startScrub('Opacity percentage')
+    const { x, y } = await startScrub('Element opacity')
     await page.mouse.move(x - 20, y)
     await page.mouse.move(x - 15, y)
     await page.mouse.up()
@@ -346,12 +787,12 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.mouse.up()
     await expect.poll(() => page.$eval('[aria-label="Width"]', (el) => (el as HTMLInputElement).value)).toBe(computed)
 
-    const padding = await startScrub('Padding')
+    const padding = await startScrub('Padding top')
     await page.mouse.move(padding.x - 30, padding.y)
-    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.padding === '0px')
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.paddingTop === '0px')
     await page.mouse.up()
-    await expect.poll(() => page.$eval('[aria-label="Padding"]', (el) => (el as HTMLInputElement).value)).toBe('0')
-    await expect.poll(() => saved.html).toContain('padding: 0px')
+    await expect.poll(() => page.$eval('[aria-label="Padding top"]', (el) => (el as HTMLInputElement).value)).toBe('0')
+    await expect.poll(() => saved.html).toContain('padding: 0px 8px 12px 16px')
   }, 15_000)
 
   it('restores original CSS units, absent properties, priorities, and shorthands on Escape without saving', async () => {
@@ -367,7 +808,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
         )
       })
     const original = await inline()
-    for (const label of ['Width', 'Height', 'Padding', 'Gap', 'Border width']) {
+    for (const label of ['Width', 'Height', 'Padding top', 'Gap', 'Border width']) {
       const point = await startScrub(label)
       await page.mouse.move(point.x + 10, point.y)
       await expect.poll(inline).not.toEqual(original)
@@ -426,7 +867,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     const preview = await frame.$eval('#scrub', (el) => (el as HTMLElement).style.width)
     saved = { ...saved, html: saved.html.replace('width:50%', 'width:60%;color:red') }
     const remote = saved.html
-    await page.evaluate((frame) => window.elementPanelHarness.seed(frame), saved)
+    await page.evaluate((frame) => window.elementPanelHarness.remote(frame), saved)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.color === 'red')
     expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.width)).toBe(preview)
     await page.keyboard.press('Escape')
