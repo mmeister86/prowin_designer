@@ -8,6 +8,7 @@ import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
 import { registerFrameWindow, unregisterFrameWindow } from '../lib/frameBridge'
 import { api } from '../lib/api'
+import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
 import { throttle } from '../lib/throttle'
 import { getIdentity } from '../lib/identity'
@@ -560,18 +561,30 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
      the same as a click on its Layers row), and a row picked there is
      resolved into a probe by asking the runtime for the element behind the
      selector */
+  const previousProbe = useRef<string | null>(null)
   useEffect(() => {
+    const previous = previousProbe.current
+    previousProbe.current = probeSel
     const cur = useStore.getState().selectedElement
     if (probeSel) {
       const el = { frameId: frame.id, selector: probeSel }
       /* the Comment tool outlines the element without sliding its properties panel in */
       if (useStore.getState().tool === 'comment') useStore.getState().setSelectedElement(el)
       else useStore.getState().pickElement(el)
-    } else if (cur?.frameId === frame.id) {
+    } else if (previous && cur?.frameId === frame.id && cur.selector === previous) {
+      /* Only clear a probe we actually removed. A link or Layers pick can
+         select an element before this frame has mounted its runtime. */
       useStore.getState().pickElement(null)
     }
   }, [probeSel, frame.id])
   const wantedSel = useStore((s) => (s.selectedElement?.frameId === frame.id ? s.selectedElement.selector : null))
+  const [seenWantedSel, setSeenWantedSel] = useState(wantedSel)
+  if (seenWantedSel !== wantedSel) {
+    setSeenWantedSel(wantedSel)
+    /* Returning to a frame-only link (or closing the element panel) also
+       removes the previous element's toolbar and outline. */
+    if (!wantedSel) setProbe(null)
+  }
   const selectReq = useRef(0)
   const selectSel = useRef<string | null>(null)
   useEffect(() => {
@@ -616,7 +629,14 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
         const hit = (ev.data.hit ?? null) as ProbeHit | null
         closePopovers()
         if (hit) setProbe(hit)
-        else useStore.getState().setSelectedElement(null) // the row's element is gone from the live document
+        else {
+          /* The live document is authoritative for linked elements and
+             Layers picks, including nodes created or removed by scripts. */
+          const s = useStore.getState()
+          s.pickElement(null)
+          s.setInspectorOpen(true)
+          s.pushNotice('This element no longer exists. Showing its frame instead.')
+        }
       }
       if (ev.data?.type === 'doop:hover-result' && ev.data.reqId === hoverReq.current) {
         const hit = (ev.data.hit ?? null) as HoverHit | null
@@ -1076,6 +1096,14 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
                             onClick={() => (codeView === null ? requestCode(anchor.selector) : setCodeView(null))}
                           >
                             {'</>'} Code
+                          </Button>
+                          <Button
+                            variant="inverse"
+                            className={EL_TOOLBAR_BTN}
+                            aria-label="Copy link to element"
+                            onClick={() => void copyElementLink(frame, anchor.selector)}
+                          >
+                            Copy link
                           </Button>
                           {!editing && canEdit && anchor.text !== '' && (
                             <Button

@@ -16,6 +16,13 @@
 - Express 4.19.2 - HTTP server framework in `server/`.
 - React 18.3.1 - UI framework in `src/`.
 - Zustand 4.5.4 - client-side state management.
+- Element links use `/c/<canvasId>?frame=<frameId>&selector=<encoded CSS selector>`.
+  `src/lib/elementLink.ts` owns copying from the element toolbar and Layers menu;
+  `Stage.tsx` focuses its page and frame; `FrameView.tsx` resolves the selector in
+  the ready iframe, including script-created elements, and falls back to frame
+  details if it no longer resolves. Browser regressions in
+  `tests/pageCanvasBrowser.test.ts` cover initial loading, cross-page links,
+  clipboard round trips, history and script-created or script-removed elements.
 - Radix UI primitives (`@radix-ui/react-*`, ^1.x-2.x) + shadcn 4.19.0 - accessible UI primitives
   generated into `src/components/ui`.
 - `@anthropic-ai/sdk` 0.115.0 and `@modelcontextprotocol/sdk` 1.12.0 - power the built-in Doop

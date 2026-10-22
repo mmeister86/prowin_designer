@@ -14,6 +14,7 @@ import { useStore } from '../lib/store'
 import { usePageCanvas } from '../lib/pages'
 import { PagesPanel, sectionHeading } from './PagesPanel'
 import { getIdentity } from '../lib/identity'
+import { copyElementLink } from '../lib/elementLink'
 import { deleteFramesTracked } from '../lib/history'
 import {
   ancestorsOf,
@@ -642,6 +643,9 @@ function NodeRow({
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => navigator.clipboard.writeText(node.selector).catch(console.error)}>
           Copy selector
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => void copyElementLink(frame, node.selector)}>
+          Copy link to element
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => duplicateLayer(frame, node.selector)}>Duplicate</ContextMenuItem>
         <ContextMenuSeparator />

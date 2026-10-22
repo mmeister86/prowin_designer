@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
+import type { Frame } from '../../shared/types'
 import { usePageCanvas, currentPageCanvas } from '../lib/pages'
 import { sendWs } from '../lib/ws'
 import { throttle } from '../lib/throttle'
@@ -119,6 +120,18 @@ export function Stage({
   const fitted = useRef(false)
   const deepLinkHandled = useRef(false)
   const focusedPage = useRef<string | null>(null)
+  const [linkSearch, setLinkSearch] = useState(location.search)
+
+  useEffect(() => {
+    function onPop() {
+      fitted.current = false
+      deepLinkHandled.current = false
+      focusedPage.current = null
+      setLinkSearch(location.search)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   /* Viewport → DOM without React: no component subscribes to the viewport, so
      pan/zoom never renders anything. A store subscription writes the world
@@ -284,7 +297,7 @@ export function Stage({
 
   /* center one frame in the viewport and select it (shared frame links) */
   const focusFrame = useCallback(
-    (f: { id: string; x: number; y: number; width: number; height: number }) => {
+    (f: Frame, selector: string | null) => {
       const el = ref.current
       if (!el) return
       select(f.id)
@@ -299,8 +312,17 @@ export function Stage({
         y: (el.clientHeight - f.height * zoom) / 2 - f.y * zoom,
         zoom,
       })
-      /* a shared frame link asks for this exact frame — show its details too */
-      useStore.getState().setInspectorOpen(true)
+      const s = useStore.getState()
+      s.pickElement(null)
+      if (selector) {
+        /* FrameView resolves this in the ready iframe: scripts can add or
+           remove elements that differ from the saved HTML. */
+        s.setTool('select')
+        s.setInspectorOpen(false)
+        s.pickElement({ frameId: f.id, selector })
+      } else {
+        s.setInspectorOpen(true)
+      }
     },
     [setViewport, select],
   )
@@ -375,12 +397,12 @@ export function Stage({
     if (!canvas || fitted.current) return
     fitted.current = true
     if (useStore.getState().following) return
-    const params = deepLinkHandled.current ? null : new URLSearchParams(location.search)
+    const params = deepLinkHandled.current ? null : new URLSearchParams(linkSearch)
     const focusId = params?.get('frame')
     const target = focusId ? useStore.getState().canvas?.frames.find((f) => f.id === focusId) : null
     if (target) {
       deepLinkHandled.current = true
-      focusFrame(target)
+      focusFrame(target, params?.get('selector') ?? null)
       return
     }
     const pinned = params ? linkedCanvasComment(params.get('comment')) : null
@@ -398,7 +420,7 @@ export function Stage({
       return
     }
     fit()
-  }, [canvas, activePageId, fit, focusFrame, focusPoint])
+  }, [canvas, activePageId, fit, focusFrame, focusPoint, linkSearch])
 
   /* wheel: pan / pinch-zoom — needs a non-passive listener. Trackpads fire
      wheel events faster than the display refreshes, so deltas accumulate and
