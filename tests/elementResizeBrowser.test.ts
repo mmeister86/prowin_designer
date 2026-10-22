@@ -7,6 +7,8 @@ import type { ElementInfo, GeometryEdit } from '../src/lib/frameBridge'
 
 declare global {
   interface Window {
+    heldResizeReply: MessageEvent | null
+    holdResizeReply: boolean
     elementPanelHarness: {
       seed: (frame: Frame) => void
       remote: (frame: Frame) => void
@@ -104,6 +106,15 @@ describe.skipIf(!findBrowserPath())('element resize handles', () => {
     await vite.listen()
     browser = await getBrowser()
     page = await browser.newPage()
+    // Install before frameBridge so the reply cannot resolve its promise early.
+    await page.evaluateOnNewDocument(() => {
+      window.addEventListener('message', (ev: MessageEvent) => {
+        if (!window.holdResizeReply || ev.data?.type !== 'doop:style-gesture-result') return
+        ev.stopImmediatePropagation()
+        window.holdResizeReply = false
+        window.heldResizeReply = ev
+      })
+    })
     page.setDefaultTimeout(5_000)
     page.on('pageerror', (error) => errors.push(String(error)))
     await page.setViewport({ width: 1000, height: 900 })
@@ -140,6 +151,94 @@ describe.skipIf(!findBrowserPath())('element resize handles', () => {
     await vite?.close()
     expect(errors).toEqual([])
   })
+
+  async function holdGestureReply() {
+    await page.evaluate(() => {
+      window.heldResizeReply = null
+      window.holdResizeReply = true
+    })
+    const from = await handle('se')
+    await page.mouse.move(from.x, from.y)
+    await page.mouse.down()
+    await page.waitForFunction(() => !!window.heldResizeReply)
+    return from
+  }
+
+  async function releaseGestureReply() {
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          const held = window.heldResizeReply!
+          const replay = new MessageEvent('message', { data: held.data, source: held.source })
+          window.heldResizeReply = null
+          function ended(ev: MessageEvent) {
+            if (ev === replay || ev.data?.type !== 'doop:style-gesture-result') return
+            window.removeEventListener('message', ended)
+            resolve()
+          }
+          window.addEventListener('message', ended)
+          window.dispatchEvent(replay)
+        }),
+    )
+  }
+
+  it.each([false, true])(
+    'commits a fast drag after a delayed begin reply (Shift: %s)',
+    async (shift) => {
+      await reset()
+      await select('#box')
+      const before = saves
+      const from = await holdGestureReply()
+      await page.mouse.move(from.x + 20, from.y + 10)
+      // The release has a newer position (and modifier state) than the last move.
+      await page.evaluate(
+        ({ from, shift }) =>
+          window.dispatchEvent(
+            new PointerEvent('pointerup', {
+              pointerId: 1,
+              clientX: from.x + 50,
+              clientY: from.y + 30,
+              shiftKey: shift,
+            }),
+          ),
+        { from, shift },
+      )
+      await page.mouse.up()
+      expect(saves).toBe(before)
+      await releaseGestureReply()
+      await expect.poll(() => saves).toBe(before + 1)
+      expect(await computed('#box', 'width')).toBe('250px')
+      expect(await computed('#box', 'height')).toBe(shift ? '125px' : '130px')
+      expect(saved.html).toContain('width: 250px')
+      await page.evaluate(() => window.elementPanelHarness.undo())
+      await expect.poll(() => computed('#box', 'width')).toBe('200px')
+      expect(await computed('#box', 'height')).toBe('100px')
+    },
+    20_000,
+  )
+
+  it.each(['click', 'Escape', 'pointercancel', 'unmount'])(
+    'does not save a delayed gesture ended by %s',
+    async (ending) => {
+      await reset()
+      await select('#box')
+      const before = saves
+      const from = await holdGestureReply()
+      if (ending !== 'click') await page.mouse.move(from.x + 30, from.y + 20)
+      if (ending === 'Escape') await page.keyboard.press('Escape')
+      if (ending === 'pointercancel') {
+        await page.evaluate(() => window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1 })))
+      }
+      if (ending === 'unmount') await page.evaluate(() => window.elementPanelHarness.setTool('hand'))
+      await page.mouse.up()
+      await releaseGestureReply()
+      expect(await computed('#box', 'width')).toBe('200px')
+      expect(await computed('#box', 'height')).toBe('100px')
+      expect(saves).toBe(before)
+      await page.evaluate(() => window.elementPanelHarness.setTool('select'))
+    },
+    20_000,
+  )
 
   it('drags the corner to resize, saving once and recording one undo step', async () => {
     await select('#box')

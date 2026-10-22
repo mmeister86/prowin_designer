@@ -135,9 +135,7 @@ export function ElementResizeHandles({
     /** the styles the pointer's current place asks for; null before the
      *  gesture has travelled far enough to count as a drag */
     function patchFor(pos: { x: number; y: number; shift: boolean }): StylePatch | null {
-      if (!base) return null
-      if (!moved && Math.abs(pos.x - origin.x) + Math.abs(pos.y - origin.y) < MOVE_THRESHOLD_PX) return null
-      moved = true
+      if (!base || !moved) return null
       const zoom = useStore.getState().viewport.zoom
       const delta = { dx: (pos.x - origin.x) / zoom / scale.x, dy: (pos.y - origin.y) / zoom / scale.y }
       const keepRatio = pos.shift
@@ -158,6 +156,11 @@ export function ElementResizeHandles({
     }
     void ready.then(preview)
 
+    /* Pointer travel counts even while the runtime is still opening the gesture. */
+    function trackPointer(ev: PointerEvent) {
+      last = { x: ev.clientX, y: ev.clientY, shift: ev.shiftKey }
+      if (Math.abs(ev.clientX - origin.x) + Math.abs(ev.clientY - origin.y) >= MOVE_THRESHOLD_PX) moved = true
+    }
     function onMove(ev: PointerEvent) {
       if (ev.pointerId !== pointerId) return
       if (gesture.pinching) {
@@ -166,7 +169,7 @@ export function ElementResizeHandles({
         last = null
         return
       }
-      last = { x: ev.clientX, y: ev.clientY, shift: ev.shiftKey }
+      trackPointer(ev)
       preview()
     }
     function finish() {
@@ -196,6 +199,12 @@ export function ElementResizeHandles({
     }
     function onUp(ev: PointerEvent) {
       if (ev.pointerId !== pointerId) return
+      if (ev.type === 'pointercancel') {
+        cancel()
+        return
+      }
+      // Release can carry a position/modifier change newer than the last move.
+      if (!gesture.pinching) trackPointer(ev)
       finish()
       end(moved ? 'commit' : 'cancel')
     }
