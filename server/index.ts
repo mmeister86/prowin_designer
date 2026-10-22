@@ -609,7 +609,7 @@ function requireCanvas(req: express.Request, res: express.Response, canvasId: st
   return c
 }
 
-function requireFrame(req: express.Request, res: express.Response, frameId: string) {
+function requireFrame(req: express.Request, res: express.Response, frameId: string, expectedUpdatedAt?: unknown) {
   const frame = store.getFrame(frameId)
   if (!frame) {
     res.status(404).json({ error: 'frame not found' })
@@ -619,6 +619,17 @@ function requireFrame(req: express.Request, res: express.Response, frameId: stri
   if (!c || !canAccessCanvas(req.user!.id, c)) {
     res.status(403).json({ error: 'this canvas is private — ask the owner for access' })
     return null
+  }
+  if (expectedUpdatedAt !== undefined) {
+    if (typeof expectedUpdatedAt !== 'number' || !Number.isSafeInteger(expectedUpdatedAt) || expectedUpdatedAt < 0) {
+      res.status(400).json({ error: 'expectedUpdatedAt must be a nonnegative integer' })
+      return null
+    }
+    // PATCH and DELETE mutate the store synchronously after this check.
+    if (frame.updatedAt !== expectedUpdatedAt) {
+      res.status(409).json({ error: 'The frame changed while you were editing. Please try again.', frame })
+      return null
+    }
   }
   return frame
 }
@@ -1109,18 +1120,9 @@ app.post('/api/canvases/:id/frames', (req, res) => {
 })
 
 app.patch('/api/frames/:id', (req, res) => {
-  const current = requireFrame(req, res, req.params.id)
+  const current = requireFrame(req, res, req.params.id, req.body?.expectedUpdatedAt)
   if (!current) return
-  const { actor: _ignored, expectedUpdatedAt, ...patch } = req.body ?? {}
-  if (expectedUpdatedAt !== undefined) {
-    if (!Number.isSafeInteger(expectedUpdatedAt) || expectedUpdatedAt < 0)
-      return res.status(400).json({ error: 'expectedUpdatedAt must be a nonnegative integer' })
-    // The store check and update are synchronous: another request cannot write between them.
-    if (current.updatedAt !== expectedUpdatedAt)
-      return res
-        .status(409)
-        .json({ error: 'The frame changed while you were editing. Please try again.', frame: current })
-  }
+  const { actor: _ignored, expectedUpdatedAt: _version, ...patch } = req.body ?? {}
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   if (
     patch.pageId !== undefined &&
@@ -1151,7 +1153,7 @@ app.post('/api/frames/:id/append', (req, res) => {
 })
 
 app.delete('/api/frames/:id', (req, res) => {
-  if (!requireFrame(req, res, req.params.id)) return
+  if (!requireFrame(req, res, req.params.id, req.body?.expectedUpdatedAt)) return
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   const frame = actions.deleteFrame(req.params.id, actor)
   if (!frame) return res.status(404).json({ error: 'frame not found' })

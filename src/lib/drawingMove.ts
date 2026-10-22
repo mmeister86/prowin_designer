@@ -1,6 +1,6 @@
 import type { Frame } from '../../shared/types'
 import { framePageId } from '../../shared/pages'
-import { api } from './api'
+import { api, ApiError } from './api'
 import { drawingDocument, isCanvasElement, queueDrawingSave, type Point } from './drawing'
 import { recordCreate, recordDrawingTransfer, recordUpdates } from './history'
 import { currentPageCanvas } from './pages'
@@ -122,8 +122,24 @@ export function moveDrawing(
       throw new Error('The destination frame is no longer available.')
     }
     const active = () => useStore.getState().canvas?.id === source.canvasId
-    const updateLocal = (f: Frame) => {
-      if (active()) useStore.getState().upsertFrame(f)
+    /* `insert` adds a frame the store does not hold yet (a new destination);
+       a conflict refresh passes false, so a frame the room has deleted in the
+       meantime cannot come back from a late 409 */
+    const updateLocal = (f: Frame, insert = true) => {
+      if (!active()) return
+      const current = useStore.getState().canvas?.frames.find((frame) => frame.id === f.id)
+      if (current ? current.updatedAt <= f.updatedAt : insert) useStore.getState().upsertFrame(f)
+    }
+    const conditional = async <T>(frame: Frame, request: Promise<T>): Promise<T> => {
+      try {
+        return await request
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          const remote = error.body.frame as Frame | undefined
+          if (remote?.id === frame.id && remote.canvasId === frame.canvasId) updateLocal(remote, false)
+        }
+        throw error
+      }
     }
     const select = (f: Frame, elementId?: string) => {
       if (!active() || useStore.getState().activePageId !== pageId) return
@@ -134,7 +150,7 @@ export function moveDrawing(
       const position = hit
         ? { x: rect.x - hit.rect.x, y: rect.y - hit.rect.y, width: source.width, height: source.height }
         : rect
-      const saved = await api.updateFrame(source.id, position)
+      const saved = await conditional(source, api.updateFrame(source.id, position, source.updatedAt))
       updateLocal(saved)
       if (active()) recordUpdates([{ frameId: source.id, before: source, after: position }])
       select(saved)
@@ -150,7 +166,7 @@ export function moveDrawing(
     if (target?.id === source.id) {
       placeDrawing(original as HTMLElement | SVGSVGElement, rect, source, hit?.geometry)
       const html = serialize(sourceDoc)
-      const saved = await api.updateFrame(source.id, { html })
+      const saved = await conditional(source, api.updateFrame(source.id, { html }, source.updatedAt))
       updateLocal(saved)
       if (active()) recordUpdates([{ frameId: source.id, before: { html: source.html }, after: { html } }])
       return
@@ -167,7 +183,7 @@ export function moveDrawing(
     destinationDoc.body.append(el)
     const html = serialize(destinationDoc)
     const destination = target
-      ? await api.updateFrame(target.id, { html })
+      ? await conditional(target, api.updateFrame(target.id, { html }, target.updatedAt))
       : await api.createFrame(source.canvasId, {
           name: el.getAttribute('data-name') ?? 'Drawing',
           pageId,
@@ -181,10 +197,10 @@ export function moveDrawing(
       if (!live || live.html !== source.html || live.locked || live.hidden)
         throw new Error('The source changed during the move.')
       if (standalone) {
-        await api.deleteFrame(source.id)
+        await conditional(source, api.deleteFrame(source.id, source.updatedAt))
         if (active()) useStore.getState().removeFrame(source.id)
       } else {
-        remaining = await api.updateFrame(source.id, { html: sourceHtml })
+        remaining = await conditional(source, api.updateFrame(source.id, { html: sourceHtml }, source.updatedAt))
         updateLocal(remaining)
       }
     } catch (err) {
@@ -212,18 +228,27 @@ export function moveDrawing(
               doc.getElementById(el.id)?.remove()
               rollback = serialize(doc)
             }
-            updateLocal(await api.updateFrame(target.id, { html: rollback }))
+            updateLocal(await conditional(latest, api.updateFrame(target.id, { html: rollback }, latest.updatedAt)))
           }
         } else if (latest) {
-          await api.deleteFrame(destination.id)
+          await conditional(destination, api.deleteFrame(destination.id, destination.updatedAt))
           if (active()) useStore.getState().removeFrame(destination.id)
         }
-      } catch {
+      } catch (rollbackError) {
+        if (rollbackError instanceof ApiError && rollbackError.status === 409) {
+          // A whole-document undo would erase the same remote edit we just protected.
+          throw new Error(
+            'The destination changed during the move. Both copies were kept; remove the extra drawing manually.',
+            { cause: rollbackError },
+          )
+        }
         if (active()) {
           if (target) recordUpdates([{ frameId: target.id, before: { html: target.html }, after: { html } }])
           else recordCreate(destination)
         }
-        throw new Error('The drawing was copied, but its original could not be removed. You can undo the copy.')
+        throw new Error('The drawing was copied, but its original could not be removed. You can undo the copy.', {
+          cause: rollbackError,
+        })
       }
       throw err
     }

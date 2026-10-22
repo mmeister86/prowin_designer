@@ -268,8 +268,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ ...patch, expectedUpdatedAt, actor: actor() }),
     }),
-  deleteFrame: (frameId: string) =>
-    req('/api/frames/' + frameId, { method: 'DELETE', body: JSON.stringify({ actor: actor() }) }),
+  deleteFrame: (frameId: string, expectedUpdatedAt?: number) =>
+    req('/api/frames/' + frameId, { method: 'DELETE', body: JSON.stringify({ expectedUpdatedAt, actor: actor() }) }),
   /* design history: the states earlier edits replaced, newest first (no HTML) */
   frameVersions: (frameId: string) => req<FrameVersionInfo[]>(`/api/frames/${frameId}/versions`),
   frameVersion: (frameId: string, versionId: string) =>

@@ -54,4 +54,37 @@ describe('conditional frame saves', () => {
     const canvas = (await (await owner.get(`/api/canvases/${canvasId}`)).json()) as Canvas
     expect(canvas.frames.find((f) => f.id === frame.id)?.html).toBe(frame.html)
   })
+  it('refuses to delete a frame edited after the client read it', async () => {
+    const frame = await newFrame()
+    const updated = await (await owner.patch(`/api/frames/${frame.id}`, { html: '<p>New work</p>' })).json()
+    const stale = await owner.req(`/api/frames/${frame.id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ expectedUpdatedAt: frame.updatedAt }),
+    })
+    expect(stale.status).toBe(409)
+    expect((await stale.json()).frame).toEqual(updated)
+    const canvas = (await (await owner.get(`/api/canvases/${canvasId}`)).json()) as Canvas
+    expect(canvas.frames.find((f) => f.id === frame.id)).toEqual(updated)
+    const removed = await owner.req(`/api/frames/${frame.id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ expectedUpdatedAt: updated.updatedAt }),
+    })
+    expect(removed.status).toBe(200)
+  })
+
+  it.each([null, '1', -1, 1.5])('rejects invalid deletion versions: %s', async (expectedUpdatedAt) => {
+    const frame = await newFrame()
+    const response = await owner.req(`/api/frames/${frame.id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ expectedUpdatedAt }),
+    })
+    expect(response.status).toBe(400)
+    const canvas = (await (await owner.get(`/api/canvases/${canvasId}`)).json()) as Canvas
+    expect(canvas.frames.some((f) => f.id === frame.id)).toBe(true)
+  })
+
+  it('still allows deletion without a version for existing clients', async () => {
+    const frame = await newFrame()
+    expect((await owner.req(`/api/frames/${frame.id}`, { method: 'DELETE' })).status).toBe(200)
+  })
 })

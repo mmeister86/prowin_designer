@@ -2,11 +2,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Canvas, Frame } from '../shared/types'
 
-vi.mock('../src/lib/api', () => ({
+vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
+vi.mock('../src/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/lib/api')>()),
   api: { createFrame: vi.fn(), updateFrame: vi.fn(), deleteFrame: vi.fn(), getCanvas: vi.fn() },
   errorMessage: (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback),
 }))
-const { api } = await import('../src/lib/api')
+const { api, ApiError } = await import('../src/lib/api')
 const { useStore } = await import('../src/lib/store')
 const { clearHistory, undo, redo } = await import('../src/lib/history')
 const { drawingDocument, pathDrawing, saveDrawing } = await import('../src/lib/drawing')
@@ -40,6 +42,14 @@ const shape: Frame = {
 let db: Map<string, Frame>
 const frames = () => useStore.getState().canvas!.frames
 
+function checkVersion(id: string, expectedUpdatedAt?: number) {
+  const current = db.get(id)
+  if (!current) throw new Error('Not found')
+  if (expectedUpdatedAt !== undefined && current.updatedAt !== expectedUpdatedAt)
+    throw new ApiError(409, JSON.stringify({ error: 'The frame changed.', frame: current }))
+  return current
+}
+
 beforeEach(() => {
   vi.resetAllMocks()
   clearHistory()
@@ -62,13 +72,14 @@ beforeEach(() => {
     db.set(frame.id, frame)
     return frame
   })
-  vi.mocked(api.updateFrame).mockImplementation(async (id, patch) => {
-    if (!db.has(id)) throw new Error('Not found')
-    const frame = { ...db.get(id)!, ...patch }
+  vi.mocked(api.updateFrame).mockImplementation(async (id, patch, expectedUpdatedAt) => {
+    const current = checkVersion(id, expectedUpdatedAt)
+    const frame = { ...current, ...patch, updatedAt: current.updatedAt + 1 }
     db.set(id, frame)
     return frame
   })
-  vi.mocked(api.deleteFrame).mockImplementation(async (id) => {
+  vi.mocked(api.deleteFrame).mockImplementation(async (id, expectedUpdatedAt) => {
+    checkVersion(id, expectedUpdatedAt)
     db.delete(id)
   })
 })
@@ -282,6 +293,102 @@ describe('moving drawings between frames and canvas', () => {
     vi.mocked(api.updateFrame).mockRejectedValueOnce(new Error('Source save failed'))
     await moveDrawing(source, selector, { ...rect, x: -100 })
     expect(api.deleteFrame).toHaveBeenCalledTimes(1)
-    expect(frames()).toEqual([source])
+    expect(frames()).toHaveLength(1)
+    expect(frames()[0]).toMatchObject({ id: source.id, html: source.html })
+  })
+  it('rejects an unseen destination edit instead of replacing it with the drawing', async () => {
+    const remote = { ...base, html: '<h1>Remote work</h1>', updatedAt: 1 }
+    db.set(base.id, remote)
+    await moveDrawing(shape, undefined, rect, base.id)
+    expect(db.get(base.id)).toEqual(remote)
+    expect(db.get(shape.id)).toEqual(shape)
+    expect(api.deleteFrame).not.toHaveBeenCalled()
+    expect(frames().find((f) => f.id === base.id)).toEqual(remote)
+  })
+
+  it('does not bring back a destination deleted while its conflict response was in flight', async () => {
+    const update = vi.mocked(api.updateFrame).getMockImplementation()!
+    db.set(base.id, { ...base, html: '<h1>Remote work</h1>', updatedAt: 1 })
+    vi.mocked(api.updateFrame).mockImplementationOnce(async (...args) => {
+      useStore.getState().removeFrame(base.id)
+      return update(...args)
+    })
+    await moveDrawing(shape, undefined, rect, base.id)
+    expect(frames().find((f) => f.id === base.id)).toBeUndefined()
+    expect(db.get(shape.id)).toEqual(shape)
+  })
+
+  it('keeps a standalone source edited on the server just before deletion', async () => {
+    const remove = vi.mocked(api.deleteFrame).getMockImplementation()!
+    const remote = { ...shape, html: shape.html + '<p>Remote work</p>', updatedAt: 1 }
+    vi.mocked(api.deleteFrame).mockImplementationOnce(async (...args) => {
+      db.set(shape.id, remote)
+      return remove(...args)
+    })
+    await moveDrawing(shape, undefined, rect, base.id)
+    expect(db.get(shape.id)).toEqual(remote)
+    expect(db.get(base.id)?.html).toBe(base.html)
+    expect(frames().find((f) => f.id === shape.id)).toEqual(remote)
+  })
+
+  it('keeps unseen edits to an embedded source when its removal conflicts', async () => {
+    await moveDrawing(shape, undefined, rect, base.id)
+    const source = frames()[0]!
+    const selector = `#${parse(source.html).querySelector('[data-doop-drawing]')!.id}`
+    const remote = { ...source, html: source.html + '<p>Remote work</p>', updatedAt: source.updatedAt + 1 }
+    db.set(source.id, remote)
+    await moveDrawing(source, selector, { ...rect, x: -100 })
+    expect([...db.values()]).toEqual([remote])
+    expect(frames()).toEqual([remote])
+  })
+
+  it('does not overwrite an unseen destination edit during rollback, including on undo', async () => {
+    const remove = vi.mocked(api.deleteFrame).getMockImplementation()!
+    let remote!: Frame
+    vi.mocked(api.deleteFrame).mockImplementationOnce(async (...args) => {
+      const destination = db.get(base.id)!
+      remote = { ...destination, html: destination.html + '<p>Remote work</p>', updatedAt: destination.updatedAt + 1 }
+      db.set(base.id, remote)
+      db.set(shape.id, { ...shape, updatedAt: 1 })
+      return remove(...args)
+    })
+    await moveDrawing(shape, undefined, rect, base.id)
+    expect(db.get(base.id)).toEqual(remote)
+    expect(db.has(shape.id)).toBe(true)
+    expect(useStore.getState().notice?.text).toContain('Both copies were kept')
+    expect(frames().find((f) => f.id === base.id)).toEqual(remote)
+    await undo()
+    expect(db.get(base.id)).toEqual(remote)
+  })
+
+  it('does not delete a detached copy edited on the server before rollback', async () => {
+    await moveDrawing(shape, undefined, rect, base.id)
+    clearHistory()
+    const source = frames()[0]!
+    const selector = `#${parse(source.html).querySelector('[data-doop-drawing]')!.id}`
+    const update = vi.mocked(api.updateFrame).getMockImplementation()!
+    let remote!: Frame
+    vi.mocked(api.updateFrame).mockImplementationOnce(async (...args) => {
+      const copy = [...db.values()].find((f) => f.id !== source.id)!
+      remote = { ...copy, html: copy.html + '<p>Remote copy edit</p>', updatedAt: copy.updatedAt + 1 }
+      db.set(copy.id, remote)
+      db.set(source.id, { ...source, updatedAt: source.updatedAt + 1 })
+      return update(...args)
+    })
+    await moveDrawing(source, selector, { ...rect, x: -100 })
+    expect(db.get(remote.id)).toEqual(remote)
+    expect(db.get(source.id)?.html).toBe(source.html)
+    await undo()
+    expect(db.get(remote.id)).toEqual(remote)
+  })
+
+  it('rejects a stale same-frame drawing move', async () => {
+    await moveDrawing(shape, undefined, rect, base.id)
+    const source = frames()[0]!
+    const selector = `#${parse(source.html).querySelector('[data-doop-drawing]')!.id}`
+    const remote = { ...source, html: source.html + '<p>Remote work</p>', updatedAt: source.updatedAt + 1 }
+    db.set(source.id, remote)
+    await moveDrawing(source, selector, { ...rect, x: 260 }, source.id)
+    expect(db.get(source.id)).toEqual(remote)
   })
 })
