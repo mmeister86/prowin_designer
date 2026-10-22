@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, type ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
+import { useValueScrub } from '@/hooks/use-value-scrub'
 import { ChevronDownIcon } from './icons'
 
 /* The dense property controls of an inspector rail: a 26px row with a label
@@ -11,6 +12,15 @@ import { ChevronDownIcon } from './icons'
 const fieldCls =
   'flex h-[26px] min-w-0 flex-1 items-center gap-1 rounded-[7px] bg-sub px-2 font-mono text-[11px] text-ink focus-within:bg-surface focus-within:shadow-elevation-1-focus'
 const unitCls = 'ml-auto flex-none font-sans text-[10.5px] text-ink-ghost'
+const scrubUnitCls =
+  'self-stretch content-center -mr-2 pr-2 pl-1 cursor-ew-resize touch-none select-none hover:text-ink'
+const scrubTitle = 'Drag to adjust · Shift: ×10 · Alt/Option: ×0.1 · Esc: cancel'
+
+/** The panel owns CSS snapshots and persistence; fields only own the gesture. */
+export const PropertyScrubContext = createContext<{
+  onStart: () => void
+  onEnd: (cancel: boolean) => void
+} | null>(null)
 
 /** A read-only field in the same shell, for values the rail reports but does not edit. */
 export function StaticField({ className, children }: { className?: string; children: ReactNode }) {
@@ -40,31 +50,56 @@ export function PropertyRow({ label, children }: { label: string; children: Reac
 }
 
 export function NumberField({
+  label,
   value,
   unit: u,
   className,
   onCommit,
+  min = 0,
+  max = Infinity,
 }: {
+  label?: string
   value: number | null
   unit: string
   className?: string
   onCommit: (v: number) => void
+  min?: number
+  max?: number
 }) {
   const shown = value === null ? '' : String(value)
   const [draft, setDraft] = useState(shown)
-  const [seen, setSeen] = useState(shown)
-  if (seen !== shown) {
-    setSeen(shown)
-    setDraft(shown)
+  const [seen, setSeen] = useState({ value: shown, scrubbing: false })
+  const scrubLifecycle = useContext(PropertyScrubContext)
+  const scrub = useValueScrub({
+    ...scrubLifecycle,
+    value: draft,
+    enabled: Number.isFinite(Number(draft)),
+    min,
+    max,
+    onChange: (v) => {
+      setDraft(v)
+      onCommit(Number(v))
+    },
+  })
+  // A reply received during the drag still needs to replace the draft on
+  // release, even when CSS constrained or rounded it back to the old value.
+  if (seen.value !== shown || seen.scrubbing !== scrub.scrubbing) {
+    setSeen({ value: shown, scrubbing: scrub.scrubbing })
+    if (!scrub.scrubbing) setDraft(shown)
   }
   function commit() {
+    if (scrub.scrubbing) return
     const n = Number(draft)
-    if (draft.trim() !== '' && !Number.isNaN(n) && n !== value) onCommit(n)
-    else setDraft(shown)
+    if (draft.trim() !== '' && Number.isFinite(n) && n !== value) {
+      const next = Math.min(max, Math.max(min, n))
+      setDraft(String(next))
+      onCommit(next)
+    } else setDraft(shown)
   }
   return (
     <label className={cn(fieldCls, className)}>
       <input
+        aria-label={label}
         className="w-full min-w-0 bg-transparent font-mono text-[11px] text-ink outline-none"
         value={draft}
         inputMode="decimal"
@@ -75,46 +110,109 @@ export function NumberField({
           if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             e.preventDefault()
             const n = Number(draft) || 0
-            onCommit(n + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1))
+            const next = Math.min(max, Math.max(min, n + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1)))
+            setDraft(String(next))
+            onCommit(next)
           }
         }}
       />
-      <span className={unitCls}>{u}</span>
+      <span
+        className={cn(unitCls, scrub.canScrub && scrubUnitCls)}
+        title={scrub.canScrub ? scrubTitle : undefined}
+        onPointerDown={scrub.onPointerDown}
+        onClick={(e) => scrub.canScrub && e.preventDefault()}
+      >
+        {u}
+      </span>
     </label>
   )
 }
 
 export function TextField({
+  label,
   value,
   unit: u,
   placeholder,
   className,
   onCommit,
+  scrub: scrubbable = false,
+  min,
 }: {
+  label?: string
   value: string
   unit?: string
   placeholder?: string
   className?: string
   onCommit: (v: string) => void
+  scrub?: boolean
+  min?: number
 }) {
   const [draft, setDraft] = useState(value)
-  const [seen, setSeen] = useState(value)
-  if (seen !== value) {
-    setSeen(value)
-    setDraft(value)
+  const [seen, setSeen] = useState({ value, scrubbing: false })
+  const scrubLifecycle = useContext(PropertyScrubContext)
+  const scrub = useValueScrub({
+    ...scrubLifecycle,
+    value: draft,
+    enabled: scrubbable,
+    min,
+    onChange: (v) => {
+      setDraft(v)
+      onCommit(v)
+    },
+  })
+  if (seen.value !== value || seen.scrubbing !== scrub.scrubbing) {
+    setSeen({ value, scrubbing: scrub.scrubbing })
+    if (!scrub.scrubbing) setDraft(value)
   }
   return (
     <label className={cn(fieldCls, className)}>
       <input
+        aria-label={label}
         className="w-full min-w-0 bg-transparent font-mono text-[11px] text-ink outline-none placeholder:text-ink-faint"
         value={draft}
         placeholder={placeholder}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => draft !== value && onCommit(draft)}
+        onBlur={() => !scrub.scrubbing && draft !== value && onCommit(draft)}
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
       />
-      {u && <span className={unitCls}>{u}</span>}
+      {u && (
+        <span
+          className={cn(unitCls, scrub.canScrub && scrubUnitCls)}
+          title={scrub.canScrub ? scrubTitle : undefined}
+          onPointerDown={scrub.onPointerDown}
+          onClick={(e) => scrub.canScrub && e.preventDefault()}
+        >
+          {u}
+        </span>
+      )}
     </label>
+  )
+}
+
+/** A CSS length keeps its unit while dragging; keywords remain editable text. */
+export function LengthField({
+  label,
+  value,
+  onCommit,
+  placeholder,
+}: {
+  label?: string
+  value: string
+  onCommit: (v: string) => void
+  placeholder?: string
+}) {
+  const length = /^(-?(?:\d+\.?\d*|\.\d+))([a-z%]+)?$/.exec(value)
+  const unit = length?.[2] ?? 'px'
+  return (
+    <TextField
+      label={label}
+      value={length?.[1] ?? value}
+      unit={unit}
+      placeholder={placeholder}
+      scrub
+      min={0}
+      onCommit={(v) => onCommit(/^-?(?:\d+\.?\d*|\.\d+)$/.test(v.trim()) ? `${v.trim()}${unit}` : v)}
+    />
   )
 }
 

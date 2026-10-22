@@ -10,15 +10,17 @@ declare global {
       seed: (frame: Frame) => void
       select: (selector: string) => void
       undo: () => Promise<void>
+      redo: () => Promise<void>
     }
   }
 }
 
-describe.skipIf(!findBrowserPath())('element typography controls', () => {
+describe.skipIf(!findBrowserPath())('element design controls', () => {
   let vite: ViteDevServer
   let browser: Browser
   let page: Page
   let saved: Frame
+  let seedId = 0
   const errors: string[] = []
   beforeAll(async () => {
     vite = await createServer({ server: { port: 0 }, logLevel: 'error' })
@@ -177,5 +179,258 @@ describe.skipIf(!findBrowserPath())('element typography controls', () => {
         () => Array.from(document.fonts).find((font) => font.family.includes('Late Arrival'))?.status,
       ),
     ).toBe('unloaded')
+  }, 15_000)
+  async function seedScrubTarget(
+    styles = 'width:120px;height:80px;min-width:1.5rem;padding:4px 8px 12px 16px;gap:6px;column-gap:10px;opacity:0.8;border-left:2px solid black;border-radius:3px;font-size:18px',
+  ) {
+    const seed = String(++seedId)
+    saved = {
+      ...saved,
+      html: `<!doctype html><html><body data-seed="${seed}">
+        <div id="scrub" style="${styles}">Scrub me</div>
+        <div id="other" style="width:200px">Another element</div>
+      </body></html>`,
+    }
+    await page.evaluate((frame) => window.elementPanelHarness.seed(frame), saved)
+    const frame = (await (await page.$('iframe'))!.contentFrame())!
+    await frame.waitForFunction((seed) => document.body.dataset.seed === seed, {}, seed)
+    await page.evaluate(() => window.elementPanelHarness.select('#scrub'))
+    const width = await frame.$eval('#scrub', (el) => String(parseFloat(getComputedStyle(el).width)))
+    await page.waitForFunction(
+      (width) => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === width,
+      {},
+      width,
+    )
+    return frame
+  }
+
+  async function startScrub(label: string) {
+    const unit = (await page.$(`label:has(input[aria-label="${label}"]) > span`))!
+    await unit.scrollIntoView()
+    expect(await unit.evaluate((el) => getComputedStyle(el).cursor)).toBe('ew-resize')
+    const box = (await unit.boundingBox())!
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    return { x, y }
+  }
+
+  async function drag(label: string, dx: number, modifier?: 'Shift' | 'Alt') {
+    const { x, y } = await startScrub(label)
+    if (modifier) await page.keyboard.down(modifier)
+    await page.mouse.move(x + dx, y, { steps: 5 })
+    await page.mouse.up()
+    if (modifier) await page.keyboard.up(modifier)
+  }
+
+  it('scrubs live in both directions, saves, and undoes/redoes the edit', async () => {
+    const frame = await seedScrubTarget()
+    const original = saved.html
+    const { x, y } = await startScrub('Width')
+    await page.mouse.move(x + 2, y)
+    await page.mouse.up()
+    expect(saved.html).toBe(original)
+    expect(await page.$eval('[aria-label="Width"]', (el) => (el as HTMLInputElement).value)).toBe('120')
+
+    await startScrub('Width')
+    // Capture keeps the drag alive even when the pointer crosses the iframe.
+    await page.mouse.move(200, y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '0px')
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+    await startScrub('Width')
+    await page.mouse.move(x + 24, y, { steps: 6 })
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '144px')
+    // The live canvas changes before release; reversing is relative to the same drag.
+    await page.mouse.move(x + 14, y, { steps: 3 })
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '134px')
+    await page.screenshot({ path: '/tmp/doop-element-scrubbing.png' })
+    await page.mouse.up()
+    await expect.poll(() => saved.html).toContain('width: 134px')
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+    await page.evaluate(() => window.elementPanelHarness.redo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '134px')
+  }, 15_000)
+
+  it('covers numeric units, padding shorthand, CSS lengths, modifiers, and bounds', async () => {
+    const frame = await seedScrubTarget()
+    for (const [label, dx, property, expected, modifier] of [
+      ['Height', 4, 'height', '120px', 'Shift'],
+      ['Gap', 8, 'gap', '14px'],
+      ['Padding', 5, 'padding', '9px 13px 17px 21px'],
+      ['Opacity percentage', 40, 'opacity', '1'],
+      ['Opacity percentage', -150, 'opacity', '0'],
+      ['Border width', 4, 'border-width', '6px'],
+      ['Radius', -10, 'border-radius', '0px'],
+      ['Font size', 4, 'font-size', '18.4px', 'Alt'],
+      ['Minimum width', 5, 'min-width', '2rem', 'Alt'],
+    ] as const) {
+      await drag(label, dx, modifier)
+      await frame.waitForFunction(
+        (property, expected) =>
+          (document.querySelector('#scrub') as HTMLElement).style.getPropertyValue(property) === expected,
+        {},
+        property,
+        expected,
+      )
+    }
+    // Reversing after hitting a bound responds immediately, without a dead zone.
+    const { x, y } = await startScrub('Opacity percentage')
+    await page.mouse.move(x - 20, y)
+    await page.mouse.move(x - 15, y)
+    await page.mouse.up()
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.opacity === '0.05')
+    await expect.poll(() => saved.html).toContain('opacity: 0.05')
+    expect(saved.html).toContain('min-width: 2rem')
+  }, 15_000)
+
+  it('cancels with Escape and cleans up capture when interrupted or selection changes', async () => {
+    const frame = await seedScrubTarget()
+    let point = await startScrub('Width')
+    await page.mouse.move(point.x + 20, point.y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
+    await page.keyboard.press('Escape')
+    await page.mouse.move(point.x + 40, point.y)
+    await page.mouse.up()
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+
+    point = await startScrub('Height')
+    await page.mouse.move(point.x + 10, point.y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.height === '90px')
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')))
+    await page.mouse.move(point.x + 30, point.y)
+    await page.mouse.up()
+    expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.height)).toBe('90px')
+
+    point = await startScrub('Width')
+    await page.evaluate(() => window.elementPanelHarness.select('#other'))
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '200')
+    await page.mouse.move(point.x + 30, point.y)
+    await page.mouse.up()
+    expect(await frame.$eval('#other', (el) => (el as HTMLElement).style.width)).toBe('200px')
+    expect(await page.$eval('body', (el) => getComputedStyle(el).cursor)).not.toBe('ew-resize')
+  }, 15_000)
+
+  it('preserves typing and keyboard adjustment and leaves nonnumeric lengths alone', async () => {
+    const frame = await seedScrubTarget()
+    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.keyboard.type('123')
+    await page.keyboard.press('Enter')
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '123px')
+    await page.click('[aria-label="Width"]')
+    await page.keyboard.press('ArrowUp')
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '124px')
+    await page.click('[aria-label="Minimum width"]', { count: 3 })
+    await page.keyboard.type('auto')
+    await page.keyboard.press('Enter')
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.minWidth === 'auto')
+    const unit = (await page.$('label:has(input[aria-label="Minimum width"]) > span'))!
+    expect(await unit.evaluate((el) => getComputedStyle(el).cursor)).not.toBe('ew-resize')
+    await expect.poll(() => saved.html).toContain('min-width: auto')
+  }, 15_000)
+
+  it('reconciles the displayed value with computed CSS after a drag finishes', async () => {
+    const frame = await seedScrubTarget()
+    const { x, y } = await startScrub('Width')
+    await page.mouse.move(x - 150, y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '0px')
+    // CSS min-width prevents the rendered width from reaching zero. The live
+    // draft stays under pointer control until release, then reflects that limit.
+    expect(await page.$eval('[aria-label="Width"]', (el) => (el as HTMLInputElement).value)).toBe('0')
+    const computed = await frame.$eval('#scrub', (el) => String(parseFloat(getComputedStyle(el).width)))
+    await page.mouse.up()
+    await expect.poll(() => page.$eval('[aria-label="Width"]', (el) => (el as HTMLInputElement).value)).toBe(computed)
+
+    const padding = await startScrub('Padding')
+    await page.mouse.move(padding.x - 30, padding.y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.padding === '0px')
+    await page.mouse.up()
+    await expect.poll(() => page.$eval('[aria-label="Padding"]', (el) => (el as HTMLInputElement).value)).toBe('0')
+    await expect.poll(() => saved.html).toContain('padding: 0px')
+  }, 15_000)
+
+  it('restores original CSS units, absent properties, priorities, and shorthands on Escape without saving', async () => {
+    const frame = await seedScrubTarget(
+      'width:50% !important;padding:1em 2em !important;row-gap:6px;column-gap:10px;border-left:2px solid black',
+    )
+    const originalHtml = saved.html
+    const inline = () =>
+      frame.$eval('#scrub', (el) => {
+        const style = (el as HTMLElement).style
+        return Object.fromEntries(
+          Array.from(style).map((key) => [key, [style.getPropertyValue(key), style.getPropertyPriority(key)]]),
+        )
+      })
+    const original = await inline()
+    for (const label of ['Width', 'Height', 'Padding', 'Gap', 'Border width']) {
+      const point = await startScrub(label)
+      await page.mouse.move(point.x + 10, point.y)
+      await expect.poll(inline).not.toEqual(original)
+      await page.keyboard.press('Escape')
+      await page.mouse.up()
+      await expect.poll(inline).toEqual(original)
+    }
+    expect(saved.html).toBe(originalHtml)
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    expect(saved.html).toBe(originalHtml)
+    await expect.poll(inline).toEqual(original)
+  }, 15_000)
+
+  it('saves a paused drag as one undo step and drops a paused cancellation', async () => {
+    const frame = await seedScrubTarget()
+    const original = saved.html
+    let point = await startScrub('Width')
+    await page.mouse.move(point.x + 20, point.y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
+    // Longer than both the runtime's save debounce and history's merge window.
+    await new Promise((resolve) => setTimeout(resolve, 2100))
+    expect(saved.html).toBe(original)
+    await page.mouse.move(point.x + 40, point.y)
+    await page.mouse.up()
+    await expect.poll(() => saved.html).toContain('width: 160px')
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+    await page.evaluate(() => window.elementPanelHarness.redo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '160px')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '160')
+
+    // A second completed drag remains a separate undo step, even immediately afterward.
+    await drag('Width', 10)
+    await expect.poll(() => saved.html).toContain('width: 170px')
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '160px')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '160')
+    const beforeCancel = saved.html
+    point = await startScrub('Width')
+    await page.mouse.move(point.x + 30, point.y)
+    await new Promise((resolve) => setTimeout(resolve, 2100))
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '160px')
+    expect(saved.html).toBe(beforeCancel)
+    // Cancellation leaves the previous real edit on top of the undo stack.
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+  }, 20_000)
+
+  it('keeps remote edits when a preview is cancelled', async () => {
+    const frame = await seedScrubTarget('width:50%;height:80px')
+    const point = await startScrub('Width')
+    await page.mouse.move(point.x + 20, point.y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width.endsWith('px'))
+    const preview = await frame.$eval('#scrub', (el) => (el as HTMLElement).style.width)
+    saved = { ...saved, html: saved.html.replace('width:50%', 'width:60%;color:red') }
+    const remote = saved.html
+    await page.evaluate((frame) => window.elementPanelHarness.seed(frame), saved)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.color === 'red')
+    expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.width)).toBe(preview)
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '60%')
+    expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.color)).toBe('red')
+    expect(saved.html).toBe(remote)
   }, 15_000)
 })

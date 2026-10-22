@@ -13,10 +13,11 @@
       import { ElementPanel } from '/src/components/ElementPanel.tsx'
       import { TooltipProvider } from '/src/components/ui/tooltip.tsx'
       import { useStore } from '/src/lib/store.ts'
-      import { undo } from '/src/lib/history.ts'
+      import { clearHistory, undo, redo } from '/src/lib/history.ts'
       import '/src/styles.css'
       window.elementPanelHarness = {
         seed: (frame) => {
+          clearHistory()
           useStore.getState().setCanvas({
             id: 'c',
             name: 'Typography',
@@ -27,6 +28,7 @@
         },
         select: (selector) => useStore.getState().setSelectedElement({ frameId: 'f', selector }),
         undo,
+        redo,
       }
       function Fixture() {
         const frame = useStore((s) => s.canvas?.frames[0])

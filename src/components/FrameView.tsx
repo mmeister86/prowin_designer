@@ -372,6 +372,7 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
   /* The iframe loads a bootstrap once; HTML is posted in and DOM-morphed in
      place, so updates never white-flash the frame with a full reload. */
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
+  const localHtml = useRef<string | null>(null)
   /* where the last right-click landed, in screen coordinates: Paste drops the
      frame there, and the menu's own box is not that point once Radix has
      flipped or shifted it away from a viewport edge */
@@ -394,9 +395,10 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
     return () => unregisterFrameWindow(frame.id, win)
   }, [runtimeReady, frame.id])
   useEffect(() => {
-    if (!runtimeReady || editing || suspendPost) return
+    if (!runtimeReady || editing || suspendPost || html !== frame.html || html === localHtml.current) return
+    localHtml.current = null
     iframeRef.current?.contentWindow?.postMessage({ type: 'doop:html', html }, '*')
-  }, [runtimeReady, html, editing, suspendPost])
+  }, [runtimeReady, html, frame.html, editing, suspendPost])
 
   /* ---- element comments ---- */
   const frameComments = useStore((s) => s.comments).filter((c) => c.frameId === frame.id)
@@ -743,10 +745,14 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
     function onMsg(ev: MessageEvent) {
       if (ev.source !== iframeRef.current?.contentWindow) return
       if (ev.data?.type === 'doop:edited' && typeof ev.data.html === 'string') {
+        // The runtime already has this document. Echoing it through the HTML
+        // throttle can overwrite a newer style edit still waiting to save.
+        localHtml.current = ev.data.html
         const before = useStore.getState().canvas?.frames.find((f) => f.id === frame.id)?.html
         useStore.getState().patchFrameLocal(frame.id, { html: ev.data.html })
-        api.updateFrame(frame.id, { html: ev.data.html }).catch(console.error)
-        if (before !== undefined) recordUpdate(frame.id, { html: before }, { html: ev.data.html })
+        trackSave(api.updateFrame(frame.id, { html: ev.data.html }).catch(console.error))
+        if (before !== undefined)
+          recordUpdate(frame.id, { html: before }, { html: ev.data.html }, ev.data.discrete === true)
       }
       if (ev.data?.type === 'doop:edit-esc') {
         setEditing(false)

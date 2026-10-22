@@ -147,3 +147,12 @@ export async function inspectElement(frameId: string, selector: string): Promise
 export async function styleElement(frameId: string, selector: string, styles: StylePatch): Promise<ElementInfo | null> {
   return infoOf(await requestFrame(frameId, 'doop:style', { selector, styles }))
 }
+
+/** Preview a whole scrub locally, then save once or restore its original CSS. */
+export async function styleGesture(
+  frameId: string,
+  selector: string,
+  phase: 'begin' | 'commit' | 'cancel',
+): Promise<ElementInfo | null> {
+  return infoOf(await requestFrame(frameId, 'doop:style-gesture', { selector, phase }))
+}

@@ -96,6 +96,15 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     } catch (e) {
       if (doc) document.documentElement.innerHTML = doc.documentElement.innerHTML
     }
+    // Remote HTML becomes the cancellation baseline; keep our preview visible.
+    if (styleEdit) {
+      var target = styleTarget(styleEdit.selector)
+      if (target) {
+        styleEdit.original = target.style.cssText
+        styleEdit.touched = {}
+        previewStyle(target, styleEdit.styles)
+      }
+    }
   }
 
   /* ---- inline text editing ----
@@ -211,8 +220,8 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     return '<!doctype html>\\n' + root.outerHTML
   }
 
-  function postEdited() {
-    parent.postMessage({ type: 'doop:edited', html: serialize() }, '*')
+  function postEdited(discrete) {
+    parent.postMessage({ type: 'doop:edited', html: serialize(), discrete: discrete === true }, '*')
     /* typing can move/grow the element — keep the parent's toolbar anchored */
     if (editing && activeEl) postActive()
   }
@@ -521,19 +530,78 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
   }
 
   var styleTimer = null
-  function applyStyle(selector, styles) {
+  var styleEdit = null
+  function styleTarget(selector) {
     var el = null
     try { el = selector ? document.querySelector(selector) : null } catch (e) { /* bad selector */ }
-    if (!el || isLocked(el)) return false
+    return el
+  }
+  function patchStyle(style, styles) {
     for (var k in styles) {
       if (!Object.prototype.hasOwnProperty.call(styles, k)) continue
-      if (styles[k] === null || styles[k] === '') el.style.removeProperty(k)
-      else el.style.setProperty(k, String(styles[k]))
+      if (styles[k] === null || styles[k] === '') style.removeProperty(k)
+      else style.setProperty(k, String(styles[k]))
     }
+  }
+  function previewStyle(el, styles) {
+    var before = document.createElement('div').style
+    before.cssText = el.style.cssText
+    patchStyle(el.style, styles)
+    // CSS enumerates longhands, so padding/border shorthands and !important
+    // declarations can be restored without replacing unrelated inline styles.
+    var names = {}
+    for (var i = 0; i < before.length; i++) names[before[i]] = true
+    for (var j = 0; j < el.style.length; j++) names[el.style[j]] = true
+    for (var name in names) {
+      if (before.getPropertyValue(name) !== el.style.getPropertyValue(name) ||
+          before.getPropertyPriority(name) !== el.style.getPropertyPriority(name)) styleEdit.touched[name] = true
+    }
+  }
+  function beginStyleEdit(selector) {
+    var el = styleTarget(selector)
+    if (!el || isLocked(el)) return false
+    if (styleEdit) endStyleEdit(styleEdit.selector, false)
+    // Save a previous typed/slider edit before opening this separate action.
+    if (styleTimer) {
+      clearTimeout(styleTimer)
+      styleTimer = null
+      postEdited()
+    }
+    styleEdit = { selector: selector, original: el.style.cssText, styles: {}, touched: {} }
+    return true
+  }
+  function endStyleEdit(selector, cancel) {
+    if (!styleEdit || styleEdit.selector !== selector) return false
+    var edit = styleEdit
+    styleEdit = null
+    var el = styleTarget(selector)
+    if (!el) return false
+    if (cancel) {
+      var original = document.createElement('div').style
+      original.cssText = edit.original
+      for (var name in edit.touched) {
+        var value = original.getPropertyValue(name)
+        if (value) el.style.setProperty(name, value, original.getPropertyPriority(name))
+        else el.style.removeProperty(name)
+      }
+      if (!el.getAttribute('style')) el.removeAttribute('style')
+    } else if (Object.keys(edit.touched).length) postEdited(true)
+    return true
+  }
+  function applyStyle(selector, styles) {
+    var el = styleTarget(selector)
+    if (!el || isLocked(el)) return false
+    if (styleEdit && styleEdit.selector === selector) {
+      Object.assign(styleEdit.styles, styles)
+      previewStyle(el, styles)
+      if (!el.getAttribute('style')) el.removeAttribute('style')
+      return true
+    }
+    patchStyle(el.style, styles)
     if (!el.getAttribute('style')) el.removeAttribute('style')
     /* a slider fires many of these a second — one save once it settles */
     if (styleTimer) clearTimeout(styleTimer)
-    styleTimer = setTimeout(postEdited, 250)
+    styleTimer = setTimeout(function () { styleTimer = null; postEdited() }, 250)
     return true
   }
 
@@ -549,6 +617,11 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     if (d.type === 'doop:style' && d.styles && typeof d.styles === 'object') {
       var applied = applyStyle(d.selector, d.styles)
       parent.postMessage({ type: 'doop:style-result', reqId: d.reqId, ok: applied, info: applied ? inspect(d.selector) : null }, '*')
+    }
+    if (d.type === 'doop:style-gesture') {
+      var changed = d.phase === 'begin' ? beginStyleEdit(d.selector)
+        : d.phase === 'commit' || d.phase === 'cancel' ? endStyleEdit(d.selector, d.phase === 'cancel') : false
+      parent.postMessage({ type: 'doop:style-gesture-result', reqId: d.reqId, info: changed ? inspect(d.selector) : null }, '*')
     }
     if (d.type === 'doop:html' && typeof d.html === 'string' && !editing) {
       render(d.html)

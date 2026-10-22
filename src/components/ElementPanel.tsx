@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Frame } from '../../shared/types'
 import { useStore } from '../lib/store'
-import { inspectElement, onFrameChange, styleElement, type ElementInfo, type StylePatch } from '../lib/frameBridge'
+import {
+  inspectElement,
+  onFrameChange,
+  styleElement,
+  styleGesture,
+  type ElementInfo,
+  type StylePatch,
+} from '../lib/frameBridge'
 import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '../lib/layers'
 import { replaceLayerHtml } from '../lib/layerEdits'
 import {
@@ -33,8 +40,10 @@ import { Segmented, SegmentedItem } from './ui/segmented'
 import {
   ColorField,
   FieldUnit,
+  LengthField,
   NumberField,
   PropertyRow,
+  PropertyScrubContext,
   PropertySection,
   SelectField,
   StaticField,
@@ -123,6 +132,14 @@ export function ElementPanel({
       .catch(console.error)
   }
 
+  function scrub(phase: 'begin' | 'commit' | 'cancel') {
+    styleGesture(frame.id, selector, phase)
+      .then((next) => {
+        if (next) setRead((r) => (r && r.selector !== selector ? r : { selector, info: next }))
+      })
+      .catch(console.error)
+  }
+
   function selectTab(next: Tab) {
     setTab(next)
     try {
@@ -179,7 +196,11 @@ export function ElementPanel({
         <PanelTabPanel value="design">
           <PanelBody>
             {info ? (
-              <DesignTab info={info} apply={apply} />
+              <PropertyScrubContext.Provider
+                value={{ onStart: () => scrub('begin'), onEnd: (cancel) => scrub(cancel ? 'cancel' : 'commit') }}
+              >
+                <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} />
+              </PropertyScrubContext.Provider>
             ) : stale ? (
               <div aria-busy className="pointer-events-none opacity-50" title="Reading the element…">
                 <DesignTab info={stale} apply={apply} />
@@ -322,7 +343,7 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
       </PropertySection>
       <PropertySection title="Size">
         <PropertyRow label="Width">
-          <NumberField value={info.width} unit="px" onCommit={(v) => apply({ width: `${v}px` })} />
+          <NumberField label="Width" value={info.width} unit="px" onCommit={(v) => apply({ width: `${v}px` })} />
           <SelectField
             className="flex-[0_0_66px]"
             value={sizeMode(info.inline['width'])}
@@ -331,7 +352,7 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           />
         </PropertyRow>
         <PropertyRow label="Height">
-          <NumberField value={info.height} unit="px" onCommit={(v) => apply({ height: `${v}px` })} />
+          <NumberField label="Height" value={info.height} unit="px" onCommit={(v) => apply({ height: `${v}px` })} />
           <SelectField
             className="flex-[0_0_66px]"
             value={sizeMode(info.inline['height'])}
@@ -340,7 +361,8 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           />
         </PropertyRow>
         <PropertyRow label="Min width">
-          <TextField
+          <LengthField
+            label="Minimum width"
             value={info.inline['min-width'] ?? (info.minWidth === '0px' ? '' : info.minWidth)}
             placeholder="auto"
             onCommit={(v) => apply({ 'min-width': lengthValue(v) })}
@@ -361,14 +383,18 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
         </PropertyRow>
         <PropertyRow label="Gap">
           <NumberField
+            label="Gap"
             value={info.rowGap ?? 0}
             unit={gapMixed ? 'row' : 'px'}
             onCommit={(v) => apply({ gap: `${v}px` })}
           />
           <TextField
+            label="Padding"
             className="flex-[0_0_78px]"
             value={compactBox(info.padding)}
             unit="pad"
+            scrub
+            min={0}
             onCommit={(v) => apply({ padding: shorthandValue(v) })}
           />
         </PropertyRow>
@@ -376,9 +402,11 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
       <PropertySection title="Styles">
         <PropertyRow label="Opacity">
           <NumberField
+            label="Opacity percentage"
             className="flex-[0_0_52px]"
             value={info.opacity === null ? null : Math.round(info.opacity * 100)}
             unit="%"
+            max={100}
             onCommit={(v) => apply({ opacity: String(Math.min(100, Math.max(0, v)) / 100) })}
           />
           <input
@@ -409,6 +437,7 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
             }
           />
           <NumberField
+            label="Border width"
             className="flex-[0_0_78px]"
             value={border.width}
             unit={border.sides || 'px'}
@@ -421,7 +450,12 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           />
         </PropertyRow>
         <PropertyRow label="Radius">
-          <NumberField value={info.borderRadius} unit="px" onCommit={(v) => apply({ 'border-radius': `${v}px` })} />
+          <NumberField
+            label="Radius"
+            value={info.borderRadius}
+            unit="px"
+            onCommit={(v) => apply({ 'border-radius': `${v}px` })}
+          />
         </PropertyRow>
       </PropertySection>
       {info.hasText && (
@@ -435,7 +469,12 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
             />
           </PropertyRow>
           <PropertyRow label="Size">
-            <NumberField value={info.fontSize} unit="px" onCommit={(v) => apply({ 'font-size': `${v}px` })} />
+            <NumberField
+              label="Font size"
+              value={info.fontSize}
+              unit="px"
+              onCommit={(v) => apply({ 'font-size': `${v}px` })}
+            />
             <SelectField
               className="flex-[0_0_66px]"
               value={WEIGHTS.includes(info.fontWeight) ? info.fontWeight : '400'}

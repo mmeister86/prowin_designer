@@ -22,7 +22,7 @@ type Entry =
       activeBefore: string | null
       activeAfter: string | null
     }
-  | { type: 'update'; frameId: string; before: Patch; after: Patch; at: number }
+  | { type: 'update'; frameId: string; before: Patch; after: Patch; at: number; discrete?: boolean }
   | { type: 'create'; frameId: string; snapshot: Snapshot }
   | { type: 'delete'; frameId: string; snapshot: Snapshot }
   /* Destination first, then source removal; reverse that order on undo so
@@ -91,13 +91,16 @@ function updateEntry(frameId: string, before: Patch, after: Patch): UpdateEntry 
   return { type: 'update', frameId, before: b, after: a, at: Date.now() }
 }
 
-export function recordUpdate(frameId: string, before: Patch, after: Patch) {
+export function recordUpdate(frameId: string, before: Patch, after: Patch, discrete = false) {
   const entry = updateEntry(frameId, before, after)
   if (!entry) return
+  entry.discrete = discrete
   const keys = Object.keys(entry.after) as (keyof Patch)[]
   const top = undoStack[undoStack.length - 1]
   if (
     top?.type === 'update' &&
+    !discrete &&
+    !top.discrete &&
     top.frameId === frameId &&
     Date.now() - top.at < COALESCE_MS &&
     keys.every((k) => k in top.after)
