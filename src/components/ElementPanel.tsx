@@ -12,6 +12,7 @@ import {
 import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '../lib/layers'
 import { replaceLayerHtml } from '../lib/layerEdits'
 import {
+  aspectRatio,
   borderSummary,
   compactBox,
   lengthValue,
@@ -35,7 +36,15 @@ import {
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Tooltip } from './ui/tooltip'
-import { AlignCenterIcon, AlignJustifyIcon, AlignLeftIcon, AlignRightIcon, ArrowUpIcon } from './ui/icons'
+import {
+  AlignCenterIcon,
+  AlignJustifyIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
+  ArrowUpIcon,
+  LinkIcon,
+  UnlinkIcon,
+} from './ui/icons'
 import { Segmented, SegmentedItem } from './ui/segmented'
 import {
   ColorField,
@@ -301,6 +310,8 @@ function parentLayout(info: ElementInfo): string {
 }
 
 function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePatch) => void }) {
+  const ratio = aspectRatio(info.aspectRatio, info.naturalAspectRatio)
+  const canLink = (info.width ?? 0) > 0 && (info.height ?? 0) > 0
   const visible = info.visibility !== 'hidden'
   const fill = rgbToHex(info.backgroundColor)
   const borderColor = rgbToHex(info.borderColor)
@@ -316,10 +327,44 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           ? 'left'
           : 'right'
         : info.textAlign
+  function setDimension(axis: 'width' | 'height', value: number) {
+    const other = axis === 'width' ? 'height' : 'width'
+    const paired = ratio === null ? null : axis === 'width' ? value / ratio : value * ratio
+    apply({
+      [axis]: `${value}px`,
+      ...(paired === null ? {} : { [other]: `${Math.round(paired * 100) / 100}px` }),
+    })
+  }
   function setSize(axis: 'width' | 'height', mode: SizeMode) {
-    if (mode === 'fixed') apply({ [axis]: `${info[axis] ?? 0}px` })
-    else if (mode === 'fill') apply({ [axis]: '100%' })
-    else apply({ [axis]: null })
+    if (mode === 'fixed') setDimension(axis, info[axis] ?? 0)
+    else
+      apply({
+        [axis]: mode === 'fill' ? '100%' : ratio === null ? null : 'auto',
+        // An automatic opposite dimension lets CSS preserve the linked ratio
+        // as a Fill/Hug size changes with its container or content.
+        ...(ratio === null ? {} : { [axis === 'width' ? 'height' : 'width']: 'auto' }),
+      })
+  }
+  function toggleRatio() {
+    if (ratio === null) {
+      apply({
+        'aspect-ratio': `${info.width} / ${info.height}`,
+        ...(sizeMode(info.inline.width) === 'fill'
+          ? { height: 'auto' }
+          : sizeMode(info.inline.height) === 'fill'
+            ? { width: 'auto' }
+            : {}),
+      })
+      return
+    }
+    // Unlinking must not collapse a dimension that CSS was deriving from the
+    // ratio. Without an inline size either dimension may come from a stylesheet,
+    // so preserve both ambiguous dimensions while leaving explicit Fill intact.
+    apply({
+      'aspect-ratio': 'auto',
+      ...(sizeMode(info.inline.width) === 'hug' && info.width !== null ? { width: `${info.width}px` } : {}),
+      ...(sizeMode(info.inline.height) === 'hug' && info.height !== null ? { height: `${info.height}px` } : {}),
+    })
   }
   return (
     <>
@@ -341,10 +386,41 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           </StaticField>
         </PropertyRow>
       </PropertySection>
-      <PropertySection title="Size">
+      <PropertySection
+        title="Size"
+        action={
+          <Tooltip
+            label={
+              ratio !== null
+                ? 'Unlink width and height'
+                : canLink
+                  ? 'Link width and height'
+                  : 'Set a positive width and height to link them'
+            }
+          >
+            <span>
+              <Button
+                variant="bare"
+                size="icon-sm"
+                className={cn(
+                  'size-[22px] rounded-[5px]',
+                  ratio !== null ? 'bg-ink text-paper hover:bg-ink/85 hover:text-paper' : 'text-ink-faint',
+                )}
+                aria-label="Link width and height"
+                aria-pressed={ratio !== null}
+                disabled={ratio === null && !canLink}
+                onClick={toggleRatio}
+              >
+                {ratio !== null ? <LinkIcon size="rail" /> : <UnlinkIcon size="rail" />}
+              </Button>
+            </span>
+          </Tooltip>
+        }
+      >
         <PropertyRow label="Width">
-          <NumberField label="Width" value={info.width} unit="px" onCommit={(v) => apply({ width: `${v}px` })} />
+          <NumberField label="Width" value={info.width} unit="px" onCommit={(v) => setDimension('width', v)} />
           <SelectField
+            label="Width sizing"
             className="flex-[0_0_66px]"
             value={sizeMode(info.inline['width'])}
             options={SIZE_MODES}
@@ -352,8 +428,9 @@ function DesignTab({ info, apply }: { info: ElementInfo; apply: (styles: StylePa
           />
         </PropertyRow>
         <PropertyRow label="Height">
-          <NumberField label="Height" value={info.height} unit="px" onCommit={(v) => apply({ height: `${v}px` })} />
+          <NumberField label="Height" value={info.height} unit="px" onCommit={(v) => setDimension('height', v)} />
           <SelectField
+            label="Height sizing"
             className="flex-[0_0_66px]"
             value={sizeMode(info.inline['height'])}
             options={SIZE_MODES}

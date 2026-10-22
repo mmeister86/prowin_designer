@@ -56,6 +56,7 @@ import {
   Layers,
   LayoutGrid,
   LayoutTemplate,
+  Link2,
   Lock,
   LogOut,
   MapPin,
@@ -92,6 +93,7 @@ import {
   Trash2,
   Type,
   Upload,
+  Unlink2,
   User,
   Users,
   Workflow,
@@ -148,6 +150,8 @@ export const AlignLeftIcon = icon(AlignLeft)
 export const AlignCenterIcon = icon(AlignCenter)
 export const AlignRightIcon = icon(AlignRight)
 export const AlignJustifyIcon = icon(AlignJustify)
+export const LinkIcon = icon(Link2)
+export const UnlinkIcon = icon(Unlink2)
 /** Lucide dropped its brand marks; this is its last GitHub outline, kept on
  *  the same grid and stroke as the rest of the set. */
 export function GithubIcon(props: IconProps) {

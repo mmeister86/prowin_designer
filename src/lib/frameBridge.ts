@@ -24,6 +24,8 @@ export interface ElementInfo {
   flexDirection: string
   width: number | null
   height: number | null
+  aspectRatio: string
+  naturalAspectRatio: number | null
   minWidth: string
   rowGap: number | null
   columnGap: number | null

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { borderSummary, compactBox, lengthValue, rgbToHex, shorthandValue, sizeMode } from '../src/lib/cssValues'
+import {
+  aspectRatio,
+  borderSummary,
+  compactBox,
+  lengthValue,
+  rgbToHex,
+  shorthandValue,
+  sizeMode,
+} from '../src/lib/cssValues'
 
 describe('rgbToHex', () => {
   it('turns computed rgb triplets into hex', () => {
@@ -52,6 +60,25 @@ describe('sizeMode', () => {
     expect(sizeMode('auto')).toBe('hug')
     expect(sizeMode('100%')).toBe('fill')
     expect(sizeMode('236px')).toBe('fixed')
+  })
+})
+
+describe('aspectRatio', () => {
+  it('reads positive CSS ratios, including the optional auto keyword', () => {
+    expect(aspectRatio('16 / 9')).toBeCloseTo(16 / 9)
+    expect(aspectRatio('auto 1.5 / 1')).toBe(1.5)
+    expect(aspectRatio('2')).toBe(2)
+  })
+  it('does not link automatic or degenerate ratios', () => {
+    for (const value of ['auto', '', '0 / 1', '1 / 0', 'Infinity', '1 / 2 / 3']) {
+      expect(aspectRatio(value)).toBeNull()
+    }
+  })
+  it('uses natural image ratios only when the explicit ratio is an auto fallback', () => {
+    expect(aspectRatio('auto 1 / 1', 2)).toBe(2)
+    expect(aspectRatio('1 / 1', 2)).toBe(1)
+    expect(aspectRatio('auto', 2)).toBeNull()
+    expect(aspectRatio('auto 1 / 1', 0)).toBe(1)
   })
 })
 

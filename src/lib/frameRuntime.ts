@@ -502,6 +502,9 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       flexDirection: cs.flexDirection,
       width: px(cs.width),
       height: px(cs.height),
+      aspectRatio: cs.aspectRatio,
+      naturalAspectRatio: el.naturalWidth && el.naturalHeight ? el.naturalWidth / el.naturalHeight
+        : el.videoWidth && el.videoHeight ? el.videoWidth / el.videoHeight : null,
       minWidth: cs.minWidth,
       rowGap: px(cs.rowGap),
       columnGap: px(cs.columnGap),

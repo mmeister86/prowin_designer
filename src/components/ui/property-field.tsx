@@ -31,10 +31,21 @@ export function FieldUnit({ children }: { children: ReactNode }) {
   return <span className={unitCls}>{children}</span>
 }
 
-export function PropertySection({ title, children }: { title: string; children: ReactNode }) {
+export function PropertySection({
+  title,
+  action,
+  children,
+}: {
+  title: string
+  action?: ReactNode
+  children: ReactNode
+}) {
   return (
     <section className="border-b border-line-soft px-3 pt-[7px] pb-2.5">
-      <h3 className="mb-[5px] flex h-5 items-center text-[12px] font-normal text-ink-soft">{title}</h3>
+      <div className="mb-[5px] flex h-5 items-center justify-between">
+        <h3 className="text-[12px] font-normal text-ink-soft">{title}</h3>
+        {action}
+      </div>
       {children}
     </section>
   )

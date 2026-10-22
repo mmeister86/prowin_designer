@@ -182,18 +182,20 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   }, 15_000)
   async function seedScrubTarget(
     styles = 'width:120px;height:80px;min-width:1.5rem;padding:4px 8px 12px 16px;gap:6px;column-gap:10px;opacity:0.8;border-left:2px solid black;border-radius:3px;font-size:18px',
+    { css = '', target = `<div id="scrub" style="${styles}">Scrub me</div>` } = {},
   ) {
     const seed = String(++seedId)
     saved = {
       ...saved,
-      html: `<!doctype html><html><body data-seed="${seed}">
-        <div id="scrub" style="${styles}">Scrub me</div>
+      html: `<!doctype html><html><head><style>${css}</style></head><body data-seed="${seed}">
+        ${target}
         <div id="other" style="width:200px">Another element</div>
       </body></html>`,
     }
     await page.evaluate((frame) => window.elementPanelHarness.seed(frame), saved)
     const frame = (await (await page.$('iframe'))!.contentFrame())!
     await frame.waitForFunction((seed) => document.body.dataset.seed === seed, {}, seed)
+    await frame.waitForFunction(() => Array.from(document.images).every((image) => image.complete))
     await page.evaluate(() => window.elementPanelHarness.select('#scrub'))
     const width = await frame.$eval('#scrub', (el) => String(parseFloat(getComputedStyle(el).width)))
     await page.waitForFunction(
@@ -432,5 +434,168 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '60%')
     expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.color)).toBe('red')
     expect(saved.html).toBe(remote)
+  }, 15_000)
+
+  it('links dimensions for typing and dragging, persists the ratio, and restores both dimensions on cancel/undo', async () => {
+    const frame = await seedScrubTarget()
+    const toggle = '[aria-label="Link width and height"]'
+    expect(await page.$eval(toggle, (el) => el.getAttribute('aria-pressed'))).toBe('false')
+    await page.click(toggle)
+    await page.waitForSelector(`${toggle}[aria-pressed="true"]`)
+    await expect.poll(() => saved.html).toContain('aspect-ratio: 120 / 80')
+
+    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.keyboard.type('240')
+    await page.keyboard.press('Enter')
+    await frame.waitForFunction(() => {
+      const style = (document.querySelector('#scrub') as HTMLElement).style
+      return style.width === '240px' && style.height === '160px'
+    })
+    await expect.poll(() => saved.html).toContain('height: 160px')
+    await page.evaluate(() => window.elementPanelHarness.select('#other'))
+    await page.waitForSelector(`${toggle}[aria-pressed="false"]`)
+    await page.evaluate(() => window.elementPanelHarness.select('#scrub'))
+    await page.waitForSelector(`${toggle}[aria-pressed="true"]`)
+
+    await page.click('[aria-label="Height"]', { count: 3 })
+    await page.keyboard.type('100')
+    await page.keyboard.press('Enter')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '150')
+    const point = await startScrub('Width')
+    await page.mouse.move(point.x + 30, point.y)
+    await frame.waitForFunction(() => {
+      const style = (document.querySelector('#scrub') as HTMLElement).style
+      return style.width === '180px' && style.height === '120px'
+    })
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '150')
+    expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.height)).toBe('100px')
+
+    await drag('Width', 30)
+    await expect.poll(() => saved.html).toContain('width: 180px')
+    await page.screenshot({ path: '/tmp/doop-linked-dimensions.png' })
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => {
+      const style = (document.querySelector('#scrub') as HTMLElement).style
+      return style.width === '150px' && style.height === '100px'
+    })
+    await page.evaluate(() => window.elementPanelHarness.redo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '180px')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '180')
+    await page.click(toggle)
+    await page.waitForSelector(`${toggle}[aria-pressed="false"]`)
+    await expect.poll(() => saved.html).toContain('aspect-ratio: auto')
+    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.keyboard.type('200')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => saved.html).toContain('width: 200px')
+    expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.height)).toBe('120px')
+  }, 20_000)
+
+  it('recognizes authored aspect ratios and maintains them in Fill mode', async () => {
+    const frame = await seedScrubTarget('width:160px;height:90px;aspect-ratio:16 / 9', {
+      css: '#scrub { height: 90px }',
+    })
+    await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
+    await page.select('[aria-label="Width sizing"]', 'fill')
+    await frame.waitForFunction(() => {
+      const el = document.querySelector('#scrub') as HTMLElement
+      const style = getComputedStyle(el)
+      return (
+        el.style.width === '100%' &&
+        el.style.height === 'auto' &&
+        Math.abs(parseFloat(style.width) / parseFloat(style.height) - 16 / 9) < 0.001
+      )
+    })
+    await expect.poll(() => saved.html).toContain('width: 100%')
+    expect(saved.html).toContain('aspect-ratio: 16 / 9')
+    const height = await frame.$eval('#scrub', (el) => getComputedStyle(el).height)
+    await page.waitForFunction(
+      (height) =>
+        document.querySelector<HTMLInputElement>('[aria-label="Height"]')?.value === String(parseFloat(height)),
+      {},
+      height,
+    )
+    await page.click('[aria-label="Link width and height"]')
+    await expect.poll(() => saved.html).toContain('aspect-ratio: auto')
+    expect(await frame.$eval('#scrub', (el) => getComputedStyle(el).height)).toBe(height)
+    expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.width)).toBe('100%')
+  }, 15_000)
+
+  it.each(['width', 'height'] as const)(
+    'keeps an existing %s Fill proportional when linking',
+    async (axis) => {
+      const other = axis === 'width' ? 'height' : 'width'
+      const frame = await seedScrubTarget(`${axis}:100%;${other}:80px`, {
+        css: 'body { width: 240px; height: 240px } #scrub { width: 80px; height: 80px }',
+      })
+      await page.click('[aria-label="Link width and height"]')
+      await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
+      await frame.waitForFunction(
+        (other) => (document.querySelector('#scrub') as HTMLElement).style.getPropertyValue(other) === 'auto',
+        {},
+        other,
+      )
+      await expect.poll(() => saved.html).toContain(`${other}: auto`)
+      await frame.evaluate((axis) => {
+        document.body.style[axis] = '300px'
+      }, axis)
+      await frame.waitForFunction(
+        (other) => getComputedStyle(document.querySelector('#scrub')!).getPropertyValue(other) === '100px',
+        {},
+        other,
+      )
+    },
+    15_000,
+  )
+
+  it('preserves stylesheet-derived image dimensions when unlinking', async () => {
+    const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"/>')}`
+    const frame = await seedScrubTarget('', {
+      css: '#scrub { height:100px; width:auto; aspect-ratio:2 / 1 }',
+      target: `<img id="scrub" src="${src}">`,
+    })
+    await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
+    expect(await frame.$eval('#scrub', (el) => getComputedStyle(el).width)).toBe('200px')
+    await page.click('[aria-label="Link width and height"]')
+    await expect.poll(() => saved.html).toContain('aspect-ratio: auto')
+    expect(await frame.$eval('#scrub', (el) => [getComputedStyle(el).width, getComputedStyle(el).height])).toEqual([
+      '200px',
+      '100px',
+    ])
+  }, 15_000)
+
+  it('uses a loaded image natural ratio instead of its auto fallback while editing', async () => {
+    const src = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"/>')}`
+    const frame = await seedScrubTarget('', {
+      target: `<img id="scrub" src="${src}" style="width:200px;height:auto;aspect-ratio:auto 1 / 1">`,
+    })
+    await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
+    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.keyboard.type('400')
+    await page.keyboard.press('Enter')
+    await expect.poll(() => saved.html).toContain('height: 200px')
+    expect(await frame.$eval('#scrub', (el) => getComputedStyle(el).width)).toBe('400px')
+  }, 15_000)
+
+  it('requires positive dimensions before linking and supports the keyboard toggle', async () => {
+    const frame = await seedScrubTarget('width:0px;height:0px')
+    const toggle = '[aria-label="Link width and height"]'
+    expect(await page.$eval(toggle, (el) => (el as HTMLButtonElement).disabled)).toBe(true)
+    for (const [label, value] of [
+      ['Width', '80'],
+      ['Height', '40'],
+    ]) {
+      await page.click(`[aria-label="${label}"]`, { count: 3 })
+      await page.keyboard.type(value!)
+      await page.keyboard.press('Enter')
+    }
+    await page.waitForSelector(`${toggle}:not([disabled])`)
+    await page.focus(toggle)
+    await page.keyboard.press('Space')
+    await page.waitForSelector(`${toggle}[aria-pressed="true"]`)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.aspectRatio === '80 / 40')
+    await expect.poll(() => saved.html).toContain('aspect-ratio: 80 / 40')
   }, 15_000)
 })

@@ -50,6 +50,23 @@ export function sizeMode(inline: string | undefined): SizeMode {
   return inline.trim().endsWith('%') ? 'fill' : 'fixed'
 }
 
+/** With `auto`, a loaded image/video's natural ratio takes precedence over
+ *  the explicit fallback. Plain `auto` does not represent an explicit link. */
+export function aspectRatio(value: string, naturalRatio: number | null = null): number | null {
+  const parts = value
+    .replace(/\bauto\b/g, '')
+    .trim()
+    .split('/')
+    .map(Number)
+  const [width, height = 1] = parts
+  if (parts.length > 2 || !width || width <= 0 || height <= 0) return null
+  const ratio = width / height
+  if (!Number.isFinite(ratio) || ratio <= 0) return null
+  return /\bauto\b/.test(value) && naturalRatio !== null && Number.isFinite(naturalRatio) && naturalRatio > 0
+    ? naturalRatio
+    : ratio
+}
+
 /** How a border reads in one field: its width and, when it is not on every
  *  side, which sides carry it ("1px" / "1px right" / "2px top bottom"). */
 export function borderSummary(widths: [number | null, number | null, number | null, number | null]): {
