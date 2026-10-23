@@ -162,10 +162,9 @@ export default tseslint.config(
   },
   {
     /* every environment variable is declared once in server/env.ts, typed and
-       validated at boot; the rest of the server reads `env.X` from there. The
-       Gemini cloud worker is its own process with its own three variables. */
+       validated at boot; the rest of the server reads `env.X` from there. */
     files: ['server/**/*.ts'],
-    ignores: ['server/env.ts', 'server/geminiCloudWorker.ts', 'server/geminiCloudWorkerMain.ts'],
+    ignores: ['server/env.ts'],
     languageOptions: { parser: tseslint.parser },
     rules: {
       'no-restricted-syntax': [

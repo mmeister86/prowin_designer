@@ -219,7 +219,7 @@ model account and the Doop Agent keeps running on it. **A connected account take
 from the very next task: the free tier is a trial that gets people here, not a balance to spend down
 first, and connecting stops costing the server anything from that moment. The connection is
 account-level, so it lives at **/settings** (Home → Settings); the free-tier wall links there rather
-than carrying its own copy, and "Connect an AI agent" on a canvas stays about MCP clients only. Six
+than carrying its own copy, and "Connect an AI agent" on a canvas stays about MCP clients only. Five
 kinds of account:
 
 - **ChatGPT subscription** — OAuth against `auth.openai.com`, then inference through the Codex
@@ -233,9 +233,6 @@ kinds of account:
   the picker labels them "no visual review".
 - **Gemini API key** — Google's Gemini models through their OpenAI-compatible endpoint, plus Nano
   Banana image generation.
-- **Gemini cloud pilot** — an operator-managed prototype running the official Gemini CLI in an
-  isolated worker using Google sign-in. Disabled by default; see the
-  [pilot setup and verification guide](docs/gemini-cloud-pilot.md).
 - **Claude API key** — pay-as-you-go on the user's own Anthropic account.
 
 Azure OpenAI is deliberately _not_ a connectable account kind, and the OpenRouter/Gemini endpoints

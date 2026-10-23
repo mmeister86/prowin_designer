@@ -61,7 +61,7 @@ it('ships an installable manifest and all runtime files without repository crede
   expect(archive.file('node_modules/open/xdg-open')).not.toBeNull()
 })
 
-it('runs the extracted download and forwards real Doop tools, instructions and resources', async () => {
+it('runs the extracted download and forwards real Doop tools and instructions without app resources', async () => {
   const owner = await new Client(server).signUp('extension@test.dev', 'Extension Owner')
   const { secret } = (await (await owner.post('/api/agent-keys', { name: 'extension-test' })).json()) as {
     secret: string
@@ -89,10 +89,7 @@ it('runs the extracted download and forwards real Doop tools, instructions and r
     const result = await client.callTool({ name: 'get_guide', arguments: { topic: 'doop-instructions' } })
     expect(result.isError, errors).not.toBe(true)
     expect(result.content).not.toEqual([])
-    const { resources } = await client.listResources()
-    const preview = resources.find((resource) => resource.uri.startsWith('ui://doop/'))
-    expect(preview).toBeDefined()
-    expect((await client.readResource({ uri: preview!.uri })).contents).not.toEqual([])
+    expect(client.getServerCapabilities()?.resources).toBeUndefined()
   } finally {
     await client.close()
   }

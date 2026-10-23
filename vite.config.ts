@@ -35,10 +35,6 @@ export default defineConfig({
     watch: {
       ignored: ['**/desktop/src-tauri/target/**'],
     },
-    /* the doop-sync snippet posts to /ingest from foreign origins; vite
-       answers CORS preflights itself before the proxy, so its default
-       same-origin policy would block what the express server (prod) allows */
-    cors: true,
     proxy: {
       /* changeOrigin stays OFF so the backend sees the web origin's Host and
          better-auth builds OAuth discovery/authorize URLs on that origin —
@@ -50,7 +46,6 @@ export default defineConfig({
       '/i/': { target: api },
       '/a/': { target: api },
       '/u/': { target: api },
-      '/ingest': { target: api },
       '/relay': { target: api },
       '/blog': { target: api },
       '/robots.txt': { target: api },

@@ -13,7 +13,6 @@ services:
       SIGNUP_EMAIL_DOMAINS: ${SIGNUP_EMAIL_DOMAINS:-}
       # optional — see .env.example for everything else (SMTP, ANTHROPIC_API_KEY, …)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      CONTEXT_DEV_API_KEY: ${CONTEXT_DEV_API_KEY:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-}
       SMTP_USER: ${SMTP_USER:-}
