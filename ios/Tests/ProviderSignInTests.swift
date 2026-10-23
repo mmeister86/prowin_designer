@@ -11,8 +11,8 @@ enum ProviderSignInChecks {
         expect(start.absoluteString == "https://doop.design/desktop/signin?provider=google&challenge=0123456789abcdef0123456789abcdef", "start URL")
         expect(server.contains(start), "start URL stays on the server")
         let selfHosted = ServerAddress("https://doop.example.com:8443")!
-        expect(ProviderSignIn(provider: .oidc, challenge: attempt.challenge).startURL(on: selfHosted).absoluteString
-                == "https://doop.example.com:8443/desktop/signin?provider=oidc&challenge=0123456789abcdef0123456789abcdef", "self-hosted start URL")
+        expect(attempt.startURL(on: selfHosted).absoluteString
+                == "https://doop.example.com:8443/desktop/signin?provider=google&challenge=0123456789abcdef0123456789abcdef", "self-hosted start URL")
 
         // Only a doop://auth link answering this attempt's challenge releases its token.
         let token = attempt.token(from: URL(string: "doop://auth?token=tok-1&challenge=0123456789abcdef0123456789abcdef&to=%2F")!)
@@ -40,15 +40,16 @@ enum ProviderSignInChecks {
         // The provider list follows the server's public config, in the web page's order.
         let decoder = JSONDecoder()
         let all = try decoder.decode(LoginProviders.self, from: Data(#"{"enabled":true,"displayName":"Acme SSO","google":true,"microsoft":true}"#.utf8))
-        expect(all.available == [.google, .microsoft, .oidc], "provider order")
-        expect(all.label(for: .oidc) == "Acme SSO" && all.label(for: .google) == "Google" && all.label(for: .microsoft) == "Microsoft", "labels")
+        expect(all.available == [.google], "removed providers are ignored even on an older server")
+        expect(all.label(for: .google) == "Google", "Google label")
         let bare = try decoder.decode(LoginProviders.self, from: Data(#"{"enabled":true,"google":false,"microsoft":false}"#.utf8))
-        expect(bare.available == [.oidc] && bare.label(for: .oidc) == "SSO", "SSO without a display name")
-        let none = try decoder.decode(LoginProviders.self, from: Data(#"{"enabled":false,"google":false,"microsoft":false}"#.utf8))
+        expect(bare.available.isEmpty, "removed SSO does not produce a button")
+        expect(SignInProvider(rawValue: "oidc") == nil && SignInProvider(rawValue: "microsoft") == nil, "removed providers cannot start a sign-in")
+        let none = try decoder.decode(LoginProviders.self, from: Data(#"{"google":false,"apple":false,"appleNative":false}"#.utf8))
         expect(none.available.isEmpty && none == LoginProviders.none, "no providers")
         // An older server that predates the Apple flags still decodes; a newer one's flags are read.
         expect(!none.appleNative, "missing Apple flags read as off")
-        let apple = try decoder.decode(LoginProviders.self, from: Data(#"{"enabled":false,"google":false,"microsoft":false,"apple":true,"appleNative":true}"#.utf8))
+        let apple = try decoder.decode(LoginProviders.self, from: Data(#"{"google":false,"apple":true,"appleNative":true}"#.utf8))
         expect(apple.appleNative && apple.available.isEmpty, "native Apple is not a browser provider")
         let empty = try decoder.decode(LoginProviders.self, from: Data("{}".utf8))
         expect(empty == LoginProviders.none, "an empty object is no providers")

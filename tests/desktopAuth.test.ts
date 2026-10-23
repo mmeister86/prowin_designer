@@ -46,7 +46,7 @@ describe('desktop sign-in deep links', () => {
 describe('desktop sign-in start page', () => {
   it('round-trips provider, challenge and both landings through the browser URL', () => {
     const request = {
-      provider: 'microsoft' as const,
+      provider: 'apple' as const,
       challenge: CHALLENGE,
       callbackURL: '/c/abc',
       newUserCallbackURL: '/api/welcome',
@@ -67,6 +67,8 @@ describe('desktop sign-in start page', () => {
   })
 
   it('rejects unknown providers and bad challenges, sanitises both landings', () => {
+    expect(parseDesktopSignInQuery(`?provider=microsoft&challenge=${CHALLENGE}&to=/`)).toBeNull()
+    expect(parseDesktopSignInQuery(`?provider=oidc&challenge=${CHALLENGE}&to=/`)).toBeNull()
     expect(parseDesktopSignInQuery(`?provider=github&challenge=${CHALLENGE}&to=/`)).toBeNull()
     expect(parseDesktopSignInQuery('?provider=google&to=/')).toBeNull()
     expect(parseDesktopSignInQuery('?provider=google&challenge=short&to=/')).toBeNull()

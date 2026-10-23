@@ -2,7 +2,7 @@ import { env } from './env.ts'
 import { betterAuth } from 'better-auth'
 import { APIError } from 'better-auth/api'
 import { eq, inArray, or, isNull, ne, and, sql } from 'drizzle-orm'
-import { admin, mcp, genericOAuth, oneTimeToken } from 'better-auth/plugins'
+import { admin, mcp, oneTimeToken } from 'better-auth/plugins'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { db } from './db/index.ts'
 import * as authSchema from './db/auth-schema.ts'
@@ -99,43 +99,6 @@ export async function syncAdmins(): Promise<void> {
   }
 }
 
-interface OidcConfig {
-  issuer: string
-  clientId: string
-  clientSecret: string
-  scopes: string[]
-  providerName: string
-}
-
-/**
- * Env-gated SSO against an external OIDC provider (Zitadel, Okta, Authentik,
- * Keycloak, ...). All three of OIDC_ISSUER/OIDC_CLIENT_ID/OIDC_CLIENT_SECRET
- * must be set together to enable it — a partial set is almost certainly a
- * misconfiguration, not a valid state, so it throws rather than silently
- * running with SSO half-on.
- */
-export function loadOidcConfig(): OidcConfig | null {
-  const { OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_SCOPES, OIDC_PROVIDER_NAME } = env
-  const setCount = [OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET].filter(Boolean).length
-  if (setCount === 0) return null
-  if (setCount < 3) {
-    throw new Error('OIDC_ISSUER, OIDC_CLIENT_ID, and OIDC_CLIENT_SECRET must all be set together to enable SSO')
-  }
-  return {
-    issuer: OIDC_ISSUER!,
-    clientId: OIDC_CLIENT_ID!,
-    clientSecret: OIDC_CLIENT_SECRET!,
-    scopes: (OIDC_SCOPES || 'openid email profile').split(/[,\s]+/).filter(Boolean),
-    providerName: OIDC_PROVIDER_NAME || 'SSO',
-  }
-}
-
-/** What the login page is allowed to know: whether SSO exists and what to call it. Never the secret. */
-export function oidcPublicConfig(): { enabled: boolean; displayName?: string } {
-  const config = loadOidcConfig()
-  return config ? { enabled: true, displayName: config.providerName } : { enabled: false }
-}
-
 interface OAuthClient {
   clientId: string
   clientSecret: string
@@ -143,11 +106,11 @@ interface OAuthClient {
 
 /**
  * The <PREFIX>_CLIENT_ID / <PREFIX>_CLIENT_SECRET pair behind each social
- * provider. Same all-or-nothing rule as loadOidcConfig: both set enables
+ * provider. All-or-nothing: both set enables
  * the provider, neither leaves it off, and a half-set pair refuses to boot
  * rather than showing a button that can never complete.
  */
-function loadOAuthClient(prefix: 'GOOGLE' | 'MICROSOFT' | 'APPLE', label: string): OAuthClient | null {
+function loadOAuthClient(prefix: 'GOOGLE' | 'APPLE', label: string): OAuthClient | null {
   const clientId = env[`${prefix}_CLIENT_ID`]
   const clientSecret = env[`${prefix}_CLIENT_SECRET`]
   const setCount = [clientId, clientSecret].filter(Boolean).length
@@ -158,25 +121,9 @@ function loadOAuthClient(prefix: 'GOOGLE' | 'MICROSOFT' | 'APPLE', label: string
   return { clientId: clientId!, clientSecret: clientSecret! }
 }
 
-/** Env-gated "Sign in with Google", alongside email/password and OIDC SSO. */
+/** Env-gated "Sign in with Google", alongside email/password. */
 export function loadGoogleConfig(): OAuthClient | null {
   return loadOAuthClient('GOOGLE', 'Google')
-}
-
-interface MicrosoftConfig extends OAuthClient {
-  /** Entra tenant: `common` (any Microsoft account, the default), `organizations`, `consumers`, or a tenant id. */
-  tenantId: string
-}
-
-/**
- * Env-gated "Sign in with Microsoft" (Entra ID / personal Microsoft
- * accounts). MICROSOFT_TENANT_ID narrows who may sign in: leave it at
- * `common` for a public instance, set your tenant id to make the button an
- * org-only door.
- */
-export function loadMicrosoftConfig(): MicrosoftConfig | null {
-  const client = loadOAuthClient('MICROSOFT', 'Microsoft')
-  return client && { ...client, tenantId: env.MICROSOFT_TENANT_ID }
 }
 
 export interface AppleConfig {
@@ -236,10 +183,7 @@ export function appleIdentityTokenVerifier(
 
 /** Everything the login page needs to render its provider buttons. Never a secret. */
 export function loginProvidersConfig(): {
-  enabled: boolean
-  displayName?: string
   google: boolean
-  microsoft: boolean
   /** browser "Sign in with Apple" */
   apple: boolean
   /** the iOS app's native Sign in with Apple */
@@ -247,9 +191,7 @@ export function loginProvidersConfig(): {
 } {
   const apple = loadAppleConfig()
   return {
-    ...oidcPublicConfig(),
     google: loadGoogleConfig() !== null,
-    microsoft: loadMicrosoftConfig() !== null,
     apple: apple?.web != null,
     appleNative: apple?.appBundleIdentifier != null,
   }
@@ -257,11 +199,8 @@ export function loginProvidersConfig(): {
 
 /**
  * Shared by every external identity provider doop signs people in through
- * (the OIDC SSO plugin and the Google and Microsoft social providers — each
- * hands this its raw profile: `email` + `email_verified`, or for Microsoft,
- * which only sends email_verified when the app registration asks for it,
- * the `verified_primary_email` optional claim listing addresses the account
- * has proven; better-auth reads exactly the same two signals).
+ * (Google and Apple — each hands this its raw `email` + `email_verified`
+ * profile).
  *
  * better-auth's account-linking gate requires the LOCAL user row to already
  * be emailVerified before it will link an incoming OAuth sign-in to it —
@@ -270,8 +209,7 @@ export function loginProvidersConfig(): {
  * its own deprecation note, is headed toward becoming unconditional). On an
  * instance with no SMTP configured, no local account can ever verify on its
  * own (see mailerConfigured in mailer.ts), so without this, an existing
- * password user could never link their account to SSO — exactly the
- * migration this feature exists to support.
+ * password user could never link their account to a social provider.
  *
  * Used as each provider's mapProfileToUser, which runs before that gate:
  * if the IdP marks this email verified and a local, still-unverified account
@@ -286,23 +224,18 @@ export function loginProvidersConfig(): {
  * email_verified for an address it never confirmed ownership of just as
  * cheaply as a stranger typing it into a password signup). It also runs
  * before better-auth's own linking gate, so a grant here would persist even
- * if the sign-in then fails to link. Promotion for an SSO-linked ADMIN_EMAILS
+ * if the sign-in then fails to link. Promotion for a provider-linked ADMIN_EMAILS
  * account still happens — once, safely — the next time syncAdmins runs at
  * boot, since this handler leaves emailVerified true.
  */
 async function linkVerifiedProviderEmail(profile: {
   email?: unknown
   email_verified?: unknown
-  verified_primary_email?: unknown
 }): Promise<Record<string, never>> {
   const email = typeof profile.email === 'string' ? profile.email.toLowerCase() : undefined
-  const verifiedPrimary = Array.isArray(profile.verified_primary_email) ? profile.verified_primary_email : []
   /* Apple's identity token carries email_verified as the string "true" as
      often as the boolean (its docs allow both) */
-  const verified =
-    profile.email_verified === true ||
-    profile.email_verified === 'true' ||
-    verifiedPrimary.some((candidate) => typeof candidate === 'string' && candidate.toLowerCase() === email)
+  const verified = profile.email_verified === true || profile.email_verified === 'true'
   if (email && verified) {
     const [existing] = await db
       .select({ id: authSchema.user.id })
@@ -318,10 +251,10 @@ async function linkVerifiedProviderEmail(profile: {
 /**
  * SIGNUP_EMAIL_DOMAINS, enforced where every sign-up path converges — the
  * user row's creation — rather than on the email/password endpoint alone,
- * so an OAuth provider (Google, SSO) can't walk around the allowlist with
+ * so an OAuth provider (Google, Apple) can't walk around the allowlist with
  * an address it would have rejected typed in. The email endpoint returns
- * the thrown error as a plain 400; the OAuth callbacks (social and
- * genericOAuth alike, as of better-auth 1.6.26) catch it and redirect back
+ * the thrown error as a plain 400; the social OAuth callbacks
+ * (as of better-auth 1.6.26) catch it and redirect back
  * to /auth with the MESSAGE as the ?error= code, spaces turned into
  * underscores — see SIGNUP_RESTRICTED_PREFIX in AuthPage.tsx, which undoes
  * that. Keep the message's first words stable.
@@ -337,9 +270,7 @@ function assertSignupDomainAllowed(email: string): void {
 }
 
 function buildAuth() {
-  const oidc = loadOidcConfig()
   const google = loadGoogleConfig()
-  const microsoft = loadMicrosoftConfig()
   const apple = loadAppleConfig()
   /* BETTER_AUTH_SECRET and BETTER_AUTH_URL are required in production; a
      missing one fails at boot in server/env.ts */
@@ -361,25 +292,12 @@ function buildAuth() {
           return origin ? [origin] : []
         },
     database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
-    /* Social providers, each absent unless its <PREFIX>_* pair is set.
-       Google always sends email_verified; Microsoft sends it (or
-       verified_primary_email) only if the app registration's optional
-       claims include it, otherwise a Microsoft sign-in can only link to an
-       already-verified local account. Either way linking goes through
-       linkVerifiedProviderEmail exactly as it does for OIDC SSO. */
+    /* Social providers link accounts only after the provider verifies the email. */
     socialProviders: {
       ...(google && {
         google: {
           clientId: google.clientId,
           clientSecret: google.clientSecret,
-          mapProfileToUser: linkVerifiedProviderEmail,
-        },
-      }),
-      ...(microsoft && {
-        microsoft: {
-          clientId: microsoft.clientId,
-          clientSecret: microsoft.clientSecret,
-          tenantId: microsoft.tenantId,
           mapProfileToUser: linkVerifiedProviderEmail,
         },
       }),
@@ -485,46 +403,15 @@ function buildAuth() {
     /* admin: role/ban/impersonate. 15 minutes rather than the default hour —
        an expired impersonation session doesn't revert to the admin, it signs
        them out entirely, so the window should be short and re-entered. */
-    /* genericOAuth: SSO against an external OIDC provider, absent unless
-       loadOidcConfig() finds a full config. As of better-auth 1.6.26,
-       discoveryUrl resolves the authorize/token endpoints at sign-in time
-       rather than at plugin registration, so an unreachable issuer tends to
-       surface there rather than at boot — an implementation detail of this
-       version, not a documented contract, so don't rely on it.
-       pkce: true because some IdPs reject a non-PKCE authorization code flow.
-       Account linking (see linkVerifiedProviderEmail above): better-auth's own
-       default linking gate requires BOTH the IdP's email_verified claim AND
-       the local user row already being emailVerified — the second half is
-       unreachable on an SMTP-less instance, where no local account ever
-       verifies on its own. mapProfileToUser flips that local flag first,
-       so the gate's own default (matching, IdP-verified email) is what
-       actually decides linking, as intended. */
     plugins: [
       mcp({ loginPage: '/', oidcConfig: { loginPage: '/', consentPage: '/oauth/consent' } }),
       admin({ impersonationSessionDuration: 15 * 60 }),
-      /* oneTimeToken: how a Google / Microsoft / SSO sign-in finished in the
+      /* oneTimeToken: how a Google / Apple sign-in finished in the
          system browser reaches the desktop app (src/lib/desktopAuth.ts). The
          browser session mints a token, the app redeems it and gets the same
          session's cookie. Single use, hashed at rest, two minutes to live —
          it travels through a doop:// URL that lands in browser history. */
       oneTimeToken({ storeToken: 'hashed', expiresIn: 2 }),
-      ...(oidc
-        ? [
-            genericOAuth({
-              config: [
-                {
-                  providerId: 'oidc',
-                  clientId: oidc.clientId,
-                  clientSecret: oidc.clientSecret,
-                  discoveryUrl: `${oidc.issuer.replace(/\/$/, '')}/.well-known/openid-configuration`,
-                  scopes: oidc.scopes,
-                  pkce: true,
-                  mapProfileToUser: linkVerifiedProviderEmail,
-                },
-              ],
-            }),
-          ]
-        : []),
     ],
   })
 }

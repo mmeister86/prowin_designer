@@ -1,44 +1,31 @@
 import Foundation
 
-/// An identity provider the server may offer besides email/password: the Google
-/// and Microsoft social providers, and `oidc` for the generic OIDC SSO plugin.
+/// A browser identity provider the server may offer besides email/password.
 public enum SignInProvider: String, CaseIterable, Equatable {
-    case google, microsoft, oidc
+    case google
 }
 
-/// `GET /api/oidc-config`: which provider buttons the sign-in screen should show.
+/// `GET /api/login-providers`: which provider buttons the sign-in screen should show.
 /// Never carries a secret; a server without any provider answers all-false.
 public struct LoginProviders: Decodable, Equatable {
-    /// OIDC SSO is configured.
-    public var enabled: Bool
-    /// What the SSO button should call the provider ("Okta", "Acme SSO").
-    public var displayName: String?
     public var google: Bool
-    public var microsoft: Bool
     /// The browser "Sign in with Apple" (a Services ID); the web page's button, not this app's.
     public var apple: Bool
     /// The server verifies identity tokens from this app's native Sign in with Apple sheet.
     public var appleNative: Bool
 
-    public init(enabled: Bool = false, displayName: String? = nil, google: Bool = false, microsoft: Bool = false,
-                apple: Bool = false, appleNative: Bool = false) {
-        self.enabled = enabled
-        self.displayName = displayName
+    public init(google: Bool = false, apple: Bool = false, appleNative: Bool = false) {
         self.google = google
-        self.microsoft = microsoft
         self.apple = apple
         self.appleNative = appleNative
     }
 
-    private enum CodingKeys: String, CodingKey { case enabled, displayName, google, microsoft, apple, appleNative }
+    private enum CodingKeys: String, CodingKey { case google, apple, appleNative }
 
     /// Every flag is optional on the wire: a server older than a flag answers without it, and must read as off.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(enabled: try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false,
-                  displayName: try container.decodeIfPresent(String.self, forKey: .displayName),
-                  google: try container.decodeIfPresent(Bool.self, forKey: .google) ?? false,
-                  microsoft: try container.decodeIfPresent(Bool.self, forKey: .microsoft) ?? false,
+        self.init(google: try container.decodeIfPresent(Bool.self, forKey: .google) ?? false,
                   apple: try container.decodeIfPresent(Bool.self, forKey: .apple) ?? false,
                   appleNative: try container.decodeIfPresent(Bool.self, forKey: .appleNative) ?? false)
     }
@@ -49,20 +36,12 @@ public struct LoginProviders: Decodable, Equatable {
     /// sign-in page shows them. Apple is not among them: this app signs in
     /// with Apple natively (`appleNative`, `AppleSignIn`).
     public var available: [SignInProvider] {
-        var providers: [SignInProvider] = []
-        if google { providers.append(.google) }
-        if microsoft { providers.append(.microsoft) }
-        if enabled { providers.append(.oidc) }
-        return providers
+        google ? [.google] : []
     }
 
     public func label(for provider: SignInProvider) -> String {
         switch provider {
         case .google: return "Google"
-        case .microsoft: return "Microsoft"
-        case .oidc:
-            let name = displayName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            return name.isEmpty ? "SSO" : name
         }
     }
 }

@@ -167,8 +167,6 @@ private struct ProviderMark: View {
     var body: some View {
         switch provider {
         case .google: Image("GoogleMark").resizable().frame(width: 18, height: 18).accessibilityHidden(true)
-        case .microsoft: Image("MicrosoftMark").resizable().frame(width: 18, height: 18).accessibilityHidden(true)
-        case .oidc: Image(systemName: "person.badge.key").font(.body).accessibilityHidden(true)
         }
     }
 }
@@ -446,7 +444,7 @@ private struct NativeSettings: View {
                     }
                     .alert("Delete your account?", isPresented: $confirmingDeletion) {
                         /* an account that only ever signed in through Google /
-                           Microsoft / SSO has no password to ask for */
+                           Apple has no password to ask for */
                         if hasPassword { SecureField("Password", text: $deletionPassword) }
                         Button("Delete", role: .destructive) {
                             busy = true

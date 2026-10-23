@@ -30,10 +30,7 @@ export function DesktopSignIn({ signedIn }: { signedIn: boolean }) {
       errorCallbackURL: '/auth',
     }
     const failed = 'Could not start sign-in — go back to the doop app and try again.'
-    const start =
-      request.provider === 'oidc'
-        ? authClient.signIn.oauth2({ providerId: 'oidc', ...redirects })
-        : authClient.signIn.social({ provider: request.provider, ...redirects })
+    const start = authClient.signIn.social({ provider: request.provider, ...redirects })
     start
       .then((res) => {
         if (res.error) setStartError(res.error.message ?? failed)

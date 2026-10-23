@@ -1,4 +1,4 @@
-/* The desktop shell cannot finish a Google / Microsoft / SSO sign-in itself:
+/* The desktop shell cannot finish a Google / Apple sign-in itself:
    identity providers refuse embedded webviews, so the provider round trip
    runs in the system browser and the resulting session is handed back to
    the app over a doop:// deep link. This module holds the URL shapes both
@@ -36,9 +36,9 @@ import { safeRelativeTarget } from './safeTarget'
 export const DESKTOP_SIGNIN_PATH = '/desktop/signin'
 export const DESKTOP_HANDOFF_PATH = '/desktop/handoff'
 
-/** better-auth's social providers, plus 'oidc' for the genericOAuth SSO plugin. */
-export type DesktopSignInProvider = 'google' | 'microsoft' | 'apple' | 'oidc'
-const PROVIDERS: readonly DesktopSignInProvider[] = ['google', 'microsoft', 'apple', 'oidc']
+/** Supported browser sign-in providers. */
+export type DesktopSignInProvider = 'google' | 'apple'
+const PROVIDERS: readonly DesktopSignInProvider[] = ['google', 'apple']
 
 /** Where to land once signed in, as better-auth's sign-ins take it: one
  *  path for a returning account and one for an account the sign-in just

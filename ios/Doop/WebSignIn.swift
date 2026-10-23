@@ -6,7 +6,7 @@ struct SignInCancelled: Error {}
 
 /// Runs a provider sign-in (`ProviderSignIn`) in the system browser sheet and
 /// returns the `doop://auth` callback it ends on. The sheet shares Safari's
-/// cookies, so a Google or Microsoft account already signed in there is one
+/// cookies, so a Google account already signed in there is one
 /// tap away, and a browser that already holds a doop session skips the
 /// provider entirely.
 @MainActor

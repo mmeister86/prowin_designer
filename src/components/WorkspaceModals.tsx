@@ -232,7 +232,7 @@ export function UpgradeModal({
             {error && <p className="mt-2 text-label text-accent-ink">{error}</p>}
             {session?.user.email && (
               <p className="mt-3 text-caption text-ink-faint">
-                Receipts go to {session.user.email}. Need invoicing, SSO or a bigger team?{' '}
+                Receipts go to {session.user.email}. Need invoicing or a bigger team?{' '}
                 <a className="font-semibold text-ink underline underline-offset-2" href={ENTERPRISE_CONTACT}>
                   Talk to us
                 </a>

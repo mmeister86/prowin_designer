@@ -67,16 +67,12 @@ const TITLES: Record<AuthMode, string> = {
   reset: 'Pick a new password.',
 }
 
-/** The redirect knobs shared by better-auth's social and oauth2 sign-ins. */
+/** The redirect knobs for better-auth's social sign-ins. */
 interface ProviderStart extends ProviderRedirects {
   errorCallbackURL: string
 }
 
 /* The providers' marks at the 18px their sign-in guidelines draw them, from the registry. */
-function MicrosoftMark() {
-  return <BrandMark brand="microsoft" size={18} className="shrink-0" />
-}
-
 function AppleMark() {
   return <BrandMark brand="apple" size={18} className="shrink-0" />
 }
@@ -93,7 +89,7 @@ function GoogleMark() {
    (see linkVerifiedProviderEmail in server/auth.ts for why that should now be
    rare, not why it can still happen — a provider that never sends
    email_verified, for instance). */
-const SSO_ERROR_MESSAGES: Record<string, string> = {
+const PROVIDER_ERROR_MESSAGES: Record<string, string> = {
   account_not_linked:
     'That email already has a doop account that could not be linked automatically — sign in with email/password instead.',
   "email_doesn't_match": "The signed-in email doesn't match the account you started from — try again.",
@@ -105,7 +101,7 @@ const SSO_ERROR_MESSAGES: Record<string, string> = {
 
 /* A failure inside the IdP round trip (the browser has already left and
    come back) redirects here with ?error=<code> rather than throwing where
-   ssoSignIn's own res.error check could see it — that check only ever
+   providerSignIn's own res.error check could see it — that check only ever
    catches failures of the *initiating* request (e.g. unknown providerId). */
 /* better-auth's OAuth callbacks relay an error thrown by our own user-create
    hook (SIGNUP_EMAIL_DOMAINS, see assertSignupDomainAllowed in
@@ -114,14 +110,14 @@ const SSO_ERROR_MESSAGES: Record<string, string> = {
    contain underscores, so flipping them back restores it verbatim. */
 const SIGNUP_RESTRICTED_PREFIX = 'Sign_up_is_restricted'
 
-function ssoErrorFromUrl(): string | null {
+function providerErrorFromUrl(): string | null {
   const params = new URLSearchParams(location.search)
   const code = params.get('error')
   if (!code) return null
   if (code.startsWith(SIGNUP_RESTRICTED_PREFIX)) return code.replaceAll('_', ' ')
   const description = params.get('error_description')
   if (description) return description
-  return SSO_ERROR_MESSAGES[code] ?? 'Sign-in failed — try again or use email/password.'
+  return PROVIDER_ERROR_MESSAGES[code] ?? 'Sign-in failed — try again or use email/password.'
 }
 
 /* Where a provider sign-in should land, mirroring what the email form does
@@ -132,37 +128,32 @@ function ssoErrorFromUrl(): string | null {
    request instead. An interrupted flow wins for everyone; otherwise a
    returning user comes back to this page and a new account lands on its
    first canvas, the same place the email signup goes. */
-function ssoRedirects(): ProviderRedirects {
+function providerRedirects(): ProviderRedirects {
   const target = interruptedTarget()
   if (target) return { callbackURL: target, newUserCallbackURL: target }
   return { callbackURL: location.pathname + location.search, newUserCallbackURL: FIRST_CANVAS_PATH }
 }
 
 /** Matches server/auth.ts loginProvidersConfig's response shape. */
-interface OidcClientConfig {
-  enabled: boolean
-  displayName?: string
+interface LoginProvidersConfig {
   google: boolean
-  microsoft: boolean
   /** the browser "Sign in with Apple" (the iOS app's native one is appleNative, not shown here) */
   apple: boolean
 }
 
 /* The client bundle is static and shared across self-hosted deploys — it
-   can't know at build time whether the operator configured SSO, so it asks
+   can't know at build time which social providers are configured, so it asks
    the server. See server/auth.ts loginProvidersConfig. */
-function useOidcConfig(): OidcClientConfig {
-  const [config, setConfig] = useState<OidcClientConfig>({
-    enabled: false,
+function useLoginProviders(): LoginProvidersConfig {
+  const [config, setConfig] = useState<LoginProvidersConfig>({
     google: false,
-    microsoft: false,
     apple: false,
   })
   useEffect(() => {
-    fetch('/api/oidc-config')
-      .then((res) => (res.ok ? res.json() : { enabled: false, google: false, microsoft: false, apple: false }))
+    fetch('/api/login-providers')
+      .then((res) => (res.ok ? res.json() : { google: false, apple: false }))
       .then(setConfig)
-      .catch(() => {}) // SSO button just doesn't appear — email/password still works
+      .catch(() => {}) // Provider buttons stay hidden — email/password still works
   }, [])
   return config
 }
@@ -175,14 +166,14 @@ function useOidcConfig(): OidcClientConfig {
 let browserSignInNotice: string | null = null
 
 export function AuthPage() {
-  const oidc = useOidcConfig()
+  const providers = useLoginProviders()
   /* better-auth lands password-reset links on /auth/reset?token=… */
   const resetToken = location.pathname === '/auth/reset' ? new URLSearchParams(location.search).get('token') : null
   const [mode, setMode] = useState<AuthMode>(resetToken ? 'reset' : 'signin')
   const [name, setNameField] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(ssoErrorFromUrl)
+  const [error, setError] = useState<string | null>(providerErrorFromUrl)
   /* informational state (not an error): "check your email" and friends */
   const [notice, setNotice] = useState<string | null>(browserSignInNotice)
   /* signin failed on an unverified email — offer a resend */
@@ -200,13 +191,13 @@ export function AuthPage() {
     setUnverified(false)
   }
 
-  /* the SSO error code has been shown; keep it out of the address bar */
+  /* the provider error code has been shown; keep it out of the address bar */
   useEffect(() => {
-    if (ssoErrorFromUrl()) history.replaceState(null, '', location.pathname)
+    if (providerErrorFromUrl()) history.replaceState(null, '', location.pathname)
   }, [])
 
   /* Both providers leave for the IdP and come back with a session (or an
-     ?error= — see ssoErrorFromUrl); success redirects the browser away
+     ?error= — see providerErrorFromUrl); success redirects the browser away
      immediately, so only the failure to *start* leaves us here to show
      something. */
   async function providerSignIn(
@@ -223,7 +214,7 @@ export function AuthPage() {
            signs in through the system browser and gets the session handed
            back over a doop:// link (src/lib/desktopAuth.ts). The browser
            starts the provider round trip itself, from a doop page. */
-        if (!(await beginBrowserSignIn(provider, ssoRedirects()))) {
+        if (!(await beginBrowserSignIn(provider, providerRedirects()))) {
           setError(startFailed)
           return
         }
@@ -231,18 +222,14 @@ export function AuthPage() {
         setNotice(browserSignInNotice)
         return
       }
-      const res = await start({ ...ssoRedirects(), errorCallbackURL: '/auth' })
+      const res = await start({ ...providerRedirects(), errorCallbackURL: '/auth' })
       if (res.error) setError(res.error.message ?? startFailed)
     } finally {
       setBusy(false)
     }
   }
 
-  function ssoSignIn() {
-    return providerSignIn('oidc', (opts) => authClient.signIn.oauth2({ providerId: 'oidc', ...opts }))
-  }
-
-  function socialSignIn(provider: 'google' | 'microsoft' | 'apple') {
+  function socialSignIn(provider: DesktopSignInProvider) {
     return providerSignIn(provider, (opts) => authClient.signIn.social({ provider, ...opts }))
   }
 
@@ -340,9 +327,9 @@ export function AuthPage() {
             </>
           )}
         </AuthCardText>
-        {(oidc.enabled || oidc.google || oidc.microsoft || oidc.apple) && (mode === 'signin' || mode === 'signup') && (
+        {(providers.google || providers.apple) && (mode === 'signin' || mode === 'signup') && (
           <>
-            {oidc.google && (
+            {providers.google && (
               <Button
                 variant="default"
                 size="lg"
@@ -356,21 +343,7 @@ export function AuthPage() {
                 {mode === 'signup' ? 'Sign up' : 'Sign in'} with Google
               </Button>
             )}
-            {oidc.microsoft && (
-              <Button
-                variant="default"
-                size="lg"
-                block
-                className="border-line"
-                type="button"
-                onClick={() => socialSignIn('microsoft')}
-                disabled={busy}
-              >
-                <MicrosoftMark />
-                {mode === 'signup' ? 'Sign up' : 'Sign in'} with Microsoft
-              </Button>
-            )}
-            {oidc.apple && (
+            {providers.apple && (
               <Button
                 variant="default"
                 size="lg"
@@ -382,19 +355,6 @@ export function AuthPage() {
               >
                 <AppleMark />
                 {mode === 'signup' ? 'Sign up' : 'Sign in'} with Apple
-              </Button>
-            )}
-            {oidc.enabled && (
-              <Button
-                variant="default"
-                size="lg"
-                block
-                className="border-line"
-                type="button"
-                onClick={ssoSignIn}
-                disabled={busy}
-              >
-                {mode === 'signup' ? 'Sign up' : 'Sign in'} with {oidc.displayName}
               </Button>
             )}
             <div className="flex items-center gap-3 text-[11px] uppercase tracking-wide text-ink-faint">

@@ -53,7 +53,7 @@ export const PLANS: readonly Plan[] = [
     id: 'enterprise',
     name: 'Enterprise',
     tagline: 'Self-host it, or let us run it for you.',
-    features: ['SSO (OIDC), Google and Microsoft sign-in', 'Dedicated support', 'Custom terms and invoicing'],
+    features: ['Dedicated support', 'Custom terms and invoicing'],
   },
 ]
 

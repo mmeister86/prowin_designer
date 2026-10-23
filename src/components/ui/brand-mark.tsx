@@ -6,30 +6,19 @@ import canvaLogo from './brand/canva.svg'
  * Every third-party logo the product wears, from one place. A mark is a
  * square `size` px box with the brand's glyph centred in it, drawn in the
  * brand's own colours where it has them (Figma, Google, Meta, Photoshop,
- * Canva, Microsoft) and in `currentColor` where the brand
+ * Canva) and in `currentColor` where the brand
  * itself asks for the text colour (GitHub, OpenAI, Cursor, Gemini, Apple).
  * Claude's default is Anthropic's terracotta; `color` overrides any of the
  * single-colour marks.
  *
  * Paths: Simple Icons (CC0) for Claude, OpenAI, Cursor and GitHub; the
- * providers' own sign-in branding assets for Google, Apple and Microsoft;
+ * providers' own sign-in branding assets for Google and Apple;
  * each company's brand page for the rest. Wordmarks and tiles that belong to
  * a feature (the automation chain's clock, the integration tiles) stay with
  * that feature and compose a BrandMark.
  */
 export type Brand =
-  | 'figma'
-  | 'github'
-  | 'canva'
-  | 'photoshop'
-  | 'meta'
-  | 'claude'
-  | 'openai'
-  | 'cursor'
-  | 'gemini'
-  | 'google'
-  | 'apple'
-  | 'microsoft'
+  'figma' | 'github' | 'canva' | 'photoshop' | 'meta' | 'claude' | 'openai' | 'cursor' | 'gemini' | 'google' | 'apple'
 
 export interface BrandMarkProps {
   brand: Brand
@@ -136,17 +125,6 @@ function Google({ size, className }: GlyphProps) {
   )
 }
 
-function Microsoft({ size, className }: GlyphProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 21 21" className={className} aria-hidden>
-      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
-      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
-      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
-      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-    </svg>
-  )
-}
-
 /** Adobe's Ps app mark: the dark tile with the two letters as a vector. */
 function Photoshop({ size, className }: GlyphProps) {
   return (
@@ -169,7 +147,6 @@ const MARKS: Record<Brand, (props: GlyphProps) => JSX.Element> = {
   gemini: path(GEMINI_PATH),
   google: Google,
   apple: path(APPLE_PATH),
-  microsoft: Microsoft,
 }
 
 export const BRANDS = Object.keys(MARKS) as Brand[]

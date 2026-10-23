@@ -109,7 +109,7 @@ final class AppModel: ObservableObject {
            out (so the sign-in screen after a sign-out knows them) but never
            in the way of opening a workspace that is already signed in */
         Task {
-            let providers: LoginProviders = (try? await client.get("/api/oidc-config")) ?? .none
+            let providers: LoginProviders = (try? await client.get("/api/login-providers")) ?? .none
             guard self.client === client else { return }
             self.providers = providers
         }
@@ -158,7 +158,7 @@ final class AppModel: ObservableObject {
         if user == nil { throw APIError(status: 0, message: "Check your email to verify your account, then sign in.") }
     }
 
-    /// Google / Microsoft / SSO: the provider round trip runs in a browser sheet
+    /// Google: the provider round trip runs in a browser sheet
     /// (`WebSignIn`), which hands back a one-time token the app redeems for the
     /// session cookie. See `ProviderSignIn` for the flow and its challenge check.
     func signIn(with provider: SignInProvider) async throws {
@@ -230,7 +230,7 @@ final class AppModel: ObservableObject {
     }
 
     /// Whether this account can prove itself with a password: an account that
-    /// only ever signed in through Google / Microsoft / SSO has none. Throws
+    /// only ever signed in through Google / Apple has none. Throws
     /// rather than guessing: a lookup that failed must not drop the password.
     func hasPassword() async throws -> Bool {
         struct Account: Decodable { var providerId: String }

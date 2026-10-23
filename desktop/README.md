@@ -17,7 +17,7 @@ The URL is baked in at compile time (`src-tauri/src/main.rs`); the in-shell
 navigation allowlist follows it automatically.
 
 Links outside doop.design open in the system browser (`src-tauri/src/main.rs`).
-Google / Microsoft / SSO sign-in runs there too: identity providers refuse
+Google / Apple sign-in runs there too: identity providers refuse
 embedded webviews, so the page opens the provider in the browser and the
 finished sign-in returns through a `doop://auth?token=…` link (deep-link
 plugin, scheme in `tauri.conf.json`) that the page redeems for a session — see

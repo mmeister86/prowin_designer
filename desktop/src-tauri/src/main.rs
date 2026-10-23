@@ -16,7 +16,7 @@
 // Tab" and hands the keystroke to the page as a `close-tab` event
 // (src/lib/desktop.ts closes the active canvas tab).
 //
-// Sign-in with Google / Microsoft / SSO cannot happen in the webview —
+// Sign-in with Google / Apple cannot happen in the webview —
 // identity providers refuse embedded browsers — so the page opens the
 // provider in the system browser and the finished sign-in comes back as a
 // doop://auth?token=… link (src/lib/desktopAuth.ts). The deep-link plugin

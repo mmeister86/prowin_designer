@@ -358,7 +358,7 @@ Workspaces are the paid part of doop on a hosted deployment. Plans (see `shared/
 | ---------- | ----------------------------------------- | ----------------------------------------------------------- |
 | Personal   | free                                      | Your own canvases, per-canvas invites, agents, community.   |
 | Team       | $20 / seat / month, or $192 / seat / year | Shared workspaces with roles; seats follow the people list. |
-| Enterprise | talk to us                                | SSO, dedicated support, custom terms.                       |
+| Enterprise | talk to us                                | Dedicated support, custom terms.                            |
 
 **Self-hosting: billing is off unless you turn it on.** Without `STRIPE_SECRET_KEY` every
 workspace is active and nothing is locked. With it, a workspace must hold a live per-seat
@@ -391,45 +391,34 @@ so a privileged read there would give every agent holding an admin's token the r
 instance. View-as sessions cannot write, cannot connect agents, and record who is behind
 them in `session.impersonated_by`.
 
-### SSO (OIDC)
+### Login providers
 
-Optional login against an external OIDC provider (Zitadel, Okta, Authentik, Keycloak,
-etc.), alongside email/password — not a replacement for it. Set `OIDC_ISSUER`,
-`OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` together to enable it; a partial set refuses
-to boot rather than run with SSO half-configured. `OIDC_SCOPES` (default
-`openid email profile`) and `OIDC_PROVIDER_NAME` (default `SSO`, shown on the login
-button — e.g. `Zitadel`) are optional. Signing in via SSO links to an existing
+Email/password, Google and Apple are the supported login methods. Web, desktop and iOS
+discover enabled providers through `/api/login-providers` (`google`, `apple`, `appleNative`).
+SSO/OIDC and Microsoft login have been removed; legacy `OIDC_*` and `MICROSOFT_*`
+variables are ignored. Update iOS clients together with the server: `/api/oidc-config`
+is no longer served. Accounts and existing sessions are retained, but users who only
+used a removed provider need a supported login method (for example a password reset
+via configured SMTP, or Google/Apple with the same verified email).
+
+Signing in via Google or Apple links to an existing
 email/password account when the emails match and the provider marks the email
 verified, and this works even on an instance with no SMTP configured, where a
-local account could otherwise never verify on its own. SSO alone never grants
+local account could otherwise never verify on its own. Provider linking alone never grants
 the admin role, even for an address listed in `ADMIN_EMAILS` — an IdP is not
 trusted as an admin-promotion source, only as an email-ownership check;
 promotion still requires the normal `ADMIN_EMAILS` path (verified signup, or
-`syncAdmins` at boot for an account SSO has since verified).
-
-Env: see the OIDC block in [.env.example](.env.example).
+`syncAdmins` at boot for an account the provider has since verified).
 
 ### Sign in with Google
 
-Optional, alongside email/password and SSO. Create an OAuth client (Web application) in
+Optional, alongside email/password. Create an OAuth client (Web application) in
 the [Google Cloud console](https://console.cloud.google.com/apis/credentials), add
 `<BETTER_AUTH_URL>/api/auth/callback/google` as an authorised redirect URI, and set
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` together (one without the other refuses to
 boot). The login page shows a "Sign in with Google" button whenever both are set. Account
-linking and admin promotion follow the same rules as SSO above; `SIGNUP_EMAIL_DOMAINS`
-applies to Google (and SSO) sign-ups exactly as it does to email/password.
-
-### Sign in with Microsoft
-
-Same shape as Google. Register an app in [Microsoft Entra](https://entra.microsoft.com)
-(App registrations, platform Web) with `<BETTER_AUTH_URL>/api/auth/callback/microsoft` as a
-redirect URI, create a client secret, and set `MICROSOFT_CLIENT_ID` and
-`MICROSOFT_CLIENT_SECRET` together. `MICROSOFT_TENANT_ID` (default `common`, any Microsoft
-account) can be `organizations`, `consumers`, or your tenant id to make the button an
-org-only door. Microsoft does not assert email ownership unless the app registration's
-ID token includes the `email` and `verified_primary_email` optional claims; without them a
-Microsoft sign-in still works but only links to an existing account that is already
-verified. Everything else (allowlist, admin promotion) follows the SSO rules above.
+linking and admin promotion follow the rules above; `SIGNUP_EMAIL_DOMAINS`
+applies to Google and Apple sign-ups exactly as it does to email/password.
 
 ### Sign in with Apple
 
@@ -442,7 +431,7 @@ Apple key, which Apple caps at six months) together. For the iOS app, set
 Apple button and posts the identity token Apple issues for that bundle id to
 `/api/auth/sign-in/social`, which the server verifies against Apple's keys. Apple only sends
 the person's name on their first sign-in, so the app forwards it then; a later sign-in from a
-fresh install leaves the name as stored. Linking and admin promotion follow the SSO rules
+fresh install leaves the name as stored. Linking and admin promotion follow the provider rules
 above. Apple's "Hide My Email" addresses are on `privaterelay.appleid.com`, which
 `SIGNUP_EMAIL_DOMAINS` rejects unless listed.
 

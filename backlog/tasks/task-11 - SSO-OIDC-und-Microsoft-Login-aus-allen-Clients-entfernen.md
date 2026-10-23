@@ -1,7 +1,7 @@
 ---
 id: TASK-11
 title: SSO/OIDC und Microsoft-Login aus allen Clients entfernen
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-23T09:49:00Z'
 labels:
@@ -29,8 +29,34 @@ Quellen: Umsetzung §§ 4, 6
 
 <!-- AC:BEGIN -->
 
-- [ ] #1 OIDC- und Microsoft-Konfiguration, Serverpfade und Login-Buttons sind entfernt.
-- [ ] #2 iOS benötigt /api/oidc-config nicht mehr; E-Mail, Google und Apple bleiben verfügbar.
+- [x] #1 OIDC- und Microsoft-Konfiguration, Serverpfade und Login-Buttons sind entfernt.
+- [x] #2 iOS benötigt /api/oidc-config nicht mehr; E-Mail, Google und Apple bleiben verfügbar.
 - [ ] #3 Typecheck, relevante Auth-Tests und betroffene Client-Prüfungen bestehen.
 
 <!-- AC:END -->
+
+## Implementation Notes
+
+- SSO/OIDC- und Microsoft-Provider samt Env-Konfiguration, generischem OAuth-Plugin,
+  Login-Buttons und ungenutzten Microsoft-Assets entfernt.
+- Web/Desktop und iOS fragen `/api/login-providers` ab; die Antwort enthält nur
+  `google`, `apple` und `appleNative`. MCP-OAuth bleibt unabhängig davon erhalten.
+- Bestehende Konten bleiben erhalten. Hinweise zum gemeinsamen Server-/iOS-Update
+  und zum Login-Wechsel für bisherige SSO-/Microsoft-Konten stehen in `README.md`.
+
+## Verification
+
+- `bun run typecheck`, `bun run lint`, `bun run build`, Formatprüfung der geänderten
+  Dateien und `git diff --check`: erfolgreich.
+- 82 gezielte Tests erfolgreich: `loginProviders`, `loginProvidersConfig`, `desktopAuth`,
+  `appleSignIn`, `access`, `admin`, `accountDeletion`, `signupRestrictions`, `firstCanvasLanding`.
+- Gesamtsuite: 917/921 Tests bestanden; Timeouts in `drawingBrowser`,
+  `legacyPagesMigration`, `pageControlsBrowser` und `rate-limit-wiring`.
+  Erneuter Lauf dieser vier Dateien mit `--maxWorkers=1`: 29/29 Tests bestanden.
+- Unabhängiges Code-Review: keine kritischen, wichtigen oder kleineren Befunde.
+- **Offen für AC #3:** `swift run --package-path ios DoopCoreChecks` sowie iOS-Build/
+  Simulatorprüfung auf einem Mac. Hier ist kein Swift installiert (Exit 127).
+  Native Provider-Tests wurden angepasst, aber nicht ausgeführt; deshalb bleibt
+  der Task bis zu dieser Abnahme `In Progress`.
+- Echte Google-/Apple-Provider-Roundtrips wurden nicht durchgeführt; die Tests prüfen
+  die Redirects und native Apple-Tokens mit lokalen Test-Schlüsseln.

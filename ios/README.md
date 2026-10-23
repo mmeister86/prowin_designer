@@ -7,8 +7,8 @@ HTML/CSS engine (Stylo + Taffy + Parley), compiled into the app as a static libr
 
 ## Architecture
 
-- **SwiftUI**: email/password sign-in and registration, Google / Microsoft / SSO and native
-  Sign in with Apple (whichever the server advertises on `/api/oidc-config`), canvas library, search,
+- **SwiftUI**: email/password sign-in and registration, Google and native
+  Sign in with Apple (whichever the server advertises on `/api/login-providers`), canvas library, search,
   workspace filtering, canvas creation/rename/duplicate/delete, navigation,
   account/server settings, frame list and properties, HTML editing, frame and
   element comments, agent tasks, sharing, and HTML export.
@@ -81,7 +81,7 @@ HTTPS self-hosted origin. Native session cookies persist; the client can also im
 an existing WKWebView login for the selected host. Passwords are never saved by the app.
 Cookies follow normal domain/path scoping, not port isolation.
 
-Google, Microsoft and SSO sign-in reuse the desktop app's browser handoff
+Google sign-in reuses the desktop app's browser handoff
 (`src/lib/desktopAuth.ts`): the app opens `/desktop/signin` in an
 `ASWebAuthenticationSession`, the provider round trip runs there, and the handoff page
 returns a one-time token over `doop://auth`, which the app redeems for its session cookie
@@ -227,8 +227,6 @@ exists only on the local dev database.
 
 ## Remaining work
 
-- Native SSO needs a browser authentication session plus a secure server callback /
-  single-use session exchange. Email/password is the implemented sign-in path.
 - Model-account setup currently opens Doop's account settings in the system browser.
 - Element comments pin to the selected element; replies and resolution controls have
   not yet moved to native UI.

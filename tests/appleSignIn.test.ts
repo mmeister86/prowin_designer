@@ -21,6 +21,7 @@ let keys: HttpServer
 let jwksUrl: string
 let native: Server
 let webOnly: Server
+let restricted: Server
 
 interface TokenShape {
   audience?: string
@@ -28,12 +29,13 @@ interface TokenShape {
   email?: string
   subject?: string
   issuer?: string
+  verified?: boolean | string
 }
 
 async function appleToken(shape: TokenShape = {}): Promise<string> {
   return new SignJWT({
     email: shape.email ?? 'ada@apple.test',
-    email_verified: 'true',
+    email_verified: shape.verified ?? 'true',
     ...(shape.nonce !== undefined && { nonce: createHash('sha256').update(shape.nonce).digest('hex') }),
   })
     .setProtectedHeader({ alg: 'RS256', kid: KID })
@@ -68,22 +70,28 @@ beforeAll(async () => {
   })
   await new Promise<void>((resolve) => keys.listen(port, resolve))
   jwksUrl = `http://localhost:${port}/keys`
-  ;[native, webOnly] = await Promise.all([
+  ;[native, webOnly, restricted] = await Promise.all([
     startServer({ APPLE_APP_BUNDLE_IDENTIFIER: BUNDLE_ID, APPLE_JWKS_URL: jwksUrl }),
     startServer({ APPLE_CLIENT_ID: 'design.doop.web', APPLE_CLIENT_SECRET: 'web-secret', APPLE_JWKS_URL: jwksUrl }),
+    startServer({
+      APPLE_APP_BUNDLE_IDENTIFIER: BUNDLE_ID,
+      APPLE_JWKS_URL: jwksUrl,
+      SIGNUP_EMAIL_DOMAINS: 'apple.test',
+    }),
   ])
 }, 90_000)
 
 afterAll(() => {
   native?.stop()
   webOnly?.stop()
+  restricted?.stop()
   keys?.close()
 })
 
 describe('native Sign in with Apple', () => {
   it('advertises the native half and signs the app in with a verified token, keeping the first-sign-in name', async () => {
     const client = new Client(native)
-    expect(await (await client.get('/api/oidc-config')).json()).toMatchObject({ apple: false, appleNative: true })
+    expect(await (await client.get('/api/login-providers')).json()).toMatchObject({ apple: false, appleNative: true })
 
     const res = await nativeSignIn(client, await appleToken({ nonce: 'raw-nonce-1' }), 'raw-nonce-1', {
       firstName: 'Ada',
@@ -135,9 +143,52 @@ describe('native Sign in with Apple', () => {
 
   it('does not accept native tokens on a server that only has the web half', async () => {
     const client = new Client(webOnly)
-    expect(await (await client.get('/api/oidc-config')).json()).toMatchObject({ apple: true, appleNative: false })
+    expect(await (await client.get('/api/login-providers')).json()).toMatchObject({ apple: true, appleNative: false })
     const res = await nativeSignIn(client, await appleToken({ nonce: 'n' }), 'n')
     expect(res.status).toBeGreaterThanOrEqual(400)
     expect(client.cookies.has('better-auth.session_token')).toBe(false)
+  })
+})
+
+describe('social account linking and signup restrictions', () => {
+  it.each([true, 'true'])('links a password account when Apple verifies the email as %s', async (verified) => {
+    const email = `linked-${typeof verified}@apple.test`
+    const local = await new Client(native).signUp(email, 'Local')
+    const before = await (await local.get('/api/me')).json()
+    const client = new Client(native)
+    const res = await nativeSignIn(client, await appleToken({ email, subject: email, verified, nonce: 'link' }), 'link')
+    expect(res.status).toBe(200)
+    const session = await (await client.get('/api/auth/get-session')).json()
+    expect(session.user).toMatchObject({ id: before.id, email, emailVerified: true })
+  })
+
+  it('does not link an unverified provider email to an existing password account', async () => {
+    const email = 'unverified@apple.test'
+    const local = await new Client(native).signUp(email, 'Local')
+    const client = new Client(native)
+    const res = await nativeSignIn(
+      client,
+      await appleToken({ email, subject: email, verified: false, nonce: 'unverified' }),
+      'unverified',
+    )
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(await (await client.get('/api/auth/get-session')).json()).toBeNull()
+    expect((await (await local.get('/api/auth/get-session')).json()).user.emailVerified).toBe(false)
+  })
+
+  it('rejects a social signup from an unlisted domain without creating an account', async () => {
+    const client = new Client(restricted)
+    const email = 'outsider@example.com'
+    const res = await nativeSignIn(client, await appleToken({ email, subject: email, nonce: 'domain' }), 'domain')
+    expect(res.status).toBeGreaterThanOrEqual(400)
+    expect(await (await client.post('/api/account-exists', { email })).json()).toEqual({ exists: false })
+  })
+
+  it('admits a social signup from a listed domain', async () => {
+    const client = new Client(restricted)
+    const email = 'allowed@apple.test'
+    const res = await nativeSignIn(client, await appleToken({ email, subject: email, nonce: 'allowed' }), 'allowed')
+    expect(res.status).toBe(200)
+    expect((await (await client.get('/api/me')).json()).email).toBe(email)
   })
 })
