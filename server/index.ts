@@ -2,7 +2,6 @@ import { env } from './env.ts'
 import { canvasPages, samePages } from '../shared/pages.ts'
 import { FIRST_CANVAS_PATH } from '../shared/firstCanvas.ts'
 import { localAgentRouter, handleLocalAgentMcp } from './localAgent.ts'
-import { handleGeminiCloudMcp } from './geminiCloudMcp.ts'
 import http from 'node:http'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -505,9 +504,6 @@ for (const extension of extensions) {
 }
 
 app.use(express.json({ limit: '10mb' }))
-app.all('/gemini-cloud/mcp/:id', (req, res, next) => {
-  handleGeminiCloudMcp(req, res).catch(next)
-})
 app.all('/local-agent/mcp/:id', (req, res, next) => {
   handleLocalAgentMcp(req, res).catch(next)
 })

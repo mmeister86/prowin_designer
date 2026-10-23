@@ -39,13 +39,11 @@ export function meterText(allowance: Allowance | null): string | null {
   if (!allowance) return null
   if (allowance.byoModel) {
     const on =
-      allowance.byoKind === 'gemini-cloud'
-        ? 'Gemini cloud connection'
-        : allowance.byoKind === 'claude-local'
-          ? 'local Claude CLI'
-          : allowance.byoKind === 'chatgpt' || !allowance.byoKind
-            ? 'ChatGPT'
-            : `${ACCOUNT_KIND_LABELS[allowance.byoKind]} key`
+      allowance.byoKind === 'claude-local'
+        ? 'local Claude CLI'
+        : allowance.byoKind === 'chatgpt' || !allowance.byoKind
+          ? 'ChatGPT'
+          : `${ACCOUNT_KIND_LABELS[allowance.byoKind]} key`
     return `Doop Agent on your ${on}`
   }
   if (allowance.limit <= 0) return 'Connect a plan in Settings to use the Doop Agent'
@@ -63,13 +61,11 @@ export function MeterLine({ allowance }: { allowance: Allowance | null }) {
     return (
       <span className="text-[12px] text-success-ink">
         Doop Agent on your{' '}
-        {allowance.byoKind === 'gemini-cloud'
-          ? 'Gemini cloud connection'
-          : allowance.byoKind === 'claude-local'
-            ? 'local Claude CLI'
-            : allowance.byoKind === 'chatgpt' || !allowance.byoKind
-              ? 'ChatGPT'
-              : `${ACCOUNT_KIND_LABELS[allowance.byoKind]} key`}
+        {allowance.byoKind === 'claude-local'
+          ? 'local Claude CLI'
+          : allowance.byoKind === 'chatgpt' || !allowance.byoKind
+            ? 'ChatGPT'
+            : `${ACCOUNT_KIND_LABELS[allowance.byoKind]} key`}
       </span>
     )
   }

@@ -16,9 +16,6 @@ import { DEFAULT_GEMINI_MODEL, DEFAULT_OPENROUTER_MODEL } from '../shared/modelM
  *
  * `.env.example` is the human-facing documentation; tests/env.test.ts checks
  * that every key declared here is listed there.
- *
- * The Gemini cloud worker (server/geminiCloudWorkerMain.ts) is a separate
- * process with its own three variables and does not load this schema.
  */
 
 /* ------------------------------------------------------------------ */
@@ -123,9 +120,6 @@ const schema = {
   DOOP_AGENT_OPENAI_EFFORT: str({ default: 'medium' }),
   DOOP_AGENT_OPENROUTER_MODEL: str({ default: DEFAULT_OPENROUTER_MODEL }),
   DOOP_AGENT_GEMINI_MODEL: str({ default: DEFAULT_GEMINI_MODEL }),
-  /* JSON; parsed and shape-checked where it is used so a parse error never
-     echoes the worker secrets it contains */
-  DOOP_GEMINI_CLOUD_WORKERS: str({ default: undefined }),
   CHATGPT_CONNECT_DISABLED: bool({ default: false }),
   CHATGPT_OAUTH_ISSUER: origin({ default: 'https://auth.openai.com' }),
   CHATGPT_OAUTH_CLIENT_ID: str({ default: 'app_EMoamEEZ73f0CkXaXp7hrann' }),
