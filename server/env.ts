@@ -153,10 +153,6 @@ const schema = {
   /* ------------------------------------------------------ integrations */
   META_APP_ID: str({ default: undefined }),
   META_APP_SECRET: str({ default: undefined }),
-  SLACK_CLIENT_ID: str({ default: undefined }),
-  SLACK_CLIENT_SECRET: str({ default: undefined }),
-  SLACK_SIGNING_SECRET: str({ default: undefined }),
-  SLACK_API_URL: str({ default: 'https://slack.com/api' }),
   GITHUB_APP_ID: str({ default: undefined }),
   GITHUB_APP_SLUG: str({ default: undefined }),
   GITHUB_APP_CLIENT_ID: str({ default: undefined }),

@@ -239,6 +239,13 @@
       "when": 1792773113661,
       "tag": "0034_remove_linear",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792773276039,
+      "tag": "0035_remove_slack",
+      "breakpoints": true
     }
   ]
 }

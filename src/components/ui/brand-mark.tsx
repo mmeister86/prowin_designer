@@ -1,13 +1,12 @@
 import type { JSX } from 'react'
 import { cn } from '@/lib/utils'
 import canvaLogo from './brand/canva.svg'
-import slackLogo from './brand/slack.svg'
 
 /**
  * Every third-party logo the product wears, from one place. A mark is a
  * square `size` px box with the brand's glyph centred in it, drawn in the
  * brand's own colours where it has them (Figma, Google, Meta, Photoshop,
- * Canva, Slack, Microsoft) and in `currentColor` where the brand
+ * Canva, Microsoft) and in `currentColor` where the brand
  * itself asks for the text colour (GitHub, OpenAI, Cursor, Gemini, Apple).
  * Claude's default is Anthropic's terracotta; `color` overrides any of the
  * single-colour marks.
@@ -31,7 +30,6 @@ export type Brand =
   | 'google'
   | 'apple'
   | 'microsoft'
-  | 'slack'
 
 export interface BrandMarkProps {
   brand: Brand
@@ -99,22 +97,6 @@ function path(d: string, defaultColor = 'currentColor') {
 function asset(src: string) {
   return function Glyph({ size, className }: GlyphProps) {
     return <img src={src} width={size} height={size} className={cn('flex-none', className)} alt="" aria-hidden />
-  }
-}
-
-/** a white glyph on the brand's own dark tile, cornered like the integration tiles */
-function tiled(src: string, background: string, ratio: number) {
-  return function Glyph({ size, className }: GlyphProps) {
-    const glyph = Math.round(size * ratio)
-    return (
-      <span
-        aria-hidden
-        className={cn('inline-grid flex-none place-items-center', className)}
-        style={{ width: size, height: size, borderRadius: Math.round(size * 0.29), background }}
-      >
-        <img src={src} alt="" width={glyph} height={glyph} />
-      </span>
-    )
   }
 }
 
@@ -188,7 +170,6 @@ const MARKS: Record<Brand, (props: GlyphProps) => JSX.Element> = {
   google: Google,
   apple: path(APPLE_PATH),
   microsoft: Microsoft,
-  slack: tiled(slackLogo, '#4A154B', 0.55),
 }
 
 export const BRANDS = Object.keys(MARKS) as Brand[]

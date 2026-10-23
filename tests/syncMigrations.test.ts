@@ -37,6 +37,9 @@ it('upgrades an existing OSS database without the deferred Figma migration', asy
     expect(names).not.toContain('linear_installations')
     expect(names).not.toContain('linear_oauth_states')
     expect(names).not.toContain('linear_sessions')
+    expect(names).not.toContain('slack_installations')
+    expect(names).not.toContain('slack_oauth_states')
+    expect(names).not.toContain('slack_sessions')
     const deferred = await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations' AND column_name = 'refresh_token'",
     )

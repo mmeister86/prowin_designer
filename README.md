@@ -121,12 +121,11 @@ render; the desktop app opens its native save panel.
 
 **Integrations** in the rail is where an account connects the outside tools Doop works with:
 
-| Integration | What it does                                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------------------------------- |
-| Slack       | Mention `@Doop` with a brief; it designs a canvas and posts the result in the thread ([setup](docs/slack.md)) |
-| Meta Ads    | Pull ad creatives onto a canvas on a schedule with an automation (`/automations`)                             |
-| Figma       | Import frames as editable HTML and export frames back to Figma. Doop Cloud only                               |
-| Canva       | Import Canva designs as editable frames and send frames back with live text. Doop Cloud only                  |
+| Integration | What it does                                                                                 |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| Meta Ads    | Pull ad creatives onto a canvas on a schedule with an automation (`/automations`)            |
+| Figma       | Import frames as editable HTML and export frames back to Figma. Doop Cloud only              |
+| Canva       | Import Canva designs as editable frames and send frames back with live text. Doop Cloud only |
 
 <p align="center">
   <img src=".github/assets/integrations.png" alt="Historical upstream Integrations page; available integrations differ in this fork" width="100%">
