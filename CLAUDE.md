@@ -41,6 +41,9 @@ Offene Fragen bleiben offen; Empfehlungen nicht als beschlossene oder verifizier
 
 ### Feature-Entfernungen und Upstream-Pflege
 
+- TASK-12: Meta Ads, Refero, Hintergrundbibliothek und Automations sind vorläufig deaktiviert,
+  nicht entfernt (`shared/prowin/features.ts`). Code und gespeicherte Daten erhalten; alte Env-Keys
+  dürfen die Sperren nicht umgehen. Vor Reaktivierung der Bibliothek eigene Assets und Requesty-Tagging umsetzen.
 - Jedes zu entfernende Feature erhält einen eigenen Branch und einen eigenen Commit:
   `chore(prowin): remove <feature>`. UI, Server, Routen, MCP-Tools, Konfiguration und betroffene Tests
   gemeinsam bereinigen. Vor Abschluss `bun run typecheck` und passende Tests

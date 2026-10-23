@@ -151,7 +151,8 @@ describe('MCP client contract', () => {
       expect(byName.set_frame_html!.annotations!.destructiveHint).toBe(true)
       expect(byName.get_frame_screenshot!.annotations!.readOnlyHint).toBe(true)
       expect(byName.search_images!.annotations!.openWorldHint).toBe(true)
-      expect(byName.list_backgrounds!.annotations!.openWorldHint).toBe(false)
+      expect(byName.list_backgrounds).toBeUndefined()
+      expect(byName.search_inspiration).toBeUndefined()
     } finally {
       await close()
     }

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import type { CanvasMeta, WorkspaceSummary } from '../../shared/types'
 import { colorFor } from '../../shared/types'
+import { OPTIONAL_FEATURES } from '../../shared/prowin/features'
 import { api } from '../lib/api'
 import { authClient } from '../lib/auth'
 import { navigate } from '../lib/navigate'
@@ -256,12 +257,16 @@ export function AppRail({
       <IconButton aria-label="Community" on={active === 'community'} onClick={() => go('/community')}>
         <WebIcon size="rail" />
       </IconButton>
-      <IconButton aria-label="Automations" on={active === 'automations'} onClick={() => go('/automations')}>
-        <WorkflowIcon size="rail" />
-      </IconButton>
-      <IconButton aria-label="Integrations" on={active === 'integrations'} onClick={() => go('/integrations')}>
-        <BlocksIcon size="rail" />
-      </IconButton>
+      {OPTIONAL_FEATURES.automations && (
+        <IconButton aria-label="Automations" on={active === 'automations'} onClick={() => go('/automations')}>
+          <WorkflowIcon size="rail" />
+        </IconButton>
+      )}
+      {OPTIONAL_FEATURES.metaAds && (
+        <IconButton aria-label="Integrations" on={active === 'integrations'} onClick={() => go('/integrations')}>
+          <BlocksIcon size="rail" />
+        </IconButton>
+      )}
       <Rule />
       {agents.map((a) => (
         <span key={a.name} className="grid size-8 place-items-center" title={a.name}>
@@ -371,25 +376,33 @@ export function AppRail({
         </DashNavItem>
       </nav>
 
-      <DashSectionLabel density="rail">Resources</DashSectionLabel>
-      <nav className="flex flex-col gap-0.5">
-        <DashNavItem
-          density="rail"
-          icon={<WorkflowIcon size="rail" />}
-          active={active === 'automations'}
-          onClick={() => go('/automations')}
-        >
-          Automations
-        </DashNavItem>
-        <DashNavItem
-          density="rail"
-          icon={<BlocksIcon size="rail" />}
-          active={active === 'integrations'}
-          onClick={() => go('/integrations')}
-        >
-          Integrations
-        </DashNavItem>
-      </nav>
+      {(OPTIONAL_FEATURES.automations || OPTIONAL_FEATURES.metaAds) && (
+        <>
+          <DashSectionLabel density="rail">Resources</DashSectionLabel>
+          <nav className="flex flex-col gap-0.5">
+            {OPTIONAL_FEATURES.automations && (
+              <DashNavItem
+                density="rail"
+                icon={<WorkflowIcon size="rail" />}
+                active={active === 'automations'}
+                onClick={() => go('/automations')}
+              >
+                Automations
+              </DashNavItem>
+            )}
+            {OPTIONAL_FEATURES.metaAds && (
+              <DashNavItem
+                density="rail"
+                icon={<BlocksIcon size="rail" />}
+                active={active === 'integrations'}
+                onClick={() => go('/integrations')}
+              >
+                Integrations
+              </DashNavItem>
+            )}
+          </nav>
+        </>
+      )}
 
       {/* a page's own group keeps the drawer's contract: a pick puts it away */}
       <div

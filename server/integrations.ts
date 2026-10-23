@@ -1,4 +1,5 @@
 import express from 'express'
+import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 import * as meta from './meta.ts'
 import { extensions } from './extensions.ts'
 
@@ -9,6 +10,10 @@ import { extensions } from './extensions.ts'
  * sub-path and its own key in the status object.
  */
 export const integrationsRouter = express.Router()
+integrationsRouter.use('/meta', (_req, res, next) => {
+  if (!OPTIONAL_FEATURES.metaAds) return res.status(404).json({ error: 'Meta Ads is disabled' })
+  next()
+})
 
 export interface IntegrationsStatus {
   meta: meta.MetaConnectionInfo & { enabled: boolean }
@@ -18,7 +23,7 @@ export interface IntegrationsStatus {
 }
 
 async function statusFor(userId: string): Promise<IntegrationsStatus> {
-  const metaRow = await meta.getConnection(userId)
+  const metaRow = OPTIONAL_FEATURES.metaAds ? await meta.getConnection(userId) : undefined
   const status: IntegrationsStatus = { meta: { enabled: meta.metaEnabled(), ...meta.connectionInfo(metaRow) } }
   for (const extension of extensions) {
     if (extension.connectionStatus) status[extension.id] = await extension.connectionStatus(userId)

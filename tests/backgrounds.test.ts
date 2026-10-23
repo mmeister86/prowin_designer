@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubEnv, unstubAllEnvs } from './envStub.ts'
 import {
   fetchThumb,
@@ -11,6 +11,12 @@ import {
   type BackgroundEntry,
 } from '../server/backgrounds.ts'
 import { buildMcpServer } from '../server/mcp.ts'
+
+// Retain coverage of the dormant library without enabling it in production.
+vi.mock('../shared/prowin/features.ts', async (importOriginal) => {
+  const { OPTIONAL_FEATURES } = await importOriginal<typeof import('../shared/prowin/features.ts')>()
+  return { OPTIONAL_FEATURES: { ...OPTIONAL_FEATURES, backgrounds: true } }
+})
 
 const entry = (over: Partial<BackgroundEntry> & Pick<BackgroundEntry, 'id'>): BackgroundEntry => ({
   source: over.id,

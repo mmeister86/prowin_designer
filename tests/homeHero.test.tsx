@@ -16,4 +16,5 @@ it('keeps the composer and agent connection without offering removed import sour
   expect(html).toContain('<textarea')
   expect(html).not.toContain('Import a design')
   expect(html).not.toContain('>Files<')
+  expect(html).not.toContain('Run an automation')
 })

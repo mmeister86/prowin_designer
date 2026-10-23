@@ -1,4 +1,5 @@
 import express from 'express'
+import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 import { and, desc, eq, inArray, isNotNull, lte } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import { db } from './db/index.ts'
@@ -300,6 +301,7 @@ export async function runAutomation(
   id: string,
   opts: { scheduled?: boolean } = {},
 ): Promise<AutomationRun | undefined> {
+  if (!OPTIONAL_FEATURES.automations) return undefined
   if (running.has(id)) throw new Error('already running')
   running.add(id)
   const summaries: string[] = []
@@ -372,6 +374,7 @@ async function pruneRuns(automationId: string): Promise<void> {
  *  them runs each occurrence, and a crash mid-run costs that occurrence
  *  rather than leaving a stuck row. */
 export async function tick(now = Date.now()): Promise<number> {
+  if (!OPTIONAL_FEATURES.automations) return 0
   const due = await db
     .select()
     .from(automations)
@@ -394,6 +397,7 @@ export async function tick(now = Date.now()): Promise<number> {
 let timer: NodeJS.Timeout | undefined
 
 export function startScheduler(): void {
+  if (!OPTIONAL_FEATURES.automations) return
   if (timer) return
   timer = setInterval(() => {
     tick().catch((err) => console.error('[automations] tick failed', err))
@@ -405,6 +409,10 @@ export function startScheduler(): void {
 /* REST                                                                */
 
 export const automationsRouter = express.Router()
+automationsRouter.use((_req, res, next) => {
+  if (!OPTIONAL_FEATURES.automations) return res.status(404).json({ error: 'Automations are disabled' })
+  next()
+})
 
 automationsRouter.get('/', async (req, res) => {
   res.json(await listAutomations(req.user!.id))

@@ -1,4 +1,5 @@
 import { env } from './env.ts'
+import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import { and, eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
@@ -29,7 +30,7 @@ const MAX_ADS = 200
 const PAGE_SIZE = 50
 
 export function metaEnabled(): boolean {
-  return !!(env.META_APP_ID && env.META_APP_SECRET)
+  return OPTIONAL_FEATURES.metaAds && !!(env.META_APP_ID && env.META_APP_SECRET)
 }
 
 export function redirectUri(): string {
@@ -89,6 +90,7 @@ interface GraphError {
 }
 
 async function graph<T>(path: string, params: Record<string, string>, token?: string): Promise<T> {
+  if (!OPTIONAL_FEATURES.metaAds) throw new Error('Meta Ads is disabled on this server')
   const url = new URL(`${GRAPH}${path}`)
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
   if (token) url.searchParams.set('access_token', token)

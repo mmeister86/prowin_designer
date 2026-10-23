@@ -16,6 +16,7 @@ import { renderFrame } from './screenshot.ts'
 import { primeImage } from './previews.ts'
 import { DOOP_GUIDE, GUIDE_TOPICS } from './guide.ts'
 import { describeInspiration, INSPIRATION_USAGE_NOTE, searchInspiration } from './inspiration.ts'
+import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 import { ESCAPED_HTML_NOTE, looksEscapedHtml } from './escapedHtml.ts'
 import * as assets from './assets.ts'
 import * as imageSearch from './imageSearch.ts'
@@ -37,7 +38,7 @@ You MUST call get_guide({ topic: "doop-instructions" }) once before using other 
 - Review: after every create or significant edit you MUST call get_frame_screenshot and fix what looks wrong before moving on.
 - Small edits: edit_frame_html (exact find/replace — the change morphs into the rendered frame in place). Full redesigns: set_frame_html or a new stream. Rename/move/resize: update_frame.
 - History: every replace and stream files the design it overwrote. list_frame_versions shows a frame's earlier states; restore_frame_version brings one back (HTML and size) when a human asks for the previous version or your rework turned out worse.
-- Images: real imagery makes designs. search_images finds stock photos (you SEE thumbnails and pick), search_icons finds 200k+ UI icons as hotlinkable SVGs, search_logos finds real company logos by brand name or domain — call it once per brand BEFORE writing any logo wall, integration row, press bar or testimonial, and never ship a placeholder tile, "LOGO" text or an invented wordmark in its place, list_backgrounds shows a page of curated hero/section/bento backgrounds (glows, grainy meshes, aurora, painterly scenes) as thumbnails — browse it when a section wants atmosphere rather than defaulting to a flat CSS gradient, judge by eye whether one fits the frame, and draw your own when none does, upload_asset stores your own file (remote file → source_url; local file → local_file=true, returns a curl command) and returns a permanent URL. generate_image makes a new image from a prompt (a full-bleed hero background in the frame's exact palette, illustration, a product render, brand-specific hero art that stock cannot supply) and stores it as a permanent asset — reach for it when search_images cannot deliver the exact visual, or when the human asks for a generated image; it costs the human money or quota, so one considered prompt beats five drafts. Never inline images as data: URIs.
+- Images: real imagery makes designs. search_images finds stock photos (you SEE thumbnails and pick), search_icons finds 200k+ UI icons as hotlinkable SVGs, search_logos finds real company logos by brand name or domain — call it once per brand BEFORE writing any logo wall, integration row, press bar or testimonial, and never ship a placeholder tile, "LOGO" text or an invented wordmark in its place, ${OPTIONAL_FEATURES.backgrounds ? 'list_backgrounds shows a page of curated hero/section/bento backgrounds (glows, grainy meshes, aurora, painterly scenes) as thumbnails — browse it when a section wants atmosphere rather than defaulting to a flat CSS gradient, judge by eye whether one fits the frame, and draw your own when none does, ' : ''}upload_asset stores your own file (remote file → source_url; local file → local_file=true, returns a curl command) and returns a permanent URL. generate_image makes a new image from a prompt (a full-bleed hero background in the frame's exact palette, illustration, a product render, brand-specific hero art that stock cannot supply) and stores it as a permanent asset — reach for it when search_images cannot deliver the exact visual, or when the human asks for a generated image; it costs the human money or quota, so one considered prompt beats five drafts. Never inline images as data: URIs.
 - Websites: when a request names an existing site or URL, use your own browser or web tool and work only from content you actually observe; if that is unavailable, ask the user for screenshots or an HTML export rather than inventing content.
 ${extensionGuideLines()}- Feedback: humans reply to your tasks; their notes arrive inside your tool results as HUMAN FEEDBACK blocks — address them before continuing.
 - Comments: call get_comments to read comments and replies on a canvas — pinned to an element inside a frame, or to a point on the canvas (pageId, x, y) — optionally filtered by frame; reply_to_comment answers a thread and resolve_comment closes it. Reading does not claim feedback or comments. A reply that @mentions a resident role is metered like a comment left in the browser.
@@ -237,54 +238,57 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     async () => text(DOOP_GUIDE),
   )
 
-  server.registerTool(
-    'search_inspiration',
-    {
-      title: 'Search design inspiration',
-      description:
-        'Search a curated gallery of real, well-designed live websites by category and SEE thumbnails of each, with pre-distilled style facts (one-line mood north star, named palette, fonts). Call it FIRST when writing a design brief — it is the required inspiration step, especially for landing pages: query the page archetype plus the register you want ("law firm landing page, editorial", "dark fintech dashboard"), not just the product noun. Study the thumbnails, pick the ONE exemplar that fits the brief best and follow it — do not blend several — and name it in the brief. Do not embed these screenshots in a frame.',
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-      inputSchema: {
-        query: z
-          .string()
-          .describe('Page archetype + register, e.g. "grocery delivery landing page, warm", "dark fintech dashboard"'),
-        count: z.number().min(1).max(6).optional().describe('Exemplars to return, default 4'),
-        canvas_id: z.string().optional().describe('The canvas you are designing on (lets human feedback reach you)'),
-        agent_name: agentName,
+  if (OPTIONAL_FEATURES.refero)
+    server.registerTool(
+      'search_inspiration',
+      {
+        title: 'Search design inspiration',
+        description:
+          'Search a curated gallery of real, well-designed live websites by category and SEE thumbnails of each, with pre-distilled style facts (one-line mood north star, named palette, fonts). Call it FIRST when writing a design brief — it is the required inspiration step, especially for landing pages: query the page archetype plus the register you want ("law firm landing page, editorial", "dark fintech dashboard"), not just the product noun. Study the thumbnails, pick the ONE exemplar that fits the brief best and follow it — do not blend several — and name it in the brief. Do not embed these screenshots in a frame.',
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+        inputSchema: {
+          query: z
+            .string()
+            .describe(
+              'Page archetype + register, e.g. "grocery delivery landing page, warm", "dark fintech dashboard"',
+            ),
+          count: z.number().min(1).max(6).optional().describe('Exemplars to return, default 4'),
+          canvas_id: z.string().optional().describe('The canvas you are designing on (lets human feedback reach you)'),
+          agent_name: agentName,
+        },
       },
-    },
-    async ({ query, count, canvas_id, agent_name }) => {
-      const now = Date.now()
-      const limitKey = ownerId ?? agent_name
-      const hits = (searchHits.get(limitKey) ?? []).filter((t) => now - t < 60_000)
-      if (hits.length >= SEARCHES_PER_MIN) return err('search rate limit — wait a minute')
-      hits.push(now)
-      searchHits.set(limitKey, hits)
-      try {
-        const results = await searchInspiration(query, count ?? 4)
-        if (results.length === 0)
-          return text({ ok: true, results: [], note: `No inspiration for "${query}" — try a broader category.` })
-        const thumbs = await Promise.all(results.map((r) => imageSearch.fetchThumb(r.thumb_url)))
-        type ResultBlock = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }
-        const content: ResultBlock[] = [
-          {
-            type: 'text' as const,
-            text: `${results.length} exemplar(s) for "${query}" — study each thumbnail with its style facts:`,
-          },
-        ]
-        results.forEach((r, i) => {
-          const thumb = thumbs[i]
-          if (thumb) content.push({ type: 'image' as const, data: thumb.data, mimeType: thumb.mime })
-          content.push({ type: 'text' as const, text: describeInspiration(r, i) })
-        })
-        content.push({ type: 'text' as const, text: INSPIRATION_USAGE_NOTE })
-        const result = { content }
-        return canvas_id ? withFeedback(result, canvas_id, actorFrom(agent_name)) : result
-      } catch (e) {
-        return err(e instanceof Error ? e.message : 'inspiration search failed')
-      }
-    },
-  )
+      async ({ query, count, canvas_id, agent_name }) => {
+        const now = Date.now()
+        const limitKey = ownerId ?? agent_name
+        const hits = (searchHits.get(limitKey) ?? []).filter((t) => now - t < 60_000)
+        if (hits.length >= SEARCHES_PER_MIN) return err('search rate limit — wait a minute')
+        hits.push(now)
+        searchHits.set(limitKey, hits)
+        try {
+          const results = await searchInspiration(query, count ?? 4)
+          if (results.length === 0)
+            return text({ ok: true, results: [], note: `No inspiration for "${query}" — try a broader category.` })
+          const thumbs = await Promise.all(results.map((r) => imageSearch.fetchThumb(r.thumb_url)))
+          type ResultBlock = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }
+          const content: ResultBlock[] = [
+            {
+              type: 'text' as const,
+              text: `${results.length} exemplar(s) for "${query}" — study each thumbnail with its style facts:`,
+            },
+          ]
+          results.forEach((r, i) => {
+            const thumb = thumbs[i]
+            if (thumb) content.push({ type: 'image' as const, data: thumb.data, mimeType: thumb.mime })
+            content.push({ type: 'text' as const, text: describeInspiration(r, i) })
+          })
+          content.push({ type: 'text' as const, text: INSPIRATION_USAGE_NOTE })
+          const result = { content }
+          return canvas_id ? withFeedback(result, canvas_id, actorFrom(agent_name)) : result
+        } catch (e) {
+          return err(e instanceof Error ? e.message : 'inspiration search failed')
+        }
+      },
+    )
 
   server.registerTool(
     'list_canvases',
@@ -1126,62 +1130,63 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     },
   )
 
-  server.registerTool(
-    'list_backgrounds',
-    {
-      title: 'List backgrounds',
-      description:
-        'Browse a curated library of premium backgrounds for hero sections, section bands and bento tiles — soft glows, grainy meshes, aurora ribbons, neon, painterly landscapes — as a page of thumbnails you look at, each with palette hexes and a ready-to-paste CSS line that includes a legibility scrim. Reach for it when a hero or full-bleed section wants atmosphere, depth or a focal glow; a quiet typographic design can stay flat, but a default two-stop gradient is rarely right. Filter by tone (light/dark — match your copy color), slot and style; an optional query ("warm sunset", "dark teal") only reorders. Then decide like a designer: does one of these genuinely fit the frame\'s style and palette? If yes, use it and put the copy in its text_zone. If not, call again with a different filter, or draw the background yourself.',
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      inputSchema: {
-        query: z
-          .string()
-          .optional()
-          .describe('Mood / palette words to put first, e.g. "warm sunset glow" — reorders, never filters'),
-        tone: z
-          .enum(backgrounds.BACKGROUND_TONES)
-          .optional()
-          .describe('light = dark copy on it, dark = light copy on it'),
-        style: z.enum(backgrounds.BACKGROUND_STYLES).optional().describe('Restrict to one look'),
-        slot: z
-          .enum(backgrounds.BACKGROUND_SLOTS)
-          .optional()
-          .describe('Where it goes: hero, section band, or card/bento tile'),
-        count: z.number().min(1).max(24).optional().describe('Thumbnails to return, default 12'),
-        canvas_id: z.string().optional().describe('The canvas you are designing on (lets human feedback reach you)'),
-        agent_name: agentName,
+  if (OPTIONAL_FEATURES.backgrounds)
+    server.registerTool(
+      'list_backgrounds',
+      {
+        title: 'List backgrounds',
+        description:
+          'Browse a curated library of premium backgrounds for hero sections, section bands and bento tiles — soft glows, grainy meshes, aurora ribbons, neon, painterly landscapes — as a page of thumbnails you look at, each with palette hexes and a ready-to-paste CSS line that includes a legibility scrim. Reach for it when a hero or full-bleed section wants atmosphere, depth or a focal glow; a quiet typographic design can stay flat, but a default two-stop gradient is rarely right. Filter by tone (light/dark — match your copy color), slot and style; an optional query ("warm sunset", "dark teal") only reorders. Then decide like a designer: does one of these genuinely fit the frame\'s style and palette? If yes, use it and put the copy in its text_zone. If not, call again with a different filter, or draw the background yourself.',
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+        inputSchema: {
+          query: z
+            .string()
+            .optional()
+            .describe('Mood / palette words to put first, e.g. "warm sunset glow" — reorders, never filters'),
+          tone: z
+            .enum(backgrounds.BACKGROUND_TONES)
+            .optional()
+            .describe('light = dark copy on it, dark = light copy on it'),
+          style: z.enum(backgrounds.BACKGROUND_STYLES).optional().describe('Restrict to one look'),
+          slot: z
+            .enum(backgrounds.BACKGROUND_SLOTS)
+            .optional()
+            .describe('Where it goes: hero, section band, or card/bento tile'),
+          count: z.number().min(1).max(24).optional().describe('Thumbnails to return, default 12'),
+          canvas_id: z.string().optional().describe('The canvas you are designing on (lets human feedback reach you)'),
+          agent_name: agentName,
+        },
       },
-    },
-    async ({ query, tone, style, slot, count, canvas_id, agent_name }) => {
-      if (!backgrounds.backgroundsEnabled())
-        return err(
-          'the background library is empty on this server — draw the background as CSS (layered radial-gradients with a grain overlay) instead',
-        )
-      try {
-        const listing = backgrounds.browseBackgrounds({ query, tone, style, slot, count }, env.BETTER_AUTH_URL)
-        const { results } = listing
-        if (results.length === 0)
-          return text({
-            ok: true,
-            backgrounds: [],
-            note: 'No backgrounds match the tone/style/slot filters you set — drop one and call again.',
+      async ({ query, tone, style, slot, count, canvas_id, agent_name }) => {
+        if (!backgrounds.backgroundsEnabled())
+          return err(
+            'the background library is empty on this server — draw the background as CSS (layered radial-gradients with a grain overlay) instead',
+          )
+        try {
+          const listing = backgrounds.browseBackgrounds({ query, tone, style, slot, count }, env.BETTER_AUTH_URL)
+          const { results } = listing
+          if (results.length === 0)
+            return text({
+              ok: true,
+              backgrounds: [],
+              note: 'No backgrounds match the tone/style/slot filters you set — drop one and call again.',
+            })
+          const thumbs = await Promise.all(results.map((r) => backgrounds.fetchThumb(r.id)))
+          type ResultBlock = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }
+          const content: ResultBlock[] = [{ type: 'text' as const, text: backgrounds.listHeadline(listing, query) }]
+          results.forEach((r, i) => {
+            const thumb = thumbs[i]
+            if (thumb) content.push({ type: 'image' as const, data: thumb.data, mimeType: thumb.mime })
+            content.push({ type: 'text' as const, text: backgrounds.describeBackground(r, i) })
           })
-        const thumbs = await Promise.all(results.map((r) => backgrounds.fetchThumb(r.id)))
-        type ResultBlock = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string }
-        const content: ResultBlock[] = [{ type: 'text' as const, text: backgrounds.listHeadline(listing, query) }]
-        results.forEach((r, i) => {
-          const thumb = thumbs[i]
-          if (thumb) content.push({ type: 'image' as const, data: thumb.data, mimeType: thumb.mime })
-          content.push({ type: 'text' as const, text: backgrounds.describeBackground(r, i) })
-        })
-        content.push({ type: 'text' as const, text: backgrounds.BACKGROUND_USAGE_NOTE })
-        const result = { content }
-        return canvas_id ? withFeedback(result, canvas_id, actorFrom(agent_name)) : result
-      } catch (e) {
-        return err(e instanceof Error ? e.message : 'background search failed')
-      }
-    },
-  )
+          content.push({ type: 'text' as const, text: backgrounds.BACKGROUND_USAGE_NOTE })
+          const result = { content }
+          return canvas_id ? withFeedback(result, canvas_id, actorFrom(agent_name)) : result
+        } catch (e) {
+          return err(e instanceof Error ? e.message : 'background search failed')
+        }
+      },
+    )
 
   server.registerTool(
     'search_icons',

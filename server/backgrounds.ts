@@ -1,4 +1,5 @@
 import { env } from './env.ts'
+import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -155,6 +156,7 @@ async function reload(): Promise<void> {
 
 /** Load the table into the cache; seed it from backgrounds.json when empty. */
 export async function initBackgrounds(): Promise<void> {
+  if (!OPTIONAL_FEATURES.backgrounds) return
   await reload()
   if (catalog.length > 0 || !existsSync(SEED_PATH)) return
   const seed = parseSeed(readFileSync(SEED_PATH, 'utf8'))
@@ -185,7 +187,7 @@ export function listBackgrounds(): BackgroundEntry[] {
 }
 
 export function backgroundsEnabled(): boolean {
-  return catalog.some((e) => e.enabled)
+  return OPTIONAL_FEATURES.backgrounds && catalog.some((e) => e.enabled)
 }
 
 /* ------------------------------------------------------------------ */
@@ -224,6 +226,7 @@ const REMOTE_THUMB_TIMEOUT_MS = 10_000
  *  borrowing another instance's bytes. Null on any failure — a missing
  *  preview should not sink the whole search result. */
 export async function fetchThumb(id: string): Promise<{ data: string; mime: string } | null> {
+  if (!OPTIONAL_FEATURES.backgrounds) return null
   try {
     const remote = env.BACKGROUNDS_ORIGIN
     if (remote) {
@@ -567,7 +570,7 @@ Describe the image for that search:
 - description: one plain sentence, under 20 words, as a designer would say it ("Soft teal aurora ribbon drifting across a near-black field").`
 
 export function taggingEnabled(): boolean {
-  return Boolean(env.ANTHROPIC_API_KEY)
+  return OPTIONAL_FEATURES.backgrounds && Boolean(env.ANTHROPIC_API_KEY)
 }
 
 /** Ask the model to describe an image. Throws when tagging is off or refused. */
@@ -655,6 +658,7 @@ export type CreateOutcome =
 /** Ingest one image: bytes → storage objects + row. Duplicate sources are
  *  reported, not re-added. */
 export async function createBackground(bytes: Buffer, opts: CreateOptions = {}): Promise<CreateOutcome> {
+  if (!OPTIONAL_FEATURES.backgrounds) throw new Error('Background library is disabled')
   const prepared = await prepareImage(bytes)
   const existing = catalog.find((e) => e.source === prepared.source)
   if (existing) return { status: 'duplicate', entry: existing }

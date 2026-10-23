@@ -1,4 +1,5 @@
 import { startLocalAgent } from './lib/localAgent'
+import { OPTIONAL_FEATURES } from '../shared/prowin/features'
 import { navigate } from './lib/navigate'
 import { useEffect, useState } from 'react'
 import { Home } from './pages/Home'
@@ -123,13 +124,13 @@ export function App() {
     <Settings />
   ) : path.startsWith('/community') ? (
     <Community />
-  ) : path.startsWith('/integrations') ? (
+  ) : OPTIONAL_FEATURES.metaAds && path.startsWith('/integrations') ? (
     <Integrations />
   ) : path.match(/^\/w\/([^/]+)/) ? (
     <Workspace workspaceId={path.match(/^\/w\/([^/]+)/)![1]!} key={path} />
-  ) : path.match(/^\/automations\/([^/]+)/) ? (
+  ) : OPTIONAL_FEATURES.automations && path.match(/^\/automations\/([^/]+)/) ? (
     <AutomationEditor automationId={path.match(/^\/automations\/([^/]+)/)![1]!} key={path} />
-  ) : path.startsWith('/automations') ? (
+  ) : OPTIONAL_FEATURES.automations && path.startsWith('/automations') ? (
     <Automations />
   ) : (
     <Home />

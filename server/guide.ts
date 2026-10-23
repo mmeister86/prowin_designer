@@ -4,6 +4,7 @@
  */
 
 import { AGENT_ROLES } from '../shared/agents.ts'
+import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 
 export const GUIDE_TOPICS = ['doop-instructions'] as const
 
@@ -41,7 +42,8 @@ export const DESIGN_QUALITY = `- Commit to ONE clear aesthetic direction per fra
 /** The brief-first ritual with its inspiration-retrieval mandate. Shared by the
  *  MCP guide and the resident system prompt (both toolsets expose
  *  search_inspiration, set_status and save_decision) so the ritual cannot drift. */
-export const DESIGN_BRIEF = `Before creating frames on a canvas whose style is not already established, commit to a
+export const DESIGN_BRIEF = OPTIONAL_FEATURES.refero
+  ? `Before creating frames on a canvas whose style is not already established, commit to a
 brief. It is part of the deliverable, not private scratch work:
 
 1. **Look at real pages first.** Call search_inspiration with the page archetype plus
@@ -68,6 +70,11 @@ brief. It is part of the deliverable, not private scratch work:
 Skip the brief only when the canvas already dictates the style — established frames,
 style guides or pinned references — or when the human handed you a complete design
 system. Then those are the brief; follow them.`
+  : `Before creating frames, use the canvas's existing frames, style guides and pinned
+references to establish the design direction. If none are available, derive a clear
+brief from the user's requirements and the design-quality principles. Record the
+mood, palette roles, typography and layout direction with set_status and save_decision.
+External inspiration search is temporarily disabled.`
 
 export const DOOP_GUIDE = `# Doop Agent Guide
 
@@ -206,7 +213,9 @@ any public image URL. Source images in this order:
   license-safe) with object-fit: cover and a real alt text. For an image the design
   will depend on long-term, pass image_url to upload_asset source_url for a permanent
   copy on this origin.
-- **Backgrounds — list_backgrounds.** A curated library of premium backgrounds for
+${
+  OPTIONAL_FEATURES.backgrounds
+    ? `- **Backgrounds — list_backgrounds.** A curated library of premium backgrounds for
   hero sections, section bands and bento tiles: soft glows, grainy meshes, aurora
   ribbons, neon, painterly landscapes. It shows a page of thumbnails (filter by tone to
   match your copy color, by slot, or by style; a query only reorders) and you judge them
@@ -221,7 +230,9 @@ any public image URL. Source images in this order:
   there. One image per bento grid at most; keep the other tiles flat. When the hero
   wants a real scene in the frame's exact palette — a monochrome mountain range behind
   a product window, a desert at dusk in the brand's two colors — the library will not
-  have it: generate it (next section, "hero backgrounds").
+  have it: generate it (next section, "hero backgrounds").`
+    : '- **Backgrounds.** Use uploaded assets or draw backgrounds in CSS/SVG; the curated library is temporarily disabled.'
+}
 - **UI icons — search_icons.** 200k+ open-source icons (Material, Lucide, Tabler,
   Phosphor, …). Search the concept ("shopping cart"). Hotlink the svg_url; recolor
   monochrome icons with ?color=%23<hex> and size with &height=<px>.
@@ -330,9 +341,13 @@ commit to directions, then deliver a choice:
   rhythm, radii, shadows, patterns, backgrounds, component styling, section layout.
   "Direction B — further out": same product, same real copy and facts, but freer —
   reinterpret the palette and push the aesthetic somewhere genuinely different.
-  Direction B must NOT be invented from vibes: retrieve category inspiration with
-  search_inspiration (live exemplars with their mood, palette and fonts), pick ONE
-  exemplar and follow it, and name it in the redesign doc so the direction is traceable.
+   ${
+     OPTIONAL_FEATURES.refero
+       ? `Direction B must NOT be invented from vibes: retrieve category inspiration with
+   search_inspiration (live exemplars with their mood, palette and fonts), pick ONE
+   exemplar and follow it, and name it in the redesign doc so the direction is traceable.`
+       : 'Ground Direction B in the user brief and available canvas references, and document the direction in the redesign doc.'
+   }
 - Deliver TWO new frames side by side, named "<source> — A (on-brand)" and
   "<source> — B (departure)", each executing its direction precisely; screenshot both.
   In both: keep the source's real copy and product facts, restructure sections when it

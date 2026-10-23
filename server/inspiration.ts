@@ -10,6 +10,8 @@
  * frames (the screenshots are other companies' copyrighted pages).
  */
 
+import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
+
 const REFERO_ENDPOINT = 'https://styles.refero.design/api/styles/search'
 const UA = { 'user-agent': 'Mozilla/5.0 (compatible; doop-design-agent)' }
 const FETCH_TIMEOUT_MS = 15_000
@@ -44,6 +46,7 @@ interface ReferoStyle {
 }
 
 export async function searchInspiration(query: string, count = 4): Promise<InspirationResult[]> {
+  if (!OPTIONAL_FEATURES.refero) return []
   const take = Math.max(1, Math.min(count, 6))
   const res = await fetch(`${REFERO_ENDPOINT}?q=${encodeURIComponent(query)}`, {
     headers: UA,

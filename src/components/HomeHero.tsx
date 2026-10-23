@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { DRAFT_OPTIONS, DRAFTS_STORAGE_KEY, isDraftCount, readStoredDrafts, type DraftCount } from '../lib/homePrompt'
 import { DoopMark } from './Logo'
+import { OPTIONAL_FEATURES } from '../../shared/prowin/features'
 import { ModelPicker } from './ModelPicker'
 import { IconButton } from './ui/icon-button'
 import { Chip } from './ui/chip'
@@ -53,7 +54,7 @@ interface Chip {
 
 const chipIcon = { width: 13, height: 13 } as const
 
-const CHIPS: Chip[] = [
+const ALL_CHIPS: Chip[] = [
   {
     id: 'landing',
     label: 'Draft a landing page',
@@ -86,6 +87,8 @@ const CHIPS: Chip[] = [
     prompt: 'Go through the open comments on my canvases and address each one.',
   },
 ]
+
+const CHIPS = ALL_CHIPS.filter((chip) => chip.id !== 'automation' || OPTIONAL_FEATURES.automations)
 
 /** the beam walks the strip while nobody hovers, like a slow carousel */
 const BEAM_STEP_MS = 4000

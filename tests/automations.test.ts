@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { pathToFileURL } from 'node:url'
+import path from 'node:path'
 import { Client, startServer, type Server } from './harness.ts'
 import {
   AUTOMATION_EXAMPLES,
@@ -225,7 +227,9 @@ let owner: Client
 let other: Client
 
 beforeAll(async () => {
-  server = await startServer()
+  server = await startServer({
+    NODE_OPTIONS: `--import=${import.meta.resolve('tsx')} --import=${pathToFileURL(path.resolve('tests/fixtures/enableOptionalFeatures.ts')).href}`,
+  })
   owner = new Client(server)
   await owner.signUp('owner@test.dev', 'Olive Owner')
   other = new Client(server)
