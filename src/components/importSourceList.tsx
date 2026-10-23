@@ -1,5 +1,5 @@
 import { clientIntegrations } from '@/integrations'
-import { RadioTowerIcon, WebIcon } from './ui/icons'
+import { WebIcon } from './ui/icons'
 import type { ImportSource } from './ImportSources'
 
 /** The sources the import picker offers, in order — the canvas page's modal
@@ -15,11 +15,5 @@ export function importSources(): ImportSource[] {
     ...clientIntegrations
       .filter((i) => i.ImportSection && i.importSource)
       .map((i) => ({ id: i.id, ...i.importSource! })),
-    {
-      id: 'liveapp',
-      title: 'Live app',
-      blurb: 'Behind a login, a VPN or localhost.',
-      icon: <RadioTowerIcon className="size-5 text-ink" />,
-    },
   ]
 }

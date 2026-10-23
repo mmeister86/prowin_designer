@@ -15,3 +15,7 @@ Migration 0035 entfernt Slack-Installationen, Bot-Tokens, OAuth-Zwischenstände 
 ## GitHub-App (TASK-5)
 
 Migration 0036 löscht `github_connections` einschließlich gespeicherter Tokens und Installations-IDs. Bereits importierte Frames und Design-Memory bleiben erhalten. Offene Repository-Importaufträge werden abgeschlossen und aus der ausführbaren Kartenwarteschlange genommen; ihre Historie bleibt lesbar. Historische Kartentypen bleiben allein für diese gespeicherten Einträge erhalten. Externe GitHub-App-Installationen und PATs sind bei GitHub separat zu widerrufen.
+
+## Design Sync (TASK-8)
+
+Migration 0037 löscht `sync_keys`, `sync_links` und `sync_edges`: damit entfallen die Schreibschlüssel, Link-Hotspots und Navigationsstatistiken. Importierte Frames bleiben unverändert als statische Designs erhalten. Das alte Snippet in eingebundenen Anwendungen entfernen; es kann keine Daten mehr an diesen Server liefern. Canvas-Realtime und normale Agent-/Browser-Bearbeitung bleiben erhalten.

@@ -6,7 +6,7 @@ import { drizzle } from 'drizzle-orm/pglite'
 import { migrate } from 'drizzle-orm/pglite/migrator'
 import { expect, it } from 'vitest'
 
-it('removes repository credentials without losing imported designs or executing pending repo tasks', async () => {
+it('removes import credentials and sync data while preserving designs, settings and task history', async () => {
   const migrationsFolder = path.resolve('server/db/migrations')
   const journal = JSON.parse(await readFile(path.join(migrationsFolder, 'meta/_journal.json'), 'utf8')) as {
     entries: { tag: string; idx: number; when: number }[]
@@ -31,6 +31,12 @@ it('removes repository credentials without losing imported designs or executing 
       INSERT INTO tasks (id, canvas_id, agent_name, color, status, started_at, queued_by, kind, payload)
         VALUES ('pending', 'existing', '', 'red', 'Import', 1, 'alice', 'sketch', '{}');
       INSERT INTO local_agent_preferences (user_id, enabled, model) VALUES ('alice', true, 'default');
+      INSERT INTO sync_keys (id, secret, canvas_id, name, created_by, created_at)
+        VALUES ('sync', 'old-secret', 'existing', 'App', 'alice', 1);
+      INSERT INTO sync_links (key_id, page, to_page, x, y, width, height)
+        VALUES ('sync', '/', '/next', 0, 0, 10, 10);
+      INSERT INTO sync_edges (key_id, from_page, to_page, count, last_at)
+        VALUES ('sync', '/', '/next', 5, 1);
     `)
     await migrate(db, { migrationsFolder })
     await migrate(db, { migrationsFolder })
@@ -47,6 +53,9 @@ it('removes repository credentials without losing imported designs or executing 
     )
     expect(tasks.rows[0]?.ended_at).not.toBeNull()
     expect(tasks.rows[0]?.queued_by).toBeNull()
+    for (const table of ['sync_keys', 'sync_links', 'sync_edges']) {
+      expect((await client.query('SELECT to_regclass($1) AS name', [`public.${table}`])).rows).toEqual([{ name: null }])
+    }
   } finally {
     await client.close()
     await rm(baseline, { recursive: true, force: true })

@@ -3,7 +3,7 @@ import { useStore } from '../lib/store'
 import { MOD_KEY, isHideUiShortcut } from '../lib/keys'
 import { canHideUi, hideUiHinted } from '../lib/hideUi'
 import { connect, disconnect, sendWs } from '../lib/ws'
-import { api, ApiError, type DiscoveredSite, type SyncKeyInfo } from '../lib/api'
+import { api, ApiError, type DiscoveredSite } from '../lib/api'
 import { navigate } from '../App'
 import { DoopMark } from '../components/Logo'
 import {
@@ -50,7 +50,6 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../components
 import { AuthCard, AuthCardText, AuthScreen } from '../components/ui/screen'
 import {
   BrainIcon,
-  CopyIcon,
   FolderIcon,
   ImportIcon,
   LayersIcon,
@@ -58,7 +57,6 @@ import {
   PlayIcon,
   PlusIcon,
   GearIcon,
-  RadioTowerIcon,
   ShareIcon,
   ShareUpIcon,
   WebIcon,
@@ -72,8 +70,6 @@ import { PeerAvatars, PresenceFace } from '../components/PeerAvatars'
 import { Checkbox, CheckboxCard } from '../components/ui/checkbox'
 import { Toast, ToastAction, ToastSpinner } from '../components/ui/toast'
 import { Tooltip } from '../components/ui/tooltip'
-import { Note } from '../components/ui/note'
-import { Textarea } from '../components/ui/textarea'
 import { Modal, ModalActions, ModalEyebrow, ModalLede, ModalTitle } from '../components/ui/modal'
 import { createCenteredFrame } from '../lib/framePlacement'
 
@@ -944,8 +940,6 @@ function ImportModal({
                   </Button>
                 </ImportStepFooter>
               </>
-            ) : source === 'liveapp' ? (
-              <SyncKeysSection canvasId={canvasId} onBack={() => setSource(null)} />
             ) : null}
           </>
         ) : (
@@ -1100,161 +1094,6 @@ function RenameSelfModal({ current, onClose }: { current: string; onClose: () =>
         </ModalActions>
       </>
     </Modal>
-  )
-}
-
-/* Design sync: mint write-only snippet keys so an app pushes its live screens
-   onto this canvas — the import path for products behind SSO/VPN where the
-   server-side importer can't go. */
-
-function SyncKeysSection({ canvasId, onBack }: { canvasId: string; onBack: () => void }) {
-  const [keys, setKeys] = useState<SyncKeyInfo[] | null>(null)
-  const [name, setAppName] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
-  /* keys are owner/member-only (durable access) — link-edit visitors get a
-     403 and shouldn't see the section at all */
-  const [forbidden, setForbidden] = useState(false)
-
-  useEffect(() => {
-    api
-      .listSyncKeys(canvasId)
-      .then(setKeys)
-      .catch((e) => {
-        if (e instanceof ApiError && e.status === 403) setForbidden(true)
-        setKeys([])
-      })
-  }, [canvasId])
-
-  /* key in the src query string — the one attribute tag managers never strip */
-  const snippetFor = (secret: string) =>
-    `<script async src="${location.origin}/doop-sync.js?key=${secret}"></` + `script>`
-
-  async function create() {
-    if (busy || !name.trim()) return
-    setBusy(true)
-    try {
-      const key = await api.createSyncKey(canvasId, name.trim())
-      setKeys((k) => [key, ...(k ?? [])])
-      setAppName('')
-      posthog.capture('sync_key_created')
-    } catch (e) {
-      console.error(e)
-    }
-    setBusy(false)
-  }
-
-  function revoke(keyId: string) {
-    api.deleteSyncKey(canvasId, keyId).catch(console.error)
-    setKeys((k) => k?.filter((x) => x.id !== keyId) ?? null)
-  }
-
-  async function copySnippet(key: SyncKeyInfo) {
-    await navigator.clipboard.writeText(snippetFor(key.secret))
-    setCopiedId(key.id)
-    setTimeout(() => setCopiedId(null), 1500)
-  }
-
-  if (forbidden) {
-    return (
-      <>
-        <ImportStepHeader icon={<RadioTowerIcon className="size-[22px] text-ink" />} title="Sync a live app" />
-        <ModalLede>Sync keys are for canvas members — ask the owner for durable access.</ModalLede>
-        <ImportStepFooter onBack={onBack} />
-      </>
-    )
-  }
-  return (
-    <>
-      <ImportStepHeader icon={<RadioTowerIcon className="size-[22px] text-ink" />} title="Sync a live app" />
-      <ModalLede>
-        For apps a crawler cannot reach: behind a login, a VPN, or on localhost. Paste one script tag and each screen
-        people visit lands here as a frame, imported once.
-      </ModalLede>
-      {(keys ?? []).map((k) => (
-        <div key={k.id} className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 text-[13px]">
-            <b className="font-semibold">{k.name}</b>
-            <Note className="mr-auto">
-              {k.frames ? `${k.frames} screen${k.frames === 1 ? '' : 's'}` : k.lastUsedAt ? 'synced' : 'never synced'}
-            </Note>
-            <Button
-              variant="bare"
-              size="icon-sm"
-              className="-mr-1.5 text-[13px] hover:bg-accent-ink/10 hover:text-accent-ink"
-              title="Revoke this key"
-              onClick={() => revoke(k.id)}
-            >
-              ✕
-            </Button>
-          </div>
-          <div className="relative">
-            <Textarea
-              className="resize-none border-line-soft bg-ink/[0.04] py-2 pl-2.5 pr-[84px] font-mono text-[11px] leading-normal text-ink-faint focus:border-line focus:text-ink focus:ring-0 md:text-[11px] [word-break:break-all]"
-              readOnly
-              rows={4}
-              value={snippetFor(k.secret)}
-              onFocus={(e) => e.target.select()}
-            />
-            <Button
-              size="sm"
-              className="absolute top-3 right-3.5 gap-1.5 bg-surface px-2.5 text-xs"
-              onClick={() => copySnippet(k)}
-            >
-              {copiedId === k.id ? (
-                'Copied!'
-              ) : (
-                <>
-                  <CopyIcon className="size-3.5" />
-                  Copy
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      ))}
-      <div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row">
-        <Field className="flex-1" label="App name" labelVariant="form" htmlFor="sync-app-name">
-          <Input
-            id="sync-app-name"
-            variant="well"
-            inputSize="lg"
-            placeholder="Admin dashboard"
-            value={name}
-            disabled={busy}
-            onChange={(e) => setAppName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && create()}
-          />
-        </Field>
-        <Button
-          variant="primary"
-          className="justify-center self-end sm:h-12"
-          disabled={busy || !name.trim()}
-          onClick={create}
-        >
-          Create key
-        </Button>
-      </div>
-      <ol className="mt-3 flex flex-col divide-y divide-line-soft rounded-[10px] border border-line">
-        {[
-          ['Get a key for this canvas', 'The key only writes here. Revoke it from this screen at any time.'],
-          ['Paste the script tag', 'One script tag in your app’s layout. Nothing else to install.'],
-          ['Browse the app', 'Every new screen someone visits lands as a frame. Delete a frame to re-import it fresh.'],
-        ].map(([title, detail], i) => (
-          <li key={title} className="flex gap-3.5 px-3.5 py-3">
-            <span className="font-mono text-[11px] leading-[1.6] text-ink-faint">0{i + 1}</span>
-            <span className="min-w-0">
-              <b className="block text-[13.5px] font-semibold tracking-[-0.012em]">{title}</b>
-              <span className="text-[12.5px] leading-[1.45] text-ink-soft">{detail}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
-      <ImportStepFooter
-        note="Visible page content uploads to Doop as static HTML. Input values are dropped; mark anything sensitive with data-doop-mask."
-        onBack={onBack}
-      />
-    </>
   )
 }
 

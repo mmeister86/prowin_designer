@@ -42,7 +42,6 @@ import {
   createAsset,
   MAX_ASSET_BYTES,
 } from './assets.ts'
-import * as ingest from './ingest.ts'
 import * as agentKeys from './agentKeys.ts'
 import * as backgrounds from './backgrounds.ts'
 import * as storage from './storage.ts'
@@ -543,26 +542,6 @@ app.get('/api/oidc-config', (req, res) => {
 })
 
 /* ------------------------------------------------------------------ */
-/* Design sync ingest: the doop-sync snippet on a foreign origin posts */
-/* DOM snapshots here. The canvas-scoped write-only secret in the path */
-/* is the whole credential (no cookies), so this stays outside the     */
-/* /api session gate and answers its own CORS preflight. The route-    */
-/* level parser also accepts text/plain — that's what sendBeacon      */
-/* sends when a page unloads mid-capture.                              */
-/* ------------------------------------------------------------------ */
-
-app.options('/ingest/:key', (_req, res) => {
-  ingest.setIngestCors(res)
-  res.status(204).end()
-})
-
-app.post('/ingest/:key', express.json({ limit: '10mb', type: () => true }), (req, res) => {
-  ingest.handleIngest(req, res).catch((err) => {
-    console.error('[ingest] failed', err)
-    if (!res.headersSent) res.status(500).json({ error: 'sync failed' })
-  })
-})
-
 /* everything else under /api requires a logged-in user; the session's user
    is authoritative for names — clients don't get to pick who they are */
 interface SessionUser {
@@ -1129,51 +1108,6 @@ app.delete('/api/canvases/:id/members/:userId', (req, res) => {
   if (c.ownerId !== req.user!.id && req.params.userId !== req.user!.id)
     return res.status(403).json({ error: 'only the owner can remove collaborators' })
   if (!store.removeMember(c.id, req.params.userId)) return res.status(404).json({ error: 'not a collaborator' })
-  res.json({ ok: true })
-})
-
-/* ---- design-sync keys: mint/list/revoke the write-only snippet creds.
-   Owner and invited members only — NOT link-edit visitors. A key is a
-   durable bearer credential, so someone whose access is only the share
-   link must not be able to mint one (or read an existing secret) and
-   keep writing frames after the owner turns the link off. */
-
-function requireDurableCanvas(req: express.Request, res: express.Response, canvasId: string) {
-  const c = requireCanvas(req, res, canvasId)
-  if (!c) return null
-  if (!hasDurableCanvasAccess(req.user!.id, c)) {
-    res.status(403).json({ error: 'sync keys are managed by the owner and invited members' })
-    return null
-  }
-  return c
-}
-
-app.get('/api/canvases/:id/sync-keys', async (req, res) => {
-  const c = requireDurableCanvas(req, res, req.params.id)
-  if (!c) return
-  const keys = await ingest.listSyncKeys(c.id)
-  res.json(keys.map((k) => ({ ...k, frames: ingest.syncedFrameCount(c, k.id) })))
-})
-
-app.post('/api/canvases/:id/sync-keys', async (req, res) => {
-  const c = requireDurableCanvas(req, res, req.params.id)
-  if (!c) return
-  const key = await ingest.createSyncKey(c.id, String(req.body?.name ?? ''), req.user!.id)
-  res.json({ ...key, frames: 0 })
-})
-
-/* the flow map is design insight, not a credential — anyone who can see the
-   frames can see how they connect */
-app.get('/api/canvases/:id/sync-flow', async (req, res) => {
-  const c = requireCanvas(req, res, req.params.id)
-  if (!c) return
-  res.json(await ingest.getSyncFlow(c))
-})
-
-app.delete('/api/canvases/:id/sync-keys/:keyId', async (req, res) => {
-  if (!requireDurableCanvas(req, res, req.params.id)) return
-  if (!(await ingest.deleteSyncKey(req.params.id, req.params.keyId)))
-    return res.status(404).json({ error: 'sync key not found' })
   res.json({ ok: true })
 })
 

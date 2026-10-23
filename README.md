@@ -112,7 +112,7 @@ drafts queued for the Doop Agent, or pick up one of your canvases, workspaces an
 The canvas Chat tab keeps a shared conversation alongside the design. Mention an agent role to
 queue a design card; its reply threads back into the chat.
 
-The import source picker offers **Website** and **Live app** (the sync snippet).
+The import source picker offers **Website**.
 Right-click a frame and choose **Export…** to download PNG or JPG. A progress toast tracks the
 render; the desktop app opens its native save panel.
 
@@ -557,28 +557,6 @@ auto-detected). Humans can hit the same renderer at `GET /api/frames/:id/screens
 For website viewing/imports, setting `CONTEXT_DEV_API_KEY` makes Context.dev acquire the rendered
 HTML while Doop still sanitizes it and renders the preview locally; without the key, Doop navigates
 to the public page directly in Chromium.
-
-### Design sync: push an app's live screens onto a canvas
-
-Server-side import can't reach apps behind SSO or a VPN. The **doop-sync snippet** flips the capture
-to the user's browser: mint a write-only key in a canvas's Share dialog, drop one tag into the app —
-
-```html
-<script async src="https://your-doop-origin/doop-sync.js?key=dk_…"></script>
-```
-
-— and every distinct screen people visit lands on that canvas as a frame (one row per app), imported
-once: a short grace window lets the first capture settle (scroll reveals, late images), then the frame
-freezes so later visits — different viewports, other users' data, open menus — never churn it. Deleting
-a frame re-imports it on the next visit; navigation counts keep accumulating regardless. Routes are
-normalized (`/orders/8231` → `/orders/:id`) so each screen maps to one
-frame; captures are serialized from the CSSOM (so styled-components/emotion output survives), and
-same-origin webfonts and small images are inlined as data: URIs — fonts require CORS inside the
-sandboxed frame, and intranet URLs would never render for viewers outside the network. Scripts are
-stripped client- and server-side, input values are always dropped, and anything marked `data-doop-mask`
-is redacted before upload (`data-doop-sync-ignore` excludes an element entirely). The key is the whole
-credential: it can only write frames to its one canvas, so revoking it in the Share dialog cuts the
-app off instantly. Endpoint: `POST /ingest/<key>` (CORS-open, no cookies).
 
 ### How streaming looks (server-side smoothing)
 

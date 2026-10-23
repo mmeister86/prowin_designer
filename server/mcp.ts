@@ -17,7 +17,6 @@ import { primeImage } from './previews.ts'
 import { DOOP_GUIDE, GUIDE_TOPICS } from './guide.ts'
 import { describeInspiration, INSPIRATION_USAGE_NOTE, searchInspiration } from './inspiration.ts'
 import { ESCAPED_HTML_NOTE, looksEscapedHtml } from './escapedHtml.ts'
-import { describeSyncFlow, getSyncFlow } from './ingest.ts'
 import * as assets from './assets.ts'
 import * as imageSearch from './imageSearch.ts'
 import * as imageGen from './imageGen.ts'
@@ -376,15 +375,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       arrive(canvas_id, agent_name)
       const docs = store.getGuidelines(canvas_id)
       const refs = store.getReferences(canvas_id)
-      /* design-synced canvases carry a flow map: real user navigation between
-         the synced screens — context a redesign must respect */
-      const flow = describeSyncFlow(await getSyncFlow(c), c.frames)
       const notes = [
-        ...(flow.length
-          ? [
-              'This canvas is synced from a live app and `flow` shows how its screens connect — including how often real users take each path. Do not bury or weaken elements that carry heavy navigation.',
-            ]
-          : []),
         ...(docs.length
           ? [
               'This canvas has style guides. Call get_guidelines for each relevant one BEFORE designing — every frame must follow them.',
@@ -418,7 +409,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
             htmlBytes: r.html.length,
             pinnedBy: r.pinnedBy,
           })),
-          ...(flow.length ? { flow } : {}),
           ...(notes.length ? { note: notes.join(' ') } : {}),
         }),
         canvas_id,

@@ -8,7 +8,6 @@ import { CanvasComments, type CanvasComposeAt } from './CanvasComments'
 import { placeComposer } from '../lib/composerPlacement'
 import { isCanvasComment, type CanvasComment } from '../../shared/comments'
 import { canvasPages } from '../../shared/pages'
-import { FlowOverlay } from './FlowOverlay'
 import { GhostFrames } from './GhostFrames'
 import { Cursors } from './Cursors'
 import { FollowFrame } from './FollowFrame'
@@ -800,7 +799,6 @@ export function Stage({
                 ),
               )}
               <GhostFrames />
-              <FlowOverlay />
               <SnapGuides />
               <CanvasComments composeAt={composeAt} onComposeDone={dismissCompose} />
               <Cursors />

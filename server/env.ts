@@ -182,7 +182,6 @@ const schema = {
   MCP_SEARCHES_PER_MIN: perMinute({ default: 12 }),
   MCP_GENERATIONS_PER_MIN: perMinute({ default: 6 }),
   MCP_IMPORTS_PER_MIN: perMinute({ default: 5 }),
-  SYNC_INGESTS_PER_MIN: perMinute({ default: 30 }),
   PREVIEW_RENDERS_PER_MIN: perMinute({ default: 12 }),
   SYNC_PAGE_INTERVAL_MS: nonNegativeInt({ default: 30_000 }),
   SYNC_FREEZE_MS: nonNegativeInt({ default: 15 * 60_000 }),

@@ -26,8 +26,7 @@ import { CommentComposer, CommentPin, CommentThread } from './CommentPopovers'
 import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
 import { Tooltip } from './ui/tooltip'
-import { EyeClosedIcon, LockIcon, SyncIcon } from './ui/icons'
-import { isSyncedFrame } from '../lib/sync'
+import { EyeClosedIcon, LockIcon } from './ui/icons'
 import { AgentIcon } from './AgentIcon'
 
 /** ?comment=<rootId> — the link in a comment email. The thread opens once
@@ -834,13 +833,6 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
               <Tooltip label="Locked — unlock it from the Layers panel or the Inspector" side="top" align="start">
                 <span className="flex shrink-0 items-center text-ink-faint">
                   <LockIcon width={11} height={11} />
-                </span>
-              </Tooltip>
-            )}
-            {isSyncedFrame(frame.html) && (
-              <Tooltip label="Synced from a live app" side="top" align="start">
-                <span className="flex shrink-0 items-center text-brand">
-                  <SyncIcon width={11} height={11} />
                 </span>
               </Tooltip>
             )}

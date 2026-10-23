@@ -253,6 +253,13 @@
       "when": 1792773522752,
       "tag": "0036_remove_github_app",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792773948835,
+      "tag": "0037_remove_design_sync",
+      "breakpoints": true
     }
   ]
 }

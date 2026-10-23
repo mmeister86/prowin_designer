@@ -146,7 +146,7 @@
 
 ## OSS integration scope
 
-The integration registries are empty in the proWIN fork. Canvas imports offer websites, live-app
-sync; frame exports offer PNG/JPG with progress feedback and desktop saving.
+The integration registries are empty in the proWIN fork. Canvas imports offer websites;
+frame exports offer PNG/JPG with progress feedback and desktop saving.
 Figma, Canva and PSD are deferred. Migration 0019 is reserved for the deferred Figma integration;
 the OSS journal skips it while retaining the shared migration tags and timestamps for 0020–0022.

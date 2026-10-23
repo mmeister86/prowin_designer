@@ -195,60 +195,6 @@ export const frameVersions = pgTable(
   (t) => [index('frame_versions_frame_idx').on(t.frameId), index('frame_versions_canvas_idx').on(t.canvasId)],
 )
 
-/** Design-sync keys: the write-only capability behind the /ingest endpoint.
- *  An app embeds the doop-sync snippet with a key's secret, and its live
- *  screens land on ONE canvas as frames — the secret grants no reads and no
- *  other writes, so shipping it in an internal app's bundle is safe. `id` is
- *  the public handle (stamped into synced frame HTML to match page → frame);
- *  the secret never appears in canvas content. Cold path: read per ingest
- *  request, no in-memory mirror. Revocation = row deletion. */
-export const syncKeys = pgTable(
-  'sync_keys',
-  {
-    id: text('id').primaryKey(),
-    secret: text('secret').notNull(),
-    canvasId: text('canvas_id').notNull(),
-    /** label shown in the share modal and used as the frames' actor name */
-    name: text('name').notNull(),
-    createdBy: text('created_by').notNull(),
-    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-    lastUsedAt: bigint('last_used_at', { mode: 'number' }),
-  },
-  (t) => [index('sync_keys_canvas_idx').on(t.canvasId), index('sync_keys_secret_idx').on(t.secret)],
-)
-
-/** Link hotspots a synced page declares: where each same-app link sits in the
- *  snapshot and which page it leads to. Replaced wholesale on every capture
- *  of that page — the set mirrors the CURRENT design, it is not history. */
-export const syncLinks = pgTable(
-  'sync_links',
-  {
-    keyId: text('key_id').notNull(),
-    page: text('page').notNull(),
-    toPage: text('to_page').notNull(),
-    x: doublePrecision('x').notNull(),
-    y: doublePrecision('y').notNull(),
-    width: doublePrecision('width').notNull(),
-    height: doublePrecision('height').notNull(),
-    label: text('label'),
-  },
-  (t) => [index('sync_links_page_idx').on(t.keyId, t.page)],
-)
-
-/** Navigations users actually made in the synced app, accumulated per route
- *  pair — the traffic weights on top of the declared link map. */
-export const syncEdges = pgTable(
-  'sync_edges',
-  {
-    keyId: text('key_id').notNull(),
-    fromPage: text('from_page').notNull(),
-    toPage: text('to_page').notNull(),
-    count: integer('count').notNull().default(0),
-    lastAt: bigint('last_at', { mode: 'number' }).notNull(),
-  },
-  (t) => [primaryKey({ columns: [t.keyId, t.fromPage, t.toPage] })],
-)
-
 /** Agent keys: account-scoped bearer credentials for the /mcp endpoint — the
  *  headless counterpart to the MCP OAuth flow, for agents with no browser to
  *  approve in (Mastra, n8n, CI). A key acts as its owner: every MCP call it

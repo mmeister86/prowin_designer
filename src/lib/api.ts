@@ -30,19 +30,6 @@ export interface CanvasMember {
   owner: boolean
 }
 
-/** A write-only design-sync key: apps embed its secret in the doop-sync
- *  snippet to push their live screens onto this canvas. */
-export interface SyncKeyInfo {
-  id: string
-  secret: string
-  canvasId: string
-  name: string
-  createdAt: number
-  lastUsedAt: number | null
-  /** synced frames currently on the canvas */
-  frames: number
-}
-
 /** An account-scoped bearer credential for /mcp (headless agents). The
  *  secret exists only on the create response — the list shows `start`. */
 export interface AgentKeyInfo {
@@ -51,21 +38,6 @@ export interface AgentKeyInfo {
   start: string
   createdAt: number
   lastUsedAt: number | null
-}
-
-/** The flow map of a canvas's synced app(s): link hotspots between frames
- *  and how often users actually navigated each pair. */
-export interface SyncFlow {
-  links: {
-    fromFrameId: string
-    toFrameId: string
-    x: number
-    y: number
-    width: number
-    height: number
-    label: string | null
-  }[]
-  edges: { fromFrameId: string; toFrameId: string; count: number; lastAt: number }[]
 }
 
 export interface DiscoveredPage {
@@ -275,12 +247,6 @@ export const api = {
   removeMember: (canvasId: string, userId: string) =>
     req(`/api/canvases/${canvasId}/members/${userId}`, { method: 'DELETE' }),
   /* design-sync keys for the embeddable snippet */
-  listSyncKeys: (canvasId: string) => req<SyncKeyInfo[]>(`/api/canvases/${canvasId}/sync-keys`),
-  createSyncKey: (canvasId: string, name: string) =>
-    req<SyncKeyInfo>(`/api/canvases/${canvasId}/sync-keys`, { method: 'POST', body: JSON.stringify({ name }) }),
-  deleteSyncKey: (canvasId: string, keyId: string) =>
-    req(`/api/canvases/${canvasId}/sync-keys/${keyId}`, { method: 'DELETE' }),
-  syncFlow: (canvasId: string) => req<SyncFlow>(`/api/canvases/${canvasId}/sync-flow`),
   /* agent keys: bearer credentials for headless MCP clients */
   listAgentKeys: () => req<AgentKeyInfo[]>('/api/agent-keys'),
   createAgentKey: (name: string) =>
