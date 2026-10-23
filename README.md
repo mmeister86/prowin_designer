@@ -113,7 +113,7 @@ drafts queued for the Doop Agent, or pick up one of your canvases, workspaces an
 The canvas Chat tab keeps a shared conversation alongside the design. Mention an agent role to
 queue a design card; its reply threads back into the chat.
 
-The import source picker offers **Website**, **Live app** (the sync snippet), and **GitHub repo**.
+The import source picker offers **Website** and **Live app** (the sync snippet).
 Right-click a frame and choose **Export…** to download PNG or JPG. A progress toast tracks the
 render; the desktop app opens its native save panel.
 

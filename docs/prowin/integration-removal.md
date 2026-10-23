@@ -11,3 +11,7 @@ Historische Migrationen und ursprüngliche Planungsdokumente bleiben zur Nachvol
 ## Slack (TASK-4)
 
 Migration 0035 entfernt Slack-Installationen, Bot-Tokens, OAuth-Zwischenstände und Agent-Sessions. Canvases, Frames, allgemeine Webhooks und Workspaces bleiben erhalten. Die Slack-App muss bei Bedarf zusätzlich im Slack-Workspace deinstalliert werden.
+
+## GitHub-App (TASK-5)
+
+Migration 0036 löscht `github_connections` einschließlich gespeicherter Tokens und Installations-IDs. Bereits importierte Frames und Design-Memory bleiben erhalten. Offene Repository-Importaufträge werden abgeschlossen und aus der ausführbaren Kartenwarteschlange genommen; ihre Historie bleibt lesbar. Historische Kartentypen bleiben allein für diese gespeicherten Einträge erhalten. Externe GitHub-App-Installationen und PATs sind bei GitHub separat zu widerrufen.

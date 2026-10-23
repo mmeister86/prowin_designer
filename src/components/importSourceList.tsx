@@ -1,5 +1,5 @@
 import { clientIntegrations } from '@/integrations'
-import { GithubIcon, RadioTowerIcon, WebIcon } from './ui/icons'
+import { RadioTowerIcon, WebIcon } from './ui/icons'
 import type { ImportSource } from './ImportSources'
 
 /** The sources the import picker offers, in order — the canvas page's modal
@@ -20,12 +20,6 @@ export function importSources(): ImportSource[] {
       title: 'Live app',
       blurb: 'Behind a login, a VPN or localhost.',
       icon: <RadioTowerIcon className="size-5 text-ink" />,
-    },
-    {
-      id: 'github',
-      title: 'GitHub repo',
-      blurb: 'Screens read from the repo’s routes.',
-      icon: <GithubIcon width={21} height={21} />,
     },
   ]
 }

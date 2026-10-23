@@ -335,7 +335,6 @@ export function HomeHero({
             <span className="grid size-4 place-items-center rounded-tag bg-surface shadow-ring">
               <BrandMark brand="figma" size={12} />
             </span>
-            <BrandMark brand="github" size={16} className="text-ink" />
             <BrandMark brand="canva" size={16} />
             <BrandMark brand="photoshop" size={16} />
           </span>

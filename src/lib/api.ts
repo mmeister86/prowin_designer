@@ -68,51 +68,6 @@ export interface SyncFlow {
   edges: { fromFrameId: string; toFrameId: string; count: number; lastAt: number }[]
 }
 
-/** A GitHub repo connected as an import source. The server keeps the token;
- *  clients only ever see connection metadata. */
-export interface GithubConnectionInfo {
-  id: string
-  canvasId: string
-  repo: string
-  branch: string
-  createdAt: number
-  lastSyncedAt: number | null
-  /** how the connection authenticates: the GitHub App, or a pasted token */
-  via: 'app' | 'token'
-  /** frames on the canvas imported through this connection */
-  frames: number
-}
-
-export interface InstallationRepo {
-  fullName: string
-  private: boolean
-}
-
-export interface RepoScreen {
-  kind: 'page' | 'story' | 'component' | 'static'
-  route: string
-  sourcePath: string
-  title: string
-  dynamic: boolean
-  /** where the pixels come from: repo HTML, or an outline placeholder */
-  source: 'static' | 'placeholder'
-}
-
-export interface RepoManifest {
-  connection: Omit<GithubConnectionInfo, 'frames'>
-  framework: string | null
-  screens: RepoScreen[]
-  truncated: boolean
-}
-
-/** An import queues board cards — nothing lands on the canvas until the
- *  Doop Agent finishes each one. `rejected` lists selections the server no
- *  longer finds in the repo manifest. */
-export interface GithubImportResult {
-  cards: string[]
-  rejected: string[]
-}
-
 export interface DiscoveredPage {
   url: string
   title: string
@@ -331,24 +286,6 @@ export const api = {
   createAgentKey: (name: string) =>
     req<AgentKeyInfo & { secret: string }>('/api/agent-keys', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteAgentKey: (keyId: string) => req(`/api/agent-keys/${keyId}`, { method: 'DELETE' }),
-  /* GitHub repos connected as import sources */
-  listGithubConnections: (canvasId: string) => req<GithubConnectionInfo[]>(`/api/canvases/${canvasId}/github`),
-  connectGithub: (canvasId: string, input: { repo: string; token?: string; pass?: string; branch?: string }) =>
-    req<GithubConnectionInfo>(`/api/canvases/${canvasId}/github`, { method: 'POST', body: JSON.stringify(input) }),
-  githubAppInfo: () => req<{ enabled: boolean; slug: string }>('/api/github/app'),
-  startGithubInstall: (canvasId: string) =>
-    req<{ url: string }>(`/api/canvases/${canvasId}/github/app/start`, { method: 'POST' }),
-  listInstallationRepos: (canvasId: string, pass: string) =>
-    req<InstallationRepo[]>(`/api/canvases/${canvasId}/github/app/repos?pass=${encodeURIComponent(pass)}`),
-  deleteGithubConnection: (canvasId: string, connId: string) =>
-    req(`/api/canvases/${canvasId}/github/${connId}`, { method: 'DELETE' }),
-  analyzeGithub: (canvasId: string, connId: string) =>
-    req<RepoManifest>(`/api/canvases/${canvasId}/github/${connId}/analyze`, { method: 'POST' }),
-  importGithubScreens: (canvasId: string, connId: string, screens: RepoScreen[], designSystem = true) =>
-    req<GithubImportResult>(`/api/canvases/${canvasId}/github/${connId}/import`, {
-      method: 'POST',
-      body: JSON.stringify({ screens, design_system: designSystem }),
-    }),
   guidelineHistory: (canvasId: string, name: string) =>
     req<{ markdown: string; savedAt: number; savedBy: string }[]>(
       `/api/canvases/${canvasId}/guidelines/${encodeURIComponent(name)}/history`,

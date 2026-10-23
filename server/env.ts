@@ -153,11 +153,6 @@ const schema = {
   /* ------------------------------------------------------ integrations */
   META_APP_ID: str({ default: undefined }),
   META_APP_SECRET: str({ default: undefined }),
-  GITHUB_APP_ID: str({ default: undefined }),
-  GITHUB_APP_SLUG: str({ default: undefined }),
-  GITHUB_APP_CLIENT_ID: str({ default: undefined }),
-  GITHUB_APP_CLIENT_SECRET: str({ default: undefined }),
-  GITHUB_APP_PRIVATE_KEY: str({ default: undefined }),
   PEXELS_API_KEY: str({ default: undefined }),
   BRANDFETCH_CLIENT_ID: str({ default: undefined }),
   CONTEXT_DEV_API_KEY: str({ default: undefined }),

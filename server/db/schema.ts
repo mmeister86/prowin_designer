@@ -273,34 +273,6 @@ export const agentKeys = pgTable(
   (t) => [index('agent_keys_user_idx').on(t.userId), uniqueIndex('agent_keys_hash_idx').on(t.secretHash)],
 )
 
-/** A GitHub repo connected to a canvas as an import source. Two credential
- *  modes: a GitHub App installation (`installationId` set, short-lived
- *  tokens minted per call — the preferred flow) or a fine-grained PAT
- *  (`token` set — the paste-a-token fallback). Either way credentials stay
- *  server-side; API responses carry connection metadata only. Revocation =
- *  row deletion (plus uninstalling the app / revoking the PAT on GitHub).
- *  Frames imported through a connection carry a marker meta in their HTML
- *  (see server/github.ts), same provenance pattern as design-sync frames —
- *  no frame column. */
-export const githubConnections = pgTable(
-  'github_connections',
-  {
-    id: text('id').primaryKey(),
-    canvasId: text('canvas_id').notNull(),
-    /** "owner/name" */
-    repo: text('repo').notNull(),
-    branch: text('branch').notNull(),
-    token: text('token'),
-    installationId: text('installation_id'),
-    /** live deployment of this repo; enables the capture lane */
-    deployUrl: text('deploy_url'),
-    createdBy: text('created_by').notNull(),
-    createdAt: bigint('created_at', { mode: 'number' }).notNull(),
-    lastSyncedAt: bigint('last_synced_at', { mode: 'number' }),
-  },
-  (t) => [index('github_connections_canvas_idx').on(t.canvasId)],
-)
-
 export const tasks = pgTable(
   'tasks',
   {

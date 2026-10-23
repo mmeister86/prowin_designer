@@ -3,16 +3,7 @@ import { useStore } from '../lib/store'
 import { MOD_KEY, isHideUiShortcut } from '../lib/keys'
 import { canHideUi, hideUiHinted } from '../lib/hideUi'
 import { connect, disconnect, sendWs } from '../lib/ws'
-import {
-  api,
-  ApiError,
-  type DiscoveredSite,
-  type GithubConnectionInfo,
-  type InstallationRepo,
-  type RepoManifest,
-  type RepoScreen,
-  type SyncKeyInfo,
-} from '../lib/api'
+import { api, ApiError, type DiscoveredSite, type SyncKeyInfo } from '../lib/api'
 import { navigate } from '../App'
 import { DoopMark } from '../components/Logo'
 import {
@@ -31,7 +22,7 @@ import { Inspector } from '../components/Inspector'
 import { ElementPanel } from '../components/ElementPanel'
 import { ActivityPanel } from '../components/ActivityPanel'
 import { ConnectModal } from '../components/ConnectModal'
-import { LimitWall, isResidentLimit } from '../components/TeamAllowance'
+import { LimitWall } from '../components/TeamAllowance'
 import { WorkingNow } from '../components/WorkingNow'
 import { MobilePanelTabs, SideRail } from '../components/SideRail'
 import { LayersPanel, LayersRailToggle } from '../components/LayersPanel'
@@ -61,7 +52,6 @@ import {
   BrainIcon,
   CopyIcon,
   FolderIcon,
-  GithubIcon,
   ImportIcon,
   LayersIcon,
   MoreHorizontalIcon,
@@ -160,19 +150,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
   const [presenting, setPresenting] = useState(false)
   /* ⌘. acts only over the canvas view, outside PresentMode */
   const hideUiActive = canHideUi({ view: 'canvas', presenting })
-  /* returning from a GitHub App install: the setup redirect appends a signed
-     pass — pull it off the URL and open the import modal on the repo picker */
-  const [ghInstallPass, setGhInstallPass] = useState<string | null>(() => {
-    const pass = new URLSearchParams(location.search).get('ghInstall')
-    if (pass) history.replaceState(null, '', location.pathname)
-    return pass
-  })
-  /* a failed install round-trip also lands here, with the reason to show */
-  const [ghInstallError] = useState<string | null>(() => {
-    const err = new URLSearchParams(location.search).get('ghError')
-    if (err) history.replaceState(null, '', location.pathname)
-    return err
-  })
   /* ?import=<source> (Home's Import picker, on the canvas it just made) opens
      the import modal on that source's screen (`1` for the picker itself); the
      flag comes off the URL once the page is up, the same way ?connect=1 does —
@@ -185,7 +162,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
     url.searchParams.delete('import')
     history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`)
   }, [])
-  const [showImport, setShowImport] = useState(!!ghInstallPass || !!ghInstallError || !!importRequested)
+  const [showImport, setShowImport] = useState(!!importRequested)
   const [showMobileActions, setShowMobileActions] = useState(false)
   const [showMobileLayers, setShowMobileLayers] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -766,23 +743,15 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
       {showImport && (
         <ImportModal
           canvasId={canvasId}
-          installPass={ghInstallPass}
-          installError={ghInstallError}
           initialSource={importRequested && importRequested !== '1' ? importRequested : null}
           onClose={() => {
             setShowImport(false)
-            setGhInstallPass(null)
           }}
           onDone={(frameIds, failedCount) => {
             setShowImport(false)
             select(frameIds[0] ?? null)
             const imported = frameIds.length === 1 ? '1 item imported' : `${frameIds.length} items imported`
             showToast(failedCount ? `${imported} · ${failedCount} failed` : imported)
-          }}
-          onQueued={(cardCount) => {
-            setShowImport(false)
-            setGhInstallPass(null)
-            showToast(`${cardCount} ${cardCount === 1 ? 'card' : 'cards'} queued — Doop is on it`)
           }}
         />
       )}
@@ -807,40 +776,23 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
 
 function ImportModal({
   canvasId,
-  installPass,
-  installError,
   initialSource = null,
   onClose,
   onDone,
-  onQueued,
 }: {
   canvasId: string
-  installPass: string | null
-  installError: string | null
   /** open straight on this source's screen (Home's picker already chose) */
   initialSource?: string | null
   onClose: () => void
   onDone: (frameIds: string[], failedCount: number) => void
-  /** a repo import queues cards on the board instead of landing frames */
-  onQueued: (cardCount: number) => void
 }) {
-  /* which source's screen is open — null is the picker; landing back from
-     GitHub's install flow jumps straight to that screen */
-  const [source, setSource] = useState<string | null>(installPass || installError ? 'github' : initialSource)
+  const [source, setSource] = useState<string | null>(initialSource)
   const [url, setUrl] = useState('')
   const [wholeSite, setWholeSite] = useState(false)
   const [discovery, setDiscovery] = useState<DiscoveredSite | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState<'discovering' | 'importing' | null>(null)
   const [error, setError] = useState<string | null>(null)
-  /* a connected repo's screen manifest under review — the modal's third view */
-  const [repoReview, setRepoReview] = useState<{ connection: GithubConnectionInfo; manifest: RepoManifest } | null>(
-    null,
-  )
-  const [repoSelected, setRepoSelected] = useState<Set<string>>(new Set())
-  const [extractSystem, setExtractSystem] = useState(true)
-  const [showPages, setShowPages] = useState(false)
-
   function errorMessage(caught: unknown, fallback: string) {
     if (caught instanceof ApiError) return String(caught.body.error ?? fallback)
     return caught instanceof Error ? caught.message.replace(/^\d+\s*/, '') : fallback
@@ -918,219 +870,11 @@ function ImportModal({
     })
   }
 
-  /* screens can share a route across kinds (a page and its committed dist
-     HTML) — key rows by kind + route */
-  const screenKey = (s: RepoScreen) => `${s.kind}|${s.route}`
-
-  function openRepoReview(connection: GithubConnectionInfo, manifest: RepoManifest) {
-    setRepoReview({ connection, manifest })
-    /* the design system is the default import; components and pages are
-       one click away, never silently pre-committed */
-    setRepoSelected(new Set())
-    setShowPages(false)
-    setError(null)
-  }
-
-  function toggleScreen(key: string) {
-    setRepoSelected((current) => {
-      const next = new Set(current)
-      if (next.has(key)) next.delete(key)
-      else next.add(key)
-      return next
-    })
-  }
-
-  async function importRepoScreens() {
-    if (!repoReview || busy || (!repoSelected.size && !extractSystem)) return
-    setBusy('importing')
-    setError(null)
-    const screens = repoReview.manifest.screens.filter((s) => repoSelected.has(screenKey(s)))
-    try {
-      const result = await api.importGithubScreens(canvasId, repoReview.connection.id, screens, extractSystem)
-      if (!result.cards.length) {
-        setError(
-          result.rejected.length
-            ? 'Those screens are no longer in the repository — re-run the scan'
-            : 'Everything you picked is already on the board',
-        )
-        setBusy(null)
-        return
-      }
-      posthog.capture('github_screens_imported', {
-        requested_count: screens.length,
-        queued_count: result.cards.length,
-        rejected_count: result.rejected.length,
-      })
-      onQueued(result.cards.length)
-    } catch (e) {
-      if (isResidentLimit(e)) {
-        useStore.getState().setLimitWall(true)
-        onClose()
-        return
-      }
-      setError(errorMessage(e, 'repository import failed'))
-      setBusy(null)
-    }
-  }
-
   const selectedCount = selected.size
-  const laneLabel: Record<RepoScreen['source'], string> = {
-    static: 'from repo',
-    placeholder: 'agent sketch',
-  }
-  const kindLabel = (s: RepoScreen) =>
-    s.kind === 'component' ? 'component' : s.kind === 'story' ? 'story' : laneLabel[s.source]
-  const KIND_ORDER: Record<RepoScreen['kind'], number> = { component: 0, story: 1, static: 2, page: 3 }
-  const allScreens = repoReview?.manifest.screens ?? []
-  const pageCount = allScreens.filter((s) => s.kind === 'page').length
-  const visibleScreens = allScreens
-    .filter((s) => showPages || s.kind !== 'page')
-    .sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind])
-
   return (
     <Modal size="xl" className="sm:max-w-[820px]" onClose={() => !busy && onClose()}>
       <>
-        {repoReview ? (
-          <>
-            <div className="flex flex-col items-start justify-between gap-2.5 sm:flex-row sm:gap-6">
-              <div className="flex flex-col gap-[5px]">
-                <ModalEyebrow>Review before import</ModalEyebrow>
-                <ModalTitle>Import the design system</ModalTitle>
-              </div>
-              <Badge shape="pill">
-                {repoReview.connection.repo}@{repoReview.connection.branch}
-              </Badge>
-            </div>
-            <ModalLede>
-              {repoReview.manifest.framework ? `A ${repoReview.manifest.framework} app. ` : ''}Doop distills the repo's
-              design system into a style guide pinned to this canvas — every agent follows it from then on. Each
-              component or page you pick becomes a card on the board: Doop sketches it from the source and lands it as a
-              frame. Whole pages are optional.
-            </ModalLede>
-            <CheckboxCard
-              checked={extractSystem}
-              disabled={!!busy}
-              onChange={setExtractSystem}
-              title="Extract the design system into a style guide"
-              description="Palette, type and spacing from the repo's theme — pinned to the canvas, followed by every agent."
-            />
-            <SelectionBar
-              className="mt-4"
-              count={repoSelected.size}
-              total={visibleScreens.length}
-              actions={
-                <>
-                  <SelectionBarAction
-                    disabled={!!busy}
-                    onClick={() => setRepoSelected(new Set(visibleScreens.map(screenKey)))}
-                  >
-                    Select all
-                  </SelectionBarAction>
-                  <SelectionBarAction disabled={!!busy} onClick={() => setRepoSelected(new Set())}>
-                    Clear
-                  </SelectionBarAction>
-                </>
-              }
-            />
-            <div
-              className={cn(
-                'max-h-[calc(100dvh-390px)] overflow-y-auto rounded-[11px] border border-line bg-paper transition-opacity sm:max-h-[min(350px,calc(100vh-390px))]',
-                busy && 'opacity-[0.58]',
-              )}
-              role="group"
-              aria-label="Screens to import"
-            >
-              {visibleScreens.map((screen, index) => (
-                <label
-                  className="relative grid min-h-[58px] cursor-pointer grid-cols-[20px_24px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-line bg-surface px-3 py-[9px] first:rounded-t-[10px] last:rounded-t-none last:rounded-b-[10px] last:border-b-0 hover:bg-paper"
-                  key={screenKey(screen)}
-                >
-                  <Checkbox
-                    checked={repoSelected.has(screenKey(screen))}
-                    disabled={!!busy}
-                    onChange={() => toggleScreen(screenKey(screen))}
-                  />
-                  <span className="font-mono text-[9.5px] text-ink-faint">{String(index + 1).padStart(2, '0')}</span>
-                  <span className="min-w-0">
-                    <b className="block overflow-hidden whitespace-nowrap text-ellipsis text-[12.5px] text-ink">
-                      {screen.title}
-                    </b>
-                    <span className="mt-[3px] block overflow-hidden whitespace-nowrap text-ellipsis font-mono text-[10px] text-ink-faint">
-                      {screen.route}
-                    </span>
-                  </span>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-[3px] text-micro font-medium',
-                      screen.source === 'placeholder'
-                        ? 'bg-paper-deep text-ink-faint'
-                        : 'bg-accent-ink/10 text-accent-ink',
-                    )}
-                  >
-                    {kindLabel(screen)}
-                  </span>
-                </label>
-              ))}
-            </div>
-            {pageCount > 0 && (
-              <Button
-                variant="bare"
-                size="inline"
-                className="mt-2 self-start text-ink-faint"
-                disabled={!!busy}
-                onClick={() => setShowPages((v) => !v)}
-              >
-                {showPages ? 'hide pages' : `show ${pageCount} page${pageCount === 1 ? '' : 's'} (optional)`}
-              </Button>
-            )}
-            {repoReview.manifest.truncated && (
-              <p className={importNoteCls}>The repository listing was cut short — very large repos show a subset.</p>
-            )}
-            {busy === 'importing' && (
-              <p className={cn(importNoteCls, 'text-accent-ink')}>
-                Doop is importing — the style guide and sketches fill in on the canvas…
-              </p>
-            )}
-            {error && <p className={errorNoteCls}>{error}</p>}
-            <ModalActions className="justify-between">
-              <Button
-                variant="ghost"
-                disabled={!!busy}
-                onClick={() => {
-                  setRepoReview(null)
-                  setError(null)
-                }}
-              >
-                ← Back
-              </Button>
-              <Button
-                variant="primary"
-                disabled={!!busy || (!repoSelected.size && !extractSystem)}
-                onClick={importRepoScreens}
-              >
-                {busy === 'importing'
-                  ? 'Importing…'
-                  : [
-                      extractSystem ? 'design system' : '',
-                      repoSelected.size
-                        ? `${repoSelected.size} ${
-                            repoSelected.size === 1
-                              ? 'component'
-                              : visibleScreens
-                                    .filter((s) => repoSelected.has(screenKey(s)))
-                                    .every((s) => s.kind === 'component' || s.kind === 'story')
-                                ? 'components'
-                                : 'screens'
-                          }`
-                        : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' + ')
-                      .replace(/^./, (c) => 'Import ' + c)}
-              </Button>
-            </ModalActions>
-          </>
-        ) : !discovery ? (
+        {!discovery ? (
           <>
             {source === null ? (
               <SourcePicker onPick={setSource} sources={importSources()} />
@@ -1202,14 +946,6 @@ function ImportModal({
               </>
             ) : source === 'liveapp' ? (
               <SyncKeysSection canvasId={canvasId} onBack={() => setSource(null)} />
-            ) : source === 'github' ? (
-              <GithubSection
-                canvasId={canvasId}
-                installPass={installPass}
-                installError={installError}
-                onReview={openRepoReview}
-                onBack={() => setSource(null)}
-              />
             ) : null}
           </>
         ) : (
@@ -1517,264 +1253,6 @@ function SyncKeysSection({ canvasId, onBack }: { canvasId: string; onBack: () =>
       <ImportStepFooter
         note="Visible page content uploads to Doop as static HTML. Input values are dropped; mark anything sensitive with data-doop-mask."
         onBack={onBack}
-      />
-    </>
-  )
-}
-
-/* GitHub as an import source: one click installs the doop GitHub App on the
-   repos you pick and you land back here on a repo picker — no tokens to
-   copy. Pasting a fine-grained PAT stays as the fallback when the app isn't
-   configured (self-hosters) or someone prefers it. Credentials stay on the
-   server either way — this section only ever sees connection metadata.
-   Same durable-access rule as sync keys. */
-function GithubSection({
-  canvasId,
-  installPass,
-  installError,
-  onReview,
-  onBack,
-}: {
-  canvasId: string
-  installPass: string | null
-  installError: string | null
-  onReview: (connection: GithubConnectionInfo, manifest: RepoManifest) => void
-  onBack: () => void
-}) {
-  const [connections, setConnections] = useState<GithubConnectionInfo[] | null>(null)
-  const [appEnabled, setAppEnabled] = useState(false)
-  const [showTokenForm, setShowTokenForm] = useState(false)
-  const [pickerRepos, setPickerRepos] = useState<InstallationRepo[] | null>(null)
-  const [repo, setRepo] = useState('')
-  const [token, setToken] = useState('')
-  const [busy, setBusy] = useState<'connecting' | string | null>(null)
-  const [error, setError] = useState<string | null>(installError)
-  const [forbidden, setForbidden] = useState(false)
-
-  useEffect(() => {
-    api
-      .listGithubConnections(canvasId)
-      .then(setConnections)
-      .catch((e) => {
-        if (e instanceof ApiError && e.status === 403) setForbidden(true)
-        setConnections([])
-      })
-    api
-      .githubAppInfo()
-      .then((info) => setAppEnabled(info.enabled))
-      .catch(() => setAppEnabled(false))
-  }, [canvasId])
-
-  /* back from GitHub's install screen: swap the pass for the repo list */
-  useEffect(() => {
-    if (!installPass) return
-    api
-      .listInstallationRepos(canvasId, installPass)
-      .then(setPickerRepos)
-      .catch((e) => failed(e, 'could not list the installed repositories'))
-  }, [canvasId, installPass])
-
-  function failed(caught: unknown, fallback: string) {
-    setError(caught instanceof ApiError ? String(caught.body.error ?? fallback) : fallback)
-    setBusy(null)
-  }
-
-  async function startInstall() {
-    if (busy) return
-    setBusy('connecting')
-    setError(null)
-    try {
-      const { url } = await api.startGithubInstall(canvasId)
-      posthog.capture('github_app_install_started')
-      location.href = url
-    } catch (e) {
-      failed(e, 'could not start the GitHub install')
-    }
-  }
-
-  async function connectInstalledRepo(fullName: string) {
-    if (busy || !installPass) return
-    setBusy('connecting')
-    setError(null)
-    try {
-      const conn = await api.connectGithub(canvasId, { repo: fullName, pass: installPass })
-      setConnections((c) => [conn, ...(c ?? [])])
-      setPickerRepos((r) => r?.filter((x) => x.fullName !== fullName) ?? null)
-      setBusy(null)
-      posthog.capture('github_repo_connected', { via: 'app' })
-    } catch (e) {
-      failed(e, 'could not connect the repository')
-    }
-  }
-
-  async function connectRepo() {
-    if (busy || !repo.trim() || !token.trim()) return
-    setBusy('connecting')
-    setError(null)
-    try {
-      const conn = await api.connectGithub(canvasId, {
-        repo: repo.trim(),
-        token: token.trim(),
-      })
-      setConnections((c) => [conn, ...(c ?? [])])
-      setRepo('')
-      setToken('')
-      setBusy(null)
-      posthog.capture('github_repo_connected', { via: 'token' })
-    } catch (e) {
-      failed(e, 'could not connect the repository')
-    }
-  }
-
-  async function analyze(conn: GithubConnectionInfo) {
-    if (busy) return
-    setBusy(conn.id)
-    setError(null)
-    try {
-      const manifest = await api.analyzeGithub(canvasId, conn.id)
-      posthog.capture('github_screens_found', {
-        screen_count: manifest.screens.length,
-        framework: manifest.framework,
-      })
-      setBusy(null)
-      onReview(conn, manifest)
-    } catch (e) {
-      failed(e, 'repository analysis failed')
-    }
-  }
-
-  function disconnect(connId: string) {
-    api.deleteGithubConnection(canvasId, connId).catch(console.error)
-    setConnections((c) => c?.filter((x) => x.id !== connId) ?? null)
-  }
-
-  if (forbidden) {
-    return (
-      <>
-        <ImportStepHeader icon={<GithubIcon width={22} height={22} />} title="Connect a GitHub repo" />
-        <ModalLede>Repo connections are for canvas members — ask the owner for durable access.</ModalLede>
-        <ImportStepFooter onBack={onBack} />
-      </>
-    )
-  }
-  return (
-    <>
-      <ImportStepHeader icon={<GithubIcon width={22} height={22} />} title="Connect a GitHub repo" />
-      <ModalLede>
-        Doop reads the repo&rsquo;s routing conventions and lists its screens for review. Nothing lands until you pick.
-      </ModalLede>
-      <div className="mt-[22px] flex flex-col gap-2.5">
-        {(connections ?? []).map((conn) => (
-          <div key={conn.id} className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 text-[13px]">
-              <b className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-semibold">
-                {conn.repo}
-                <span className="font-normal text-ink-faint">@{conn.branch}</span>
-              </b>
-              <Note className="mr-auto shrink-0">
-                {conn.frames ? `${conn.frames} screen${conn.frames === 1 ? '' : 's'}` : 'nothing imported yet'}
-              </Note>
-              <Button size="sm" className="px-2.5 text-xs" disabled={!!busy} onClick={() => analyze(conn)}>
-                {busy === conn.id ? 'Analyzing…' : 'Analyze'}
-              </Button>
-              <Button
-                variant="bare"
-                size="icon-sm"
-                className="-mr-1.5 text-[13px] hover:bg-accent-ink/10 hover:text-accent-ink"
-                title="Disconnect this repository"
-                onClick={() => disconnect(conn.id)}
-              >
-                ✕
-              </Button>
-            </div>
-          </div>
-        ))}
-        {pickerRepos && (
-          <div className="flex flex-col gap-1.5 rounded-[11px] border border-line bg-paper p-2.5">
-            <b className="text-[12px] text-ink-soft">Pick a repository to connect to this canvas</b>
-            {pickerRepos.map((r) => (
-              <div key={r.fullName} className="flex items-center gap-2 text-[13px]">
-                <GithubIcon width={13} height={13} className="shrink-0 text-ink-faint" />
-                <span className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[12px]">
-                  {r.fullName}
-                  {r.private && <span className="ml-1.5 text-[10px] text-ink-faint">private</span>}
-                </span>
-                <Button
-                  size="sm"
-                  className="px-2.5 text-xs"
-                  disabled={!!busy}
-                  onClick={() => connectInstalledRepo(r.fullName)}
-                >
-                  {busy === 'connecting' ? 'Connecting…' : 'Connect'}
-                </Button>
-              </div>
-            ))}
-            {!pickerRepos.length && <Note>All installed repositories are connected.</Note>}
-          </div>
-        )}
-        {appEnabled && !pickerRepos && (
-          <Button variant="primary" className="justify-center self-start" disabled={!!busy} onClick={startInstall}>
-            {busy === 'connecting' ? 'Opening GitHub…' : 'Connect GitHub'}
-          </Button>
-        )}
-        {appEnabled && !showTokenForm && (
-          <Button
-            variant="bare"
-            size="inline"
-            className="self-start text-ink-faint"
-            onClick={() => setShowTokenForm(true)}
-          >
-            paste a token instead
-          </Button>
-        )}
-        {(!appEnabled || showTokenForm) && (
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-col items-stretch gap-2 sm:flex-row">
-              <Input
-                variant="well"
-                className="flex-1 font-mono text-[12px]"
-                placeholder="owner/repository"
-                value={repo}
-                disabled={!!busy}
-                onChange={(e) => {
-                  setRepo(e.target.value)
-                  setError(null)
-                }}
-              />
-              <Input
-                variant="well"
-                className="flex-1 font-mono text-[12px]"
-                type="password"
-                placeholder="Fine-grained token (github_pat_…)"
-                value={token}
-                disabled={!!busy}
-                onChange={(e) => {
-                  setToken(e.target.value)
-                  setError(null)
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && connectRepo()}
-              />
-            </div>
-            <Button
-              variant="primary"
-              className="justify-center self-start"
-              disabled={!!busy || !repo.trim() || !token.trim()}
-              onClick={connectRepo}
-            >
-              {busy === 'connecting' ? 'Connecting…' : 'Connect'}
-            </Button>
-          </div>
-        )}
-        {error && <p className={errorNoteCls}>{error}</p>}
-      </div>
-      <ImportStepFooter
-        note={
-          appEnabled
-            ? 'Access is scoped to the repos you pick and revocable on GitHub.'
-            : 'A fine-grained, read-only token — it never leaves the server.'
-        }
-        onBack={onBack}
-        backDisabled={!!busy}
       />
     </>
   )

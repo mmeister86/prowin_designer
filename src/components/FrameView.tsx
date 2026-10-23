@@ -26,9 +26,8 @@ import { CommentComposer, CommentPin, CommentThread } from './CommentPopovers'
 import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
 import { Tooltip } from './ui/tooltip'
-import { EyeClosedIcon, GithubIcon, LockIcon, SyncIcon } from './ui/icons'
+import { EyeClosedIcon, LockIcon, SyncIcon } from './ui/icons'
 import { isSyncedFrame } from '../lib/sync'
-import { isGithubFrame, isGithubPlaceholder } from '../lib/github'
 import { AgentIcon } from './AgentIcon'
 
 /** ?comment=<rootId> — the link in a comment email. The thread opens once
@@ -842,26 +841,6 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
               <Tooltip label="Synced from a live app" side="top" align="start">
                 <span className="flex shrink-0 items-center text-brand">
                   <SyncIcon width={11} height={11} />
-                </span>
-              </Tooltip>
-            )}
-            {isGithubFrame(frame.html) && (
-              <Tooltip
-                label={
-                  isGithubPlaceholder(frame.html)
-                    ? 'Found in the repo — awaiting capture'
-                    : 'Imported from a GitHub repo'
-                }
-                side="top"
-                align="start"
-              >
-                <span
-                  className={cn(
-                    'flex shrink-0 items-center',
-                    isGithubPlaceholder(frame.html) ? 'text-ink-faint' : 'text-brand',
-                  )}
-                >
-                  <GithubIcon width={11} height={11} />
                 </span>
               </Tooltip>
             )}
