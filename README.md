@@ -17,7 +17,7 @@ in the browser; AI agents edit through the built-in **MCP server**, streaming th
 live. Everyone sees everything as it happens: cursors, presence, frame edits, agent status, and an
 activity feed.
 
-Think of it as Claude Design for whichever agent you already use: **Claude Code, Codex, ChatGPT,
+Think of it as Claude Design for whichever agent you already use: **Claude Code, Codex,
 Cursor, OpenCode** or any other MCP client designs on the same canvas, and the built-in Doop Agent
 runs on **GPT, Claude, Gemini, DeepSeek, Kimi or Qwen** models
 ([every agent and model](#works-with-any-agent)).
@@ -53,7 +53,7 @@ as the person who connected it, and shows up live on the canvas with its own cur
 tasks. **Connect AI** in the top bar walks you through each one.
 
 <p align="center">
-  <img src=".github/assets/connect-ai.png" alt="The Connect AI dialog: choose Claude Code, Claude, ChatGPT, Codex, Cursor or any other MCP client" width="100%">
+  <img src=".github/assets/connect-ai.png" alt="Historical upstream Connect AI dialog; the proWIN fork offers Claude Code, Claude, Codex, Cursor and generic MCP clients" width="100%">
 </p>
 
 | Agent                                        | How it connects                                                                 |
@@ -61,7 +61,6 @@ tasks. **Connect AI** in the top bar walks you through each one.
 | Claude Code                                  | `claude mcp add`, OAuth in the browser ([setup](#hook-up-claude-code))          |
 | Claude (web and desktop)                     | **Add to Claude** in Connect AI ([setup](#connect-claude))                      |
 | Codex (CLI and desktop)                      | `codex mcp add`, OAuth in the browser ([setup](#connect-an-ai-agent))           |
-| ChatGPT                                      | A custom MCP server in ChatGPT, guided by **Connect AI → ChatGPT**              |
 | Cursor                                       | **Add to Cursor** in Connect AI                                                 |
 | OpenCode, VS Code Copilot, OpenClaw and more | Any MCP client, over OAuth or with an agent key ([setup](#connect-an-ai-agent)) |
 | Headless agents (n8n, Mastra, CI)            | An agent key as a bearer header ([setup](#headless-agents-agent-keys))          |

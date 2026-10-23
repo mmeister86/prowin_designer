@@ -29,7 +29,6 @@ import { extensions, type McpToolHelpers } from './extensions.ts'
 import { websiteAccessErrorMessage } from './websiteAccess.ts'
 import { mentionedRole } from '../shared/agents.ts'
 import * as allowance from './allowance.ts'
-import { previewOf, previewToolMeta, registerFramePreview, type CanvasPreview } from './chatgptApp.ts'
 import * as persist from './db/persist.ts'
 
 const INSTRUCTIONS = `Doop is a shared multiplayer design canvas: humans and AI agents design together in real time. Canvases contain frames — artboards that render complete HTML documents live for everyone viewing.
@@ -72,7 +71,7 @@ function textWithNudge(data: unknown, nudge: string) {
 const REVIEW_NUDGE =
   'You have not seen this design yet. Call get_frame_screenshot on it now, judge it against the review checkpoints (fit, spacing, hierarchy, contrast, alignment, realism), and fix any issues before moving on.'
 
-import type { Actor, Frame } from '../shared/types.ts'
+import type { Actor } from '../shared/types.ts'
 
 /** Reaches agents whose session predates set_status (or who skipped the guide). */
 function withStatusNudge<T extends { content: { type: 'text' | 'image'; [k: string]: unknown }[] }>(
@@ -140,18 +139,6 @@ function withFeedback<T extends { content: { type: 'text' | 'image'; [k: string]
     text: `HUMAN FEEDBACK — open request(s) on this canvas, now assigned to YOU:\n${lines.join('\n')}\nAddress this NOW, before continuing your plan: locate the frame in question (get_canvas / get_frame), make the change, and review with get_frame_screenshot. If it concerns another agent's frame, edit it anyway — a human request overrides the don't-touch-others'-frames etiquette. Update your set_status to say what you're picking up.`,
   })
   return result
-}
-
-/** Attaches the data behind the ChatGPT preview card (server/chatgptApp.ts):
- *  the frames a tool touched, as `structuredContent`. Clients without a
- *  component host ignore it; the model keeps reading `content` as before. */
-function withPreview<T extends { content: unknown[] }>(
-  result: T,
-  canvasId: string,
-  frames: Frame[],
-): T & { structuredContent: CanvasPreview } {
-  const canvas = store.getCanvas(canvasId)
-  return { ...result, structuredContent: previewOf({ id: canvasId, name: canvas?.name ?? '' }, frames) }
 }
 
 /* Per-connecting-user rate limits, each overridable by environment variable
@@ -242,7 +229,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     if (agent_name) actions.heartbeatAgent(canvasId, actorFrom(agent_name))
   }
   const server = new McpServer({ name: 'doop-canvas', version: '0.1.0' }, { instructions: INSTRUCTIONS })
-  registerFramePreview(server)
 
   server.registerTool(
     'get_guide',
@@ -331,8 +317,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       ),
   )
 
-  /* ChatGPT shows this when several Doop accounts are connected — the
-     `openai/profile` flag marks it as the one that tells them apart. */
   server.registerTool(
     'get_profile',
     {
@@ -340,7 +324,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       description:
         'Return the Doop account this connection is signed in as (stable id and display name). Read-only; use it to confirm whose canvases you are working on.',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-      _meta: { 'openai/profile': true },
       inputSchema: {},
       outputSchema: { id: z.string(), name: z.string() },
     },
@@ -382,7 +365,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     'get_canvas',
     {
       title: 'Get a canvas and its frames',
-      _meta: previewToolMeta('Reading the canvas…', 'Canvas loaded'),
       description:
         'Get a canvas: its name and every frame with position, size and metadata (not the HTML — use get_frame for that). Use this to see the current layout before adding or editing frames. Pass your agent_name so any human feedback waiting for you is delivered with the result.',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -414,37 +396,33 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
             ]
           : []),
       ]
-      return withPreview(
-        withFeedback(
-          text({
-            id: c.id,
-            name: c.name,
-            pages: c.pages,
-            /* demo frames (the Doop welcome show, seeded examples) are product
+      return withFeedback(
+        text({
+          id: c.id,
+          name: c.name,
+          pages: c.pages,
+          /* demo frames (the Doop welcome show, seeded examples) are product
              content, not user work — hidden so agents never mistake them for
              the canvas's established style */
-            frames: c.frames.filter((f) => !f.demo).map(frameSummary),
-            guidelines: docs.map((d) => ({
-              name: d.name,
-              title: actions.guidelineTitle(d),
-              summary: actions.guidelineSummary(d),
-              bytes: d.markdown.length,
-            })),
-            references: refs.map((r) => ({
-              id: r.id,
-              title: r.title,
-              size: `${Math.round(r.width)}x${Math.round(r.height)}`,
-              htmlBytes: r.html.length,
-              pinnedBy: r.pinnedBy,
-            })),
-            ...(flow.length ? { flow } : {}),
-            ...(notes.length ? { note: notes.join(' ') } : {}),
-          }),
-          canvas_id,
-          agent_name ? actorFrom(agent_name) : undefined,
-        ),
+          frames: c.frames.filter((f) => !f.demo).map(frameSummary),
+          guidelines: docs.map((d) => ({
+            name: d.name,
+            title: actions.guidelineTitle(d),
+            summary: actions.guidelineSummary(d),
+            bytes: d.markdown.length,
+          })),
+          references: refs.map((r) => ({
+            id: r.id,
+            title: r.title,
+            size: `${Math.round(r.width)}x${Math.round(r.height)}`,
+            htmlBytes: r.html.length,
+            pinnedBy: r.pinnedBy,
+          })),
+          ...(flow.length ? { flow } : {}),
+          ...(notes.length ? { note: notes.join(' ') } : {}),
+        }),
         canvas_id,
-        c.frames.filter((f) => !f.demo),
+        agent_name ? actorFrom(agent_name) : undefined,
       )
     },
   )
@@ -907,7 +885,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     'set_frame_html',
     {
       title: 'Replace a frame’s HTML',
-      _meta: previewToolMeta('Redesigning the frame…', 'Frame redesigned'),
       description:
         'Replace the HTML design of a frame in one shot. The change renders live for everyone viewing the canvas. For new or heavily reworked designs, prefer append_frame_html so viewers can watch the design stream in.',
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
@@ -917,14 +894,10 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       if (!frameFor(frame_id)) return noFrame(frame_id)
       const frame = actions.updateFrame(frame_id, { html }, actorFrom(agent_name), { replace: true })
       if (!frame) return noFrame(frame_id)
-      return withPreview(
-        withGuidelinesNudge(
-          withStatusNudge(
-            withFeedback(
-              withEscapeNote(textWithNudge({ ok: true, frame: frameSummary(frame) }, REVIEW_NUDGE), html),
-              frame.canvasId,
-              actorFrom(agent_name),
-            ),
+      return withGuidelinesNudge(
+        withStatusNudge(
+          withFeedback(
+            withEscapeNote(textWithNudge({ ok: true, frame: frameSummary(frame) }, REVIEW_NUDGE), html),
             frame.canvasId,
             actorFrom(agent_name),
           ),
@@ -932,7 +905,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
           actorFrom(agent_name),
         ),
         frame.canvasId,
-        [frame],
+        actorFrom(agent_name),
       )
     },
   )
@@ -1362,7 +1335,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     'import_webpage',
     {
       title: 'Import an editable webpage',
-      _meta: previewToolMeta('Importing the webpage…', 'Webpage imported'),
       description:
         'Import ONE public webpage into a canvas as an editable HTML snapshot. The rendered DOM is captured, scripts/iframes are removed, stylesheets are inlined, and the resulting source frame appears on the canvas for comparison or editing. Use this when a referenced or redesign-target page should be visible to everyone; leave the imported source frame unchanged and make the new design in a separate frame. For inspection without changing the canvas, use view_website.',
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
@@ -1422,9 +1394,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
             '\n\nThe editable snapshot is now on the canvas. If it is source material for a separate design, leave it unchanged; if the import itself is the requested deliverable, it is ready to use or edit.',
         })
         const result = { content }
-        return withPreview(withStatusNudge(withFeedback(result, canvas_id, actor), canvas_id, actor), canvas_id, [
-          frame,
-        ])
+        return withStatusNudge(withFeedback(result, canvas_id, actor), canvas_id, actor)
       } catch (e) {
         return err(
           websiteAccessErrorMessage(e, 'connected-agent') ?? (e instanceof Error ? e.message : 'webpage import failed'),
@@ -1462,7 +1432,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     'get_frame_screenshot',
     {
       title: 'Screenshot a frame',
-      _meta: previewToolMeta('Rendering the frame…', 'Frame rendered'),
       description:
         'Render a frame and return a PNG screenshot of it — this is how you SEE your design. Always review your work with this after creating or updating a frame, then fix what looks wrong (spacing, overflow, contrast, alignment) and check again. Iterate until it actually looks good, not just until the HTML seems right.',
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -1485,24 +1454,20 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       const f = { ...live }
       try {
         const png = await renderFrame(f, scale ?? 1)
-        /* the ChatGPT card loads this exact image next — serve it from cache */
+        /* Reuse this render for subsequent thumbnail requests. */
         primeImage(f, scale ?? 1, png)
-        return withPreview(
-          withFeedback(
-            {
-              content: [
-                { type: 'image' as const, data: png.toString('base64'), mimeType: 'image/png' },
-                {
-                  type: 'text' as const,
-                  text: `Screenshot of “${f.name}” (${f.width}×${f.height}@${scale ?? 1}x, html ${f.html.length} bytes)`,
-                },
-              ],
-            },
-            f.canvasId,
-            agent_name ? actorFrom(agent_name) : undefined,
-          ),
+        return withFeedback(
+          {
+            content: [
+              { type: 'image' as const, data: png.toString('base64'), mimeType: 'image/png' },
+              {
+                type: 'text' as const,
+                text: `Screenshot of “${f.name}” (${f.width}×${f.height}@${scale ?? 1}x, html ${f.html.length} bytes)`,
+              },
+            ],
+          },
           f.canvasId,
-          [f],
+          agent_name ? actorFrom(agent_name) : undefined,
         )
       } catch (e) {
         return err(`screenshot failed: ${e instanceof Error ? e.message : String(e)}`)
@@ -1554,7 +1519,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     'edit_frame_html',
     {
       title: 'Edit a frame’s HTML in place',
-      _meta: previewToolMeta('Editing the frame…', 'Frame edited'),
       description:
         'Make a targeted edit to a frame: exact find-and-replace in its HTML. Use this for small tweaks (copy, a color, spacing, one element) instead of resending the whole document — the change morphs into the rendered frame in place. old_str must appear EXACTLY ONCE in the current HTML (call get_frame first if unsure); include enough surrounding context to make it unique.',
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
@@ -1573,18 +1537,14 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       if (count > 1)
         return err(`old_str occurs ${count} times — include more surrounding context so it matches exactly once.`)
       const frame = actions.updateFrame(frame_id, { html: f.html.replace(old_str, new_str) }, actorFrom(agent_name))!
-      return withPreview(
-        withStatusNudge(
-          withFeedback(
-            textWithNudge({ ok: true, frame: frameSummary(frame) }, REVIEW_NUDGE),
-            frame.canvasId,
-            actorFrom(agent_name),
-          ),
+      return withStatusNudge(
+        withFeedback(
+          textWithNudge({ ok: true, frame: frameSummary(frame) }, REVIEW_NUDGE),
           frame.canvasId,
           actorFrom(agent_name),
         ),
         frame.canvasId,
-        [frame],
+        actorFrom(agent_name),
       )
     },
   )
@@ -1593,7 +1553,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     'update_frame',
     {
       title: 'Rename, move or resize a frame',
-      _meta: previewToolMeta('Updating the frame…', 'Frame updated'),
       description:
         'Update frame metadata: rename it, move/resize it, or move it to another page using pageId. Set locked to true to lock the frame on the canvas (humans cannot select, move, resize or delete it from the stage until it is unlocked) or false to unlock it.',
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -1615,11 +1574,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       if (!frameFor(frame_id)) return noFrame(frame_id)
       const frame = actions.updateFrame(frame_id, clean, actorFrom(agent_name))
       if (!frame) return noFrame(frame_id)
-      return withPreview(
-        withFeedback(text({ ok: true, frame: frameSummary(frame) }), frame.canvasId, actorFrom(agent_name)),
-        frame.canvasId,
-        [frame],
-      )
+      return withFeedback(text({ ok: true, frame: frameSummary(frame) }), frame.canvasId, actorFrom(agent_name))
     },
   )
 
@@ -1697,15 +1652,6 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
 /* what the protected-resource document advertises; ChatGPT requests exactly these */
 const MCP_SCOPES = ['openid', 'profile', 'email', 'offline_access']
 
-const ANONYMOUS_METHODS = new Set(['ping', 'resources/list', 'resources/read'])
-
-/** True for a single JSON-RPC message that only reads static server metadata. */
-export function isAnonymousDiscovery(body: unknown): boolean {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return false
-  const method = (body as { method?: unknown }).method
-  return typeof method === 'string' && ANONYMOUS_METHODS.has(method)
-}
-
 export async function handleMcpRequest(req: Request, res: Response) {
   if (req.method !== 'POST') {
     res.status(405).json({
@@ -1739,13 +1685,7 @@ export async function handleMcpRequest(req: Request, res: Response) {
        browser approval flow in MCP clients (RFC 9728 discovery). */
     session = await auth.api.getMcpSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null)
   }
-  /* ChatGPT re-fetches a rendered card's component template (resources/read)
-     without a usable token — after a token rotation, or when an old chat is
-     reopened — so gating discovery would strand every card ever rendered.
-     The template is static and the resource list carries no user data, so
-     those two (and ping) answer anonymously; tools stay behind the gate. */
-  const anonymous = !session && isAnonymousDiscovery(req.body)
-  if (!session && !anonymous) {
+  if (!session) {
     const origin = `${req.protocol}://${req.get('host')}`
     /* RFC 6750 §3.1: no error attribute when no token was presented; with a
        token that did not validate, invalid_token tells ChatGPT to re-link

@@ -60,9 +60,7 @@ describe('canvas access model', () => {
     expect(stale.headers.get('www-authenticate')).toContain('error="invalid_token"')
   })
 
-  it('serves the component template and the resource list without a token, but never tools', async () => {
-    /* ChatGPT re-fetches a rendered card's template with no usable token;
-       the template is static, so that read is open. tools/list is not. */
+  it('requires authentication for resources as well as tools', async () => {
     const rpc = (method: string, params?: unknown) =>
       fetch(`${BASE}/mcp`, {
         method: 'POST',
@@ -70,13 +68,9 @@ describe('canvas access model', () => {
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
       })
     const list = await rpc('resources/list')
-    expect(list.status).toBe(200)
-    expect((await list.json()).result.resources.map((r: { uri: string }) => r.uri)).toContain(
-      'ui://doop/frame-preview-2.html',
-    )
+    expect(list.status).toBe(401)
     const read = await rpc('resources/read', { uri: 'ui://doop/frame-preview-2.html' })
-    expect(read.status).toBe(200)
-    expect((await read.json()).result.contents[0].text).toContain('<!doctype html>')
+    expect(read.status).toBe(401)
     expect((await rpc('tools/list')).status).toBe(401)
     expect((await rpc('tools/call', { name: 'list_canvases', arguments: {} })).status).toBe(401)
     /* a batch never qualifies as anonymous discovery */

@@ -4,7 +4,6 @@ import { navigate } from '../App'
 import { useStore } from '../lib/store'
 import { roleByAgentName } from '../../shared/agents'
 import { posthog } from '../lib/posthog'
-import { canUseChatGPTPublicEndpoint, CHATGPT_CONNECTION_GUIDE, CHATGPT_PLUGINS_URL } from '../lib/chatgptConnection'
 import { AgentIcon } from './AgentIcon'
 import { ClaudeDesktopInstall } from './ClaudeDesktopInstall'
 import { canAddToClaudeDesktop, claudeConnectorInstallUrl } from '../lib/claudeConnection'
@@ -21,13 +20,13 @@ import { cn } from '@/lib/utils'
 
 /**
  * "Connect AI" is about agents that join the canvas from outside: Claude Code,
- * Codex, Cursor, the Claude or ChatGPT apps, or any MCP client. Pick the agent,
+ * Codex, Cursor, the Claude app, or any MCP client. Pick the agent,
  * then follow its own three steps. Running the built-in Doop Agent on your own
  * ChatGPT or Claude plan is an account setting and lives in Settings, next to
  * the prompt bar's allowance meter — not here.
  */
 
-type AgentId = 'claude-code' | 'claude' | 'chatgpt' | 'codex' | 'cursor' | 'mcp'
+type AgentId = 'claude-code' | 'claude' | 'codex' | 'cursor' | 'mcp'
 type View = 'agents' | AgentId
 type ClaudeConnection = 'desktop' | 'web'
 
@@ -46,7 +45,6 @@ const AGENTS: AgentOption[] = [
     icon: <AgentIcon name="claude" size={20} />,
   },
   { id: 'claude', name: 'Claude', blurb: 'Add Doop to Claude', icon: <AgentIcon name="claude" size={20} /> },
-  { id: 'chatgpt', name: 'ChatGPT', blurb: 'Connect in your browser', icon: <AgentIcon name="gpt" size={20} /> },
   { id: 'codex', name: 'Codex', blurb: 'ChatGPT desktop and Codex CLI', icon: <AgentIcon name="codex" size={20} /> },
   {
     id: 'cursor',
@@ -248,69 +246,6 @@ function agentSteps(
             body: prompt
               ? 'In a new chat enable Doop under the tools menu and send this as your first message.'
               : 'In a new chat enable Doop under the tools menu and tell it which canvas to work on.',
-          },
-        ],
-      }
-    case 'chatgpt':
-      if (!canUseChatGPTPublicEndpoint(mcpUrl)) {
-        return {
-          lede: 'ChatGPT needs a public HTTPS address or a secure tunnel to reach this Doop server.',
-          steps: [
-            {
-              title: 'Make your Doop server reachable',
-              body: 'ChatGPT cannot reach this address directly. Open your public HTTPS Doop address and start this connection there, or configure an OpenAI Secure MCP Tunnel for this server.',
-              code: mcpUrl,
-              action: (
-                <Button asChild variant="solid" className="mt-2.5">
-                  <a href={CHATGPT_CONNECTION_GUIDE} target="_blank" rel="noopener noreferrer">
-                    View ChatGPT setup guide
-                  </a>
-                </Button>
-              ),
-            },
-          ],
-        }
-      }
-      return {
-        lede: 'No download. Open ChatGPT, paste the server address below, and approve the Doop connection.',
-        steps: [
-          {
-            title: 'Open ChatGPT plugins',
-            body: (
-              <>
-                Click the <strong>+</strong> button on the Plugins page, then <strong>Add custom MCP server</strong>.
-                Your account or workspace must allow custom servers.
-              </>
-            ),
-            action: (
-              <Button asChild variant="solid" className="mt-2.5">
-                <a
-                  href={CHATGPT_PLUGINS_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => posthog.capture('chatgpt_connection_opened')}
-                >
-                  Open ChatGPT setup
-                </a>
-              </Button>
-            ),
-          },
-          {
-            title: 'Add Doop and sign in',
-            body: (
-              <>
-                Name it <strong>Doop</strong>, describe it as a design canvas, and paste this as the MCP server URL.
-                Choose <strong>OAuth</strong>, review the permissions, then select <strong>Create as a plugin</strong>.
-                Sign in to Doop when prompted and install the resulting plugin.
-              </>
-            ),
-            code: mcpUrl,
-          },
-          {
-            ...pointAt,
-            body: prompt
-              ? 'Start a new chat, type @ and select Doop, then send this as your first message.'
-              : 'Start a new chat, type @ and select Doop, then tell it which canvas to work on.',
           },
         ],
       }

@@ -82,6 +82,14 @@ it('defaults to Claude Code and shows its command plus the sign-in step', async 
   expect(onClose).toHaveBeenCalledOnce()
 })
 
+it('offers general MCP clients without a ChatGPT app connector', async () => {
+  await mount('c1')
+  expect(buttons().some((b) => b.textContent?.includes('Connect in your browser'))).toBe(false)
+  await pickCard('Other MCP client')
+  await click('Connect')
+  expect(text()).toContain(`${location.origin}/mcp`)
+})
+
 it('keeps the headless agent-key path on the generic MCP screen and returns to the canvas from Settings', async () => {
   await mount('c1')
   await pickCard('Other MCP client')
