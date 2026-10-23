@@ -11,14 +11,11 @@ import * as imageSearch from './imageSearch.ts'
 import * as imageGen from './imageGen.ts'
 import * as assets from './assets.ts'
 import * as backgrounds from './backgrounds.ts'
-import { referencedUrls } from './webpageImport.ts'
-import { createImportedWebpageFrame, findImportedWebpageFrame } from './webpageImport.ts'
 import { DESIGN_BRIEF, DESIGN_QUALITY } from './guide.ts'
 import { describeInspiration, INSPIRATION_USAGE_NOTE, searchInspiration } from './inspiration.ts'
 import type { Actor, AgentTask, Canvas, ElementComment, Frame } from '../shared/types.ts'
 import { canvasPages, framePageId, pageFrames } from '../shared/pages.ts'
 import { isCanvasComment } from '../shared/comments.ts'
-import { websiteAccessErrorMessage } from './websiteAccess.ts'
 import { executeGuardedBatch } from './guardedBatch.ts'
 import { retryModelTurn } from './modelTurnRetry.ts'
 
@@ -110,7 +107,7 @@ Rules:
 - After any visual change, call screenshot_frame and LOOK at the result. If it doesn't clearly satisfy the feedback, fix it before finishing.
 - Call set_status when you start ("Fixing: …") and when your focus shifts. One line, under 80 chars, present tense. People watch this live.
 - Never leave a frame worse than you found it.
-- Reference sites: when a request names a site or URL — a redesign of it, or "like acme.com" — call import_webpage with as_reference=true FIRST so an editable HTML snapshot lands on the canvas, then call screenshot_frame on that imported source and design from what is actually there: its real copy, nav labels, product facts, and imagery direction. Leave the imported source unchanged and deliver your work in a separate frame. If importing or editing the snapshot itself is the requested deliverable, use as_reference=false. A redesign that invents content is wrong even when it looks good. If automated access is blocked and there is no existing source frame or attached screenshot, stop and ask the user to attach screenshots; never approximate the site from guesses.
+- Reference sites: when a request names a site or URL, use an existing source frame or attached screenshot. If neither is available, ask the user to attach screenshots; never invent the site's content. Leave source frames unchanged and deliver your design in a separate frame.
 - Real imagery: when a design calls for photography, use search_images (you see thumbnails — pick the one whose mood and palette fit) and embed its image_url with object-fit: cover and a real alt text. For a hero, section band or bento tile that wants atmosphere or a focal glow, list_backgrounds shows a page of the curated library as thumbnails (filter by tone; judge by eye which one fits the frame's style and palette, paste its css line, put copy in the text_zone); a quiet typographic design may be better on a flat surface, but never settle for a default two-stop gradient, and draw the background yourself when nothing in the library genuinely fits. For UI icons use search_icons and hotlink the SVG URL. For company logos (customer walls, integration rows, press bars, payment methods, testimonial cards) call search_logos once per brand BEFORE writing that section, and use real, recognizable brands — never a gray tile, "LOGO" text, initials or an invented wordmark. When the design needs a visual that stock cannot supply — a full-bleed hero background in the frame's exact palette (a monochrome mountain range behind the product window, say), brand-specific illustration, a product render, a mascot — or the card asks for a generated image, call generate_image with ONE considered prompt (subject, style, composition, palette hexes, lighting, exclusions; for a hero background: aspect landscape, low contrast, and name the empty region where the copy or product window will sit) and embed the returned url with object-fit: cover and a legibility scrim over the copy; it spends the requester's quota or money, so refine a near miss by prompt rather than regenerating blind. Never fake a photo with a gray box or a made-up URL; if search is unavailable, draw the visual as inline SVG/CSS.
 - If a request is unclear or impossible (missing frame, contradictory ask), do the closest reasonable thing and say what you did in your final message.
 - Your final message should be one or two sentences: what you changed and where.
@@ -141,11 +138,8 @@ interface FeedbackItem {
 
 interface RunState {
   mutatedFrames: Set<string>
-  sourceFrames: Set<string>
-  verificationFrames: Set<string>
   verifiedFrames: Set<string>
   rewriteDrafts: Map<string, string>
-  blockedWebsiteAccess?: string
   /** false = the model cannot see images: screenshots are skipped and the
    *  visual-verification requirement does not apply to this run */
   vision: boolean
@@ -219,14 +213,6 @@ export function createFrameInput(
 /* enough for a hero plus a retry or two; a run that wants more is looping */
 const MAX_IMAGES_PER_RUN = 4
 
-function deliverableFrameIds(runState: RunState): string[] {
-  return [...runState.mutatedFrames].filter((id) => !runState.sourceFrames.has(id))
-}
-
-function verificationFrameIds(runState: RunState): string[] {
-  return [...new Set([...runState.mutatedFrames, ...runState.verificationFrames])]
-}
-
 function completeHtml(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined
   const html = value.trim()
@@ -241,7 +227,7 @@ function strategyFor(text: string, frames: NonNullable<ReturnType<typeof store.g
   const isRedesign = REDESIGN_RE.test(text)
   const redesignNote = isRedesign
     ? ' For the redesign itself, work audit-first and deliver TWO drafts:' +
-      ' (1) Audit the source — inspect_frame on a source frame for its computed palette, type, spacing, radii and shadows (import_webpage first for a live site), plus a screenshot for layout.' +
+      ' (1) Audit the source — inspect_frame on a source frame for its computed palette, type, spacing, radii and shadows, plus a screenshot for layout.' +
       ' (2) Persist the audit with set_guidelines as a doc named "redesign-<source>" (e.g. "redesign-pipefile-com"): a "Source baseline" recording the old system (palette hexes, type, spacing/radii, and the section map — each section\'s purpose and one-line message) as a descriptive record of what you are redesigning away from, NOT rules to follow; then two binding directions. "Direction A — closer to home": the brand stays recognizable — logo, name, core brand colors (re-weighted freely, with new neutrals and tints) — while every detail is redesigned: typography, spacing rhythm, radii, shadows, patterns, background treatments, button and component styling, section layout. "Direction B — further out": same product, same real copy and facts, but freer — reinterpret the palette and push the aesthetic somewhere genuinely different; do not invent it from vibes — retrieve category inspiration with search_inspiration (live exemplars with mood, palette and fonts), pick ONE exemplar and follow it, and name it in the redesign doc.' +
       ' (3) Deliver TWO new frames side by side, named "<source> — A (on-brand)" and "<source> — B (departure)", each executing its direction precisely; screenshot both. Both frames together are this card\'s deliverable. In both: keep the source\'s real copy and product facts, restructure sections when it strengthens the page\'s argument, and give details a genuinely new treatment rather than reordering the old elements.' +
       ' Exception: if the request already fixes the scope ("keep it subtle", "same style", "go wild", "rebrand"), deliver ONE draft at that scope instead.' +
@@ -450,7 +436,6 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       ...cards.map((card) => card.status),
       ...comments.map((comment) => comment.text),
     ].join('\n')
-    const urls = referencedUrls(workText)
     const references = store.getReferences(canvasId)
     const referenceList =
       references.length > 0
@@ -468,9 +453,6 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       `\n\nFrames currently on the canvas:\n${frameList}` +
       referenceList +
       `\n\nExecution strategy selected by the harness:\n${strategyFor(workText, visibleFrames)}` +
-      (urls.length > 0
-        ? `\n\nThe request references ${urls.join(', ')} — if each page is source material for a separate design, call import_webpage with as_reference=true BEFORE designing so an editable HTML snapshot lands on the canvas for everyone to compare against. Then call screenshot_frame on each imported source, leave those source frames unchanged, and build from their real content and structure. If the imported snapshot itself is the requested deliverable, call it with as_reference=false instead.`
-        : '') +
       `\n\nAddress everything above now.` +
       (comments.length > 0
         ? ` For element comments, use the selector and HTML excerpt to find the exact element in the frame's HTML — the live document may have drifted since the comment was left, so match on content, not position. A canvas comment is about the frames around its point, not about one element.`
@@ -485,8 +467,6 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     const messages: Anthropic.MessageParam[] = [{ role: 'user', content: kickoff }]
     const runState: RunState = {
       mutatedFrames: new Set(),
-      sourceFrames: new Set(),
-      verificationFrames: new Set(),
       verifiedFrames: new Set(),
       rewriteDrafts: new Map(),
       vision: model.vision !== false,
@@ -542,13 +522,6 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
           maxTurns,
           isCanceled: canceled,
           execute: async (block) => {
-            if (runState.blockedWebsiteAccess)
-              return {
-                type: 'tool_result',
-                tool_use_id: block.id,
-                content: runState.blockedWebsiteAccess,
-                is_error: true,
-              }
             if (canceled())
               return {
                 type: 'tool_result',
@@ -611,23 +584,10 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
          immediate tool_result for every emitted tool id, so content blocks —
          not stop_reason — are authoritative for tool execution. */
           if (toolBlocks.length > 0) {
-            /* Models may emit an import and design mutations in one parallel
-             batch. Run imports first and defer every other call to the next
-             turn, when the model can inspect the imported source. If access is
-             blocked, skip the whole remainder. Results retain protocol order. */
-            const importInBatch = toolBlocks.some((block) => block.name === 'import_webpage')
-            let importFailureInBatch: string | undefined
             const results = await executeGuardedBatch<Anthropic.ToolUseBlockParam, Anthropic.ToolResultBlockParam>(
               toolBlocks,
               {
-                priority: (block) => (block.name === 'import_webpage' ? 1 : 0),
-                blocked: (block) =>
-                  (canceled() ? 'This task has been stopped.' : undefined) ??
-                  runState.blockedWebsiteAccess ??
-                  importFailureInBatch ??
-                  (importInBatch && block.name !== 'import_webpage'
-                    ? 'The website import must be inspected before any design changes. Continue on the next turn by calling screenshot_frame on the imported source.'
-                    : undefined),
+                blocked: () => (canceled() ? 'This task has been stopped.' : undefined),
                 skipped: (block, reason) => ({
                   type: 'tool_result',
                   tool_use_id: block.id,
@@ -640,21 +600,12 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                     `[resident] tool canvas=${canvasId} name=${block.name}${typeof target === 'string' ? ` frame=${target}` : ''}`,
                   )
                   const result = await execTool(block, canvasId, actor, runState)
-                  if (block.name === 'import_webpage' && result.is_error && !runState.blockedWebsiteAccess) {
-                    importFailureInBatch =
-                      'The website import failed. Correct the tool error and retry the import before making design changes.'
-                  }
                   return result
                 },
               },
             )
             messages.push({ role: 'user', content: results })
             continue
-          }
-
-          if (runState.blockedWebsiteAccess) {
-            finished = true
-            break
           }
 
           if (res.stop_reason === 'max_tokens' && !outputLimitNudgeSent) {
@@ -667,17 +618,17 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
             continue
           }
 
-          if (requireMutation && deliverableFrameIds(runState).length === 0 && !mutationNudgeSent) {
+          if (requireMutation && runState.mutatedFrames.size === 0 && !mutationNudgeSent) {
             mutationNudgeSent = true
             messages.push({
               role: 'user',
               content:
-                'You have not changed or created a deliverable frame yet, so the queued design card is not complete. Imported source frames are reference material and do not count as the deliverable. Make the requested visual change now. For a full redesign, use begin_frame_rewrite, append_frame_rewrite chunks under 12,000 characters, and commit_frame_rewrite, then verify it with screenshot_frame.',
+                'You have not changed or created a deliverable frame yet, so the queued design card is not complete. Make the requested visual change now. For a full redesign, use begin_frame_rewrite, append_frame_rewrite chunks under 12,000 characters, and commit_frame_rewrite, then verify it with screenshot_frame.',
             })
             continue
           }
           const unverified = runState.vision
-            ? verificationFrameIds(runState).filter((id) => !runState.verifiedFrames.has(id))
+            ? [...runState.mutatedFrames].filter((id) => !runState.verifiedFrames.has(id))
             : []
           if (cards.length > 0 && unverified.length > 0 && !verificationNudgeSent) {
             verificationNudgeSent = true
@@ -721,24 +672,19 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
 
     /* only a NATURALLY finished run completes its work — refused, crashed,
        or out-of-turns runs pause so nothing gets a false Done or auto-retry */
-    const deliverableFrames = deliverableFrameIds(runState)
-    const blockedWebsiteAccess = runState.blockedWebsiteAccess
-    const noMutation = finished && requireMutation && deliverableFrames.length === 0 && !blockedWebsiteAccess
+    const deliverableFrames = [...runState.mutatedFrames]
+    const noMutation = finished && requireMutation && deliverableFrames.length === 0
     const unverifiedMutation =
       finished &&
       runState.vision &&
-      !blockedWebsiteAccess &&
       cards.length > 0 &&
-      verificationFrameIds(runState).some((id) => !runState.verifiedFrames.has(id))
+      deliverableFrames.some((id) => !runState.verifiedFrames.has(id))
     const exhausted = !finished && !refused && !crashed
     if (exhausted) actions.setAgentStatus(canvasId, actor, 'Ran out of turns — waiting for a retry')
-    if (blockedWebsiteAccess && !staleAccount) {
-      actions.setAgentStatus(canvasId, actor, 'Website blocked — needs screenshots')
-    }
     if (noMutation) actions.setAgentStatus(canvasId, actor, 'No frame changed — waiting for a retry')
     if (unverifiedMutation) actions.setAgentStatus(canvasId, actor, 'Change not verified — waiting for a retry')
     console.log(
-      `[resident] run end canvas=${canvasId} agent=${role.name} turns=${turnsUsed} finished=${finished} refused=${refused} crashed=${crashed} mutations=${runState.mutatedFrames.size} sources=${runState.sourceFrames.size} deliverables=${deliverableFrames.length} verified=${runState.verifiedFrames.size}`,
+      `[resident] run end canvas=${canvasId} agent=${role.name} turns=${turnsUsed} finished=${finished} refused=${refused} crashed=${crashed} mutations=${runState.mutatedFrames.size} deliverables=${deliverableFrames.length} verified=${runState.verifiedFrames.size}`,
     )
     let summary = ''
     if (finished) {
@@ -755,7 +701,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       }
     }
     if (canceled()) return 'ran'
-    if (finished && !blockedWebsiteAccess && !noMutation && !unverifiedMutation) {
+    if (finished && !noMutation && !unverifiedMutation) {
       for (const f of claimed) actions.completeTaskFeedback(f.id)
       for (const c of comments) actions.resolveComment(c.id, role.name)
       /* a card moves to the next agent in its pipeline, or finishes here */
@@ -763,13 +709,9 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     } else {
       let reason: string
       if (staleAccount) {
-        reason =
-          accountError ??
-          `${model.label} turned down the connected account. Reconnect it in Doop, then retry.${blockedWebsiteAccess ? ` ${blockedWebsiteAccess}` : ''}`
+        reason = accountError ?? `${model.label} turned down the connected account. Reconnect it in Doop, then retry.`
       } else if (unavailableModel) {
         reason = `${model.label} is not available on your connected account yet. Pick another model in Settings, then retry.`
-      } else if (blockedWebsiteAccess) {
-        reason = blockedWebsiteAccess
       } else if (refused) {
         reason = `${role.name} could not take this request. Retry when you are ready.`
       } else if (crashed) {
@@ -1008,23 +950,6 @@ const TOOLS: Anthropic.Tool[] = [
         count: { type: 'number', description: 'Candidates to return, 1-8, default 5' },
       },
       required: ['query'],
-    },
-  },
-  {
-    name: 'import_webpage',
-    description:
-      'Import one public web page onto the current canvas as an editable HTML snapshot. Scripts and iframes are removed and stylesheets are inlined. Set as_reference=true when it is source material for a separate design; matching reference snapshots are reused across pipeline stages. Set false when importing or editing the snapshot itself is the deliverable; this creates a fresh deliverable copy. Call screenshot_frame on the returned frame.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        url: { type: 'string', description: 'The page URL — a bare domain like "acme.io" is loaded over https' },
-        as_reference: {
-          type: 'boolean',
-          description:
-            'True for source material that must remain unchanged; false when the imported snapshot itself is the deliverable',
-        },
-      },
-      required: ['url', 'as_reference'],
     },
   },
   {
@@ -1449,42 +1374,6 @@ async function execTool(
         blocks.push({ type: 'text', text: imageSearch.LOGO_USAGE_NOTE })
         return ok(blocks)
       }
-      case 'import_webpage': {
-        const raw = block.input as { url?: string; as_reference?: boolean }
-        const requestedUrl = String(raw.url || '').trim()
-        if (!requestedUrl) return fail('url must be a non-empty string')
-        if (typeof raw.as_reference !== 'boolean') {
-          return fail(
-            'as_reference must be true for source material or false when the import itself is the deliverable',
-          )
-        }
-
-        const existing = raw.as_reference
-          ? findImportedWebpageFrame(store.getCanvas(canvasId)?.frames ?? [], requestedUrl)
-          : undefined
-        if (existing) {
-          runState.sourceFrames.add(existing.id)
-          runState.verificationFrames.add(existing.id)
-          runState.verifiedFrames.delete(existing.id)
-          return ok(
-            `Reusing the existing editable source snapshot ${existing.id} ("${existing.name}") for ${requestedUrl}; no duplicate frame was added. Call screenshot_frame with frame_id=${existing.id}. Leave this source frame unchanged and deliver the new design separately.`,
-          )
-        }
-
-        const { frame: f } = await createImportedWebpageFrame({ canvasId, url: requestedUrl, actor })
-        if (!f) return fail('canvas not found')
-        runState.mutatedFrames.add(f.id)
-        if (raw.as_reference) runState.sourceFrames.add(f.id)
-        else runState.sourceFrames.delete(f.id)
-        runState.verifiedFrames.delete(f.id)
-        return ok(
-          `Imported ${requestedUrl} as editable frame ${f.id} ("${f.name}", ${Math.round(f.width)}x${Math.round(f.height)}, ${f.html.length} HTML characters). Call screenshot_frame with frame_id=${f.id}.${
-            raw.as_reference
-              ? ' Leave this source frame unchanged and deliver the new design separately.'
-              : ' This imported frame is the requested deliverable and may be edited directly.'
-          }`,
-        )
-      }
       case 'get_reference': {
         const refs = store.getReferences(canvasId)
         const ref = refs.find((r) => r.id === input.reference_id)
@@ -1581,7 +1470,7 @@ async function execTool(
         const blocks = runState.vision
           ? await frameImageBlocks(f)
           : `Screenshot skipped: the selected model cannot view images. Frame "${f.name}" is ${f.width}×${f.height}px. Verify your work with get_frame_html and inspect_frame instead.`
-        if (runState.mutatedFrames.has(input.frame_id) || runState.verificationFrames.has(input.frame_id)) {
+        if (runState.mutatedFrames.has(input.frame_id)) {
           runState.verifiedFrames.add(input.frame_id)
         }
         return ok(blocks)
@@ -1590,8 +1479,6 @@ async function execTool(
         return fail(`unknown tool ${block.name}`)
     }
   } catch (e) {
-    const blocked = websiteAccessErrorMessage(e, 'resident')
-    if (blocked) runState.blockedWebsiteAccess = blocked
-    return fail(blocked ?? (e instanceof Error ? e.message : 'tool failed'))
+    return fail(e instanceof Error ? e.message : 'tool failed')
   }
 }

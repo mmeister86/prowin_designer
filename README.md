@@ -107,12 +107,12 @@ drafts queued for the Doop Agent, or pick up one of your canvases, workspaces an
   <img src=".github/assets/home.png" alt="Doop's home: the agent prompt with suggestion chips over a gradient wave, the canvas grid, and a rail with workspaces and connected agents" width="100%">
 </p>
 
-## Canvas chat, imports and exports
+## Canvas chat and exports
 
 The canvas Chat tab keeps a shared conversation alongside the design. Mention an agent role to
 queue a design card; its reply threads back into the chat.
 
-The import source picker offers **Website**.
+External website and repository imports are removed in the proWIN fork.
 Right-click a frame and choose **Export…** to download PNG or JPG. A progress toast tracks the
 render; the desktop app opens its native save panel.
 
@@ -357,11 +357,11 @@ canvases in `list_canvases` and can create into one with `create_canvas`'s `work
 
 Workspaces are the paid part of doop on a hosted deployment. Plans (see `shared/billing.ts`):
 
-| Plan       | Price                                     | What it is                                                         |
-| ---------- | ----------------------------------------- | ------------------------------------------------------------------ |
-| Personal   | free                                      | Your own canvases, per-canvas invites, agents, community, imports. |
-| Team       | $20 / seat / month, or $192 / seat / year | Shared workspaces with roles; seats follow the people list.        |
-| Enterprise | talk to us                                | SSO, dedicated support, custom terms.                              |
+| Plan       | Price                                     | What it is                                                  |
+| ---------- | ----------------------------------------- | ----------------------------------------------------------- |
+| Personal   | free                                      | Your own canvases, per-canvas invites, agents, community.   |
+| Team       | $20 / seat / month, or $192 / seat / year | Shared workspaces with roles; seats follow the people list. |
+| Enterprise | talk to us                                | SSO, dedicated support, custom terms.                       |
 
 **Self-hosting: billing is off unless you turn it on.** Without `STRIPE_SECRET_KEY` every
 workspace is active and nothing is locked. With it, a workspace must hold a live per-seat
@@ -554,9 +554,6 @@ Then tell the agent something like:
 
 Screenshots render in your system Chrome/Chromium via `puppeteer-core` (set `CHROME_PATH` if it isn't
 auto-detected). Humans can hit the same renderer at `GET /api/frames/:id/screenshot.png?scale=2`.
-For website viewing/imports, setting `CONTEXT_DEV_API_KEY` makes Context.dev acquire the rendered
-HTML while Doop still sanitizes it and renders the preview locally; without the key, Doop navigates
-to the public page directly in Chromium.
 
 ### How streaming looks (server-side smoothing)
 
@@ -597,7 +594,6 @@ Steering happens at three layers (the same architecture paper.design uses, plus 
 | `list_canvases`        | List all canvases                                                                                                                                                      |
 | `create_canvas`        | Create a canvas, returns its shareable id                                                                                                                              |
 | `get_canvas`           | Canvas layout: every frame's position/size/meta                                                                                                                        |
-| `import_webpage`       | Import one public URL onto a canvas as an editable HTML snapshot/frame                                                                                                 |
 | `create_frame`         | Add a frame with HTML (auto-placed if no x/y)                                                                                                                          |
 | `get_frame`            | Read a frame including its HTML                                                                                                                                        |
 | `get_frame_screenshot` | Render the frame headlessly and return a PNG — lets agents _see_ and iterate on their design                                                                           |

@@ -119,13 +119,12 @@
   utilities. Design tokens in `src/styles.css` (see `.context/DESIGN.md`).
 - Tauri 2.9.0 (`@tauri-apps/cli`, `desktop/src-tauri`) - desktop app wrapper around the web build.
 - Home (`src/pages/Home.tsx`, `src/components/HomeHero.tsx`): a 12.5px rail (canvases, workspaces,
-  explore, resources, agents, an Ask Doop pill bound to ⌘/), Import + New canvas in the top bar, and
+  explore, resources, agents, an Ask Doop pill bound to ⌘/), New canvas in the top bar, and
   a hero over the brand's gradient wave: the hopping Disc-D, a greeting, a strip of suggestion chips
   (the "on" chip wears the drifting colour beam from `src/styles.css`) and a composer. A prompt makes
   a canvas named after it (`src/lib/homePrompt.ts`), queues it as the first board card asking for N
   drafts, and opens the canvas; a card that cannot queue rides along as the canvas composer's draft.
-  Import makes a canvas and opens it with `?import=1`, which `CanvasPage` turns into the import
-  picker. `GET /api/canvases` adds `people` (owner, then members) for the tiles' avatar stacks.
+  `GET /api/canvases` adds `people` (owner, then members) for the tiles' avatar stacks.
   The rail is `src/components/AppRail.tsx`, mounted by Home, Automations, Integrations, Community,
   Workspace and Admin alike (a page's own group, such as a workspace's panes, goes in as children;
   Settings draws its own rail from the same `ui/dash.tsx` parts); it owns
@@ -146,7 +145,7 @@
 
 ## OSS integration scope
 
-The integration registries are empty in the proWIN fork. Canvas imports offer websites;
+The integration registries are empty in the proWIN fork. External design imports are removed;
 frame exports offer PNG/JPG with progress feedback and desktop saving.
 Figma, Canva and PSD are deferred. Migration 0019 is reserved for the deferred Figma integration;
 the OSS journal skips it while retaining the shared migration tags and timestamps for 0020–0022.

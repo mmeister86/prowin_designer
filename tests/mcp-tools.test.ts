@@ -9,7 +9,7 @@ interface ToolInputSchema {
 }
 
 describe('MCP website tool contract', () => {
-  it('no longer offers the website viewer while the import remains available', async () => {
+  it('offers frame tools without website viewing or importing', async () => {
     const server = buildMcpServer('Test Owner', 'test-owner-id')
     const client = new Client({ name: 'doop-tool-contract-test', version: '1.0.0' })
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -23,20 +23,11 @@ describe('MCP website tool contract', () => {
       const importWebpage = tools.find((tool) => tool.name === 'import_webpage')
 
       expect(view).toBeUndefined()
-      expect(importWebpage).toBeDefined()
-      expect(importWebpage!.annotations?.readOnlyHint).toBe(false)
-
-      const importSchema = importWebpage!.inputSchema as ToolInputSchema
-      expect(importSchema.properties).toEqual(
-        expect.objectContaining({
-          url: expect.any(Object),
-          canvas_id: expect.any(Object),
-          agent_name: expect.any(Object),
-        }),
+      expect(importWebpage).toBeUndefined()
+      expect(tools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining(['create_frame', 'get_frame_screenshot', 'upload_asset']),
       )
-      expect(new Set(importSchema.required)).toEqual(new Set(['url', 'canvas_id', 'agent_name']))
-
-      expect(client.getInstructions()).toContain('call import_webpage FIRST')
+      expect(client.getInstructions()).not.toContain('import_webpage')
       expect(client.getInstructions()).not.toContain('view_website')
     } finally {
       await client.close()

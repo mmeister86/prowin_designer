@@ -40,17 +40,6 @@ export interface AgentKeyInfo {
   lastUsedAt: number | null
 }
 
-export interface DiscoveredPage {
-  url: string
-  title: string
-}
-
-export interface DiscoveredSite {
-  siteUrl: string
-  pages: DiscoveredPage[]
-  truncated: boolean
-}
-
 /** The Doop Agent's free-task meter for the signed-in user. */
 export interface Allowance {
   used: number
@@ -104,12 +93,6 @@ export interface ImageModelStatus {
   available: boolean
   selected: boolean
 }
-
-export interface WebsiteImportResult {
-  frames: Frame[]
-  failures: { url: string; error: string }[]
-}
-
 /** What the server accepts when creating or patching an automation. */
 export interface AutomationInput {
   name?: string
@@ -336,18 +319,6 @@ export const api = {
     ),
   sendTaskFeedback: (taskId: string, text: string) =>
     req(`/api/tasks/${taskId}/feedback`, { method: 'POST', body: JSON.stringify({ text, from: getIdentity().name }) }),
-  importPage: (canvasId: string, url: string) =>
-    req<Frame>(`/api/canvases/${canvasId}/import`, { method: 'POST', body: JSON.stringify({ url }) }),
-  discoverSitePages: (canvasId: string, url: string) =>
-    req<DiscoveredSite>(`/api/canvases/${canvasId}/import/discover`, {
-      method: 'POST',
-      body: JSON.stringify({ url }),
-    }),
-  importSitePages: (canvasId: string, urls: string[]) =>
-    req<WebsiteImportResult>(`/api/canvases/${canvasId}/import`, {
-      method: 'POST',
-      body: JSON.stringify({ urls }),
-    }),
   agentAllowance: () => req<Allowance>('/api/agent-allowance'),
   modelAccount: () => req<ModelAccountStatus>('/api/model-account'),
   chatgptAuthorize: () =>

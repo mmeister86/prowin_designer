@@ -1,7 +1,7 @@
 ---
 id: TASK-10
 title: Website-Publishing und Website-Viewer entfernen
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:49:00Z'
 labels:
@@ -29,7 +29,7 @@ Quellen: Umsetzung § 6; Referenz R5.2
 
 <!-- AC:BEGIN -->
 
-- [ ] #1 website, websiteAccess und view_website samt UI und Aufrufern sind entfernt.
+- [x] #1 website, websiteAccess und view_website samt UI und Aufrufern sind entfernt.
 - [x] #2 Canvas-Sharing, Export und Gallery bleiben funktionsfähig; Typecheck und relevante Tests bestehen.
 
 <!-- AC:END -->
@@ -37,4 +37,5 @@ Quellen: Umsetzung § 6; Referenz R5.2
 ## Umsetzung
 
 Viewer und `view_website` entfernt. Gemeinsames `websiteAccess` bleibt bis zum unmittelbar folgenden TASK-9 für den Import erforderlich.
+TASK-9 hat nun auch `websiteAccess` und dessen letzte Aufrufer entfernt; damit ist die Entfernung vollständig. Gallery-Publishing bleibt der separate Community-Pfad.
 Verifiziert: Typecheck und 32 Tests (MCP, Zugriff, Gallery, Export und Exportdialog) bestanden.

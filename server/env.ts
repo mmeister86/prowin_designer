@@ -149,7 +149,6 @@ const schema = {
   META_APP_SECRET: str({ default: undefined }),
   PEXELS_API_KEY: str({ default: undefined }),
   BRANDFETCH_CLIENT_ID: str({ default: undefined }),
-  CONTEXT_DEV_API_KEY: str({ default: undefined }),
 
   /* ------------------------------------------------- object storage */
   BUCKET: str({ default: undefined }),
@@ -181,7 +180,6 @@ const schema = {
   MCP_UPLOADS_PER_MIN: perMinute({ default: 15 }),
   MCP_SEARCHES_PER_MIN: perMinute({ default: 12 }),
   MCP_GENERATIONS_PER_MIN: perMinute({ default: 6 }),
-  MCP_IMPORTS_PER_MIN: perMinute({ default: 5 }),
   PREVIEW_RENDERS_PER_MIN: perMinute({ default: 12 }),
   SYNC_PAGE_INTERVAL_MS: nonNegativeInt({ default: 30_000 }),
   SYNC_FREEZE_MS: nonNegativeInt({ default: 15 * 60_000 }),

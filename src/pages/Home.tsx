@@ -13,9 +13,6 @@ import { AppRail, railLayout } from '../components/AppRail'
 import { ConnectModal } from '../components/ConnectModal'
 import { FramePreview, FrameThumb } from '../components/FramePreview'
 import { HomeHero } from '../components/HomeHero'
-import { SourcePicker } from '../components/ImportSources'
-import { importSources } from '../components/importSourceList'
-import { Modal } from '../components/ui/modal'
 import { ShareModal } from '../components/ShareModal'
 import { CreateWorkspaceModal, MoveCanvasModal, UpgradeModal } from '../components/WorkspaceModals'
 import { posthog } from '../lib/posthog'
@@ -49,7 +46,6 @@ import {
   PlusIcon,
   ShareIcon,
   TrashIcon,
-  UploadIcon,
 } from '../components/ui/icons'
 import { ConfirmDialog } from '../components/ui/alert-dialog'
 import { Toast } from '../components/ui/toast'
@@ -84,11 +80,10 @@ export function Home() {
     () => new URLSearchParams(location.search).get('workspace') === 'new',
   )
   const [showConnect, setShowConnect] = useState(false)
-  const [importing, setImporting] = useState(false)
   /* the upgrade wall, aimed at one workspace, with what they were doing */
   const [upgrade, setUpgrade] = useState<{ workspaceId: string; reason?: string } | null>(null)
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
-  /* a prompt or import on its way to a fresh canvas */
+  /* a prompt on its way to a fresh canvas */
   const [starting, setStarting] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   /* the rail's "Ask Doop" and ⌘/ hand the keyboard to the composer */
@@ -170,26 +165,6 @@ export function Home() {
       const walled = paywalledWorkspace(error)
       if (walled) setUpgrade({ workspaceId: walled, reason: 'Adding a canvas to a workspace needs a Team plan.' })
       else showToast(errorMessage(error, 'Couldn’t start the canvas'))
-    } finally {
-      setStarting(false)
-    }
-  }
-
-  /** Import: the picker opens here; the chosen source lands on a fresh canvas,
-   *  which opens straight on that source's screen. */
-  async function importInto(source: string) {
-    if (starting) return
-    setStarting(true)
-    const workspaceId = workspaceOf(scope)
-    try {
-      const canvas = await api.createCanvas('Imported design', workspaceId)
-      posthog.capture('canvas_created', { workspace: !!workspaceId, via: 'import', source })
-      setImporting(false)
-      navigate(`/c/${canvas.id}?import=${encodeURIComponent(source)}`)
-    } catch (error) {
-      const walled = paywalledWorkspace(error)
-      if (walled) setUpgrade({ workspaceId: walled, reason: 'Adding a canvas to a workspace needs a Team plan.' })
-      else showToast(errorMessage(error, 'Couldn’t start the import'))
     } finally {
       setStarting(false)
     }
@@ -310,9 +285,6 @@ export function Home() {
               <BuildingIcon /> Manage
             </Button>
           )}
-          <Button variant="default" size="bar" disabled={starting} onClick={() => setImporting(true)}>
-            <UploadIcon width={15} height={15} className="text-ink-soft" /> Import
-          </Button>
           <Button variant="primary" size="bar" onClick={createCanvas}>
             <PlusIcon width={15} height={15} strokeWidth={1.75} />
             <span className="max-md:hidden">New canvas</span>
@@ -327,10 +299,8 @@ export function Home() {
             focusAt={composerFocusAt}
             actions={{
               onPrompt: promptCanvas,
-              onImport: () => setImporting(true),
               onConnectAgents: () => setShowConnect(true),
               onAutomations: () => navigate('/automations'),
-              onIntegrations: () => navigate('/integrations'),
             }}
           />
 
@@ -500,11 +470,6 @@ export function Home() {
         </DashContent>
       </DashMain>
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} />}
-      {importing && (
-        <Modal size="lg" showClose onClose={() => setImporting(false)}>
-          <SourcePicker sources={importSources()} onPick={(id) => void importInto(id)} />
-        </Modal>
-      )}
       {shareCanvas && (
         <ShareModal
           key={shareCanvas.id}

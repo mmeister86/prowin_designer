@@ -3,7 +3,7 @@ import { useStore } from '../lib/store'
 import { MOD_KEY, isHideUiShortcut } from '../lib/keys'
 import { canHideUi, hideUiHinted } from '../lib/hideUi'
 import { connect, disconnect, sendWs } from '../lib/ws'
-import { api, ApiError, type DiscoveredSite } from '../lib/api'
+import { api } from '../lib/api'
 import { navigate } from '../App'
 import { DoopMark } from '../components/Logo'
 import {
@@ -28,8 +28,6 @@ import { MobilePanelTabs, SideRail } from '../components/SideRail'
 import { LayersPanel, LayersRailToggle } from '../components/LayersPanel'
 import { Onboarding } from '../components/Onboarding'
 import { ShareModal } from '../components/ShareModal'
-import { ImportStepFooter, ImportStepHeader, SourcePicker } from '../components/ImportSources'
-import { importSources } from '../components/importSourceList'
 import { PresentMode } from '../components/PresentMode'
 import { getIdentity, setName } from '../lib/identity'
 import {
@@ -51,7 +49,6 @@ import { AuthCard, AuthCardText, AuthScreen } from '../components/ui/screen'
 import {
   BrainIcon,
   FolderIcon,
-  ImportIcon,
   LayersIcon,
   MoreHorizontalIcon,
   PlayIcon,
@@ -59,18 +56,15 @@ import {
   GearIcon,
   ShareIcon,
   ShareUpIcon,
-  WebIcon,
   XIcon,
 } from '../components/ui/icons'
 import { Badge } from '../components/ui/badge'
-import { SelectionBar, SelectionBarAction } from '../components/ui/selection-bar'
 import { Input } from '../components/ui/input'
 import { Field } from '../components/ui/field'
 import { PeerAvatars, PresenceFace } from '../components/PeerAvatars'
-import { Checkbox, CheckboxCard } from '../components/ui/checkbox'
 import { Toast, ToastAction, ToastSpinner } from '../components/ui/toast'
 import { Tooltip } from '../components/ui/tooltip'
-import { Modal, ModalActions, ModalEyebrow, ModalLede, ModalTitle } from '../components/ui/modal'
+import { Modal, ModalActions, ModalLede, ModalTitle } from '../components/ui/modal'
 import { createCenteredFrame } from '../lib/framePlacement'
 
 /* The floating chrome's geometry, in px from the canvas area's edges. The
@@ -120,10 +114,6 @@ const STARTER_HTML = `<!doctype html>
 </body>
 </html>`
 
-/* Small captions the import flow repeats under its fields. */
-const importNoteCls = 'mt-2.5 text-[11.5px] leading-[1.4] text-ink-faint'
-const errorNoteCls = 'mt-2.5 text-[13px] text-accent-ink'
-
 export function CanvasPage({ canvasId }: { canvasId: string }) {
   const canvas = useStore((s) => s.canvas)
   const connected = useStore((s) => s.connected)
@@ -146,19 +136,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
   const [presenting, setPresenting] = useState(false)
   /* ⌘. acts only over the canvas view, outside PresentMode */
   const hideUiActive = canHideUi({ view: 'canvas', presenting })
-  /* ?import=<source> (Home's Import picker, on the canvas it just made) opens
-     the import modal on that source's screen (`1` for the picker itself); the
-     flag comes off the URL once the page is up, the same way ?connect=1 does —
-     stripping it in the initializer loses it to the remount that follows the
-     canvas load */
-  const [importRequested] = useState(() => new URLSearchParams(location.search).get('import'))
-  useEffect(() => {
-    const url = new URL(location.href)
-    if (!url.searchParams.has('import')) return
-    url.searchParams.delete('import')
-    history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`)
-  }, [])
-  const [showImport, setShowImport] = useState(!!importRequested)
   const [showMobileActions, setShowMobileActions] = useState(false)
   const [showMobileLayers, setShowMobileLayers] = useState(false)
   const [renaming, setRenaming] = useState(false)
@@ -434,17 +411,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
             </span>
           </div>
           <BarPill>
-            <Button
-              variant="bare"
-              className={barPillBtn}
-              onClick={() => setShowImport(true)}
-              title="Import a live web page as a frame"
-            >
-              <ImportIcon className="size-3.5" />
-              Import
-            </Button>
-          </BarPill>
-          <BarPill>
             <Button variant="bare" className={barPillBtn} onClick={() => setShowShare(true)}>
               <ShareUpIcon className="size-3.5" />
               Share
@@ -637,16 +603,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
                   className="h-11 justify-start gap-2.5 border-line bg-surface px-4"
                   onClick={() => {
                     setShowMobileActions(false)
-                    setShowImport(true)
-                  }}
-                >
-                  <ImportIcon /> Import website
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="h-11 justify-start gap-2.5 border-line bg-surface px-4"
-                  onClick={() => {
-                    setShowMobileActions(false)
                     setShowShare(true)
                   }}
                 >
@@ -736,21 +692,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
           }}
         />
       )}
-      {showImport && (
-        <ImportModal
-          canvasId={canvasId}
-          initialSource={importRequested && importRequested !== '1' ? importRequested : null}
-          onClose={() => {
-            setShowImport(false)
-          }}
-          onDone={(frameIds, failedCount) => {
-            setShowImport(false)
-            select(frameIds[0] ?? null)
-            const imported = frameIds.length === 1 ? '1 item imported' : `${frameIds.length} items imported`
-            showToast(failedCount ? `${imported} · ${failedCount} failed` : imported)
-          }}
-        />
-      )}
       {updateReady ? (
         <Toast>
           doop was updated
@@ -767,282 +708,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
         )
       )}
     </div>
-  )
-}
-
-function ImportModal({
-  canvasId,
-  initialSource = null,
-  onClose,
-  onDone,
-}: {
-  canvasId: string
-  /** open straight on this source's screen (Home's picker already chose) */
-  initialSource?: string | null
-  onClose: () => void
-  onDone: (frameIds: string[], failedCount: number) => void
-}) {
-  const [source, setSource] = useState<string | null>(initialSource)
-  const [url, setUrl] = useState('')
-  const [wholeSite, setWholeSite] = useState(false)
-  const [discovery, setDiscovery] = useState<DiscoveredSite | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [busy, setBusy] = useState<'discovering' | 'importing' | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  function errorMessage(caught: unknown, fallback: string) {
-    if (caught instanceof ApiError) return String(caught.body.error ?? fallback)
-    return caught instanceof Error ? caught.message.replace(/^\d+\s*/, '') : fallback
-  }
-
-  function normalizedUrl() {
-    const clean = url.trim()
-    return /^https?:\/\//i.test(clean) ? clean : `https://${clean}`
-  }
-
-  async function runSinglePage() {
-    if (!url.trim() || busy) return
-    setBusy('importing')
-    setError(null)
-    try {
-      const frame = await api.importPage(canvasId, normalizedUrl())
-      posthog.capture('page_imported')
-      onDone([frame.id], 0)
-    } catch (e) {
-      setError(errorMessage(e, 'import failed'))
-      setBusy(null)
-    }
-  }
-
-  async function discover() {
-    if (!url.trim() || busy) return
-    setBusy('discovering')
-    setError(null)
-    try {
-      const found = await api.discoverSitePages(canvasId, normalizedUrl())
-      setDiscovery(found)
-      setSelected(new Set(found.pages.map((page) => page.url)))
-      posthog.capture('site_pages_discovered', { page_count: found.pages.length, truncated: found.truncated })
-      setBusy(null)
-    } catch (e) {
-      setError(errorMessage(e, 'page discovery failed'))
-      setBusy(null)
-    }
-  }
-
-  async function importSelected() {
-    if (!discovery || !selected.size || busy) return
-    setBusy('importing')
-    setError(null)
-    const urls = discovery.pages.filter((page) => selected.has(page.url)).map((page) => page.url)
-    try {
-      const result = await api.importSitePages(canvasId, urls)
-      if (!result.frames.length) {
-        const reason = result.failures[0]?.error
-        setError(reason ? `No pages could be imported — ${reason}` : 'No pages could be imported')
-        setBusy(null)
-        return
-      }
-      posthog.capture('website_imported', {
-        requested_count: urls.length,
-        imported_count: result.frames.length,
-        failed_count: result.failures.length,
-      })
-      onDone(
-        result.frames.map((frame) => frame.id),
-        result.failures.length,
-      )
-    } catch (e) {
-      setError(errorMessage(e, 'website import failed'))
-      setBusy(null)
-    }
-  }
-
-  function togglePage(pageUrl: string) {
-    setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(pageUrl)) next.delete(pageUrl)
-      else next.add(pageUrl)
-      return next
-    })
-  }
-
-  const selectedCount = selected.size
-  return (
-    <Modal size="xl" className="sm:max-w-[820px]" onClose={() => !busy && onClose()}>
-      <>
-        {!discovery ? (
-          <>
-            {source === null ? (
-              <SourcePicker onPick={setSource} sources={importSources()} />
-            ) : source === 'website' ? (
-              <>
-                <ImportStepHeader icon={<WebIcon className="size-[22px] text-ink" />} title="Import a website" />
-                <ModalLede>
-                  Bring in one page, or discover a whole site and choose the pages you want before anything is added.
-                </ModalLede>
-                <Field className="mt-[22px]" label="Website URL" labelVariant="form" htmlFor="import-url">
-                  <Input
-                    id="import-url"
-                    variant="well"
-                    inputSize="lg"
-                    className="font-mono"
-                    autoFocus
-                    placeholder="https://example.com"
-                    value={url}
-                    disabled={!!busy}
-                    onChange={(e) => {
-                      setUrl(e.target.value)
-                      setError(null)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        if (wholeSite) void discover()
-                        else void runSinglePage()
-                      }
-                    }}
-                  />
-                </Field>
-                <CheckboxCard
-                  checked={wholeSite}
-                  disabled={!!busy}
-                  onChange={(next) => {
-                    setWholeSite(next)
-                    setError(null)
-                  }}
-                  title={
-                    <>
-                      Import the entire website{' '}
-                      <em className="ml-[7px] rounded-full bg-paper-deep px-1.5 py-px text-micro font-medium not-italic text-ink-faint">
-                        Optional
-                      </em>
-                    </>
-                  }
-                  description="Find public pages on the same site, then review the list."
-                />
-                {error && <p className={errorNoteCls}>{error}</p>}
-                <ImportStepFooter
-                  note="Snapshots stay editable and commentable. Scripts are removed."
-                  onBack={() => setSource(null)}
-                  backDisabled={!!busy}
-                >
-                  <Button
-                    variant="primary"
-                    disabled={!!busy || !url.trim()}
-                    onClick={wholeSite ? discover : runSinglePage}
-                  >
-                    {busy === 'discovering'
-                      ? 'Finding pages…'
-                      : busy === 'importing'
-                        ? 'Importing…'
-                        : wholeSite
-                          ? 'Discover pages'
-                          : 'Import page'}
-                  </Button>
-                </ImportStepFooter>
-              </>
-            ) : null}
-          </>
-        ) : (
-          <>
-            <div className="flex flex-col items-start justify-between gap-2.5 sm:flex-row sm:gap-6">
-              <div className="flex flex-col gap-[5px]">
-                <ModalEyebrow>Review before import</ModalEyebrow>
-                <ModalTitle>Choose pages</ModalTitle>
-              </div>
-              <Badge shape="pill">{new URL(discovery.siteUrl).hostname}</Badge>
-            </div>
-            <ModalLede>
-              {discovery.pages.length} {discovery.pages.length === 1 ? 'page' : 'pages'} found. Everything is selected
-              by default; uncheck anything you don’t need.
-            </ModalLede>
-            <SelectionBar
-              className="mt-5"
-              count={selectedCount}
-              total={discovery.pages.length}
-              actions={
-                <>
-                  <SelectionBarAction
-                    disabled={!!busy}
-                    onClick={() => setSelected(new Set(discovery.pages.map((p) => p.url)))}
-                  >
-                    Select all
-                  </SelectionBarAction>
-                  <SelectionBarAction disabled={!!busy} onClick={() => setSelected(new Set())}>
-                    Clear
-                  </SelectionBarAction>
-                </>
-              }
-            />
-            <div
-              className={cn(
-                'max-h-[calc(100dvh-390px)] overflow-y-auto rounded-[11px] border border-line bg-paper transition-opacity sm:max-h-[min(350px,calc(100vh-390px))]',
-                busy && 'opacity-[0.58]',
-              )}
-              role="group"
-              aria-label="Pages to import"
-            >
-              {discovery.pages.map((page, index) => {
-                const pageUrl = new URL(page.url)
-                let pathname = pageUrl.pathname
-                try {
-                  pathname = decodeURIComponent(pathname)
-                } catch {
-                  /* Keep the encoded path when a site contains a malformed escape. */
-                }
-                const path = pathname + pageUrl.search
-                return (
-                  <label
-                    className="relative grid min-h-[58px] cursor-pointer grid-cols-[20px_24px_minmax(0,1fr)] items-center gap-2.5 border-b border-line bg-surface px-3 py-[9px] first:rounded-t-[10px] last:rounded-t-none last:rounded-b-[10px] last:border-b-0 hover:bg-paper"
-                    key={page.url}
-                  >
-                    <Checkbox
-                      checked={selected.has(page.url)}
-                      disabled={!!busy}
-                      onChange={() => togglePage(page.url)}
-                    />
-                    <span className="font-mono text-[9.5px] text-ink-faint">{String(index + 1).padStart(2, '0')}</span>
-                    <span className="min-w-0">
-                      <b className="block overflow-hidden whitespace-nowrap text-ellipsis text-[12.5px] text-ink">
-                        {page.title}
-                      </b>
-                      <span className="mt-[3px] block overflow-hidden whitespace-nowrap text-ellipsis font-mono text-[10px] text-ink-faint">
-                        {path || '/'}
-                      </span>
-                    </span>
-                  </label>
-                )
-              })}
-            </div>
-            {discovery.truncated && (
-              <p className={importNoteCls}>Showing the first 100 pages found. Narrow the starting URL if needed.</p>
-            )}
-            {busy === 'importing' && (
-              <p className={cn(importNoteCls, 'text-accent-ink')}>
-                Capturing {selectedCount} pages — larger sites can take a few minutes.
-              </p>
-            )}
-            {error && <p className={errorNoteCls}>{error}</p>}
-            <ModalActions className="justify-between">
-              <Button
-                variant="ghost"
-                disabled={!!busy}
-                onClick={() => {
-                  setDiscovery(null)
-                  setError(null)
-                }}
-              >
-                ← Back
-              </Button>
-              <Button variant="primary" disabled={!!busy || !selectedCount} onClick={importSelected}>
-                {busy === 'importing'
-                  ? `Importing ${selectedCount}…`
-                  : `Import ${selectedCount} ${selectedCount === 1 ? 'page' : 'pages'}`}
-              </Button>
-            </ModalActions>
-          </>
-        )}
-      </>
-    </Modal>
   )
 }
 

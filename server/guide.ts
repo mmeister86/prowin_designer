@@ -318,9 +318,8 @@ never one-off content edits like typos or copy tweaks.
 When a request redesigns an existing page or site, do not restyle from vibes — audit,
 commit to directions, then deliver a choice:
 
-- Audit the source: import_webpage for a live page so its editable HTML snapshot lands
-  on the canvas, or get_frame_screenshot (and a bounded get_frame read of the <style>
-  head) for a frame already on the canvas.
+- Audit the source: use get_frame_screenshot (and a bounded get_frame read of the
+  <style> head) for a frame already on the canvas, or inspect supplied screenshots.
 - Persist the audit with set_guidelines as a doc named "redesign-<source>"
   (e.g. "redesign-pipefile-com"): a "Source baseline" recording the old system
   (palette hexes, type, spacing/radii, and the section map — each section's purpose
@@ -347,15 +346,10 @@ commit to directions, then deliver a choice:
 ## Design quality
 
 ${DESIGN_QUALITY}
-- Reference sites: when a request names a site or URL — a redesign of it, or "like
-  acme.com" — call import_webpage on the relevant public page FIRST. It imports that
-  one URL as an editable HTML snapshot/frame on the canvas. Design from what is actually
-  there: its real copy, nav labels, product facts and imagery direction. A redesign that
-  invents content is wrong even when it looks good. Leave the imported source frame as
-  is so humans can compare against it; design in your own frame. If Doop cannot capture
-  the site, use your own browser or web-access tool and work only from content
-  you actually observe; otherwise ask the user for screenshots or an HTML export instead
-  of inventing the page.
+- Reference sites: design from an existing source frame or supplied screenshots.
+  External agents can use their own browser or web-access tools. Work only from content
+  you actually observe; otherwise ask for screenshots or an HTML export instead of
+  inventing the page. Leave source frames unchanged for comparison.
 
 ## Exporting frames as images
 

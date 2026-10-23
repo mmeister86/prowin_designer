@@ -2,39 +2,37 @@ import { describe, expect, it, vi } from 'vitest'
 import { executeGuardedBatch } from '../server/guardedBatch.ts'
 
 describe('guarded tool batches', () => {
-  it('runs website imports first and skips a speculative mutation after access is blocked', async () => {
-    const calls = [{ name: 'create_frame' }, { name: 'import_webpage' }]
+  it('skips remaining tool calls when the task is canceled during a batch', async () => {
+    const calls = [{ name: 'create_frame' }, { name: 'set_frame_html' }]
     const executed: string[] = []
     let blocked: string | undefined
     const execute = vi.fn(async (call: (typeof calls)[number]) => {
       executed.push(call.name)
-      if (call.name === 'import_webpage') blocked = 'website blocked'
+      blocked = 'task canceled'
       return `${call.name}:executed`
     })
 
     const results = await executeGuardedBatch(calls, {
-      priority: (call) => (call.name === 'import_webpage' ? 1 : 0),
       blocked: () => blocked,
       execute,
       skipped: (call, reason) => `${call.name}:skipped:${reason}`,
     })
 
-    expect(executed).toEqual(['import_webpage'])
-    expect(results).toEqual(['create_frame:skipped:website blocked', 'import_webpage:executed'])
+    expect(executed).toEqual(['create_frame'])
+    expect(results).toEqual(['create_frame:executed', 'set_frame_html:skipped:task canceled'])
   })
 
-  it('can enforce a turn boundary after a successful website import', async () => {
-    const calls = [{ name: 'create_frame' }, { name: 'import_webpage' }]
+  it('executes every call in order when the task is active', async () => {
+    const calls = [{ name: 'create_frame' }, { name: 'set_frame_html' }]
     const execute = vi.fn(async (call: (typeof calls)[number]) => `${call.name}:executed`)
 
     const results = await executeGuardedBatch(calls, {
-      priority: (call) => (call.name === 'import_webpage' ? 1 : 0),
-      blocked: (call) => (call.name === 'import_webpage' ? undefined : 'inspect the imported source first'),
+      blocked: () => undefined,
       execute,
       skipped: (call, reason) => `${call.name}:skipped:${reason}`,
     })
 
-    expect(execute).toHaveBeenCalledTimes(1)
-    expect(results).toEqual(['create_frame:skipped:inspect the imported source first', 'import_webpage:executed'])
+    expect(execute).toHaveBeenCalledTimes(2)
+    expect(results).toEqual(['create_frame:executed', 'set_frame_html:executed'])
   })
 })

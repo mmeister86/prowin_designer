@@ -2,11 +2,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import { DRAFT_OPTIONS, DRAFTS_STORAGE_KEY, isDraftCount, readStoredDrafts, type DraftCount } from '../lib/homePrompt'
 import { DoopMark } from './Logo'
 import { ModelPicker } from './ModelPicker'
-import { BrandMark } from './ui/brand-mark'
 import { IconButton } from './ui/icon-button'
 import { Chip } from './ui/chip'
 import { MenuButton } from './ui/menu-button'
-import { Pressable } from './ui/pressable'
 import { Textarea } from './ui/textarea'
 import {
   DropdownMenu,
@@ -18,7 +16,6 @@ import {
 } from './ui/dropdown-menu'
 import {
   ArrowUpIcon,
-  AttachmentIcon,
   CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -27,13 +24,12 @@ import {
   HistoryIcon,
   LayoutTemplateIcon,
   MessageSquareIcon,
-  UploadIcon,
 } from './ui/icons'
 
 /**
  * The home page's front door: the hopping Disc-D, a greeting, a strip of
- * suggestion chips, the composer that starts a canvas from a prompt, and the
- * "connect your designs" bar under it — all over the brand's gradient wave.
+ * suggestion chips and the composer that starts a canvas from a prompt,
+ * all over the brand's gradient wave.
  *
  * The composer does not design on this page. A send makes a new canvas, queues
  * the brief as its first board card and opens it, where the agent's work
@@ -42,10 +38,8 @@ import {
 
 export interface HeroActions {
   onPrompt: (text: string, drafts: DraftCount) => Promise<void> | void
-  onImport: () => void
   onConnectAgents: () => void
   onAutomations: () => void
-  onIntegrations: () => void
 }
 
 /** a chip either fills the composer with a brief or runs an action */
@@ -85,7 +79,6 @@ const CHIPS: Chip[] = [
     action: 'onAutomations',
   },
   { id: 'agents', label: 'Connect your agents', icon: <CirclePlusIcon {...chipIcon} />, action: 'onConnectAgents' },
-  { id: 'import', label: 'Import a design', icon: <UploadIcon {...chipIcon} />, action: 'onImport' },
   {
     id: 'comments',
     label: 'Review comments',
@@ -259,15 +252,6 @@ export function HomeHero({
             className="min-h-[52px] text-lead placeholder:text-ink-ghost md:text-lead"
           />
           <div className="mt-1 flex items-center gap-3 text-body text-ink-soft md:gap-5">
-            <Pressable
-              layout="inline"
-              focus="ring"
-              className="gap-[7px] rounded-row text-ink-soft transition-colors hover:text-ink"
-              onClick={actions.onImport}
-              title="Attach a design to start from"
-            >
-              <AttachmentIcon width={14} height={14} /> Files
-            </Pressable>
             <span className="flex-1" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -314,31 +298,6 @@ export function HomeHero({
             </IconButton>
           </div>
         </div>
-        <Pressable
-          focus="ring"
-          onClick={actions.onIntegrations}
-          className="group mx-[14px] flex w-[calc(100%-28px)] items-center rounded-b-card bg-sub px-5 pb-2.5 pt-3 text-body text-ink-soft transition-colors hover:text-ink"
-        >
-          Connect your existing designs for better results
-          <ChevronRightIcon
-            width={12}
-            height={12}
-            className="ml-1.5 -translate-x-0.5 text-ink-faint opacity-0 blur-[2px] transition-[opacity,transform,filter] duration-fast ease-out-quad group-hover:translate-x-0 group-hover:opacity-100 group-hover:blur-none motion-reduce:transition-none"
-            aria-hidden
-          />
-          {/* the marks rest a little faded and desaturated; the bar's hover wakes the
-              row, and the mark under the pointer comes fully to life and lifts */}
-          <span
-            className="marks ml-auto flex items-center gap-[9px] [&>*]:opacity-75 [&>*]:saturate-[.8] [&>*]:transition-[opacity,filter,transform] [&>*]:duration-fast [&>*]:ease-out-quad group-hover:[&>*]:opacity-90 group-hover:[&>*]:saturate-[.95] [&>*:hover]:-translate-y-px [&>*:hover]:!opacity-100 [&>*:hover]:!saturate-100 motion-reduce:[&>*]:transition-none"
-            aria-hidden
-          >
-            <span className="grid size-4 place-items-center rounded-tag bg-surface shadow-ring">
-              <BrandMark brand="figma" size={12} />
-            </span>
-            <BrandMark brand="canva" size={16} />
-            <BrandMark brand="photoshop" size={16} />
-          </span>
-        </Pressable>
       </div>
     </section>
   )

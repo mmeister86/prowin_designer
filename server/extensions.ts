@@ -42,8 +42,6 @@ export interface ConnectRouteHelpers {
  *  Both helpers answer the response themselves when they refuse. */
 export interface CanvasRouteHelpers {
   requireCanvas(req: express.Request, res: express.Response, canvasId: string): Canvas | null
-  /** the shared import rate slot (websites, repos, design files alike) */
-  takeImportSlot(userId: string): boolean
 }
 
 /** The MCP server's per-session helpers, so an extension's tools answer,
@@ -61,7 +59,6 @@ export interface McpToolHelpers {
   withFeedback<T extends McpToolResult>(result: T, canvasId: string, actor?: Actor): T
   withStatusNudge<T extends McpToolResult>(result: T, canvasId: string, actor?: Actor): T
   frameSummary(frame: Frame): Record<string, unknown>
-  takeImportSlot(key: string): boolean
 }
 
 export interface ServerExtension {
