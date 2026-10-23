@@ -1,25 +1,13 @@
 # RELEASE - doop
 
-## Versioning (release-please)
+## Versioning (manual in this fork)
 
-`.github/workflows/release-please.yml` runs on every push to `main` and keeps a release PR open
-per package, driven by conventional commits (`release-please-config.json`,
-`.release-please-manifest.json`):
-
-- `.` (the web app) -> "chore(main): release x.y.z" bumps `package.json` + `CHANGELOG.md`;
-  merging it creates the `vX.Y.Z` tag and a GitHub Release. Tag + notes only - nothing is built
-  or deployed from it.
-- `desktop/` -> "chore(desktop): release x.y.z" bumps `desktop/package.json`,
-  `src-tauri/tauri.conf.json`, `Cargo.toml` + `desktop/CHANGELOG.md`. It cannot bump
-  `Cargo.lock`, so `desktop.yml` copies the shell's version line from `Cargo.toml` into the
-  lock ahead of `cargo test --locked`; the lock catches up in the next commit that builds the shell. It does NOT
-  tag: the `desktop-v*` tag is pushed by hand after merging (next section). Since no GitHub
-  Release is cut, the workflow's last step flips the merged desktop PR's label from
-  `autorelease: pending` to `autorelease: tagged` itself; a merged PR left `pending` makes every
-  later run abort with "untagged, merged release PRs outstanding".
-
-Both packages are 0.x, so breaking changes bump the minor, not the major. With the default
-`GITHUB_TOKEN` the release PR gets no CI run; a `RELEASE_PLEASE_TOKEN` PAT secret fixes that.
+This repository is the proWIN fork (`mmeister86/prowin_designer`) and never contributes back to
+`kgoedecke/doop`. The upstream release-please workflow and its config were removed: versions in
+`package.json` and `desktop/package.json` (+ `src-tauri/tauri.conf.json`, `Cargo.toml`) are bumped
+by hand when a release is cut. `desktop.yml` still copies the shell's version line from
+`Cargo.toml` into `Cargo.lock` ahead of `cargo test --locked`, so a hand bump of `Cargo.toml` alone
+does not break CI. Both packages are 0.x, so breaking changes bump the minor, not the major.
 
 ## Self-hosted server (Docker)
 
@@ -52,8 +40,8 @@ in `.github/actions/setup-desktop`:
   first run and users click "More info" -> "Run anyway".
 - The shell tells the page its platform via `window.__DOOP_DESKTOP_PLATFORM__` (read in
   `src/lib/shell.ts`); only macOS gets the overlay title bar / traffic-light inset.
-- Desktop app version is tracked separately from the root `package.json` and bumped by
-  release-please (see above); after the release PR merges, tag as `desktop-vX.Y.Z`.
+- Desktop app version is tracked separately from the root `package.json` and bumped by hand
+  (see above); after the bump lands on `main`, tag as `desktop-vX.Y.Z`.
 
 ## Claude Desktop extension
 
@@ -108,5 +96,5 @@ live in `cursor-plugin/README.md`.
 ## Other workflows
 
 - `.github/workflows/desktop.yml` - desktop app CI (build/check) outside of the release path.
-- `.github/workflows/cla.yml` - CLA sign-off check on PRs (AGPL-3.0 project, CLA-based
-  contribution per `CLA.md` / `CONTRIBUTING.md`).
+- The upstream CLA workflow was removed: this fork takes no outside contributions and sends none
+  upstream. The code stays AGPL-3.0; `CLA.md` remains as upstream's text.
