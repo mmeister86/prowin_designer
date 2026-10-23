@@ -32,15 +32,11 @@ it('upgrades an existing OSS database without the deferred Figma migration', asy
     const tables = await client.query<{ table_name: string }>(
       "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
     )
-    expect(tables.rows.map((row) => row.table_name)).toEqual(
-      expect.arrayContaining([
-        'image_prefs',
-        'agent_keys',
-        'linear_installations',
-        'linear_oauth_states',
-        'linear_sessions',
-      ]),
-    )
+    const names = tables.rows.map((row) => row.table_name)
+    expect(names).toEqual(expect.arrayContaining(['image_prefs', 'agent_keys']))
+    expect(names).not.toContain('linear_installations')
+    expect(names).not.toContain('linear_oauth_states')
+    expect(names).not.toContain('linear_sessions')
     const deferred = await client.query(
       "SELECT column_name FROM information_schema.columns WHERE table_name = 'integrations' AND column_name = 'refresh_token'",
     )

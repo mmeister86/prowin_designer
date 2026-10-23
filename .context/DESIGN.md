@@ -177,7 +177,7 @@ density="rail"` (the group caption with its chevron) and `DashNavItem density="r
   component under the canvas chrome's name. `AvatarStack` (the first `max` people plus a "+N"
   disc), `tone="ink"` (the account's own face: initials on an ink disc, no collar), `initials()`
   (the one first-and-last-letter rule), `BrandMark` - every third-party logo (`<BrandMark brand="figma" size={16} />`; figma, github,
-  canva, photoshop, meta, claude, openai, cursor, gemini, google, apple, microsoft, slack, linear),
+  canva, photoshop, meta, claude, openai, cursor, gemini, google, apple, microsoft, slack),
   `Wordmark`, `Logo` / `DoopMark` (the bare Disc-D; `animated` hops its dot, as the home greeting
   wears it), `icons.tsx` - identity. Feature tiles (`FigmaTile`, `MetaTile`, the integrations'
   `Tile`s, `AgentIcon`) compose a `BrandMark`; nothing else inlines a logo path.

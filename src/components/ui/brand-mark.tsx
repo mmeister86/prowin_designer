@@ -1,14 +1,13 @@
 import type { JSX } from 'react'
 import { cn } from '@/lib/utils'
 import canvaLogo from './brand/canva.svg'
-import linearLogo from './brand/linear.svg'
 import slackLogo from './brand/slack.svg'
 
 /**
  * Every third-party logo the product wears, from one place. A mark is a
  * square `size` px box with the brand's glyph centred in it, drawn in the
  * brand's own colours where it has them (Figma, Google, Meta, Photoshop,
- * Canva, Slack, Linear, Microsoft) and in `currentColor` where the brand
+ * Canva, Slack, Microsoft) and in `currentColor` where the brand
  * itself asks for the text colour (GitHub, OpenAI, Cursor, Gemini, Apple).
  * Claude's default is Anthropic's terracotta; `color` overrides any of the
  * single-colour marks.
@@ -33,7 +32,6 @@ export type Brand =
   | 'apple'
   | 'microsoft'
   | 'slack'
-  | 'linear'
 
 export interface BrandMarkProps {
   brand: Brand
@@ -191,7 +189,6 @@ const MARKS: Record<Brand, (props: GlyphProps) => JSX.Element> = {
   apple: path(APPLE_PATH),
   microsoft: Microsoft,
   slack: tiled(slackLogo, '#4A154B', 0.55),
-  linear: tiled(linearLogo, '#090A0C', 0.58),
 }
 
 export const BRANDS = Object.keys(MARKS) as Brand[]

@@ -1,6 +1,5 @@
 import type { ComponentType, ReactNode } from 'react'
 import type { IntegrationsStatus } from '../lib/api'
-import { linearIntegration } from './linear'
 import { slackIntegration } from './slack'
 
 /**
@@ -63,4 +62,4 @@ export type ClientIntegration =
       }
     })
 
-export const clientIntegrations: ClientIntegration[] = [linearIntegration, slackIntegration]
+export const clientIntegrations: ClientIntegration[] = [slackIntegration]

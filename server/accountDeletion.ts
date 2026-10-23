@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db } from './db/index.ts'
-import { linearOAuthStates, liveActivities, liveActivityStarters, slackOAuthStates } from './db/schema.ts'
+import { liveActivities, liveActivityStarters, slackOAuthStates } from './db/schema.ts'
 import { store } from './store.ts'
 import { removeMember as leaveWorkspace, workspaceIdsFor } from './workspaces.ts'
 
@@ -11,15 +11,13 @@ import { removeMember as leaveWorkspace, workspaceIdsFor } from './workspaces.ts
  * in a workspace stay with them, with the user removed from the member list.
  */
 export async function purgeUserData(userId: string): Promise<{ deletedCanvases: number }> {
-  /* The agent installations go first: left behind, a Slack or Linear
+  /* The agent installation goes first: left behind, a Slack
      installation keeps its bot token, keeps queueing work billed to the
      vanished account, and blocks anyone else from connecting that workspace.
-     Both job modules import auth.ts, which imports this module — hence lazy. */
-  const [slack, linear] = await Promise.all([import('./slack/jobs.ts'), import('./linear/jobs.ts')])
+      The job module imports auth.ts, which imports this module — hence lazy. */
+  const slack = await import('./slack/jobs.ts')
   await slack.disconnectAgent(userId)
-  await linear.disconnectAgent(userId)
   await db.delete(slackOAuthStates).where(eq(slackOAuthStates.userId, userId))
-  await db.delete(linearOAuthStates).where(eq(linearOAuthStates.userId, userId))
   let deletedCanvases = 0
   for (const canvas of store.allCanvases()) {
     const others = (canvas.memberIds ?? []).filter((id) => id !== userId)

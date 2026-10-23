@@ -3,7 +3,6 @@ import type { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Actor, Canvas, Frame } from '../shared/types.ts'
 import type { PullStep } from '../shared/automations.ts'
-import { linearExtension } from './linear/extension.ts'
 import { slackExtension } from './slack/extension.ts'
 
 /**
@@ -91,4 +90,4 @@ export interface ServerExtension {
   ): Promise<string>
 }
 
-export const extensions: ServerExtension[] = [linearExtension, slackExtension]
+export const extensions: ServerExtension[] = [slackExtension]

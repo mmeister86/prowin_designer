@@ -153,11 +153,6 @@ const schema = {
   /* ------------------------------------------------------ integrations */
   META_APP_ID: str({ default: undefined }),
   META_APP_SECRET: str({ default: undefined }),
-  LINEAR_CLIENT_ID: str({ default: undefined }),
-  LINEAR_CLIENT_SECRET: str({ default: undefined }),
-  LINEAR_WEBHOOK_SECRET: str({ default: undefined }),
-  LINEAR_API_URL: str({ default: 'https://api.linear.app/graphql' }),
-  LINEAR_TOKEN_URL: str({ default: 'https://api.linear.app/oauth/token' }),
   SLACK_CLIENT_ID: str({ default: undefined }),
   SLACK_CLIENT_SECRET: str({ default: undefined }),
   SLACK_SIGNING_SECRET: str({ default: undefined }),

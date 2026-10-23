@@ -121,16 +121,15 @@ render; the desktop app opens its native save panel.
 
 **Integrations** in the rail is where an account connects the outside tools Doop works with:
 
-| Integration | What it does                                                                                                                               |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Linear      | Read issues through MCP, or delegate an issue to Doop: it designs a canvas and reports the result back to Linear ([setup](docs/linear.md)) |
-| Slack       | Mention `@Doop` with a brief; it designs a canvas and posts the result in the thread ([setup](docs/slack.md))                              |
-| Meta Ads    | Pull ad creatives onto a canvas on a schedule with an automation (`/automations`)                                                          |
-| Figma       | Import frames as editable HTML and export frames back to Figma. Doop Cloud only                                                            |
-| Canva       | Import Canva designs as editable frames and send frames back with live text. Doop Cloud only                                               |
+| Integration | What it does                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------- |
+| Slack       | Mention `@Doop` with a brief; it designs a canvas and posts the result in the thread ([setup](docs/slack.md)) |
+| Meta Ads    | Pull ad creatives onto a canvas on a schedule with an automation (`/automations`)                             |
+| Figma       | Import frames as editable HTML and export frames back to Figma. Doop Cloud only                               |
+| Canva       | Import Canva designs as editable frames and send frames back with live text. Doop Cloud only                  |
 
 <p align="center">
-  <img src=".github/assets/integrations.png" alt="The Integrations page with cards for Figma, Canva, Linear, Slack and Meta Ads" width="100%">
+  <img src=".github/assets/integrations.png" alt="Historical upstream Integrations page; available integrations differ in this fork" width="100%">
 </p>
 
 ## iPhone and iPad app
