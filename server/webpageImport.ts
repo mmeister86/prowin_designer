@@ -51,3 +51,11 @@ export async function createImportedWebpageFrame(
   )
   return { imported, frame }
 }
+/** URLs and bare domains in work requests; file names are not sites. */
+export function referencedUrls(text: string): string[] {
+  const NOT_SITES = /\.(png|jpe?g|gif|svg|webp|ico|css|js|ts|tsx|json|html?|md|pdf|txt|mp4|webm|woff2?)$/i
+  const matches =
+    text.match(/\bhttps?:\/\/[^\s"'<>()]+|\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:\/[^\s"'<>()]*)?/gi) ?? []
+  const urls = matches.map((m) => m.replace(/[.,;:!?]+$/, '')).filter((m) => !NOT_SITES.test(m))
+  return [...new Set(urls)]
+}

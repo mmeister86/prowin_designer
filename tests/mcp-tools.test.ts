@@ -9,7 +9,7 @@ interface ToolInputSchema {
 }
 
 describe('MCP website tool contract', () => {
-  it('separates read-only website viewing from editable webpage imports', async () => {
+  it('no longer offers the website viewer while the import remains available', async () => {
     const server = buildMcpServer('Test Owner', 'test-owner-id')
     const client = new Client({ name: 'doop-tool-contract-test', version: '1.0.0' })
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
@@ -22,15 +22,9 @@ describe('MCP website tool contract', () => {
       const view = tools.find((tool) => tool.name === 'view_website')
       const importWebpage = tools.find((tool) => tool.name === 'import_webpage')
 
-      expect(view).toBeDefined()
+      expect(view).toBeUndefined()
       expect(importWebpage).toBeDefined()
-      expect(view!.annotations?.readOnlyHint).toBe(true)
       expect(importWebpage!.annotations?.readOnlyHint).toBe(false)
-
-      const viewSchema = view!.inputSchema as ToolInputSchema
-      expect(viewSchema.properties).not.toHaveProperty('save_reference')
-      expect(viewSchema.properties).not.toHaveProperty('canvas_id')
-      expect(new Set(viewSchema.required)).toEqual(new Set(['url', 'agent_name']))
 
       const importSchema = importWebpage!.inputSchema as ToolInputSchema
       expect(importSchema.properties).toEqual(
@@ -43,7 +37,7 @@ describe('MCP website tool contract', () => {
       expect(new Set(importSchema.required)).toEqual(new Set(['url', 'canvas_id', 'agent_name']))
 
       expect(client.getInstructions()).toContain('call import_webpage FIRST')
-      expect(client.getInstructions()).toContain('view_website is only for read-only inspection')
+      expect(client.getInstructions()).not.toContain('view_website')
     } finally {
       await client.close()
       await server.close()

@@ -11,7 +11,7 @@ import * as imageSearch from './imageSearch.ts'
 import * as imageGen from './imageGen.ts'
 import * as assets from './assets.ts'
 import * as backgrounds from './backgrounds.ts'
-import { viewWebsite, referencedUrls } from './website.ts'
+import { referencedUrls } from './webpageImport.ts'
 import { createImportedWebpageFrame, findImportedWebpageFrame } from './webpageImport.ts'
 import { DESIGN_BRIEF, DESIGN_QUALITY } from './guide.ts'
 import { describeInspiration, INSPIRATION_USAGE_NOTE, searchInspiration } from './inspiration.ts'
@@ -110,7 +110,7 @@ Rules:
 - After any visual change, call screenshot_frame and LOOK at the result. If it doesn't clearly satisfy the feedback, fix it before finishing.
 - Call set_status when you start ("Fixing: …") and when your focus shifts. One line, under 80 chars, present tense. People watch this live.
 - Never leave a frame worse than you found it.
-- Reference sites: when a request names a site or URL — a redesign of it, or "like acme.com" — call import_webpage with as_reference=true FIRST so an editable HTML snapshot lands on the canvas, then call screenshot_frame on that imported source and design from what is actually there: its real copy, nav labels, product facts, and imagery direction. Leave the imported source unchanged and deliver your work in a separate frame. If importing or editing the snapshot itself is the requested deliverable, use as_reference=false. view_website is read-only; use it only when you need to inspect a live page without adding it to the canvas. A redesign that invents content is wrong even when it looks good. If automated access is blocked and there is no existing source frame or attached screenshot, stop and ask the user to attach screenshots; never approximate the site from guesses.
+- Reference sites: when a request names a site or URL — a redesign of it, or "like acme.com" — call import_webpage with as_reference=true FIRST so an editable HTML snapshot lands on the canvas, then call screenshot_frame on that imported source and design from what is actually there: its real copy, nav labels, product facts, and imagery direction. Leave the imported source unchanged and deliver your work in a separate frame. If importing or editing the snapshot itself is the requested deliverable, use as_reference=false. A redesign that invents content is wrong even when it looks good. If automated access is blocked and there is no existing source frame or attached screenshot, stop and ask the user to attach screenshots; never approximate the site from guesses.
 - Real imagery: when a design calls for photography, use search_images (you see thumbnails — pick the one whose mood and palette fit) and embed its image_url with object-fit: cover and a real alt text. For a hero, section band or bento tile that wants atmosphere or a focal glow, list_backgrounds shows a page of the curated library as thumbnails (filter by tone; judge by eye which one fits the frame's style and palette, paste its css line, put copy in the text_zone); a quiet typographic design may be better on a flat surface, but never settle for a default two-stop gradient, and draw the background yourself when nothing in the library genuinely fits. For UI icons use search_icons and hotlink the SVG URL. For company logos (customer walls, integration rows, press bars, payment methods, testimonial cards) call search_logos once per brand BEFORE writing that section, and use real, recognizable brands — never a gray tile, "LOGO" text, initials or an invented wordmark. When the design needs a visual that stock cannot supply — a full-bleed hero background in the frame's exact palette (a monochrome mountain range behind the product window, say), brand-specific illustration, a product render, a mascot — or the card asks for a generated image, call generate_image with ONE considered prompt (subject, style, composition, palette hexes, lighting, exclusions; for a hero background: aspect landscape, low contrast, and name the empty region where the copy or product window will sit) and embed the returned url with object-fit: cover and a legibility scrim over the copy; it spends the requester's quota or money, so refine a near miss by prompt rather than regenerating blind. Never fake a photo with a gray box or a made-up URL; if search is unavailable, draw the visual as inline SVG/CSS.
 - If a request is unclear or impossible (missing frame, contradictory ask), do the closest reasonable thing and say what you did in your final message.
 - Your final message should be one or two sentences: what you changed and where.
@@ -469,7 +469,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       referenceList +
       `\n\nExecution strategy selected by the harness:\n${strategyFor(workText, visibleFrames)}` +
       (urls.length > 0
-        ? `\n\nThe request references ${urls.join(', ')} — if each page is source material for a separate design, call import_webpage with as_reference=true BEFORE designing so an editable HTML snapshot lands on the canvas for everyone to compare against. Then call screenshot_frame on each imported source, leave those source frames unchanged, and build from their real content and structure. If the imported snapshot itself is the requested deliverable, call it with as_reference=false instead. view_website is read-only and does not add anything to the canvas.`
+        ? `\n\nThe request references ${urls.join(', ')} — if each page is source material for a separate design, call import_webpage with as_reference=true BEFORE designing so an editable HTML snapshot lands on the canvas for everyone to compare against. Then call screenshot_frame on each imported source, leave those source frames unchanged, and build from their real content and structure. If the imported snapshot itself is the requested deliverable, call it with as_reference=false instead.`
         : '') +
       `\n\nAddress everything above now.` +
       (comments.length > 0
@@ -1011,18 +1011,6 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
-    name: 'view_website',
-    description:
-      'Read-only inspection of a public web page: acquires its current HTML and returns a locally rendered desktop screenshot plus visible text without changing the canvas. Use import_webpage instead when the page needs to land on the canvas as an editable HTML snapshot.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        url: { type: 'string', description: 'The page URL — a bare domain like "acme.io" is loaded over https' },
-      },
-      required: ['url'],
-    },
-  },
-  {
     name: 'import_webpage',
     description:
       'Import one public web page onto the current canvas as an editable HTML snapshot. Scripts and iframes are removed and stylesheets are inlined. Set as_reference=true when it is source material for a separate design; matching reference snapshots are reused across pipeline stages. Set false when importing or editing the snapshot itself is the deliverable; this creates a fresh deliverable copy. Call screenshot_frame on the returned frame.',
@@ -1459,30 +1447,6 @@ async function execTool(
           })
         }
         blocks.push({ type: 'text', text: imageSearch.LOGO_USAGE_NOTE })
-        return ok(blocks)
-      }
-      case 'view_website': {
-        const raw = block.input as { url?: string }
-        const url = String(raw.url || '').trim()
-        if (!url) return fail('url must be a non-empty string')
-        const site = await viewWebsite(url)
-        const blocks: NonNullable<Exclude<Anthropic.ToolResultBlockParam['content'], string>> = [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: site.screenshot.toString('base64') },
-          },
-          {
-            type: 'text',
-            text:
-              `${site.title || site.finalUrl} — ${site.finalUrl}` +
-              (site.description ? `\nMeta description: ${site.description}` : '') +
-              (site.shotCropped
-                ? `\nNote: the page is ${site.pageHeight}px tall — the screenshot shows only the top portion.`
-                : '') +
-              `\n\nVisible page text${site.textTruncated ? ' (truncated)' : ''}:\n${site.text}` +
-              '\n\nRead-only view — nothing was added to the canvas.',
-          },
-        ]
         return ok(blocks)
       }
       case 'import_webpage': {

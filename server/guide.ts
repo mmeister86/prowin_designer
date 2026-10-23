@@ -320,8 +320,7 @@ commit to directions, then deliver a choice:
 
 - Audit the source: import_webpage for a live page so its editable HTML snapshot lands
   on the canvas, or get_frame_screenshot (and a bounded get_frame read of the <style>
-  head) for a frame already on the canvas. Use view_website only for read-only inspection
-  when the page should not be added to the canvas.
+  head) for a frame already on the canvas.
 - Persist the audit with set_guidelines as a doc named "redesign-<source>"
   (e.g. "redesign-pipefile-com"): a "Source baseline" recording the old system
   (palette hexes, type, spacing/radii, and the section map — each section's purpose
@@ -353,10 +352,8 @@ ${DESIGN_QUALITY}
   one URL as an editable HTML snapshot/frame on the canvas. Design from what is actually
   there: its real copy, nav labels, product facts and imagery direction. A redesign that
   invents content is wrong even when it looks good. Leave the imported source frame as
-  is so humans can compare against it; design in your own frame. Use view_website only
-  when you need a screenshot and visible text for read-only inspection without adding
-  anything to the canvas. If Doop cannot capture the site, do not retry it
-  through view_website. Use your own browser or web-access tool and work only from content
+  is so humans can compare against it; design in your own frame. If Doop cannot capture
+  the site, use your own browser or web-access tool and work only from content
   you actually observe; otherwise ask the user for screenshots or an HTML export instead
   of inventing the page.
 

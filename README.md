@@ -597,7 +597,6 @@ Steering happens at three layers (the same architecture paper.design uses, plus 
 | `list_canvases`        | List all canvases                                                                                                                                                      |
 | `create_canvas`        | Create a canvas, returns its shareable id                                                                                                                              |
 | `get_canvas`           | Canvas layout: every frame's position/size/meta                                                                                                                        |
-| `view_website`         | Inspect one public page read-only; returns a desktop screenshot and visible text without changing the canvas                                                           |
 | `import_webpage`       | Import one public URL onto a canvas as an editable HTML snapshot/frame                                                                                                 |
 | `create_frame`         | Add a frame with HTML (auto-placed if no x/y)                                                                                                                          |
 | `get_frame`            | Read a frame including its HTML                                                                                                                                        |
