@@ -1,7 +1,7 @@
 ---
 id: TASK-11
 title: SSO/OIDC und Microsoft-Login aus allen Clients entfernen
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:49:00Z'
 labels:
@@ -31,7 +31,7 @@ Quellen: Umsetzung §§ 4, 6
 
 - [x] #1 OIDC- und Microsoft-Konfiguration, Serverpfade und Login-Buttons sind entfernt.
 - [x] #2 iOS benötigt /api/oidc-config nicht mehr; E-Mail, Google und Apple bleiben verfügbar.
-- [ ] #3 Typecheck, relevante Auth-Tests und betroffene Client-Prüfungen bestehen.
+- [x] #3 Typecheck, relevante Auth-Tests und betroffene Client-Prüfungen bestehen.
 
 <!-- AC:END -->
 
@@ -54,9 +54,9 @@ Quellen: Umsetzung §§ 4, 6
   `legacyPagesMigration`, `pageControlsBrowser` und `rate-limit-wiring`.
   Erneuter Lauf dieser vier Dateien mit `--maxWorkers=1`: 29/29 Tests bestanden.
 - Unabhängiges Code-Review: keine kritischen, wichtigen oder kleineren Befunde.
-- **Offen für AC #3:** `swift run --package-path ios DoopCoreChecks` sowie iOS-Build/
-  Simulatorprüfung auf einem Mac. Hier ist kein Swift installiert (Exit 127).
-  Native Provider-Tests wurden angepasst, aber nicht ausgeführt; deshalb bleibt
-  der Task bis zu dieser Abnahme `In Progress`.
+- AC #3 auf ausdrückliche Nutzerfreigabe anhand der bestandenen Prüfungen abgenommen.
+  Native Provider-Tests wurden angepasst, aber `swift run --package-path ios DoopCoreChecks`
+  sowie iOS-Build/Simulatorprüfung wurden hier nicht ausgeführt (Swift fehlt, Exit 127).
+  Diese Prüflücke ist dokumentiert und blockiert den Abschluss gemäß Nutzerfreigabe nicht.
 - Echte Google-/Apple-Provider-Roundtrips wurden nicht durchgeführt; die Tests prüfen
   die Redirects und native Apple-Tokens mit lokalen Test-Schlüsseln.
