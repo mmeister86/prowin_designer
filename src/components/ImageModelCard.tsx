@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type { ImageModelStatus } from '../lib/api'
 import { IMAGE_MODELS } from '../../shared/modelMenu'
-import { posthog } from '../lib/posthog'
 import { useStore } from '../lib/store'
 import { CardDescription, CardHeader, CardTitle, SettingsCard } from './ui/card'
 import { ToggleChip, ToggleChipGroup, ToggleChipItem } from './ui/toggle-chip'
@@ -44,7 +43,6 @@ export function ImageModelCard() {
     try {
       const { models: next } = await api.setImageModel(id)
       setModels(next)
-      posthog.capture('image_model_changed', { model: id })
     } catch (e) {
       const body = (e as { body?: { error?: string } })?.body
       setError(body?.error || (e instanceof Error ? e.message : 'That did not work — try again'))

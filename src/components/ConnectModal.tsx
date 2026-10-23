@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { navigate } from '../App'
 import { useStore } from '../lib/store'
 import { roleByAgentName } from '../../shared/agents'
-import { posthog } from '../lib/posthog'
 import { AgentIcon } from './AgentIcon'
 import { ClaudeDesktopInstall } from './ClaudeDesktopInstall'
 import { canAddToClaudeDesktop, claudeConnectorInstallUrl } from '../lib/claudeConnection'
@@ -125,7 +124,6 @@ function AgentPicker({ onPick }: { onPick: (agent: AgentId) => void }) {
           variant="primary"
           className={barPrimaryBtn}
           onClick={() => {
-            posthog.capture('connect_ai_agent_chosen', { agent })
             onPick(agent)
           }}
         >
@@ -226,12 +224,7 @@ function agentSteps(
             body: 'Open Claude with Doop’s name and server address already filled in. Review the details and add the connector.',
             action: (
               <Button asChild variant="solid" className="mt-2.5">
-                <a
-                  href={claudeConnectorInstallUrl(mcpUrl)!}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => posthog.capture('claude_connector_opened')}
-                >
+                <a href={claudeConnectorInstallUrl(mcpUrl)!} target="_blank" rel="noopener noreferrer">
                   Add to Claude
                 </a>
               </Button>

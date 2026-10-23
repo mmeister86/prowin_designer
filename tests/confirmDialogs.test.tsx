@@ -22,7 +22,6 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../src/App', () => ({ navigate: vi.fn() }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 /* the rail pulls in auth, workspaces and modals — none of it is under test */
 vi.mock('../src/components/AppRail', () => ({
   AppRail: ({ children }: { children?: ReactNode }) => <aside>{children}</aside>,

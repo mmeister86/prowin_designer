@@ -23,7 +23,6 @@ vi.mock('../src/lib/api', () => ({
   },
   ApiError: class ApiError extends Error {},
 }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 vi.mock('../src/lib/auth', () => ({ authClient: { useSession: () => ({ data: { user: { id: 'alice' } } }) } }))
 vi.mock('../src/lib/frameClipboard', () => ({ uploadImageFrames: () => Promise.resolve([]) }))
 vi.mock('../src/components/ChatPanel', () => ({ ChatPanel: () => null }))

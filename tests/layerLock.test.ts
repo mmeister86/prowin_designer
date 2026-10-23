@@ -7,7 +7,6 @@ vi.mock('../src/lib/api', () => ({
   api: { updateFrame: (id: string, patch: Partial<Frame>) => updateFrame(id, patch) },
   errorMessage: (_err: unknown, fallback: string) => fallback,
 }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 /* the line to the frame's live document (there is no iframe here) */
 const requestFrame = vi.fn(() => Promise.resolve(null))
 vi.mock('../src/lib/frameBridge', () => ({

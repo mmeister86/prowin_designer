@@ -21,7 +21,6 @@ vi.mock('../src/lib/api', () => ({
     }
   },
 }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 const { ApiError } = await import('../src/lib/api')
 const { useStore } = await import('../src/lib/store')
 const { savePages, moveFramesToPage, duplicatePage } = await import('../src/lib/pageEdits')

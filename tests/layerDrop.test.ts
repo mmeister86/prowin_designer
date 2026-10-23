@@ -4,7 +4,6 @@ import type { Canvas, Frame } from '../shared/types'
 
 const updateFrame = vi.fn(() => Promise.resolve())
 vi.mock('../src/lib/api', () => ({ api: { updateFrame: () => updateFrame() } }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 
 const { useStore } = await import('../src/lib/store')
 const { dropLayer } = await import('../src/lib/layerEdits')

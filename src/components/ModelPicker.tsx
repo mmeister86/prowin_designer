@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { ModelAccountKind } from '../lib/api'
 import { api } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { navigate } from '../App'
 import { cn } from '@/lib/utils'
 import { AgentIcon } from './AgentIcon'
@@ -47,7 +46,6 @@ export function ModelPicker({ disabled = false }: { disabled?: boolean }) {
     setBusy(true)
     try {
       set(await api.setAgentModel(model))
-      posthog.capture('agent_model_changed', { model, via: 'composer' })
     } catch (e) {
       console.error(e)
       refresh()

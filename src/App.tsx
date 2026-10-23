@@ -1,6 +1,6 @@
 import { startLocalAgent } from './lib/localAgent'
 import { navigate } from './lib/navigate'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Home } from './pages/Home'
 import { Community } from './pages/Community'
 import { Settings } from './pages/Settings'
@@ -19,7 +19,6 @@ import { Integrations } from './pages/Integrations'
 import { Workspace } from './pages/Workspace'
 import { authClient } from './lib/auth'
 import { setName } from './lib/identity'
-import { posthog, setSupportWidgetVisible, syncReplayForUser, suspendAnalyticsWhileImpersonating } from './lib/posthog'
 import { useMe } from './lib/me'
 import { adminApi } from './lib/api'
 import { Button } from './components/ui/button'
@@ -35,7 +34,6 @@ export function App() {
   const path = route.split('?')[0]!
   const { data: session, isPending } = authClient.useSession()
   const me = useMe(session?.user.id)
-  const identifiedUserId = useRef<string | null>(null)
 
   useEffect(() => {
     const onPop = () => setRoute(location.pathname + location.search)
@@ -49,9 +47,6 @@ export function App() {
      the page would show its not-found screen. End the impersonation and
      arrive as the admin instead. */
   const canvasId = path.match(/^\/c\/([^/]+)/)?.[1]
-  /* the support chat bubble stays off the editor, where it would cover the
-     zoom bar; every other page keeps it */
-  useEffect(() => setSupportWidgetVisible(!canvasId), [canvasId])
 
   const returningToAdmin = !!me?.impersonating && path.startsWith('/admin')
   useEffect(() => {
@@ -61,35 +56,6 @@ export function App() {
       .then(() => location.assign('/admin'))
       .catch(() => location.assign('/'))
   }, [returningToAdmin])
-
-  /* The session is the auth boundary: this covers both successful login and
-     restoring an existing session after a page refresh. */
-  useEffect(() => {
-    const user = session?.user
-    if (!user) {
-      if (identifiedUserId.current) {
-        posthog.reset()
-        identifiedUserId.current = null
-      }
-      return
-    }
-    /* Wait for /api/me before identifying anyone. Impersonation swaps the
-       session cookie, so `user` here is the person being VIEWED — identifying
-       them would write an admin's support session into that customer's
-       profile and replay timeline. Only /api/me can tell the two apart. */
-    if (!me) return
-    if (me.impersonating) {
-      suspendAnalyticsWhileImpersonating()
-      identifiedUserId.current = null
-      return
-    }
-
-    if (identifiedUserId.current === user.id) return
-    if (identifiedUserId.current) posthog.reset()
-    posthog.identify(user.id, { email: user.email, name: user.name })
-    syncReplayForUser(user.email)
-    identifiedUserId.current = user.id
-  }, [session?.user, me])
 
   /* the account name is the identity shown on cursors and in the feed */
   useEffect(() => {

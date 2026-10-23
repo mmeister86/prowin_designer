@@ -5,20 +5,6 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY . .
 
-# Vite inlines these at build time, so they must be present *here*, not at
-# runtime — without them the bundle ships with analytics silently disabled.
-# Railway matches these ARG names against the service variables and passes
-# them in; Docker exposes them to RUN, which is where vite reads them.
-# The project key is a public, write-only token that ships to every visitor
-# in the JS bundle regardless; it is not a secret.
-# VITE_POSTHOG_HOST is deliberately left unset: the client then defaults to
-# the same-origin /relay proxy, which is what defeats ad blockers. Setting
-# it to a posthog.com host would bypass the relay and resurrect blocking.
-ARG VITE_POSTHOG_KEY
-ARG VITE_POSTHOG_HOST
-# comma-separated email domains whose sessions skip replay (operator accounts)
-ARG VITE_POSTHOG_INTERNAL_DOMAINS
-
 RUN bun run build
 
 # ---- runtime dependencies ----

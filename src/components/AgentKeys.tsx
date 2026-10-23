@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api, errorMessage, type AgentKeyInfo } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { timeAgo } from '../lib/time'
 import { ConfirmDialog } from './ui/alert-dialog'
 import { Button } from './ui/button'
@@ -58,7 +57,6 @@ export function AgentKeys() {
     setError('')
     try {
       const { secret, ...info } = await api.createAgentKey(name)
-      posthog.capture('agent_key_created')
       setName('')
       setMinted({ id: info.id, secret })
       setKeys((current) => [info, ...(current ?? [])])
@@ -72,7 +70,6 @@ export function AgentKeys() {
   async function revoke(key: AgentKeyInfo) {
     try {
       await api.deleteAgentKey(key.id)
-      posthog.capture('agent_key_revoked')
       setKeys((current) => current?.filter((k) => k.id !== key.id) ?? null)
       if (minted?.id === key.id) setMinted(null)
     } catch (e) {

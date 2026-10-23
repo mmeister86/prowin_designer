@@ -40,7 +40,6 @@ import {
 import { clearHistory, redo, undo } from '../lib/history'
 import { deleteSelection, toggleLockSelection, toggleSelectionHidden } from '../lib/layerEdits'
 import { authClient } from '../lib/auth'
-import { posthog } from '../lib/posthog'
 import { useIsMobile } from '../hooks/use-mobile'
 import { cn } from '@/lib/utils'
 import { Button } from '../components/ui/button'
@@ -335,7 +334,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
   const meFace = { name: me.name, color: presences[me.clientId]?.color ?? 'var(--brand)' }
 
   function openConnect() {
-    posthog.capture('agent_connection_opened')
     setShowConnect(true)
   }
 
@@ -687,7 +685,6 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
           onClose={() => useStore.getState().setLimitWall(false)}
           onOpenConnect={() => {
             useStore.getState().setLimitWall(false)
-            posthog.capture('agent_connection_opened')
             setShowConnect(true)
           }}
         />

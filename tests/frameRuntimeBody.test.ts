@@ -5,7 +5,7 @@ import { findBrowserPath, getBrowser } from '../server/screenshot.ts'
 
 type Inspect = { classes: string[]; backgroundColor: string; padding: number[] } | null
 type Message = { type: string; reqId?: string; info?: Inspect }
-/* the replay fixture collects every frame message on window.messages; the
+/* the runtime fixture collects every frame message on window.messages; the
    cast is inlined because puppeteer serialises each callback's source */
 type Fixture = { messages: Message[]; testReady: boolean }
 
@@ -21,13 +21,12 @@ describe.skipIf(!findBrowserPath())('frame runtime body attributes', () => {
   beforeAll(async () => {
     server = await createServer({
       server: { port: 0 },
-      optimizeDeps: { include: ['posthog-js/dist/posthog-recorder', 'posthog-js/dist/rrweb'] },
       logLevel: 'error',
     })
     await server.listen()
     browser = await getBrowser()
     page = await browser.newPage()
-    await page.goto(`${server.resolvedUrls!.local[0]}tests/fixtures/frameReplay.html`)
+    await page.goto(`${server.resolvedUrls!.local[0]}tests/fixtures/frameRuntime.html`)
     await page.waitForFunction(
       () =>
         (window as unknown as Fixture).testReady &&

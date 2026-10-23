@@ -3,14 +3,13 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ navigate: vi.fn(), capture: vi.fn(), native: false, addToDesktop: vi.fn() }))
+const mocks = vi.hoisted(() => ({ navigate: vi.fn(), native: false, addToDesktop: vi.fn() }))
 vi.mock('../src/lib/claudeConnection', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/claudeConnection')>()),
   canAddToClaudeDesktop: () => mocks.native,
   addToClaudeDesktop: mocks.addToDesktop,
 }))
 vi.mock('../src/App', () => ({ navigate: mocks.navigate }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: mocks.capture } }))
 vi.mock('../src/lib/store', () => ({
   useStore: (select: (s: { presences: Record<string, never> }) => unknown) => select({ presences: {} }),
 }))
@@ -62,7 +61,6 @@ it('opens on the agent picker and walks to an agent’s own steps and back', asy
 
   await pickCard('Codex')
   await click('Connect')
-  expect(mocks.capture).toHaveBeenCalledWith('connect_ai_agent_chosen', { agent: 'codex' })
   expect(text()).toContain('Connect Codex')
   expect(text()).toContain(`codex mcp add doop --url ${location.origin}/mcp`)
   expect(text()).toContain('Work on Doop canvas c1.')

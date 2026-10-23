@@ -159,12 +159,6 @@ const schema = {
   CHROME_PATH: str({ default: undefined }),
   CHROME_NO_SANDBOX: bool({ default: false }),
 
-  /* ------------------------------------------------------ analytics */
-  POSTHOG_KEY: str({ default: undefined }),
-  VITE_POSTHOG_KEY: str({ default: undefined }),
-  POSTHOG_INGEST_HOST: origin({ default: 'https://us.i.posthog.com' }),
-  POSTHOG_ASSETS_HOST: origin({ default: 'https://us-assets.i.posthog.com' }),
-
   /* ---------------------------------------------------- backgrounds */
   BACKGROUNDS_ORIGIN: origin({ default: undefined }),
 

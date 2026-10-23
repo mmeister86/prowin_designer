@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { api } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { navigate } from '../App'
 import { Logo } from './Logo'
 import { XIcon } from './ui/icons'
@@ -36,7 +35,6 @@ export function DesktopTabs({ path }: { path: string }) {
 
   async function newCanvas() {
     const canvas = await api.createCanvas('Untitled canvas')
-    posthog.capture('canvas_created')
     openCanvasTab(canvas.id, canvas.name)
   }
 

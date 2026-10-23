@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../lib/api'
 import type { Allowance } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { useStore } from '../lib/store'
 import { navigate } from '../App'
 import { Button } from './ui/button'
@@ -98,9 +97,6 @@ export function LimitWall({
      everywhere else (the default, limit 0) this wall IS the getting-started
      step — while the allowance loads, assume the no-free-tier common case */
   const hadFreeTier = allowance != null && allowance.limit > 0
-  useEffect(() => {
-    posthog.capture('resident_limit_hit')
-  }, [])
   return (
     <Modal size="lg" onClose={onClose}>
       <>
@@ -126,7 +122,6 @@ export function LimitWall({
           <Button
             variant="primary"
             onClick={() => {
-              posthog.capture('resident_limit_connect_clicked')
               /* carry the canvas so Settings can send them straight back */
               navigate(`/settings?from=${encodeURIComponent(`/c/${canvasId}`)}`)
             }}

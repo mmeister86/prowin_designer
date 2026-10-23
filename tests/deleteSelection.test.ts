@@ -7,7 +7,6 @@ const deleteFrame = vi.fn(() => Promise.resolve())
 vi.mock('../src/lib/api', () => ({
   api: { updateFrame: () => updateFrame(), deleteFrame: () => deleteFrame() },
 }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 
 const { useStore } = await import('../src/lib/store')
 const { deleteSelection } = await import('../src/lib/layerEdits')

@@ -7,7 +7,6 @@ import { Button } from './ui/button'
 import { Tooltip } from './ui/tooltip'
 import { BookOpenIcon, CommentIcon, GearIcon, HelpIcon, PulseIcon, SlidersIcon, SparkIcon } from './ui/icons'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu'
-import { openSupportChat } from '../lib/posthog'
 import { PresenceFace } from './PeerAvatars'
 
 const islandBtn = 'relative size-7 rounded-[8px] text-ink-soft hover:bg-paper-deep hover:text-ink disabled:opacity-35'
@@ -19,7 +18,7 @@ const island =
  *  button per tab of the Agents panel (agents, comments, activity, memory),
  *  each opening the panel on that tab, with a live dot while an agent works or
  *  a message waits. Open panels close from their own header. The bottom
- *  island holds Settings, Help (docs, support chat) and you. */
+ *  island holds Settings, Help (docs) and you. */
 export function SideRail({
   style,
   agentsOpen,
@@ -82,9 +81,6 @@ export function SideRail({
               <a href="/docs" target="_blank" rel="noopener noreferrer">
                 <BookOpenIcon /> Docs
               </a>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => openSupportChat()}>
-              <CommentIcon /> Contact support
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

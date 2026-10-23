@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { authClient } from '../lib/auth'
 import { api } from '../lib/api'
 import type { NotificationSettings } from '../../shared/notifications'
-import { posthog } from '../lib/posthog'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Badge } from './ui/badge'
@@ -53,7 +52,6 @@ export function AccountSettings() {
     const { error } = await authClient.updateUser({ name: name.trim() })
     setSavingName(false)
     if (error) return setNameError(error.message || 'That name could not be saved')
-    posthog.capture('account_name_changed')
     setDraft(null)
     setNameNote('Saved — agents pick it up within a minute')
   }
@@ -71,7 +69,6 @@ export function AccountSettings() {
     })
     setSavingPw(false)
     if (error) return setPwError(error.message || 'That password could not be changed')
-    posthog.capture('account_password_changed')
     setCurrent('')
     setNext('')
     setPwNote('Password updated — every other session was signed out')
@@ -84,7 +81,6 @@ export function AccountSettings() {
     setNotifyError('')
     try {
       setNotify(await api.setNotificationPrefs({ commentEmails: on }))
-      posthog.capture('comment_emails_toggled', { on })
     } catch {
       setNotifyError('That could not be saved — try again')
       refreshNotify()

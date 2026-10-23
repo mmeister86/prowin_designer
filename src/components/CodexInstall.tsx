@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { addToCodex, canAddToCodex, codexDesktopLink } from '../lib/codexConnection'
 import { isDesktopShell } from '../lib/shell'
-import { posthog } from '../lib/posthog'
 import { Button } from './ui/button'
 import { CodeBlock } from './ui/code-block'
 import { InstallBlock } from './ui/install-block'
@@ -16,7 +15,6 @@ export function CodexInstall({ mcpUrl, canvasId }: { mcpUrl: string; canvasId?: 
     try {
       await addToCodex()
       setState('added')
-      posthog.capture('codex_connection_configured')
     } catch (err) {
       setState('idle')
       setError(err instanceof Error ? err.message : String(err))
@@ -56,12 +54,7 @@ export function CodexInstall({ mcpUrl, canvasId }: { mcpUrl: string; canvasId?: 
     <InstallBlock
       action={
         <Button asChild variant="solid">
-          <a
-            href={codexDesktopLink(new URL(mcpUrl).origin, canvasId)}
-            onClick={() => posthog.capture('codex_desktop_setup_opened')}
-          >
-            Open Doop Desktop
-          </a>
+          <a href={codexDesktopLink(new URL(mcpUrl).origin, canvasId)}>Open Doop Desktop</a>
         </Button>
       }
       status="Requires the updated Doop desktop app. Click Add to Codex there to finish setup. If the app doesn’t open, use the manual setup below."

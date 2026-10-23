@@ -20,7 +20,6 @@ import { FrameContextMenu } from './FrameContextMenu'
 import { CodePanel } from './CodePanel'
 import { ContextMenu, ContextMenuTrigger } from './ui/context-menu'
 import { DEFAULT_ROLE_ID } from '../../shared/agents'
-import { posthog } from '../lib/posthog'
 import { isResidentLimit } from './TeamAllowance'
 import { CommentComposer, CommentPin, CommentThread } from './CommentPopovers'
 import { cn } from '@/lib/utils'
@@ -295,7 +294,6 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
           api
             .createFrame(src.canvasId, { name: src.name, html: src.html, ...g.orig })
             .then((f) => {
-              posthog.capture('frame_duplicated', { via: 'drag' })
               recordCreate(f)
             })
             .catch(console.error)
@@ -1007,21 +1005,15 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
                       <CommentThread
                         thread={thread}
                         onReply={(text) =>
-                          api
-                            .replyComment(c.id, text)
-                            .then(() => posthog.capture('element_comment_replied'))
-                            .catch((err) => {
-                              /* the wall explains a hit limit; anything else
+                          api.replyComment(c.id, text).catch((err) => {
+                            /* the wall explains a hit limit; anything else
                                  surfaces in the thread so the draft survives */
-                              if (isResidentLimit(err)) useStore.getState().setLimitWall(true)
-                              throw err
-                            })
+                            if (isResidentLimit(err)) useStore.getState().setLimitWall(true)
+                            throw err
+                          })
                         }
                         onResolve={() => {
-                          api
-                            .resolveComment(c.id)
-                            .then(() => posthog.capture('element_comment_resolved'))
-                            .catch(console.error)
+                          api.resolveComment(c.id).catch(console.error)
                           setOpenThread(null)
                         }}
                         onRetry={(id) =>
@@ -1099,7 +1091,6 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
                         onSubmit={(text) => {
                           api
                             .addComment(frame.id, { selector: anchor.selector, snippet: anchor.snippet, text })
-                            .then(() => posthog.capture('element_comment_created'))
                             .catch((err) => {
                               /* an @mention past the free tier raises the wall */
                               if (isResidentLimit(err)) useStore.getState().setLimitWall(true)

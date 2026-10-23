@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { addToClaudeDesktop, canAddToClaudeDesktop } from '../lib/claudeConnection'
-import { posthog } from '../lib/posthog'
 import { Button } from './ui/button'
 import { InstallBlock } from './ui/install-block'
 
@@ -14,7 +13,6 @@ export function ClaudeDesktopInstall({ mcpUrl }: { mcpUrl: string }) {
     try {
       await addToClaudeDesktop(mcpUrl)
       setState('opened')
-      posthog.capture('claude_extension_opened')
     } catch (err) {
       setState('idle')
       setError(err instanceof Error ? err.message : String(err))

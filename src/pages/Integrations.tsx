@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { CanvasMeta } from '../../shared/types'
 import type { Automation } from '../../shared/automations'
 import { api, type IntegrationsStatus } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { MetaTile } from '../components/AutomateShell'
 import { AppRail, railLayout } from '../components/AppRail'
 import { clientIntegrations } from '../integrations'
@@ -65,24 +64,12 @@ export function Integrations() {
     setBusy(true)
     try {
       const { url } = await api.startMetaConnect()
-      posthog.capture('integration_connect_started', { provider: 'meta' })
       location.assign(url)
     } catch (error) {
       console.error(error)
       showToast('Couldn’t start the Meta connection')
       setBusy(false)
     }
-  }
-
-  function requestDisconnect(target: Disconnectable, provider: string) {
-    setConfirmDisconnect({
-      ...target,
-      disconnect: async () => {
-        const fresh = await target.disconnect()
-        posthog.capture('integration_disconnected', { provider })
-        return fresh
-      },
-    })
   }
 
   async function runDisconnect(target: Disconnectable) {
@@ -134,14 +121,11 @@ export function Integrations() {
                     setStatus={setStatus}
                     showToast={showToast}
                     requestDisconnect={() =>
-                      requestDisconnect(
-                        {
-                          name: integration.name,
-                          copy: integration.disconnectCopy,
-                          disconnect: integration.disconnect,
-                        },
-                        integration.id,
-                      )
+                      setConfirmDisconnect({
+                        name: integration.name,
+                        copy: integration.disconnectCopy,
+                        disconnect: integration.disconnect,
+                      })
                     }
                   />
                 ))}
@@ -178,14 +162,11 @@ export function Integrations() {
                         <DisconnectButton
                           disabled={busy}
                           onClick={() =>
-                            requestDisconnect(
-                              {
-                                name: 'Meta',
-                                copy: 'Automations that pull from Meta will fail until you connect again. Frames already on your canvases stay.',
-                                disconnect: api.disconnectMeta,
-                              },
-                              'meta',
-                            )
+                            setConfirmDisconnect({
+                              name: 'Meta',
+                              copy: 'Automations that pull from Meta will fail until you connect again. Frames already on your canvases stay.',
+                              disconnect: api.disconnectMeta,
+                            })
                           }
                         />
                       </>

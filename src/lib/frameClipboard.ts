@@ -1,7 +1,6 @@
 import type { Frame } from '../../shared/types'
 import { api } from './api'
 import { useStore } from './store'
-import { posthog } from './posthog'
 import { recordCreate, recordCreates } from './history'
 
 /** Same-origin frame clipboard: survives canvas switches and browser tabs. */
@@ -95,9 +94,7 @@ function createFromClip(canvasId: string, x: number, y: number) {
         y: Math.round(y + f.y),
       },
     })),
-  ).then((created) => {
-    if (created.length) posthog.capture('frame_pasted', { count: created.length })
-  })
+  )
 }
 
 /** Paste with the group's top-left at a screen point (e.g. a right-click). */
@@ -208,7 +205,6 @@ export async function uploadImageFrames(
 
 export async function pasteImagesCentered(canvasId: string, files: File[]) {
   const frames = await uploadImageFrames(canvasId, files)
-  posthog.capture('image_pasted', { count: frames.length })
   frames.forEach(recordCreate)
   const last = frames[frames.length - 1]
   if (last) useStore.getState().select(last.id)
@@ -230,9 +226,7 @@ export function duplicateFrames(frames: Frame[]) {
         height: frame.height,
       },
     })),
-  ).then((created) => {
-    if (created.length) posthog.capture('frame_duplicated', { count: created.length })
-  })
+  )
 }
 
 export function duplicateFrame(frame: Frame) {

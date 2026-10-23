@@ -46,7 +46,6 @@ export default defineConfig({
       '/i/': { target: api },
       '/a/': { target: api },
       '/u/': { target: api },
-      '/relay': { target: api },
       '/blog': { target: api },
       '/robots.txt': { target: api },
       '/sitemap.xml': { target: api },

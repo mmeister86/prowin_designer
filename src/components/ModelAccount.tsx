@@ -9,7 +9,6 @@ import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { api } from '../lib/api'
 import type { AgentModelOption, DeviceFlow, ModelAccountKind, ModelAccountStatus } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { useStore } from '../lib/store'
 import { CodeBlock } from './ui/code-block'
 import { Button } from './ui/button'
@@ -200,11 +199,9 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
         setAuthUrl(url)
         setWaiting(true)
         window.open(url, '_blank', 'noopener')
-        posthog.capture('chatgpt_connect_started', { flow: 'loopback' })
         return
       }
       setDevice(await api.startDeviceAuth())
-      posthog.capture('chatgpt_connect_started', { flow: 'device' })
     } catch (e) {
       fail(e)
     } finally {
@@ -241,7 +238,6 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
     try {
       const next = await api.connectChatgpt(redirect)
       await activateChatgpt(next)
-      posthog.capture('chatgpt_connected')
     } catch (e) {
       fail(e)
     } finally {
@@ -264,7 +260,6 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
       const next = await connect(apiKey)
       if (account?.kind !== showKey) await selectServer()
       settle(next)
-      posthog.capture('model_account_connected', { kind: showKey || 'openai-key' })
     } catch (e) {
       fail(e)
     } finally {
@@ -277,7 +272,6 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
     setError('')
     try {
       set(await api.setAgentModel(model))
-      posthog.capture('agent_model_changed', { model })
     } catch (e) {
       fail(e)
       refresh()
@@ -290,7 +284,6 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
     setBusy(true)
     try {
       settle(await api.disconnectModelAccount())
-      posthog.capture('model_account_disconnected')
     } catch (e) {
       fail(e)
       refresh()

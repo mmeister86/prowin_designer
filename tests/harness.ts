@@ -91,11 +91,6 @@ async function boot(env: Record<string, string>, reuseDir: string | undefined, t
           /* always the embedded PGlite in dataDir, never a DATABASE_URL
              exported in the developer's shell */
           DATABASE_URL: '',
-          /* never the live PostHog project: a key in a developer's shell or
-             .env would turn every test signup into an account_created event,
-             and the lifecycle-email workflows act on those */
-          POSTHOG_KEY: '',
-          VITE_POSTHOG_KEY: '',
           ...env,
         },
         stdio: ['ignore', 'pipe', 'ignore'],

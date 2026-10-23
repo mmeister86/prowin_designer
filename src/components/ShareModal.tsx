@@ -10,7 +10,6 @@ import type { WorkspaceSummary } from '../../shared/types'
 import { api, ApiError, paywalledWorkspace, type CanvasMember } from '../lib/api'
 import { PERSONAL_WORKSPACE, UpgradeModal } from './WorkspaceModals'
 import { authClient } from '../lib/auth'
-import { posthog } from '../lib/posthog'
 import { Avatar } from './ui/avatar'
 import { Button } from './ui/button'
 import { Checkbox } from './ui/checkbox'
@@ -79,7 +78,6 @@ export function ShareModal({
     setError(null)
     try {
       await api.moveCanvas(canvas.id, workspaceId)
-      posthog.capture('canvas_moved', { into: !!workspaceId })
       onChange({ workspaceId: workspaceId ?? undefined })
     } catch (caught) {
       const walled = paywalledWorkspace(caught)
@@ -147,7 +145,6 @@ export function ShareModal({
     setError(null)
     try {
       await navigator.clipboard.writeText(`${location.origin}/c/${canvas.id}`)
-      posthog.capture('canvas_link_shared')
       onCopied()
     } catch {
       setError('Couldn’t copy the link. Copy the URL from your browser instead.')
@@ -316,11 +313,9 @@ function CommunityListing({
     try {
       if (next) {
         const listing = await api.publishCanvas(canvas.id, { description: description.trim(), category })
-        if (!published) posthog.capture('canvas_published')
         onChange(listing)
       } else {
         await api.unpublishCanvas(canvas.id)
-        posthog.capture('canvas_unpublished')
         onChange({ publishedAt: undefined, description: undefined, category: undefined })
       }
     } catch (caught) {

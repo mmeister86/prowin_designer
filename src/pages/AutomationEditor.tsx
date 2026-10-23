@@ -19,7 +19,6 @@ import {
 } from '../../shared/automations'
 import { api, ApiError, type IntegrationsStatus } from '../lib/api'
 import { navigate } from '../App'
-import { posthog } from '../lib/posthog'
 import { FrameThumb } from '../components/FramePreview'
 import { BarDivider, TopBar, TopBarHome, TopBarTitle, barGhostBtn, barPrimaryBtn } from '../components/TopBar'
 import { ClockTile, MetaTile, RunDot, StepChain, formatRunTime } from '../components/AutomateShell'
@@ -240,7 +239,6 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
       const saved = await api.updateAutomation(automation.id, draft)
       setAutomation(saved)
       setDraft(draftOf(saved))
-      posthog.capture('automation_saved', { steps: saved.steps.length })
       return saved
     } catch (err) {
       showToast(err instanceof ApiError && typeof err.body.error === 'string' ? err.body.error : 'Couldn’t save')
@@ -295,7 +293,6 @@ export function AutomationEditor({ automationId }: { automationId: string }) {
     setRunningNow(true)
     try {
       const run = await api.runAutomation(saved.id)
-      posthog.capture('automation_run_now', { status: run.status })
       setAutomation({ ...saved, lastRun: run })
     } catch (err) {
       showToast(err instanceof ApiError && typeof err.body.error === 'string' ? err.body.error : 'Couldn’t run')

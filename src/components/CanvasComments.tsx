@@ -7,7 +7,6 @@ import { useStore } from '../lib/store'
 import { api } from '../lib/api'
 import { getIdentity } from '../lib/identity'
 import type { ComposerPlacement } from '../lib/composerPlacement'
-import { posthog } from '../lib/posthog'
 import { isResidentLimit } from './TeamAllowance'
 import { CommentComposer, CommentPin, CommentThread } from './CommentPopovers'
 import { cn } from '@/lib/utils'
@@ -104,10 +103,7 @@ export function CanvasComments({
 
   function post(text: string) {
     if (!canvasId || !pageId || !composeAt) return
-    api
-      .addCanvasComment(canvasId, { pageId, x: composeAt.x, y: composeAt.y, text })
-      .then(() => posthog.capture('canvas_comment_created'))
-      .catch(reportLimit)
+    api.addCanvasComment(canvasId, { pageId, x: composeAt.x, y: composeAt.y, text }).catch(reportLimit)
     onComposeDone()
   }
 
@@ -134,21 +130,15 @@ export function CanvasComments({
             <CommentThread
               thread={thread}
               onReply={(text) =>
-                api
-                  .replyComment(c.id, text)
-                  .then(() => posthog.capture('element_comment_replied'))
-                  .catch((err) => {
-                    /* the wall explains a hit limit; anything else surfaces
+                api.replyComment(c.id, text).catch((err) => {
+                  /* the wall explains a hit limit; anything else surfaces
                        in the thread so the draft survives */
-                    if (isResidentLimit(err)) useStore.getState().setLimitWall(true)
-                    throw err
-                  })
+                  if (isResidentLimit(err)) useStore.getState().setLimitWall(true)
+                  throw err
+                })
               }
               onResolve={() => {
-                api
-                  .resolveComment(c.id)
-                  .then(() => posthog.capture('element_comment_resolved'))
-                  .catch(console.error)
+                api.resolveComment(c.id).catch(console.error)
                 setOpenThread(null)
               }}
               onRetry={(id) => api.retryComment(id).catch(reportLimit)}

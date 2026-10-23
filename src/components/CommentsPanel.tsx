@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { colorFor } from '../../shared/types'
 import { useStore } from '../lib/store'
 import { api } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { timeAgo } from '../lib/time'
 import { isComposingEnter } from '../lib/keys'
 import { isCanvasComment } from '../../shared/comments'
@@ -127,7 +126,6 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
     setFailed(false)
     try {
       await api.replyComment(root.id, text)
-      posthog.capture('element_comment_replied')
       setDraft((current) => (current === draft ? '' : current))
     } catch (err) {
       setFailed(true)
@@ -138,10 +136,7 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
   }
 
   function resolve() {
-    api
-      .resolveComment(root.id)
-      .then(() => posthog.capture('element_comment_resolved'))
-      .catch(reportLimit)
+    api.resolveComment(root.id).catch(reportLimit)
   }
 
   return (

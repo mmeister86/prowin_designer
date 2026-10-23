@@ -1,7 +1,6 @@
 import type { Frame } from '../../shared/types'
 import { api } from './api'
 import { useStore } from './store'
-import { posthog } from './posthog'
 import { recordCreate } from './history'
 
 /**
@@ -66,7 +65,6 @@ export async function createCenteredFrame(canvasId: string, name: string, html: 
     pageId: useStore.getState().activePageId ?? undefined,
     ...DEFAULT_FRAME_SIZE,
   })
-  posthog.capture('frame_created')
   recordCreate(frame)
   return frame
 }

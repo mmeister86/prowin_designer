@@ -1,12 +1,11 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Frame } from '../shared/types'
 import { FrameContextMenu } from '../src/components/FrameContextMenu'
 import { ContextMenu, ContextMenuTrigger } from '../src/components/ui/context-menu'
 
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const frame: Frame = {

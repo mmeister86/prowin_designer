@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { authClient } from '../lib/auth'
 import { navigate } from '../App'
-import { posthog } from '../lib/posthog'
 import { useMe } from '../lib/me'
 import { isDesktopShell } from '../lib/shell'
 import { isTheme, useTheme } from '../lib/theme'
@@ -112,7 +111,6 @@ export function AccountMenu({
           tone="danger"
           onSelect={() =>
             authClient.signOut().then(() => {
-              posthog.reset()
               /* the shell has no marketing site: a signed-out reload of /
                  would show the landing page, so it goes to the sign-in form
                  the shell opens on (main.rs) */

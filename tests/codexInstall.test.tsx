@@ -3,9 +3,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ navigate: vi.fn(), capture: vi.fn(), invoke: vi.fn() }))
+const mocks = vi.hoisted(() => ({ navigate: vi.fn(), invoke: vi.fn() }))
 vi.mock('../src/App', () => ({ navigate: mocks.navigate }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: mocks.capture } }))
 vi.mock('../src/lib/store', () => ({
   useStore: (select: (s: { presences: Record<string, never> }) => unknown) => select({ presences: {} }),
 }))

@@ -16,7 +16,6 @@ const api = {
   deleteFrame: vi.fn(async () => ({})),
 }
 vi.mock('../src/lib/api', () => ({ api }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 
 /* the module keeps the clip in localStorage, which the node test runtime
    lacks; a tiny in-memory stand-in is all it needs */

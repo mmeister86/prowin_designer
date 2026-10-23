@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { api, errorMessage } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { timeAgo } from '../lib/time'
 import { WEBHOOK_EVENTS, WEBHOOK_EVENT_LABELS, type WebhookEventType, type WebhookInfo } from '../../shared/webhooks'
 import { ConfirmDialog } from './ui/alert-dialog'
@@ -92,7 +91,6 @@ export function Webhooks() {
     setError('')
     try {
       const { secret: fresh, ...info } = await api.createWebhook({ url: url.trim(), events })
-      posthog.capture('webhook_created', { events })
       setUrl('')
       setSecret({ id: info.id, secret: fresh })
       setHooks((current) => [info, ...(current ?? [])])
@@ -143,7 +141,6 @@ export function Webhooks() {
       hook,
       async () => {
         const { secret: fresh } = await api.rotateWebhookSecret(hook.id)
-        posthog.capture('webhook_secret_rotated')
         setSecret({ id: hook.id, secret: fresh })
       },
       'The secret could not be rotated',
@@ -154,7 +151,6 @@ export function Webhooks() {
       hook,
       async () => {
         await api.deleteWebhook(hook.id)
-        posthog.capture('webhook_deleted')
         setHooks((current) => current?.filter((h) => h.id !== hook.id) ?? null)
         if (secret?.id === hook.id) setSecret(null)
       },

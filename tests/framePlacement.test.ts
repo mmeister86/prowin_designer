@@ -4,7 +4,7 @@ import type { Canvas, Frame } from '../shared/types'
 /* createCenteredFrame creates through the API and records for undo - stub the
    network and analytics the same way frameClipboard.test.ts does for the
    ⌘V/right-click paste paths, so the Stage-bounds and viewport wiring can be
-   exercised without a real server or PostHog. */
+   exercised without a real server. */
 let nextId = 0
 const api = {
   createFrame: vi.fn(async (canvasId: string, rest: Partial<Frame>) => ({
@@ -16,7 +16,6 @@ const api = {
   deleteFrame: vi.fn(async () => ({})),
 }
 vi.mock('../src/lib/api', () => ({ api }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 
 function frame(id: string, x = 0, y = 0, width = 100, height = 100): Frame {
   return { id, canvasId: 'c1', name: id, html: `<p>${id}</p>`, x, y, width, height } as Frame

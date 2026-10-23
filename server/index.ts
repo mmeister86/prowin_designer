@@ -257,63 +257,6 @@ app.set('trust proxy', 1)
 app.get('/healthz', (_req, res) => res.json({ ok: true }))
 
 /* ------------------------------------------------------------------ */
-/* PostHog relay: the client sends analytics + session-replay traffic  */
-/* to this origin (/relay/...) and we forward it, so ad blockers that  */
-/* match PostHog's domains never see a request to block. Mounted       */
-/* before express.json — replay payloads are compressed binary and     */
-/* must pass through untouched. Cookies are stripped: our auth session */
-/* must not leak to a third party.                                     */
-/* ------------------------------------------------------------------ */
-
-const PH_INGEST = env.POSTHOG_INGEST_HOST
-const PH_ASSETS = env.POSTHOG_ASSETS_HOST
-const PH_DROP_HEADERS = new Set(['host', 'connection', 'cookie', 'content-length', 'accept-encoding'])
-
-app.use('/relay', async (req, res) => {
-  /* /static/* is PostHog's CDN (lazy bundles, toolbar); everything else
-     (/e, /s, /flags, /array) is the ingestion API */
-  const upstream = req.url.startsWith('/static/') ? PH_ASSETS : PH_INGEST
-
-  const headers: Record<string, string> = {}
-  for (const [k, v] of Object.entries(req.headers)) {
-    if (typeof v === 'string' && !PH_DROP_HEADERS.has(k)) headers[k] = v
-  }
-  /* keep the incoming XFF chain — its first entry is the real client IP
-     and PostHog geolocates from it. Overwriting with req.ip would send
-     Railway's edge-PoP address instead (trust proxy only strips one hop).
-     Fall back to req.ip when there is no chain (local dev). */
-  if (!headers['x-forwarded-for'] && req.ip) headers['x-forwarded-for'] = req.ip
-
-  try {
-    /* the body read must sit inside the try: navigating away mid-upload
-       aborts big session-replay POSTs, which rejects this stream — left
-       uncaught, that single abort would take down the whole process */
-    const chunks: Buffer[] = []
-    for await (const chunk of req) chunks.push(chunk as Buffer)
-    const body = Buffer.concat(chunks)
-
-    const r = await fetch(upstream + req.url, {
-      method: req.method,
-      headers,
-      body: body.length ? body : undefined,
-      signal: AbortSignal.timeout(15_000),
-    })
-    /* accept-encoding was stripped, so the body is identity — but drop
-       length/encoding headers anyway and let Express size the response */
-    res.status(r.status)
-    r.headers.forEach((v, k) => {
-      if (k !== 'content-length' && k !== 'content-encoding' && k !== 'transfer-encoding' && k !== 'connection')
-        res.set(k, v)
-    })
-    res.send(Buffer.from(await r.arrayBuffer()))
-  } catch {
-    /* analytics must never surface errors to the app */
-    if (!res.headersSent) res.status(502)
-    res.end()
-  }
-})
-
-/* ------------------------------------------------------------------ */
 /* Public frame images: /i/<frameId>.png|jpg — shareable/hotlinkable   */
 /* (og:image etc). Unauthenticated by the same unguessable-id logic as */
 /* canvas share links; renders the CURRENT frame, so embedded images   */

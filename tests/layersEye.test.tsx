@@ -9,7 +9,6 @@ vi.mock('../src/lib/api', () => ({
   api: { updateFrame: (id: string, patch: Partial<Frame>) => updateFrame(id, patch) },
   errorMessage: (_err: unknown, fallback: string) => fallback,
 }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 
 const { useStore } = await import('../src/lib/store')
 const { LayersPanel } = await import('../src/components/LayersPanel')

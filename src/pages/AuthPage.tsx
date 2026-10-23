@@ -8,7 +8,6 @@ import { safeRelativeTarget } from '../lib/safeTarget'
 import { CODEX_SETUP_PATH } from '../lib/codexConnection'
 import { FIRST_CANVAS_PATH } from '../../shared/firstCanvas'
 import { isDesktopShell } from '../lib/shell'
-import { posthog } from '../lib/posthog'
 import { AuthCard, AuthCardText, AuthScreen } from '../components/ui/screen'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -286,7 +285,6 @@ export function AuthPage() {
         } else if (mode === 'signin' && !(await accountExists(email))) {
           setError('No account found for this email.')
           setSuggestMode('signup')
-          posthog.capture('login_no_account_found')
         } else if (mode === 'signup' && res.error.code?.startsWith('USER_ALREADY_EXISTS')) {
           setError('An account with this email already exists.')
           setSuggestMode('signin')
@@ -297,11 +295,9 @@ export function AuthPage() {
         /* signup with verification required: the account exists but there is
            no session yet — better-auth returns a null token in that case */
         if (mode === 'signup' && !res.data.token) {
-          posthog.capture('account_signed_up')
           setNotice(`Almost there — we sent a verification link to ${email}. Open it to activate your account.`)
           return
         }
-        posthog.capture(mode === 'signup' ? 'account_signed_up' : 'account_signed_in')
         setName(res.data.user.name) // keep cursor/feed identity in sync with the account
         /* land new users on their auto-created first canvas, where the
            demo agent is waiting to perform */

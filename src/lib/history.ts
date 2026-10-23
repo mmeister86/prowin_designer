@@ -2,7 +2,6 @@ import { applyPageChanges, canvasPages, samePages } from '../../shared/pages'
 import type { CanvasPageInfo, Frame } from '../../shared/types'
 import { api } from './api'
 import { useStore } from './store'
-import { posthog } from './posthog'
 
 /** Local undo/redo for this client's own frame edits. Undo re-issues the
  *  inverse through the normal API, so every collaborator sees it live —
@@ -393,7 +392,6 @@ async function step(direction: 'undo' | 'redo') {
       to.push(applied)
       const ids = selectionIds(applied, direction)
       if (ids.length) useStore.getState().selectMany(ids)
-      posthog.capture(direction === 'undo' ? 'canvas_undo' : 'canvas_redo')
     }
   } catch (err) {
     /* a page change that did not land stays on its stack for another try */

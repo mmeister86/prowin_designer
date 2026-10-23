@@ -4,7 +4,6 @@ import { formatUsd, STATUS_LABELS, TEAM_SEAT_PRICE } from '../../shared/billing'
 import { navigate } from '../App'
 import { api, errorMessage, paywalledWorkspace } from '../lib/api'
 import { authClient } from '../lib/auth'
-import { posthog } from '../lib/posthog'
 import { AppRail, railLayout } from '../components/AppRail'
 import { UpgradeModal } from '../components/WorkspaceModals'
 import { Avatar } from '../components/ui/avatar'
@@ -78,7 +77,6 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
         .syncWorkspaceBilling(workspaceId, landing.sessionId)
         .then((summary) => {
           if (summary.active && summary.plan) {
-            posthog.capture('workspace_plan_activated', { workspaceId, interval: summary.interval })
             showToast('Team plan is active — welcome aboard')
           }
         })
@@ -275,7 +273,6 @@ function MembersPane({
     setBusy(true)
     try {
       const result = await api.inviteToWorkspace(ws.id, clean, role)
-      posthog.capture('workspace_member_invited', { pending: 'invite' in result })
       if ('member' in result) onToast(`${result.member.name} is in`)
       else onToast(result.emailed ? `Invite emailed to ${clean}` : `${clean} joins when they sign up with that email`)
       setEmail('')
@@ -463,7 +460,6 @@ function BillingPane({
     if (busy) return
     setBusy(true)
     try {
-      posthog.capture('workspace_portal_opened')
       const { url } = await api.workspacePortal(ws.id)
       location.assign(url)
     } catch (caught) {
@@ -603,7 +599,6 @@ function GeneralPane({
     setBusy(true)
     try {
       await api.deleteWorkspace(ws.id)
-      posthog.capture('workspace_deleted')
       navigate('/')
     } catch (caught) {
       onToast(errorMessage(caught, 'Couldn’t delete the workspace'))

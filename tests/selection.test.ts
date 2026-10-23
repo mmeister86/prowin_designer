@@ -9,7 +9,6 @@ const api = {
   createFrame: vi.fn(async (_canvasId: string, rest: Partial<Frame>) => ({ ...frame('new'), ...rest, id: 'new' })),
 }
 vi.mock('../src/lib/api', () => ({ api }))
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 
 const { useStore } = await import('../src/lib/store')
 const history = await import('../src/lib/history')

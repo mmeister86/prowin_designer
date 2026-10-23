@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useStore, type ComposerSend } from '../lib/store'
 import { api, type Allowance } from '../lib/api'
-import { posthog } from '../lib/posthog'
 import { uploadImageFrames } from '../lib/frameClipboard'
 import { isResidentLimit, meterText, useAllowance } from './TeamAllowance'
 import { Button } from './ui/button'
@@ -141,10 +140,6 @@ async function sendPrompt(args: {
       refFrames.map((f) => f.id),
       scope,
     )
-    posthog.capture('prompt_bar_submitted', {
-      attachments: refFrames.length,
-      scope: scope ? (scope.selector ? 'element' : 'frame') : 'none',
-    })
     flyToNextFrame(
       canvasId,
       refFrames.map((f) => f.id),

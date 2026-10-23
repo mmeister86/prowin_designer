@@ -11,7 +11,6 @@ import { navigate } from '../App'
 import { timeAgo } from '../lib/time'
 import { AppRail, railLayout } from '../components/AppRail'
 import { FramePreview } from '../components/FramePreview'
-import { posthog } from '../lib/posthog'
 import { openCanvasTab } from '../lib/desktop'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
@@ -46,7 +45,6 @@ export function Community() {
 
   useEffect(() => {
     api.listCommunity().then(setItems).catch(console.error)
-    posthog.capture('community_viewed')
   }, [])
 
   useEffect(() => {
@@ -68,7 +66,6 @@ export function Community() {
     setCopyingId(item.id)
     try {
       const canvas = await api.copyCommunityCanvas(item.id)
-      posthog.capture('community_canvas_copied', { source: item.id, category: item.category })
       /* the count went up server-side; reflect it without a refetch */
       setItems((list) => list?.map((i) => (i.id === item.id ? { ...i, copyCount: i.copyCount + 1 } : i)) ?? null)
       setOpen(null)

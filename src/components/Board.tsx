@@ -12,7 +12,6 @@ import {
   roleName,
 } from '../../shared/agents'
 import type { AgentTask } from '../../shared/types'
-import { posthog } from '../lib/posthog'
 import { MeterLine, isResidentLimit, useAllowance } from './TeamAllowance'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
@@ -192,7 +191,6 @@ export function Board({ canvasId }: { canvasId: string }) {
     if (!title) return
     try {
       await api.addCard(canvasId, title, pipeline)
-      posthog.capture('agent_task_queued', { pipeline_length: pipeline.length })
     } catch (err) {
       if (isResidentLimit(err)) useStore.getState().setLimitWall(true)
       else console.error(err)

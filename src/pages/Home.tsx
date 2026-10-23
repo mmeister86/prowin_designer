@@ -15,7 +15,6 @@ import { FramePreview, FrameThumb } from '../components/FramePreview'
 import { HomeHero } from '../components/HomeHero'
 import { ShareModal } from '../components/ShareModal'
 import { CreateWorkspaceModal, MoveCanvasModal, UpgradeModal } from '../components/WorkspaceModals'
-import { posthog } from '../lib/posthog'
 import { closeTab, openCanvasTab, pruneTabs } from '../lib/desktop'
 import { AvatarStack } from '../components/ui/avatar'
 import { EmptyState } from '../components/ui/empty-state'
@@ -120,7 +119,6 @@ export function Home() {
     const workspaceId = workspaceOf(scope)
     try {
       const canvas = await api.createCanvas('Untitled canvas', workspaceId)
-      posthog.capture('canvas_created', { workspace: !!workspaceId })
       open(canvas.id, canvas.name)
     } catch (error) {
       const walled = paywalledWorkspace(error)
@@ -141,7 +139,6 @@ export function Home() {
       const canvas = await api.createCanvas(canvasNameFromPrompt(text), workspaceId)
       try {
         await api.addCard(canvas.id, draftsCardTitle(text, drafts), ['doop'])
-        posthog.capture('home_prompt_submitted', { drafts, workspace: !!workspaceId })
       } catch (error) {
         /* the brief — with its draft count — rides along as the canvas
            composer's draft so a retry is one click; a toast here would vanish
@@ -187,7 +184,6 @@ export function Home() {
     setDuplicatingId(canvas.id)
     try {
       const copy = await api.duplicateCanvas(canvas.id)
-      posthog.capture('canvas_duplicated')
       reload()
       open(copy.id, copy.name)
     } catch (error) {
@@ -542,7 +538,6 @@ function remove(id: string, done: () => void) {
   api
     .deleteCanvas(id)
     .then(() => {
-      posthog.capture('canvas_deleted')
       /* a deleted canvas has no tab to come back to (desktop shell) */
       closeTab(id, location.pathname)
     })

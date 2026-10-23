@@ -4,7 +4,6 @@ import { ENTERPRISE_CONTACT, formatUsd, seatPerMonth, TEAM_SEAT_PRICE } from '..
 import type { BillingInterval, Plan } from '../../shared/billing'
 import { api, errorMessage, paywalledWorkspace, type PlansResponse } from '../lib/api'
 import { authClient } from '../lib/auth'
-import { posthog } from '../lib/posthog'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Callout } from './ui/callout'
@@ -49,7 +48,6 @@ export function CreateWorkspaceModal({
     setError(null)
     try {
       const ws = await api.createWorkspace(clean)
-      posthog.capture('workspace_created', { active: ws.active })
       onCreated(ws)
     } catch (caught) {
       setError(errorMessage(caught, 'Couldn’t create the workspace'))
@@ -115,7 +113,6 @@ export function UpgradeModal({
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    posthog.capture('paywall_shown', { workspaceId, reason })
     let live = true
     api.billingPlans().then((p) => live && setPlans(p), console.error)
     api.getWorkspace(workspaceId).then((w) => live && setWorkspace(w), console.error)
@@ -139,7 +136,6 @@ export function UpgradeModal({
     setBusy(true)
     setError(null)
     try {
-      posthog.capture('workspace_checkout_started', { workspaceId, interval: chosen, seats })
       const { url } = await api.workspaceCheckout(workspaceId, chosen)
       location.assign(url)
     } catch (caught) {
@@ -327,7 +323,6 @@ export function MoveCanvasModal({
     const workspaceId = target || null
     try {
       await api.moveCanvas(canvas.id, workspaceId)
-      posthog.capture('canvas_moved', { into: !!workspaceId })
       onMoved(workspaceId)
     } catch (caught) {
       const walled = paywalledWorkspace(caught)

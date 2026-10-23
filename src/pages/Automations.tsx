@@ -10,7 +10,6 @@ import {
 } from '../../shared/automations'
 import { api } from '../lib/api'
 import { navigate } from '../App'
-import { posthog } from '../lib/posthog'
 import { AppRail, railLayout } from '../components/AppRail'
 import { ClockTile, MetaTile, RunDot, StepChain, formatRunTime } from '../components/AutomateShell'
 import { FrameThumb } from '../components/FramePreview'
@@ -89,7 +88,6 @@ export function Automations() {
             schedule: { kind: 'weekly', weekday: 1, hour: 9, minute: 0, tz },
             steps: [],
           })
-      posthog.capture('automation_created', { example: example?.id ?? null })
       navigate(`/automations/${created.id}`)
     } catch (error) {
       console.error(error)
@@ -114,7 +112,6 @@ export function Automations() {
   async function destroy(a: Automation) {
     try {
       await api.deleteAutomation(a.id)
-      posthog.capture('automation_deleted')
       setItems((list) => list?.filter((x) => x.id !== a.id) ?? null)
     } catch (error) {
       console.error(error)

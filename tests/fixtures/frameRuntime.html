@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <body>
+    <script type="module">
+      import { FRAME_BOOTSTRAP } from '/src/lib/frameRuntime.ts'
+      window.messages = []
+      window.addEventListener('message', (ev) => window.messages.push(ev.data))
+      window.addFrame = () => {
+        const frame = document.createElement('iframe')
+        frame.setAttribute('data-doop-frame', '')
+        frame.sandbox = 'allow-scripts'
+        frame.srcdoc = FRAME_BOOTSTRAP
+        document.body.appendChild(frame)
+      }
+      window.addFrame()
+      window.testReady = true
+    </script>
+  </body>
+</html>
