@@ -580,4 +580,29 @@ describe.skipIf(!findBrowserPath())('element resize handles', () => {
     await new Promise((r) => setTimeout(r, 300))
     expect(await page.$('[data-resize-handles]')).toBeNull()
   }, 20_000)
+
+  it('keeps the hover tag above the selection outline', async () => {
+    await reset()
+    await select('#box')
+    /* hover another element while #box stays selected: both overlays show */
+    const frame = (await frameDoc())!
+    const inner = await frame.$eval('#pad', (el) => {
+      const r = el.getBoundingClientRect()
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+    })
+    const origin = await page.$eval('iframe', (el) => {
+      const r = el.getBoundingClientRect()
+      return { x: r.x, y: r.y, scale: r.width / el.clientWidth }
+    })
+    await page.mouse.move(origin.x + inner.x * origin.scale, origin.y + inner.y * origin.scale)
+    await page.waitForFunction(() => !!document.querySelector('div.pointer-events-none.absolute > span'))
+    const z = await page.evaluate(() => {
+      const hover = document.querySelector('div.pointer-events-none.absolute > span')!.parentElement!
+      const outline = [...document.querySelectorAll('div.pointer-events-none.absolute')].find(
+        (d) => !d.hasAttribute('data-resize-handles') && d.childElementCount === 0,
+      )!
+      return { hover: getComputedStyle(hover).zIndex, outline: getComputedStyle(outline).zIndex }
+    })
+    expect(Number(z.hover)).toBeGreaterThan(Number(z.outline))
+  }, 20_000)
 })
