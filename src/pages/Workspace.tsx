@@ -100,7 +100,7 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
     else showToast(errorMessage(caught, fallback))
   }
 
-  const admin = ws ? ws.role !== 'member' : false
+  const admin = ws?.role === 'owner'
   const isOwner = ws?.role === 'owner'
 
   if (missing) {
@@ -317,8 +317,8 @@ function MembersPane({
       <CardHeader>
         <CardTitle>People</CardTitle>
         <CardDescription>
-          Everyone here opens every canvas in the workspace. Admins invite and remove people; the owner holds the
-          billing.
+          Everyone here opens every canvas in the workspace. Only the owner manages people and billing. Creator access
+          requires prior Creator registration. Members can collaborate without registering as Creator.
           {ws.billing.enabled ? ' Each person is one seat.' : ''}
         </CardDescription>
         {admin && (
@@ -671,12 +671,12 @@ function GeneralPane({
   )
 }
 
-/** The roles an admin can hand out; the owner is not one of them. */
+/** The roles the owner can hand out; the owner is not one of them. */
 function RoleOptions() {
   return (
     <SelectContent>
       <SelectItem value="member">Member</SelectItem>
-      <SelectItem value="admin">Admin</SelectItem>
+      <SelectItem value="creator">Creator</SelectItem>
     </SelectContent>
   )
 }

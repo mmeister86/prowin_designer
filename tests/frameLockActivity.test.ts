@@ -13,6 +13,8 @@ vi.mock('../server/db/persist.ts', () => ({
   saveFrame: () => {},
 }))
 
+vi.mock('../server/prowin/permissions.ts', () => ({ assertCanChangeLock: () => {} }))
+
 const actions = await import('../server/actions.ts')
 const { store } = await import('../server/store.ts')
 

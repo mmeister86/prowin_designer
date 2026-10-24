@@ -7,6 +7,8 @@ export interface Me {
   email: string
   /** instance admin: renders the /admin entry point */
   admin: boolean
+  creator: boolean
+  canCreateWorkspace: boolean
   /** 'team' while a member of a live paid workspace; the account menu's plan line */
   plan: 'free' | 'team'
   /** set when this session is an admin viewing as someone else. The rest of

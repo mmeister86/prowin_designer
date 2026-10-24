@@ -1,3 +1,5 @@
+import { canvasCapabilities, CreatorPermissionError, withUserPermissions } from './prowin/permissions.ts'
+import { creatorRouter, permissionIdentity } from './prowin/accounts.ts'
 import { env } from './env.ts'
 import { canvasPages, samePages } from '../shared/pages.ts'
 import { FIRST_CANVAS_PATH } from '../shared/firstCanvas.ts'
@@ -523,13 +525,22 @@ app.use('/api', async (req, res, next) => {
   }
 })
 
+app.use('/api', (req, _res, next) => {
+  void withUserPermissions(req.impersonatedBy ? undefined : req.user!.id, next).catch(next)
+})
+
+app.use('/api/prowin', creatorRouter)
+
 app.get('/api/me', async (req, res) => {
   const { id, name, email } = req.user!
+  const capabilities = await permissionIdentity(id)
   res.json({
     id,
     name,
     email,
     admin: isAdmin(req.user),
+    creator: capabilities.creator,
+    canCreateWorkspace: capabilities.creator,
     /* 'team' while a member of a live paid workspace — the account menu's plan line */
     plan: workspaces.planFor(id),
     /* the SPA cannot infer this: impersonation swaps the session cookie
@@ -901,6 +912,11 @@ app.post('/api/canvases/:id/duplicate', async (req, res) => {
   }
 })
 
+app.get('/api/canvases/:id/capabilities', (req, res) => {
+  const c = requireCanvas(req, res, req.params.id)
+  if (c) res.json(canvasCapabilities(c))
+})
+
 app.get('/api/canvases/:id', (req, res) => {
   const c = requireCanvas(req, res, req.params.id)
   if (c) res.json(c)
@@ -911,7 +927,8 @@ app.get('/api/canvases/:id', (req, res) => {
 app.put('/api/canvases/:id/publish', (req, res) => {
   const c = requireCanvas(req, res, req.params.id)
   if (!c) return
-  if (c.ownerId !== req.user!.id) return res.status(403).json({ error: 'only the owner can publish a canvas' })
+  if (!canvasCapabilities(c).publish)
+    return res.status(403).json({ error: 'only a Creator owner can publish a canvas' })
   if (!publishableFrames(c).length) return res.status(400).json({ error: 'add a frame before publishing' })
   const listing = parseListing(req.body)
   if (typeof listing === 'string') return res.status(400).json({ error: listing })
@@ -922,7 +939,8 @@ app.put('/api/canvases/:id/publish', (req, res) => {
 app.delete('/api/canvases/:id/publish', (req, res) => {
   const c = requireCanvas(req, res, req.params.id)
   if (!c) return
-  if (c.ownerId !== req.user!.id) return res.status(403).json({ error: 'only the owner can unpublish a canvas' })
+  if (!canvasCapabilities(c).publish)
+    return res.status(403).json({ error: 'only a Creator owner can unpublish a canvas' })
   store.unpublishCanvas(c.id)
   res.json({ ok: true })
 })
@@ -1540,6 +1558,11 @@ app.get('/sitemap.xml', (_req, res) => {
     .send(
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${env.BETTER_AUTH_URL}/</loc></url>\n</urlset>\n`,
     )
+})
+
+app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (error instanceof CreatorPermissionError) return res.status(403).json({ error: error.message })
+  next(error)
 })
 
 /* production: serve the built client */

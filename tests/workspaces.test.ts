@@ -20,7 +20,6 @@ describe('workspaces (self-hosted, billing off)', () => {
   let teammate: Client
   let stranger: Client
   let teammateId: string
-  let strangerId: string
   let workspaceId: string
   let canvasId: string
   let personalId: string
@@ -30,10 +29,10 @@ describe('workspaces (self-hosted, billing off)', () => {
     teammate = new Client(server)
     stranger = new Client(server)
     await owner.signUp('ws-owner@test.dev', 'Owner')
+    await owner.post('/api/prowin/creator')
     await teammate.signUp('ws-mate@test.dev', 'Mate')
     await stranger.signUp('ws-stranger@test.dev', 'Stranger')
     teammateId = (await (await teammate.get('/api/me')).json()).id
-    strangerId = (await (await stranger.get('/api/me')).json()).id
   })
 
   it('creates a workspace that is active without Stripe', async () => {
@@ -67,12 +66,12 @@ describe('workspaces (self-hosted, billing off)', () => {
 
     const invite = await owner.post(`/api/workspaces/${workspaceId}/members`, {
       email: 'Later@Test.dev',
-      role: 'admin',
+      role: 'member',
     })
     const pending = await invite.json()
     expect(invite.status).toBe(200)
     expect(pending.invite.email).toBe('later@test.dev')
-    expect(pending.invite.role).toBe('admin')
+    expect(pending.invite.role).toBe('member')
 
     const detail = await (await owner.get(`/api/workspaces/${workspaceId}`)).json()
     expect(detail.memberCount).toBe(2)
@@ -84,21 +83,21 @@ describe('workspaces (self-hosted, billing off)', () => {
     expect(asMate.invites).toEqual([])
   })
 
-  it('a member cannot invite, an admin can', async () => {
+  it('only the owner manages people, even when a member becomes Creator', async () => {
     expect((await teammate.post(`/api/workspaces/${workspaceId}/members`, { email: 'x@test.dev' })).status).toBe(403)
-    expect((await owner.patch(`/api/workspaces/${workspaceId}/members/${teammateId}`, { role: 'admin' })).status).toBe(
-      200,
-    )
+    await teammate.post('/api/prowin/creator')
+    expect(
+      (await owner.patch(`/api/workspaces/${workspaceId}/members/${teammateId}`, { role: 'creator' })).status,
+    ).toBe(200)
     expect((await owner.patch(`/api/workspaces/${workspaceId}/members/${teammateId}`, { role: 'owner' })).status).toBe(
       400,
     )
-    const res = await teammate.post(`/api/workspaces/${workspaceId}/members`, { email: 'ws-stranger@test.dev' })
-    expect(res.status).toBe(200)
-    /* and back to member for the rest of the suite */
+    expect(
+      (await teammate.post(`/api/workspaces/${workspaceId}/members`, { email: 'ws-stranger@test.dev' })).status,
+    ).toBe(403)
     expect((await owner.patch(`/api/workspaces/${workspaceId}/members/${teammateId}`, { role: 'member' })).status).toBe(
       200,
     )
-    expect((await owner.delete(`/api/workspaces/${workspaceId}/members/${strangerId}`)).status).toBe(200)
   })
 
   it('an invited email joins on signup', async () => {
@@ -106,7 +105,7 @@ describe('workspaces (self-hosted, billing off)', () => {
     await later.signUp('later@test.dev', 'Later')
     const mine = await (await later.get('/api/workspaces')).json()
     expect(mine.workspaces).toHaveLength(1)
-    expect(mine.workspaces[0].role).toBe('admin')
+    expect(mine.workspaces[0].role).toBe('member')
     const detail = await (await owner.get(`/api/workspaces/${workspaceId}`)).json()
     expect(detail.invites).toEqual([])
     expect(detail.memberCount).toBe(3)
@@ -173,7 +172,7 @@ describe('workspaces (self-hosted, billing off)', () => {
     ).toBe(200)
   })
 
-  it('a workspace admin cannot re-home a member’s canvas into another workspace', async () => {
+  it('a workspace owner cannot re-home a member’s canvas into another workspace', async () => {
     const other = (await (await owner.post('/api/workspaces', { name: 'Elsewhere' })).json()).id
     /* the owner is an admin where the canvas lives and a member of the target */
     const grab = await owner.req(`/api/canvases/${personalId}/workspace`, {
@@ -191,7 +190,7 @@ describe('workspaces (self-hosted, billing off)', () => {
     expect(stray.status).toBe(404)
   })
 
-  it('a workspace admin may delete a member’s canvas in the workspace', async () => {
+  it('a workspace owner may delete a member’s canvas in the workspace', async () => {
     const scratch = (await (await teammate.post('/api/canvases', { name: 'Scratch', workspaceId })).json()).id
     expect((await stranger.delete(`/api/canvases/${scratch}`)).status).toBe(403)
     expect((await owner.delete(`/api/canvases/${scratch}`)).status).toBe(200)

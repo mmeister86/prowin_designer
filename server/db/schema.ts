@@ -13,6 +13,12 @@ import {
 import type { CanvasPageInfo } from '../../shared/types.ts'
 import type { Schedule, Step } from '../../shared/automations.ts'
 
+/** Opt-in Creator accounts; never an instance administration role. */
+export const prowinCreators = pgTable('prowin_creators', {
+  userId: text('user_id').primaryKey(),
+  registeredAt: bigint('registered_at', { mode: 'number' }).notNull(),
+})
+
 /** ActivityKit tokens are delivery secrets: never return them through read APIs. */
 export const liveActivities = pgTable('live_activities', {
   id: text('id').primaryKey(),

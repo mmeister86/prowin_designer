@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   connect: vi.fn(),
   selectLocal: vi.fn(),
 }))
+vi.mock('../src/lib/me', () => ({ useMe: () => ({ creator: true }) }))
 vi.mock('../src/lib/auth', () => ({ authClient: { useSession: () => ({ data: { user: { id: 'alice' } } }) } }))
 vi.mock('../src/lib/api', () => ({
   api: {

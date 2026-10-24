@@ -2,7 +2,14 @@ import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import express from 'express'
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-const mocks = vi.hoisted(() => ({ wake: vi.fn(), online: vi.fn(), poll: vi.fn(), cancel: vi.fn(), save: vi.fn() }))
+vi.mock('../server/prowin/accounts.ts', () => ({ permissionIdentity: async () => ({ creator: true }) }))
+const mocks = vi.hoisted(() => ({
+  wake: vi.fn(),
+  online: vi.fn(),
+  pollAuthorized: vi.fn(),
+  cancel: vi.fn(),
+  save: vi.fn(),
+}))
 vi.mock('../server/auth.ts', () => ({ isBanned: async () => false }))
 vi.mock('../server/resident.ts', () => ({ onFeedback: mocks.wake }))
 vi.mock('../server/access.ts', () => ({ canAccessCanvas: () => true }))
@@ -34,7 +41,7 @@ afterAll(async () => {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.online.mockReturnValue(true)
-  mocks.poll.mockReturnValue(null)
+  mocks.pollAuthorized.mockReturnValue(null)
 })
 const poll = () =>
   fetch(`${origin}/poll`, {

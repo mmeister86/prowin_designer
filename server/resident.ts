@@ -1,3 +1,4 @@
+import { withUserPermissions } from './prowin/permissions.ts'
 import { env } from './env.ts'
 import type Anthropic from '@anthropic-ai/sdk'
 import { store } from './store.ts'
@@ -533,7 +534,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                 content: 'This task has been stopped.',
                 is_error: true,
               }
-            return execTool(block, canvasId, actor, runState)
+            return withUserPermissions(payer || canvasOwner, () => execTool(block, canvasId, actor, runState))
           },
         })
         finished = result.success
@@ -603,7 +604,9 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                   console.log(
                     `[resident] tool canvas=${canvasId} name=${block.name}${typeof target === 'string' ? ` frame=${target}` : ''}`,
                   )
-                  const result = await execTool(block, canvasId, actor, runState)
+                  const result = await withUserPermissions(payer || canvasOwner, () =>
+                    execTool(block, canvasId, actor, runState),
+                  )
                   return result
                 },
               },

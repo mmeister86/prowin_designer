@@ -1,3 +1,4 @@
+import { useLoadCanvasCapabilities } from '../prowin/canvasPermissions'
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useStore } from '../lib/store'
 import { MOD_KEY, isHideUiShortcut } from '../lib/keys'
@@ -114,6 +115,7 @@ const STARTER_HTML = `<!doctype html>
 </html>`
 
 export function CanvasPage({ canvasId }: { canvasId: string }) {
+  useLoadCanvasCapabilities(canvasId)
   const canvas = useStore((s) => s.canvas)
   const connected = useStore((s) => s.connected)
   const presences = useStore((s) => s.presences)

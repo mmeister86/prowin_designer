@@ -1,3 +1,4 @@
+import { canManageFrameLocks } from '../prowin/canvasPermissions'
 import type { Frame } from '../../shared/types'
 import { useStore } from './store'
 import { api, errorMessage } from './api'
@@ -50,7 +51,7 @@ export function setLayerLocked(frame: Frame, selector: string, locked: boolean):
 /** Lock or unlock frames together, as one undo step. Frames already in the
  *  wanted state are left alone. */
 export function setFramesLocked(frames: Frame[], locked: boolean) {
-  const changed = frames.filter((f) => !!f.locked !== locked)
+  const changed = frames.filter((f) => canManageFrameLocks(f.canvasId) && !!f.locked !== locked)
   if (!changed.length) return
   recordUpdates(changed.map((f) => ({ frameId: f.id, before: { locked: !!f.locked }, after: { locked } })))
   const store = useStore.getState()

@@ -44,10 +44,10 @@ export function hasDurableCanvasAccess(userId: string | undefined, canvas: Canva
 }
 
 /** Who may delete a canvas, or move it out of its workspace: its owner,
- *  and the owner/admins of the workspace it lives in — the org keeps
+ *  and the owner of the workspace it lives in — the org keeps
  *  control of the work done in its space. */
 export function canManageCanvas(userId: string | undefined, canvas: Canvas): boolean {
   if (!userId) return false
   if (canvas.ownerId === userId) return true
-  return !!canvas.workspaceId && hasRole(canvas.workspaceId, userId, 'admin')
+  return !!canvas.workspaceId && hasRole(canvas.workspaceId, userId, 'owner')
 }

@@ -9,6 +9,7 @@ beforeAll(async () => {
   server = await startServer()
   owner = new Client(server)
   await owner.signUp('lock@test.dev', 'Lock Owner')
+  await owner.post('/api/prowin/creator')
 }, 60_000)
 
 afterAll(() => server?.stop())

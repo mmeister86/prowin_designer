@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
+vi.mock('../server/prowin/permissions.ts', () => ({ canUseLocalAgent: async () => true }))
 vi.mock('../server/auth.ts', () => ({ isBanned: async () => false }))
 vi.mock('../server/resident.ts', () => ({ onFeedback: () => {} }))
 vi.mock('../server/localAgentPreferences.ts', () => ({

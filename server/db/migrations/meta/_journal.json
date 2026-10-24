@@ -260,6 +260,13 @@
       "when": 1792773948835,
       "tag": "0037_remove_design_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792850909497,
+      "tag": "0038_prowin_creator_permissions",
+      "breakpoints": true
     }
   ]
 }

@@ -145,7 +145,7 @@ export interface Canvas {
 
 /* ---- workspaces ---- */
 
-export const WORKSPACE_ROLES = ['owner', 'admin', 'member'] as const
+export const WORKSPACE_ROLES = ['owner', 'creator', 'member'] as const
 export type WorkspaceRole = (typeof WORKSPACE_ROLES)[number]
 
 export function isWorkspaceRole(value: unknown): value is WorkspaceRole {
@@ -195,7 +195,7 @@ export interface WorkspaceInvite {
 
 export interface WorkspaceDetail extends WorkspaceSummary {
   members: WorkspaceMember[]
-  /** only admins and the owner see these */
+  /** only the workspace owner sees these */
   invites: WorkspaceInvite[]
   billing: {
     /** Stripe is configured on this server — plans can be bought */

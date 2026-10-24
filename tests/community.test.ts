@@ -9,6 +9,7 @@ beforeAll(async () => {
   server = await startServer()
   author = new Client(server)
   await author.signUp('author@test.dev', 'Ada Author')
+  await author.post('/api/prowin/creator')
   visitor = new Client(server)
   await visitor.signUp('visitor@test.dev', 'Vic Visitor')
 }, 60_000)

@@ -1,3 +1,4 @@
+import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { Frame } from '../../shared/types'
 import { useStore } from '../lib/store'
@@ -31,6 +32,7 @@ export function Inspector({
   className?: string
   style?: CSSProperties
 }) {
+  const canManageLocks = useCanvasCapabilities(frame.canvasId).manageLocks
   const select = useStore((s) => s.select)
   /* the raw HTML editor is a power tool — collapsed by default so the panel
      reads as frame properties, not a code dump; the choice sticks */
@@ -135,6 +137,7 @@ export function Inspector({
           <Button
             variant="bare"
             className="h-6 rounded-[6px] bg-surface px-2 text-[12px] font-normal text-ink shadow-ring"
+            disabled={!canManageLocks}
             onClick={() => setFramesLocked([frame], false)}
           >
             Unlock

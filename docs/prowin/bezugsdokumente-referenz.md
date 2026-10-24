@@ -39,11 +39,13 @@
 | Rolle                | Fähigkeiten                                              | Im doop-Fork                                                                                                                        |
 | -------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | **Admin**            | Vollzugriff, Nutzerverwaltung, Abrechnung                | `ADMIN_EMAILS` (doop-Admin)                                                                                                         |
-| **Template Creator** | Voller Editor, Vorlagen veröffentlichen, Sperren setzen  | Workspace-Rolle (offen, → Umsetzung Q4)                                                                                             |
-| **Beraterin**        | Vorlagen nutzen, erlaubte Felder bearbeiten, exportieren | Standard-Nutzerin                                                                                                                   |
+| **Template Creator** | Voller Editor, Vorlagen veröffentlichen, Sperren setzen  | Creator-Kontostatus + Workspace-Rolle Owner/Creator; [Q4](rollen-berechtigungen.md)                                                 |
+| **Beraterin**        | Vorlagen nutzen, erlaubte Felder bearbeiten, exportieren | Standard-Nutzerin, im Workspace Rolle Member                                                                                        |
 | **Viewer**           | Galerie ansehen, nicht angemeldet                        | Community-Gallery (Vorschau + Kopie). ⚠️ doops Link-Sharing gibt **Bearbeitungsrechte** (`linkAccess: 'edit'`), keine reine Ansicht |
 
 **Persona Beraterin:** wenig Design-Erfahrung, will schnelle Ergebnisse, arbeitet viel am **Smartphone**. Das Risiko „Mobile-Canvas ist umständlich“ (Architektur § 15: hoch/hoch) gilt unverändert.
+
+Q4 wurde am 24.10.2026 entschieden: Creator kann selbst aktiviert werden; Einladungen und Workspace-Rollen verwaltet nur der Owner. Mitgliedschaft verleiht keinen Creator-Kontostatus. Eigentumsgrenzen, Migration und Testgruppen-Ablauf: [Rollen und Berechtigungen](rollen-berechtigungen.md).
 
 ### R1.3 Berechtigungsmatrix ✅
 

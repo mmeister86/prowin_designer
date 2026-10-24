@@ -7,6 +7,7 @@ let bob: Client
 beforeAll(async () => {
   server = await startServer({ ANTHROPIC_API_KEY: '', OPENAI_API_KEY: '', DATABASE_URL: '', SMTP_HOST: '' })
   alice = await new Client(server).signUp('claude-alice@example.test', 'Alice')
+  await alice.post('/api/prowin/creator')
   bob = await new Client(server).signUp('claude-bob@example.test', 'Bob')
 }, 60000)
 afterAll(() => server?.stop())

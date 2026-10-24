@@ -1,3 +1,4 @@
+import { useMe } from '../lib/me'
 import { planRow, planMark, planPill, planAsCode, actionsRow } from './ui/model-plan'
 import { BrandMark } from './ui/brand-mark'
 import { AgentIcon } from './AgentIcon'
@@ -94,12 +95,13 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
   const desktop = isDesktopShell()
   const { account, refresh, set } = useModelAccount()
   const { data: session } = authClient.useSession()
+  const creator = useMe(session?.user.id)?.creator
   const local = useLocalAgent((s) => s.preference)
   const userId = session?.user.id
   const localModel = local?.model ?? 'default'
   const selectServer = useCallback(async () => {
-    if (userId) await selectLocalAgent(userId, { enabled: false, model: localModel })
-  }, [userId, localModel])
+    if (userId && creator) await selectLocalAgent(userId, { enabled: false, model: localModel })
+  }, [userId, localModel, creator])
   const [authUrl, setAuthUrl] = useState('')
   /* true while the server is listening on the loopback callback port for us —
      the user approves in the other tab and this one just flips */
@@ -652,7 +654,7 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
         placeholder: 'AIza…',
       })}
 
-      {desktop && <LocalClaudeRow />}
+      {desktop && creator && <LocalClaudeRow />}
       {keySection({
         kind: 'anthropic-key',
         title: 'Claude API key',
@@ -662,7 +664,7 @@ export function ModelAccountPanel({ onChange }: { onChange?: () => void }) {
       })}
 
       {/* the browser cannot run the local CLI, so the plan closes the list as a pointer to the desktop app */}
-      {!desktop && <LocalClaudeRow />}
+      {!desktop && creator && <LocalClaudeRow />}
       {error && <p className="mt-[10px] text-body text-accent-ink">{error}</p>}
     </div>
   )

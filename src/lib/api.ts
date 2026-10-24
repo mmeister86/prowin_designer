@@ -1,3 +1,4 @@
+import type { AccountCapabilities, CanvasCapabilities } from '../../shared/prowin/permissions'
 import { useStore } from './store'
 import type { LocalAgentPreference, LocalAgentJob, LocalAgentResult } from '../../shared/localAgent'
 import type { NotificationPrefs, NotificationSettings } from '../../shared/notifications'
@@ -173,6 +174,8 @@ export async function req<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  registerCreator: () => req<AccountCapabilities>('/api/prowin/creator', { method: 'POST' }),
+  canvasCapabilities: (id: string) => req<CanvasCapabilities>(`/api/canvases/${id}/capabilities`),
   listWebhooks: () => req<WebhookInfo[]>('/api/webhooks'),
   createWebhook: (input: { url: string; events: WebhookEventType[] }) =>
     req<WebhookInfo & { secret: string }>('/api/webhooks', { method: 'POST', body: JSON.stringify(input) }),

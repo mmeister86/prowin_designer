@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AgentTask, Frame } from '../shared/types.ts'
+import type { AgentTask, Canvas, Frame } from '../shared/types.ts'
 
 /* The event bus is what email and webhooks hang off; these tests pin down
    that every mutation that should be an event is one, after the room has
@@ -60,6 +60,12 @@ beforeEach(() => {
     decisions: new Map(),
     proposals: new Map(),
   })
+  vi.spyOn(store, 'getCanvas').mockReturnValue({
+    id: CANVAS,
+    name: 'Canvas',
+    ownerId: 'alice',
+    frames: [FRAME],
+  } as Canvas)
   vi.spyOn(store, 'getFrame').mockImplementation((id) => (id === FRAME.id ? FRAME : undefined))
   vi.spyOn(store, 'createFrame').mockReturnValue(FRAME)
   return events.onCanvasEvent((canvasId, event) => void seen.push({ canvasId, event }))

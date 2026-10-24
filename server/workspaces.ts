@@ -1,3 +1,4 @@
+import { permissionIdentity } from './prowin/accounts.ts'
 import { env } from './env.ts'
 import express from 'express'
 import { and, eq, inArray } from 'drizzle-orm'
@@ -113,7 +114,7 @@ export function roleOf(workspaceId: string, userId: string | undefined): Workspa
   return userId ? members.get(workspaceId)?.get(userId)?.role : undefined
 }
 
-const RANK: Record<WorkspaceRole, number> = { member: 0, admin: 1, owner: 2 }
+const RANK: Record<WorkspaceRole, number> = { member: 0, creator: 1, owner: 2 }
 
 export function hasRole(workspaceId: string, userId: string | undefined, atLeast: WorkspaceRole): boolean {
   const role = roleOf(workspaceId, userId)
@@ -337,16 +338,14 @@ export function addMember(workspaceId: string, userId: string, role: WorkspaceRo
   return true
 }
 
-export function setRole(workspaceId: string, userId: string, role: WorkspaceRole): boolean {
+export async function setRole(workspaceId: string, userId: string, role: WorkspaceRole): Promise<boolean> {
   const entry = members.get(workspaceId)?.get(userId)
   if (!entry) return false
+  await db
+    .update(t.workspaceMembers)
+    .set({ role })
+    .where(and(eq(t.workspaceMembers.workspaceId, workspaceId), eq(t.workspaceMembers.userId, userId)))
   entry.role = role
-  swallow(
-    db
-      .update(t.workspaceMembers)
-      .set({ role })
-      .where(and(eq(t.workspaceMembers.workspaceId, workspaceId), eq(t.workspaceMembers.userId, userId))),
-  )
   return true
 }
 
@@ -492,7 +491,7 @@ async function listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
 }
 
 async function detailFor(ws: WorkspaceRecord, viewerId: string): Promise<WorkspaceDetail> {
-  const admin = hasRole(ws.id, viewerId, 'admin')
+  const admin = hasRole(ws.id, viewerId, 'owner')
   const [memberList, invites] = await Promise.all([listMembers(ws.id), admin ? listInvites(ws.id) : []])
   return {
     ...summaryFor(ws, viewerId),
@@ -526,7 +525,7 @@ function requireWorkspace(req: express.Request, res: express.Response, id: strin
     return null
   }
   if (!hasRole(id, req.user!.id, atLeast)) {
-    res.status(403).json({ error: `only workspace ${atLeast === 'owner' ? 'owners' : 'admins'} can do that` })
+    res.status(403).json({ error: `only workspace ${atLeast === 'owner' ? 'owners' : 'creators'} can do that` })
     return null
   }
   return ws
@@ -536,7 +535,9 @@ workspacesRouter.get('/', (req, res) => {
   res.json({ workspaces: listFor(req.user!.id), billing: { enabled: billing.billingEnabled() } })
 })
 
-workspacesRouter.post('/', (req, res) => {
+workspacesRouter.post('/', async (req, res) => {
+  if (!(await permissionIdentity(req.user!.id)).creator)
+    return res.status(403).json({ error: 'register as Creator first' })
   const name = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 80) : ''
   if (!name) return res.status(400).json({ error: 'name required' })
   const ws = createWorkspace(name, req.user!.id)
@@ -550,7 +551,7 @@ workspacesRouter.get('/:id', async (req, res) => {
 })
 
 workspacesRouter.patch('/:id', (req, res) => {
-  const ws = requireWorkspace(req, res, req.params.id, 'admin')
+  const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
   const name = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 80) : ''
   if (!name) return res.status(400).json({ error: 'name required' })
@@ -573,21 +574,25 @@ workspacesRouter.delete('/:id', async (req, res) => {
 /* ---- members ---- */
 
 workspacesRouter.post('/:id/members', async (req, res) => {
-  const ws = requireWorkspace(req, res, req.params.id, 'admin')
+  const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
   if (!isActive(ws)) return planRequired(res, ws)
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
   if (!email || !email.includes('@')) return res.status(400).json({ error: 'a valid email is required' })
-  const role: WorkspaceRole = req.body?.role === 'admin' ? 'admin' : 'member'
+  const role = req.body?.role ?? 'member'
+  if (role !== 'creator' && role !== 'member') return res.status(400).json({ error: 'role must be creator or member' })
   const [row] = await db
     .select({ id: authSchema.user.id, name: authSchema.user.name, email: authSchema.user.email })
     .from(authSchema.user)
     .where(eq(authSchema.user.email, email))
   if (row) {
+    if (role === 'creator' && !(await permissionIdentity(row.id)).creator)
+      return res.status(400).json({ error: 'the invited account must register as Creator first' })
     if (!addMember(ws.id, row.id, role, req.user!.id)) return res.status(400).json({ error: 'already a member' })
     const member: WorkspaceMember = { userId: row.id, name: row.name, email: row.email, role, addedAt: Date.now() }
     return res.json({ member })
   }
+  if (role === 'creator') return res.status(400).json({ error: 'invite a registered Creator or choose member' })
   if (!unknownEmailInvitesAllowed())
     return res.status(404).json({ error: 'no doop account with that email — ask them to sign up first' })
   const invite = await createInvite(ws.id, email, role, req.user!.id)
@@ -608,13 +613,15 @@ workspacesRouter.post('/:id/members', async (req, res) => {
   res.json({ invite: pending, emailed: mailerConfigured })
 })
 
-workspacesRouter.patch('/:id/members/:userId', (req, res) => {
-  const ws = requireWorkspace(req, res, req.params.id, 'admin')
+workspacesRouter.patch('/:id/members/:userId', async (req, res) => {
+  const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
   const role = req.body?.role
-  if (role !== 'admin' && role !== 'member') return res.status(400).json({ error: 'role must be admin or member' })
+  if (role !== 'creator' && role !== 'member') return res.status(400).json({ error: 'role must be creator or member' })
+  if (role === 'creator' && !(await permissionIdentity(req.params.userId)).creator)
+    return res.status(400).json({ error: 'the account must register as Creator first' })
   if (req.params.userId === ws.ownerId) return res.status(400).json({ error: 'the owner keeps the owner role' })
-  if (!setRole(ws.id, req.params.userId, role)) return res.status(404).json({ error: 'not a member' })
+  if (!(await setRole(ws.id, req.params.userId, role))) return res.status(404).json({ error: 'not a member' })
   res.json({ ok: true })
 })
 
@@ -623,8 +630,8 @@ workspacesRouter.delete('/:id/members/:userId', async (req, res) => {
   if (!ws) return
   const target = req.params.userId
   const self = target === req.user!.id
-  if (!self && !hasRole(ws.id, req.user!.id, 'admin'))
-    return res.status(403).json({ error: 'only workspace admins can remove people' })
+  if (!self && !hasRole(ws.id, req.user!.id, 'owner'))
+    return res.status(403).json({ error: 'only the workspace owner can remove people' })
   if (target === ws.ownerId)
     return res
       .status(400)
@@ -639,7 +646,7 @@ workspacesRouter.delete('/:id/members/:userId', async (req, res) => {
 })
 
 workspacesRouter.delete('/:id/invites/:inviteId', async (req, res) => {
-  const ws = requireWorkspace(req, res, req.params.id, 'admin')
+  const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
   await db
     .delete(t.workspaceInvites)
@@ -690,7 +697,7 @@ workspacesRouter.post('/:id/billing/portal', async (req, res) => {
 /* The browser is back from Checkout: pull the subscription now rather than
    wait for the webhook, so the workspace unlocks on the page they land on. */
 workspacesRouter.post('/:id/billing/sync', async (req, res) => {
-  const ws = requireWorkspace(req, res, req.params.id, 'admin')
+  const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
   if (!billing.billingEnabled()) return res.json(summaryFor(ws, req.user!.id))
   const sessionId = typeof req.body?.sessionId === 'string' ? req.body.sessionId : undefined

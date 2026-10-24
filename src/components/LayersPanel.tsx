@@ -1,3 +1,4 @@
+import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import {
   useEffect,
   useMemo,
@@ -511,6 +512,7 @@ function FrameRow({
   onActivate: () => void
 }) {
   const { frame } = row
+  const canManageLocks = useCanvasCapabilities(frame.canvasId).manageLocks
   const stream = useStore((s) => s.streams[frame.id])
   const presences = useStore((s) => s.presences)
   const me = getIdentity().clientId
@@ -537,7 +539,7 @@ function FrameRow({
             dimmed={!!frame.hidden}
             onToggleHidden={() => setFrameHidden(frame, !frame.hidden)}
             locked={!!frame.locked}
-            onToggleLocked={() => setFramesLocked([frame], !frame.locked)}
+            onToggleLocked={canManageLocks ? () => setFramesLocked([frame], !frame.locked) : undefined}
             onClick={onActivate}
             onDoubleClick={() => useStore.getState().requestFlyTo(frame.id)}
             onContextMenu={() => {

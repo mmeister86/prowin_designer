@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db } from './db/index.ts'
-import { liveActivities, liveActivityStarters } from './db/schema.ts'
+import { liveActivities, liveActivityStarters, prowinCreators } from './db/schema.ts'
 import { store } from './store.ts'
 import { removeMember as leaveWorkspace, workspaceIdsFor } from './workspaces.ts'
 
@@ -24,5 +24,6 @@ export async function purgeUserData(userId: string): Promise<{ deletedCanvases: 
   for (const workspaceId of workspaceIdsFor(userId)) await leaveWorkspace(workspaceId, userId)
   await db.delete(liveActivities).where(eq(liveActivities.userId, userId))
   await db.delete(liveActivityStarters).where(eq(liveActivityStarters.userId, userId))
+  await db.delete(prowinCreators).where(eq(prowinCreators.userId, userId))
   return { deletedCanvases }
 }

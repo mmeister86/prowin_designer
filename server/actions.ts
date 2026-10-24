@@ -1,3 +1,4 @@
+import { assertCanChangeLock } from './prowin/permissions.ts'
 import { nanoid } from 'nanoid'
 import { store } from './store.ts'
 import * as persist from './db/persist.ts'
@@ -1259,6 +1260,9 @@ export function createFrame(
   },
   actor: Actor,
 ): Frame | undefined {
+  const canvas = store.getCanvas(canvasId)
+  if (!canvas) return undefined
+  assertCanChangeLock(canvas, false, input.locked)
   if (input.html !== undefined) input = { ...input, html: repairEscapedHtml(input.html) }
   const frame = store.createFrame(canvasId, input, actor.name)
   if (!frame) return undefined
@@ -1289,6 +1293,9 @@ export function updateFrame(
 ): Frame | undefined {
   const before = store.getFrame(frameId)
   if (!before) return undefined
+  const canvas = store.getCanvas(before.canvasId)
+  if (!canvas) return undefined
+  assertCanChangeLock(canvas, !!before.locked, patch.locked)
   if (patch.html !== undefined) patch = { ...patch, html: repairEscapedHtml(patch.html) }
   const prevName = before.name
   const prevHtml = before.html

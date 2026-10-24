@@ -1,3 +1,5 @@
+import { permissionIdentity } from './prowin/accounts.ts'
+import { canUseLocalAgent } from './prowin/permissions.ts'
 import { CLAUDE_MODEL_IDS } from '../shared/localAgent.ts'
 import { Router, type Request, type Response } from 'express'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
@@ -12,6 +14,18 @@ import { isBanned } from './auth.ts'
 import { onFeedback } from './resident.ts'
 
 export const localAgentRouter = Router()
+localAgentRouter.use((req, res, next) => {
+  void permissionIdentity(req.user!.id)
+    .then((identity) => {
+      if (!identity.creator) {
+        res.status(403).json({ error: 'register as Creator to use Local Agent' })
+        return
+      }
+      next()
+    })
+    .catch(next)
+})
+
 const preferenceSchema = z.object({
   enabled: z.boolean(),
   model: z.enum([...CLAUDE_MODEL_IDS, 'default', 'sonnet', 'opus']),
@@ -58,7 +72,7 @@ localAgentRouter.post('/poll', (req, res, next) => {
       return
     }
     const wasOnline = localAgentRuns.online(userId)
-    const job = localAgentRuns.poll(userId, parsed.data.deviceId)
+    const job = await localAgentRuns.pollAuthorized(userId, parsed.data.deviceId)
     res.json({ job, enabled: true })
     if (!wasOnline) wake(userId)
   })().catch(next)
@@ -90,7 +104,13 @@ export async function handleLocalAgentMcp(req: Request, res: Response) {
   const id = req.params.id ?? ''
   const run = localAgentRuns.authorized(id, token)
   const canvas = run && store.getCanvas(run.request.canvasId)
-  if (!run || !canvas || !canAccessCanvas(run.userId, canvas) || (await isBanned(run.userId))) {
+  if (
+    !run ||
+    !canvas ||
+    !canAccessCanvas(run.userId, canvas) ||
+    !(await canUseLocalAgent(run.userId, canvas.id)) ||
+    (await isBanned(run.userId))
+  ) {
     res.status(403).json({ error: 'Local run unavailable' })
     return
   }

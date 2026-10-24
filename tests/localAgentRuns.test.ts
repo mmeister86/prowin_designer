@@ -65,7 +65,7 @@ describe('local Claude run ownership', () => {
     )
     const job = runs.poll('alice', 'first')!
     const call = runs.execute(job.id, job.token, 'create_frame', {})
-    await Promise.resolve()
+    await vi.waitFor(() => expect(order).toEqual(['started']))
     const finish = runs.finish(job.id, 'alice', 'first', { success: true, text: 'Done' }).then(() => {
       order.push('completed')
     })

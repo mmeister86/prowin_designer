@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+vi.mock('../server/prowin/accounts.ts', () => ({ permissionIdentity: async () => ({ creator: true }) }))
 const mocks = vi.hoisted(() => ({ preference: vi.fn(), account: vi.fn(), online: vi.fn() }))
 vi.mock('../server/localAgentPreferences.ts', () => ({ getLocalAgentPreference: mocks.preference }))
 vi.mock('../server/modelAccounts.ts', () => ({

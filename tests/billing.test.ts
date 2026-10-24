@@ -99,6 +99,7 @@ describe('workspaces behind Stripe', () => {
     owner = new Client(server)
     mate = new Client(server)
     await owner.signUp('bill-owner@test.dev', 'Owner')
+    await owner.post('/api/prowin/creator')
     await mate.signUp('bill-mate@test.dev', 'Mate')
   })
 
@@ -160,7 +161,7 @@ describe('workspaces behind Stripe', () => {
 
     /* and now it grows */
     expect(
-      (await owner.post(`/api/workspaces/${workspaceId}/members`, { email: 'bill-mate@test.dev', role: 'admin' }))
+      (await owner.post(`/api/workspaces/${workspaceId}/members`, { email: 'bill-mate@test.dev', role: 'member' }))
         .status,
     ).toBe(200)
     expect((await owner.post('/api/canvases', { name: 'Yes', workspaceId })).status).toBe(200)

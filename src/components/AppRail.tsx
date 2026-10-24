@@ -1,3 +1,4 @@
+import { useMe } from '../lib/me'
 import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import type { CanvasMeta, WorkspaceSummary } from '../../shared/types'
 import { colorFor } from '../../shared/types'
@@ -87,6 +88,8 @@ export function AppRail({
   searchShortcut?: boolean
   children?: ReactNode
 }) {
+  const { data: session } = authClient.useSession()
+  const canCreateWorkspace = useMe(session?.user.id)?.canCreateWorkspace
   const [own, setOwn] = useState<{ canvases: CanvasMeta[]; workspaces: WorkspaceSummary[] } | null>(null)
   const needsOwn = canvases === undefined || workspaces === undefined
   useEffect(() => {
@@ -250,9 +253,11 @@ export function AppRail({
           <BuildingIcon size="rail" />
         </IconButton>
       ))}
-      <IconButton aria-label="New workspace" onClick={createWorkspace}>
-        <FolderPlusIcon size="rail" />
-      </IconButton>
+      {canCreateWorkspace && (
+        <IconButton aria-label="New workspace" onClick={createWorkspace}>
+          <FolderPlusIcon size="rail" />
+        </IconButton>
+      )}
       <Rule />
       <IconButton aria-label="Community" on={active === 'community'} onClick={() => go('/community')}>
         <WebIcon size="rail" />
@@ -359,9 +364,11 @@ export function AppRail({
             {w.name}
           </DashNavItem>
         ))}
-        <DashNavItem density="rail" icon={<FolderPlusIcon size="rail" />} onClick={createWorkspace}>
-          {spaces.length ? 'New workspace' : 'Create workspace'}
-        </DashNavItem>
+        {canCreateWorkspace && (
+          <DashNavItem density="rail" icon={<FolderPlusIcon size="rail" />} onClick={createWorkspace}>
+            {spaces.length ? 'New workspace' : 'Create workspace'}
+          </DashNavItem>
+        )}
       </nav>
 
       <DashSectionLabel density="rail">Explore</DashSectionLabel>

@@ -1,3 +1,4 @@
+import { withUserPermissions } from './prowin/permissions.ts'
 import { env } from './env.ts'
 import { canvasPages, samePages } from '../shared/pages.ts'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -1615,7 +1616,7 @@ export async function handleMcpRequest(req: Request, res: Response) {
   })
   try {
     await server.connect(transport)
-    await transport.handleRequest(req, res, req.body)
+    await withUserPermissions(session?.userId ?? undefined, () => transport.handleRequest(req, res, req.body))
   } catch (e) {
     console.error('mcp error', e)
     if (!res.headersSent) {

@@ -69,7 +69,7 @@ export function App() {
     if (!isPending) setTabsUser(session?.user?.id ?? null)
   }, [isPending, session?.user?.id])
 
-  const localAgentUser = !isPending && me && !me.impersonating ? session?.user.id : undefined
+  const localAgentUser = !isPending && me?.creator && !me.impersonating ? session?.user.id : undefined
   useEffect(() => {
     if (localAgentUser) return startLocalAgent(localAgentUser)
   }, [localAgentUser])

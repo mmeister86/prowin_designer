@@ -1,3 +1,4 @@
+import { useLoadCanvasCapabilities } from '../prowin/canvasPermissions'
 import { useEffect, useState } from 'react'
 import {
   COMMUNITY_CATEGORIES,
@@ -45,6 +46,7 @@ export function ShareModal({
 }) {
   const { data: session } = authClient.useSession()
   const meId = session?.user?.id
+  const capabilities = useLoadCanvasCapabilities(canvas.id)
   const isOwner = !!canvas.ownerId && canvas.ownerId === meId
   const linkEdits = canvas.linkAccess === 'edit'
   const [people, setPeople] = useState<CanvasMember[] | null>(null)
@@ -270,7 +272,7 @@ export function ShareModal({
             Copy link
           </Button>
         </div>
-        {isOwner && (
+        {capabilities.publish && (
           <CommunityListing canvas={canvas} busy={busy} setBusy={setBusy} setError={setError} onChange={onChange} />
         )}
         {upgrade && (

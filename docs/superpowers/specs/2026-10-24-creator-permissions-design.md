@@ -18,7 +18,7 @@ diese ausdrücklich gewünschte Selbstregistrierung ersetzt.
    anderen Workspace lediglich als Beraterin mitarbeiten.
 3. Creator als Instanz-Adminrolle: verworfen, weil nur Matthias echter Admin bleibt.
 
-Dieser Entwurf konkretisiert Ansatz 2. Die Freigabe steht noch aus.
+Dieser Entwurf konkretisiert Ansatz 2 und wurde am 24.10.2026 mit „klingt gut. bitte umsetzen“ freigegeben.
 
 ## Rechte und Eigentumsgrenzen
 

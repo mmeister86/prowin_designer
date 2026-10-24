@@ -1,3 +1,4 @@
+import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import { useState, type MutableRefObject } from 'react'
 import type { Frame } from '../../shared/types'
 import { errorMessage } from '../lib/api'
@@ -38,6 +39,7 @@ export function FrameContextMenu({ frame, at }: { frame: Frame; at: MutableRefOb
     const ids = s.selectedIds.includes(frame.id) ? s.selectedIds : [frame.id]
     return s.canvas?.frames.filter((f) => ids.includes(f.id)) ?? [frame]
   }
+  const canManageLocks = useCanvasCapabilities(frame.canvasId).manageLocks
   /* Lock reads as one state for the group: it unlocks only once every frame
      in it is locked, otherwise it locks the rest (as ⌘⇧L does) */
   const allLocked = useStore((s) => {
@@ -86,7 +88,7 @@ export function FrameContextMenu({ frame, at }: { frame: Frame; at: MutableRefOb
         <ContextMenuItem onSelect={() => setShowExport(true)}>Export…</ContextMenuItem>
         <ContextMenuItem onSelect={() => setHistoryOpen(true)}>Version history…</ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onSelect={() => setFramesLocked(groupFrames(), !allLocked)}>
+        <ContextMenuItem disabled={!canManageLocks} onSelect={() => setFramesLocked(groupFrames(), !allLocked)}>
           {allLocked ? 'Unlock' : 'Lock'}
           {groupSize > 1 ? ` ${groupSize} frames` : ''}
           <MenuHint>{MOD_KEY}⇧L</MenuHint>

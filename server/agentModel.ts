@@ -1,3 +1,4 @@
+import { permissionIdentity } from './prowin/accounts.ts'
 import { env } from './env.ts'
 import { getLocalAgentPreference } from './localAgentPreferences.ts'
 import { localAgentRuns, type LocalHarnessRequest } from './localAgentRuns.ts'
@@ -287,12 +288,12 @@ export async function pickModel(payerId?: string): Promise<AgentModel | null> {
   if (payerId) {
     const local = await getLocalAgentPreference(payerId)
     if (local.enabled) {
-      if (!localAgentRuns.online(payerId)) return null
+      if (!(await permissionIdentity(payerId)).creator || !localAgentRuns.online(payerId)) return null
       return {
         provider: 'claude-local',
         label: `Claude CLI (${local.model})`,
         userId: payerId,
-        runHarness: (req) => localAgentRuns.start(payerId, local.model, req),
+        runHarness: (req) => localAgentRuns.startAuthorized(payerId, local.model, req),
         run: () =>
           Promise.reject(
             new Error('Repository imports require a server provider. Select your connected account in Settings.'),

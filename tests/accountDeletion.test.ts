@@ -3,7 +3,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 const rig = vi.hoisted(() => ({
   deleted: [] as string[],
   workspaces: new Map<string, Set<string>>(),
-  dbDeletes: 0,
+  dbDeletes: [] as unknown[],
 }))
 vi.mock('../server/db/persist.ts', () => {
   const noop = () => undefined
@@ -23,9 +23,9 @@ vi.mock('../server/db/persist.ts', () => {
 })
 vi.mock('../server/db/index.ts', () => ({
   db: {
-    delete: () => ({
+    delete: (table: unknown) => ({
       where: async () => {
-        rig.dbDeletes += 1
+        rig.dbDeletes.push(table)
       },
     }),
   },
@@ -35,12 +35,13 @@ vi.mock('../server/workspaces.ts', () => ({
   removeMember: (workspaceId: string, userId: string) => rig.workspaces.get(workspaceId)?.delete(userId) ?? false,
 }))
 import { store } from '../server/store.ts'
+import { liveActivities, liveActivityStarters, prowinCreators } from '../server/db/schema.ts'
 import { purgeUserData } from '../server/accountDeletion.ts'
 
 beforeEach(() => {
   for (const canvas of store.allCanvases()) store.deleteCanvas(canvas.id)
   rig.workspaces.clear()
-  rig.dbDeletes = 0
+  rig.dbDeletes = []
   vi.clearAllMocks()
 })
 
@@ -62,5 +63,5 @@ it('deletes only the canvases nobody else can reach, and leaves the rest', async
   expect(store.getCanvas(theirs.id)?.memberIds ?? []).not.toContain('alice')
   expect(rig.workspaces.get('ws1')?.has('alice')).toBe(false)
   expect(rig.workspaces.get('ws1')?.has('bob')).toBe(true)
-  expect(rig.dbDeletes).toBe(2) // Live activity update tokens and push-to-start tokens
+  expect(rig.dbDeletes).toEqual([liveActivities, liveActivityStarters, prowinCreators])
 })

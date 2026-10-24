@@ -1,3 +1,4 @@
+import { CreatorRegistration } from '../prowin/CreatorRegistration'
 import { useCallback, useEffect, useState } from 'react'
 import { authClient } from '../lib/auth'
 import { api } from '../lib/api'
@@ -98,6 +99,7 @@ export function AccountSettings() {
 
   return (
     <>
+      <CreatorRegistration />
       <SettingsCard>
         <CardHeader>
           <CardTitle>Profile</CardTitle>

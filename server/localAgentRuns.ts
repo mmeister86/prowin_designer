@@ -1,3 +1,4 @@
+import { canUseLocalAgent } from './prowin/permissions.ts'
 import { randomBytes, randomUUID } from 'node:crypto'
 import type Anthropic from '@anthropic-ai/sdk'
 import type { ClaudeModel, LocalAgentJob, LocalAgentResult } from '../shared/localAgent.ts'
@@ -30,6 +31,23 @@ interface Run {
 export class LocalAgentRuns {
   private runs = new Map<string, Run>()
   private devices = new Map<string, { id: string; at: number }>()
+
+  constructor(private readonly permitted: (userId: string, canvasId: string) => Promise<boolean> = async () => true) {}
+
+  async startAuthorized(userId: string, model: ClaudeModel, request: LocalHarnessRequest): Promise<LocalAgentResult> {
+    if (!(await this.permitted(userId, request.canvasId)))
+      return { success: false, text: 'Creator rights in this canvas are required.' }
+    return this.start(userId, model, request)
+  }
+
+  async pollAuthorized(userId: string, deviceId: string): Promise<LocalAgentJob | null> {
+    for (const run of [...this.runs.values()].filter((r) => r.userId === userId && !r.closing)) {
+      if (!(await this.permitted(userId, run.request.canvasId))) {
+        await this.close(run, { success: false, text: 'Creator rights in this canvas were revoked.' })
+      }
+    }
+    return this.poll(userId, deviceId)
+  }
 
   online(userId: string, now = Date.now()) {
     return now - (this.devices.get(userId)?.at ?? 0) < 30_000
@@ -79,7 +97,9 @@ export class LocalAgentRuns {
   async execute(id: string, token: string, name: string, input: Record<string, unknown>) {
     const run = this.authorized(id, token)
     if (!run || !run.request.tools.some((tool) => tool.name === name)) throw new Error('Run or tool unavailable')
-    const result = run.tail.then(() => {
+    const result = run.tail.then(async () => {
+      if (!(await this.permitted(run.userId, run.request.canvasId)))
+        throw new Error('Creator rights in this canvas were revoked')
       if (run.closing || run.request.isCanceled?.()) throw new Error('Run ended')
       return run.request.execute({ type: 'tool_use', id: randomUUID(), name, input })
     })
@@ -90,6 +110,10 @@ export class LocalAgentRuns {
   async finish(id: string, userId: string, deviceId: string, result: LocalAgentResult) {
     const run = this.runs.get(id)
     if (!run || run.userId !== userId || run.deviceId !== deviceId || run.closing) return false
+    if (!(await this.permitted(userId, run.request.canvasId))) {
+      await this.close(run, { success: false, text: 'Creator rights in this canvas were revoked.' })
+      return false
+    }
     await this.close(run, result)
     return true
   }
@@ -133,7 +157,7 @@ export class LocalAgentRuns {
   }
 }
 
-export const localAgentRuns = new LocalAgentRuns()
+export const localAgentRuns = new LocalAgentRuns(canUseLocalAgent)
 const cleanup = setInterval(() => {
   void localAgentRuns.expire()
 }, 5_000)

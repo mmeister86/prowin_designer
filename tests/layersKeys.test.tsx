@@ -4,6 +4,10 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Canvas, Frame } from '../shared/types'
 
+vi.mock('../src/prowin/canvasPermissions', () => ({
+  useCanvasCapabilities: () => ({ manageLocks: true }),
+  canManageFrameLocks: () => true,
+}))
 const updateFrame = vi.fn(() => Promise.resolve())
 const deleteFrame = vi.fn(() => Promise.resolve())
 vi.mock('../src/lib/api', () => ({
