@@ -79,8 +79,7 @@ status, and an activity feed in realtime over one WebSocket room per canvas.
 TypeScript/React/Express/Postgres (drizzle), realtime over `ws`, MCP server for agent access, Tauri
 desktop shell. Full details in `.context/TECHSTACK.md`, which `.context/INDEX.md` links.
 
-Always use the `clean-code:typescript` skill when writing or reviewing TypeScript code in this
-repo.
+Always use the the 'superpowers' skillset. It's installed on this machine.
 
 ## First-time setup after clone
 
@@ -110,6 +109,6 @@ tests/             - vitest test suite
 
 ## Language
 
-TypeScript. Always use the `clean-code:typescript` skill when writing or reviewing TypeScript
+TypeScript. Always use the `superpowers` skillset when writing or reviewing TypeScript
 code. Formatter and lint rules are captured in `.context/CODESTYLE.md`, which `.context/INDEX.md`
 links.
