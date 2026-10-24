@@ -1,10 +1,10 @@
 ---
 id: TASK-14
 title: Creator-Rolle und Berechtigungsmodell festlegen (Q4)
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:49:00Z'
-updated_date: '2026-10-24T14:21:00Z'
+updated_date: '2026-10-24T19:11:00Z'
 labels:
   - prowin
   - decision
@@ -57,3 +57,10 @@ Verifiziert: explizite Creator-Registrierung ohne Adminrechte, Owner-only Worksp
 
 Abschlussprüfung: 936/936 Tests in 132 Dateien erfolgreich (187 Sekunden). bun run typecheck, bun run lint, bun run build und git diff --check erfolgreich; bekannter Build-Hinweis zur Chunkgröße. Isolierter Produktions-Browser-Smoke: Creator-Aktivierung mit admin=false und anschließende Workspace-Anlage als Owner erfolgreich, keine Browser-Konsolenfehler. Rollenentscheidung und Rollout: docs/prowin/rollen-berechtigungen.md. Alle Abnahmekriterien technisch geprüft; Taskstatus bleibt bis ausdrücklicher Nutzerabnahme In Progress.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+
+Creator-Selbstregistrierung, getrennte Owner/Creator/Member-Workspace-Rechte, Migration und serverseitige Prüfungen für Veröffentlichung, Frame-Sperränderungen und Local Agent umgesetzt. Rollenentscheidung und Testgruppen-Ablauf dokumentiert. 936 Tests sowie Typecheck, Lint, Build und Produktions-Browser-Smoke erfolgreich; unabhängiges Review ohne blockierende Befunde. Implementierung und Projektanweisungen sind auf main und origin/main integriert. Abschlussstatus auf ausdrücklichen Nutzerhinweis korrigiert. Vollständiger HTML-Template-Guard und reale Testgruppen-Freischaltung folgen in den dokumentierten Folgeaufgaben.
+<!-- SECTION:FINAL_SUMMARY:END -->
