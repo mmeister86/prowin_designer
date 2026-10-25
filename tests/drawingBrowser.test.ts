@@ -14,6 +14,7 @@ declare global {
       state: () => { frames: Frame[]; tool: string; selectedElement: { frameId: string; selector: string } | null }
       undo: () => Promise<void>
       redo: () => Promise<void>
+      ping: (frameId: string) => Promise<boolean>
     }
   }
 }
@@ -101,6 +102,14 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   async function waitForFrames(count: number) {
     await page.waitForFunction((n) => window.drawingHarness.state().frames.length === n, {}, count)
     return page.evaluate(() => window.drawingHarness.state().frames)
+  }
+  /* Store updates precede the frame's throttled render: a pointer hit test
+     posted before the fresh iframe's runtime registers is never answered,
+     so the move preview (and its drop target) never appears. */
+  async function waitForRuntime(frameId: string) {
+    await expect
+      .poll(() => page.evaluate((id) => window.drawingHarness.ping(id), frameId), { timeout: 10_000 })
+      .toBe(true)
   }
 
   async function seedFrames(frames: Frame[]) {
@@ -278,6 +287,10 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
     await page.keyboard.press('o')
     await drag([250, 570], [330, 650])
     await waitForFrames(3)
+    const circle = (await page.evaluate(() => window.drawingHarness.state().frames)).find((f) =>
+      f.html?.includes('data-doop-drawing="circle"'),
+    )!
+    await waitForRuntime(circle.id)
     await page.mouse.move(290, 610)
     await page.mouse.down()
     await page.mouse.move(350, 360, { steps: 5 })
@@ -593,6 +606,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
     await page.click('[aria-label="Circle"]')
     await drag([250, 300], [330, 380])
     const [original] = await waitForFrames(1)
+    await waitForRuntime(original!.id)
     for (const reason of ['escape', 'pointer', 'page']) {
       await page.mouse.move(290, 340)
       await page.mouse.down()

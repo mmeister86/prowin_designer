@@ -87,14 +87,18 @@ describe.skipIf(!findBrowserPath())('element resize handles', () => {
         const grips = document.querySelector<HTMLElement>('[data-resize-handles]')
         return !!grips && parseFloat(grips.style.width) === b.width && parseFloat(grips.style.height) === b.height
       },
-      {},
+      /* the grips mount is a DOM commit: observe mutations, not animation
+         frames, so a starved rAF under suite load cannot hide it */
+      { polling: 'mutation' },
       box,
     )
   }
   /* every case starts from the seeded document, with the frame selected */
   async function reset(html = HTML) {
     await page.evaluate(() => window.elementPanelHarness.deselect())
-    await page.waitForFunction(() => !document.querySelector('[data-resize-handles]'))
+    /* the unmount is a DOM commit: observe mutations, not animation frames,
+       so a starved rAF under suite load cannot hide it */
+    await page.waitForFunction(() => !document.querySelector('[data-resize-handles]'), { polling: 'mutation' })
     const updatedAt = saved.updatedAt + 1
     saved = { ...saved, html: html.replace('<body>', `<body data-test-reset="${updatedAt}">`), updatedAt }
     await page.evaluate((frame) => window.elementPanelHarness.seed(frame), saved)
