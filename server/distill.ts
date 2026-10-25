@@ -1,6 +1,7 @@
 import { env } from './env.ts'
 import type Anthropic from '@anthropic-ai/sdk'
 import { requestyConfig, runChatCompletionsTurn } from './chatCompletionsAgent.ts'
+import { redactPii } from './prowin/redact.ts'
 import { store } from './store.ts'
 import * as actions from './actions.ts'
 
@@ -47,7 +48,7 @@ async function summarizeDecision(canvasId: string, decisionId: string) {
       {
         role: 'user',
         content: `Raw design feedback a human gave an agent on a shared canvas (the agent carried it out):
-"${decision.text}"
+"${redactPii(decision.text)}"
 
 Rewrite it as ONE short, general style preference for this project's design memory. Generalize from the specific instance to the underlying taste — e.g. "make this button blue like the others" becomes "Prefer blue accent buttons". Imperative, under 90 characters, no quotes, no trailing period. Reply with the preference only.`,
       },
@@ -63,7 +64,8 @@ Rewrite it as ONE short, general style preference for this project's design memo
     .slice(0, 120)
   if (summary) {
     actions.setDecisionSummary(canvasId, decisionId, summary)
-    console.log(`[distill] summarized canvas=${canvasId} "${decision.text.slice(0, 40)}…" -> "${summary}"`)
+    /* no raw decision text in logs: it can carry contact details */
+    console.log(`[distill] summarized canvas=${canvasId} -> "${summary}"`)
   }
 }
 
@@ -118,13 +120,17 @@ async function distill(canvasId: string) {
   const guides = store.getGuidelines(canvasId)
 
   const guideList = guides.length
-    ? guides.map((g) => `- ${g.name} ("${actions.guidelineTitle(g)}"): ${actions.guidelineSummary(g)}`).join('\n')
+    ? guides
+        .map(
+          (g) => `- ${g.name} ("${redactPii(actions.guidelineTitle(g))}"): ${redactPii(actions.guidelineSummary(g))}`,
+        )
+        .join('\n')
     : '(none yet)'
   const decisionList = decisions
     .map((d) =>
       d.summary
-        ? `- [${d.id}] ${d.summary} (${d.from}'s words: "${d.text}")`
-        : `- [${d.id}] ${d.from} asked${d.agentName ? ` ${d.agentName}` : ''}: "${d.text}"`,
+        ? `- [${d.id}] ${redactPii(d.summary)} (${d.from}'s words: "${redactPii(d.text)}")`
+        : `- [${d.id}] ${d.from} asked${d.agentName ? ` ${d.agentName}` : ''}: "${redactPii(d.text)}"`,
     )
     .join('\n')
   /* what was already pitched: never re-propose a dismissed rule, don't repeat
@@ -134,7 +140,7 @@ async function distill(canvasId: string) {
     .filter((p) => p.status !== 'pending')
     .slice(0, 5)
   const proposalList = priorProposals.length
-    ? priorProposals.map((p) => `- [${p.status}] ${p.rule}`).join('\n')
+    ? priorProposals.map((p) => `- [${p.status}] ${redactPii(p.rule)}`).join('\n')
     : '(none)'
 
   const prompt = `You maintain the design memory of a shared canvas. Humans gave agents the following feedback, and each item below was carried out — they are settled decisions, newest first:

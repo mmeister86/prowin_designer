@@ -1,4 +1,5 @@
 import { withUserPermissions } from './prowin/permissions.ts'
+import { createRedactionSession, redactPii } from './prowin/redact.ts'
 import { env } from './env.ts'
 import type Anthropic from '@anthropic-ai/sdk'
 import { store } from './store.ts'
@@ -142,6 +143,9 @@ interface RunState {
   mutatedFrames: Set<string>
   verifiedFrames: Set<string>
   rewriteDrafts: Map<string, string>
+  /** reversible PII tokens for this run: frame HTML goes to the model
+   *  redacted, write tools restore the originals before storing */
+  redaction: ReturnType<typeof createRedactionSession>
   /** false = the model cannot see images: screenshots are skipped and the
    *  visual-verification requirement does not apply to this run */
   vision: boolean
@@ -244,13 +248,13 @@ function strategyFor(text: string, frames: NonNullable<ReturnType<typeof store.g
 
   if (isRedesign && frames.length > 1) {
     return (
-      `Large cross-frame redesign strategy (${large.map((frame) => frame.name).join(', ')} exceed ${LARGE_HTML_CHARS} HTML characters): ` +
+      `Large cross-frame redesign strategy (${large.map((frame) => redactPii(frame.name)).join(', ')} exceed ${LARGE_HTML_CHARS} HTML characters): ` +
       'screenshot and inspect the target and reference; use visible content plus computed design tokens; do not read the reference HTML; build replacement HTML atomically with begin_frame_rewrite, append_frame_rewrite chunks, and commit_frame_rewrite; screenshot the changed target.' +
       redesignNote
     )
   }
   return (
-    `Large targeted-edit strategy (${large.map((frame) => frame.name).join(', ')} exceed ${LARGE_HTML_CHARS} HTML characters): ` +
+    `Large targeted-edit strategy (${large.map((frame) => redactPii(frame.name)).join(', ')} exceed ${LARGE_HTML_CHARS} HTML characters): ` +
     'inspect the relevant frame, use get_frame_html with query or a bounded range, apply the smallest exact edit, and screenshot the changed frame.' +
     redesignNote
   )
@@ -395,6 +399,9 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     )
 
     const canvas = store.getCanvas(canvasId)
+    /* one redaction session per run: free text goes out with one-way
+       placeholders, frame-HTML excerpts with reversible session tokens */
+    const redaction = createRedactionSession()
     /* demo frames (the Doop welcome show, seeded examples) are product
        content, not user work — hidden so agents never mistake them for
        the canvas's established style */
@@ -402,7 +409,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     const frameList = visibleFrames
       .map(
         (f, index) =>
-          `- Frame ${index + 1}: id=${f.id}, name="${f.name}", ${Math.round(f.width)}x${Math.round(f.height)} (last edit: ${f.updatedBy}, ${f.html.length} bytes${f.html.length > LARGE_HTML_CHARS ? '; large document — avoid a full read for visual-reference work' : ''})`,
+          `- Frame ${index + 1}: id=${f.id}, name="${redactPii(f.name)}", ${Math.round(f.width)}x${Math.round(f.height)} (last edit: ${f.updatedBy}, ${f.html.length} bytes${f.html.length > LARGE_HTML_CHARS ? '; large document — avoid a full read for visual-reference work' : ''})`,
       )
       .join('\n')
 
@@ -410,7 +417,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     if (items.length > 0) {
       sections.push(
         `New human feedback on this canvas:\n` +
-          items.map((i) => `- ${i.from} (about the work "${i.about}"): "${i.text}"`).join('\n'),
+          items.map((i) => `- ${i.from} (about the work "${redactPii(i.about)}"): "${redactPii(i.text)}"`).join('\n'),
       )
     }
     /* a card asked from a selection is about THAT frame or element: the
@@ -447,7 +454,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
               const attached = (c.attachments ?? [])
                 .map((id) => {
                   const f = store.getFrame(id)
-                  return f ? `${f.id} ("${f.name}")` : null
+                  return f ? `${f.id} ("${redactPii(f.name)}")` : null
                 })
                 .filter(Boolean)
               const refs =
@@ -456,8 +463,8 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                     `Call screenshot_frame on each BEFORE designing and build from what you see. ` +
                     `They are source material — leave them as they are and deliver in a separate frame.`
                   : ''
-              const scoped = describeScope(c.scope)
-              return `- from ${c.queuedBy}: "${c.status}"${route}${scoped}${refs}`
+              const scoped = redactPii(describeScope(c.scope))
+              return `- from ${c.queuedBy}: "${redactPii(c.status)}"${route}${scoped}${refs}`
             })
             .join('\n'),
       )
@@ -475,10 +482,10 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                   0,
                   history.findIndex((x) => x.id === c.id),
                 )
-                .map((x) => `    ${x.from}: "${x.text}"`)
+                .map((x) => `    ${x.from}: "${redactPii(x.text)}"`)
                 .join('\n')
               const thread = earlier ? `\n  earlier in this thread:\n${earlier}` : ''
-              return `- ${c.from} ${describeCommentAnchor(c, canvas)}${thread}\n  comment: "${c.text}"`
+              return `- ${c.from} ${redaction.redact(describeCommentAnchor(c, canvas))}${thread}\n  comment: "${redactPii(c.text)}"`
             })
             .join('\n'),
       )
@@ -495,7 +502,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
           references
             .map(
               (r) =>
-                `- ${r.id}: "${r.title}" (${Math.round(r.width)}x${Math.round(r.height)}, pinned by ${r.pinnedBy})`,
+                `- ${r.id}: "${redactPii(r.title)}" (${Math.round(r.width)}x${Math.round(r.height)}, pinned by ${r.pinnedBy})`,
             )
             .join('\n') +
           `\nBefore designing or restyling anything, call get_reference on the most relevant one and match its palette, typography and spacing.`
@@ -521,6 +528,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       mutatedFrames: new Set(),
       verifiedFrames: new Set(),
       rewriteDrafts: new Map(),
+      redaction,
       vision: model.vision !== false,
       ...(model.userId ? { payerId: model.userId } : {}),
       imagesGenerated: 0,
@@ -546,7 +554,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
             {
               text:
                 `# Canvas design guidelines\nEvery frame on this canvas must follow these docs — they outrank your own aesthetic preferences:\n\n` +
-                guidelineDocs.map((d) => `## ${d.name}\n\n${d.markdown}`).join('\n\n'),
+                guidelineDocs.map((d) => `## ${d.name}\n\n${redactPii(d.markdown)}`).join('\n\n'),
               cache: true,
             },
           ]
@@ -1134,7 +1142,7 @@ async function execTool(
           x?: number
           y?: number
         }
-        const html = completeHtml(raw.html)
+        const html = completeHtml(typeof raw.html === 'string' ? runState.redaction.restore(raw.html) : raw.html)
         if (!html) return fail('create_frame requires a complete non-empty HTML document ending in </html>')
         if (html.length > MAX_REWRITE_CHUNK_CHARS) {
           return fail(`create_frame HTML must be compact (at most ${MAX_REWRITE_CHUNK_CHARS} characters)`)
@@ -1154,18 +1162,22 @@ async function execTool(
       case 'inspect_frame': {
         const f = store.getFrame(input.frame_id)
         if (!f || f.canvasId !== canvasId) return fail('frame not found on this canvas')
-        const inspection = await inspectFrame(f)
-        return ok(JSON.stringify(inspection))
+        /* inspect the redacted copy: extracted text comes from the render,
+           and the JSON pass catches anything the copy could not (titles,
+           CSS variables) before it reaches the model */
+        const inspection = await inspectFrame({ ...f, html: runState.redaction.redact(f.html ?? '') })
+        return ok(runState.redaction.redact(JSON.stringify(inspection)))
       }
       case 'get_frame_html': {
         const f = store.getFrame(input.frame_id)
         if (!f || f.canvasId !== canvasId) return fail('frame not found on this canvas')
         if (typeof f.html !== 'string') return fail('frame HTML is unavailable; retry after the frame reloads')
+        const html = runState.redaction.redact(f.html)
         const raw = block.input as { query?: string; offset?: number; limit?: number }
         const query = String(raw.query || '').trim()
         const limit = Math.max(1000, Math.min(Number(raw.limit) || 20_000, MAX_HTML_READ_CHARS))
         if (query) {
-          const haystack = f.html.toLowerCase()
+          const haystack = html.toLowerCase()
           const needle = query.toLowerCase()
           const matches: number[] = []
           let cursor = 0
@@ -1179,17 +1191,17 @@ async function execTool(
           const perMatch = Math.max(1000, Math.floor(limit / matches.length))
           const snippets = matches.map((index, match) => {
             const start = Math.max(0, index - Math.floor(perMatch / 2))
-            const end = Math.min(f.html.length, start + perMatch)
-            return `--- match ${match + 1} at ${index}, chars ${start}-${end} ---\n${f.html.slice(start, end)}`
+            const end = Math.min(html.length, start + perMatch)
+            return `--- match ${match + 1} at ${index}, chars ${start}-${end} ---\n${html.slice(start, end)}`
           })
           return ok(
-            `Frame HTML: ${f.html.length} characters; ${matches.length} match(es) for "${query}".\n${snippets.join('\n')}`,
+            `Frame HTML: ${html.length} characters; ${matches.length} match(es) for "${query}".\n${snippets.join('\n')}`,
           )
         }
-        const offset = Math.max(0, Math.min(Number(raw.offset) || 0, f.html.length))
-        const end = Math.min(f.html.length, offset + limit)
+        const offset = Math.max(0, Math.min(Number(raw.offset) || 0, html.length))
+        const end = Math.min(html.length, offset + limit)
         return ok(
-          `Frame HTML: ${f.html.length} characters. Returning chars ${offset}-${end}.${end < f.html.length ? ` Continue with offset=${end}, or use query for a targeted snippet.` : ''}\n\n${f.html.slice(offset, end)}`,
+          `Frame HTML: ${html.length} characters. Returning chars ${offset}-${end}.${end < html.length ? ` Continue with offset=${end}, or use query for a targeted snippet.` : ''}\n\n${html.slice(offset, end)}`,
         )
       }
       case 'edit_frame_html': {
@@ -1198,11 +1210,15 @@ async function execTool(
         if (typeof f.html !== 'string') return fail('frame HTML is unavailable; retry after the frame reloads')
         if (typeof input.find !== 'string' || !input.find) return fail('find must be a non-empty exact HTML string')
         if (typeof input.replace !== 'string') return fail('replace must be an HTML string')
-        const count = f.html.split(input.find).length - 1
+        /* the model copied find/replace from the redacted view: restore
+           both, or the find misses and tokens would land in the store */
+        const find = runState.redaction.restore(input.find)
+        const replace = runState.redaction.restore(input.replace)
+        const count = f.html.split(find).length - 1
         if (count === 0) return fail('"find" text not found — call get_frame_html and copy the exact text')
         if (count > 1)
           return fail(`"find" text occurs ${count} times — include more surrounding context to make it unique`)
-        actions.updateFrame(input.frame_id, { html: f.html.replace(input.find, input.replace) }, actor)
+        actions.updateFrame(input.frame_id, { html: f.html.replace(find, replace) }, actor)
         runState.mutatedFrames.add(input.frame_id)
         runState.verifiedFrames.delete(input.frame_id)
         return ok('applied')
@@ -1210,7 +1226,7 @@ async function execTool(
       case 'set_frame_html': {
         const f = store.getFrame(input.frame_id)
         if (!f || f.canvasId !== canvasId) return fail('frame not found on this canvas')
-        const html = completeHtml(input.html)
+        const html = completeHtml(typeof input.html === 'string' ? runState.redaction.restore(input.html) : input.html)
         if (!html) {
           return fail(
             'set_frame_html did not receive a complete HTML document. If output was truncated, use begin_frame_rewrite, append_frame_rewrite chunks, and commit_frame_rewrite.',
@@ -1255,7 +1271,7 @@ async function execTool(
         if (!f || f.canvasId !== canvasId) return fail('frame not found on this canvas')
         const draft = runState.rewriteDrafts.get(input.frame_id)
         if (draft === undefined) return fail('no rewrite draft; call begin_frame_rewrite first')
-        const html = completeHtml(draft)
+        const html = completeHtml(runState.redaction.restore(draft))
         if (!html)
           return fail('rewrite draft is not a complete HTML document ending in </html>; append the missing content')
         actions.updateFrame(input.frame_id, { html }, actor)
@@ -1417,13 +1433,14 @@ async function execTool(
         const refs = store.getReferences(canvasId)
         const ref = refs.find((r) => r.id === input.reference_id)
         if (!ref) {
-          const ids = refs.map((r) => `${r.id} ("${r.title}")`)
+          const ids = refs.map((r) => `${r.id} ("${redactPii(r.title)}")`)
           return fail(
             ids.length
               ? `no reference with id ${input.reference_id} — this canvas has: ${ids.join(', ')}`
               : 'no style references pinned on this canvas',
           )
         }
+        const redactedHtml = runState.redaction.redact(ref.html)
         const snapshot: Frame = {
           id: `reference-${ref.id}`,
           canvasId,
@@ -1432,18 +1449,18 @@ async function execTool(
           y: 0,
           width: ref.width,
           height: ref.height,
-          html: ref.html,
+          html: redactedHtml,
           createdAt: ref.pinnedAt,
           updatedAt: ref.pinnedAt,
           updatedBy: ref.pinnedBy,
         }
         const blocks = await frameImageBlocks(snapshot)
-        const truncated = ref.html.length > MAX_HTML_READ_CHARS
+        const truncated = redactedHtml.length > MAX_HTML_READ_CHARS
         blocks.push({
           type: 'text',
           text:
-            `"${ref.title}" (${Math.round(ref.width)}x${Math.round(ref.height)}, pinned by ${ref.pinnedBy}) — match its palette, typography and spacing.\n\n` +
-            `HTML${truncated ? ` (first ${MAX_HTML_READ_CHARS} of ${ref.html.length} characters — lift the design tokens from the <style> head and the screenshot)` : ''}:\n${ref.html.slice(0, MAX_HTML_READ_CHARS)}`,
+            `"${redactPii(ref.title)}" (${Math.round(ref.width)}x${Math.round(ref.height)}, pinned by ${ref.pinnedBy}) — match its palette, typography and spacing.\n\n` +
+            `HTML${truncated ? ` (first ${MAX_HTML_READ_CHARS} of ${redactedHtml.length} characters — lift the design tokens from the <style> head and the screenshot)` : ''}:\n${redactedHtml.slice(0, MAX_HTML_READ_CHARS)}`,
         })
         return ok(blocks)
       }
@@ -1508,8 +1525,8 @@ async function execTool(
            screenshot entirely and point it at the textual surfaces, while
            keeping the verified-frames bookkeeping coherent */
         const blocks = runState.vision
-          ? await frameImageBlocks(f)
-          : `Screenshot skipped: the selected model cannot view images. Frame "${f.name}" is ${f.width}×${f.height}px. Verify your work with get_frame_html and inspect_frame instead.`
+          ? await frameImageBlocks({ ...f, html: runState.redaction.redact(f.html ?? '') })
+          : `Screenshot skipped: the selected model cannot view images. Frame "${redactPii(f.name)}" is ${f.width}×${f.height}px. Verify your work with get_frame_html and inspect_frame instead.`
         if (runState.mutatedFrames.has(input.frame_id)) {
           runState.verifiedFrames.add(input.frame_id)
         }
