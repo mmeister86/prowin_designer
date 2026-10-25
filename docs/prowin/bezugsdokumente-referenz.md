@@ -289,13 +289,13 @@ Der [Testkorpus](evidence/requesty-benchmark-corpus.json) enthält 20 deutsche T
 
 ### R4.4 Die fünf Features im Fork 🔄
 
-| Feature (Spec)                             | Im doop-Fork                                                                                                       |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Text-Assistent (Feld / alle Felder füllen) | Element-Kommentar bzw. „KI-Wunsch“ an einem `data-od`-Element. Batch über eine Agent-Aufgabe                       |
-| Layout-Generator (Zonen erzeugen)          | ❌ entfällt, der Agent schreibt direkt das Layout                                                                  |
-| Bild-Generator                             | Magnific-Adapter in `imageGen.ts`. Prompt-Enhancement aus Brand-Bildsprache, „no text, no logos, no watermarks“    |
-| Design-Komplettierung                      | **Ist der doop-Agent.** Die Spec-Empfehlung „schrittweise statt ein Riesen-JSON“ erfüllt der Agent-Loop von selbst |
-| Brand-Extraktion (aus JPEGs)               | Teilweise durch Magnific Brand Kit und den Distiller abgedeckt. `DESIGN-prowin.md` bleibt die Quelle               |
+| Feature (Spec)                             | Im doop-Fork                                                                                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Text-Assistent (Feld / alle Felder füllen) | Element-Kommentar bzw. „KI-Wunsch“ an einem `data-od`-Element. Batch über eine Agent-Aufgabe                                                                 |
+| Layout-Generator (Zonen erzeugen)          | ❌ entfällt, der Agent schreibt direkt das Layout                                                                                                            |
+| Bild-Generator                             | **Geplant, noch nicht gebaut (TASK-39/40):** Magnific-Adapter in `imageGen.ts`. Prompt-Enhancement aus Brand-Bildsprache, „no text, no logos, no watermarks“ |
+| Design-Komplettierung                      | **Ist der doop-Agent.** Die Spec-Empfehlung „schrittweise statt ein Riesen-JSON“ erfüllt der Agent-Loop von selbst                                           |
+| Brand-Extraktion (aus JPEGs)               | Teilweise durch Magnific Brand Kit und den Distiller abgedeckt. `DESIGN-prowin.md` bleibt die Quelle                                                         |
 
 ### R4.5 Limits, UX und Kosten 🔄
 

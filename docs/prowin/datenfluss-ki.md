@@ -4,9 +4,10 @@ TASK-21 · entschieden am 25.10.2026 · Verantwortlicher: Matthias Meister
 
 ## Entscheidung
 
-**Option A: Platzhalter.** Kontaktdaten verlassen den Server nicht im Klartext
-Richtung Requesty. `server/prowin/redact.ts` ersetzt vor jedem Request
-E-Mail-Adressen, Telefonnummern und IBANs. Zwei Betriebsarten:
+**Option A: Platzhalter.** E-Mail-Adressen, Telefonnummern und IBANs verlassen den
+Server nicht im Klartext Richtung Requesty; nur diese drei Formen deckt das
+Verfahren ab (Namen und Postadressen nicht, siehe unten). `server/prowin/redact.ts`
+ersetzt sie vor jedem Request. Zwei Betriebsarten:
 
 - **Einweg** (`redactPii`): Freitexte, Kommentare, Guidelines, Distiller. Treffer
   werden durch `[E-Mail entfernt]`, `[Telefon entfernt]` oder

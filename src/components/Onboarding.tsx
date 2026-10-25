@@ -168,8 +168,8 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
               variant="ghost"
               className="pointer-events-auto absolute left-3 top-3 z-30 h-10 gap-2 rounded-full bg-surface px-3 text-xs font-semibold shadow-card"
             >
-              <span className="text-brand">✦</span> Getting started
-              <span className="font-mono text-[10px] text-ink-faint">{done}/2</span>
+              <span className="text-brand">✦</span> {showChecklist ? 'Getting started' : 'AI notice'}
+              {showChecklist && <span className="font-mono text-[10px] text-ink-faint">{done}/2</span>}
             </Button>
           </SheetTrigger>
           <SheetContent
@@ -177,9 +177,13 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
             className="max-h-[min(78svh,620px)] gap-0 overflow-y-auto rounded-t-2xl border-line bg-surface p-0 shadow-pop"
           >
             <div className="border-b border-line-soft px-5 py-4 pr-14">
-              <SheetTitle className="font-display text-lg font-extrabold">Getting started</SheetTitle>
+              <SheetTitle className="font-display text-lg font-extrabold">
+                {showChecklist ? 'Getting started' : 'AI notice'}
+              </SheetTitle>
               <SheetDescription className="mt-1 text-xs text-ink-soft">
-                Two steps to bring your own agent onto the canvas.
+                {showChecklist
+                  ? 'Two steps to bring your own agent onto the canvas.'
+                  : 'How your designs and prompts reach the AI.'}
               </SheetDescription>
             </div>
             <div className="flex flex-col gap-4 px-5 py-5">{checklist}</div>
@@ -204,7 +208,7 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
        (--chrome-left) — clear of the zoom control on the right */
     <div className="pointer-events-auto absolute bottom-3.5 left-[var(--chrome-left,14px)] z-40 flex w-[300px] flex-col gap-2.5 rounded-[14px] bg-surface px-4 pt-3.5 pb-4 shadow-pop transition-[left] duration-150 max-md:right-4 max-md:bottom-4 max-md:left-auto">
       <header className="flex items-center justify-between">
-        <span className="text-[13px] font-medium">Getting started</span>
+        <span className="text-[13px] font-medium">{showChecklist ? 'Getting started' : 'AI notice'}</span>
         {showChecklist && (
           <Button variant="bare" size="icon-sm" className="text-xs" onClick={dismiss} title="Dismiss">
             ✕
