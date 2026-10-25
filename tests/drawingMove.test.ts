@@ -9,7 +9,7 @@ vi.mock('../src/lib/api', async (importOriginal) => ({
 }))
 const { api, ApiError } = await import('../src/lib/api')
 const { useStore } = await import('../src/lib/store')
-const { clearHistory, undo, redo } = await import('../src/lib/history')
+const { clearHistory, recordUpdate, undo, redo } = await import('../src/lib/history')
 const { drawingDocument, pathDrawing, saveDrawing } = await import('../src/lib/drawing')
 const { drawingDropFrame, movableDrawing, moveDrawing } = await import('../src/lib/drawingMove')
 const parse = (html: string) => new DOMParser().parseFromString(html, 'text/html')
@@ -210,6 +210,33 @@ describe('moving drawings between frames and canvas', () => {
     expect(frames()[0]!.html).toBe(base.html)
     log.mockRestore()
   })
+
+  it.each(['hidden', 'locked'] as const)(
+    'keeps transfer undo and redo working after undoing an own %s toggle on an omitted flag',
+    async (flag) => {
+      await moveDrawing(shape, undefined, rect, base.id)
+      const moved = frames().find((f) => f.id === base.id)!
+      expect(moved[flag]).toBeUndefined()
+      recordUpdate(base.id, { [flag]: !!moved[flag] }, { [flag]: true }, true)
+      useStore.getState().patchFrameLocal(base.id, { [flag]: true })
+      await api.updateFrame(base.id, { [flag]: true })
+      await undo()
+      expect(useStore.getState().notice).toBeNull()
+      expect(db.get(base.id)![flag]).toBe(false)
+      await undo()
+      expect(useStore.getState().notice).toBeNull()
+      expect(db.get(base.id)!.html).toBe(base.html)
+      expect([...db.values()].find((f) => f.id !== base.id)?.html).toBe(shape.html)
+      expect(db.size).toBe(2)
+      await redo()
+      expect(useStore.getState().notice).toBeNull()
+      expect(db.size).toBe(1)
+      const [target] = [...db.values()]
+      expect(target!.id).toBe(base.id)
+      expect(target!.html).toBe(moved.html)
+      expect(parse(target!.html).querySelectorAll('[data-doop-drawing]')).toHaveLength(1)
+    },
+  )
 
   it.each([true, false])('keeps a successful transfer destination edited before undo (known=%s)', async (known) => {
     await moveDrawing(shape, undefined, rect, base.id)

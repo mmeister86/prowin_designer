@@ -250,7 +250,9 @@ async function recreate(e: { frameId: string; snapshot: Snapshot; expected?: Fra
 }
 
 function sameTransferState(a: Frame, b: Frame) {
-  return (Object.keys(snapshot(a)) as (keyof Snapshot)[]).every((key) => a[key] === b[key])
+  return (Object.keys(snapshot(a)) as (keyof Snapshot)[]).every((key) =>
+    key === 'hidden' || key === 'locked' ? !!a[key] === !!b[key] : a[key] === b[key],
+  )
 }
 
 /* Only our own successful inverses can advance a matching history state's
