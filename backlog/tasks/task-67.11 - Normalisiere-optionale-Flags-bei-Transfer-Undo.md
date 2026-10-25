@@ -4,6 +4,7 @@ title: Normalisiere optionale Flags bei Transfer-Undo
 status: In Progress
 assignee: []
 created_date: '2026-10-25T17:28:00Z'
+updated_date: '2026-10-25T17:39:00Z'
 labels: []
 dependencies: []
 parent_task_id: TASK-67
@@ -18,9 +19,9 @@ Explizit freigegebene Restkorrektur I4 aus final-fix-review.md: hidden/locked mi
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Optionale hidden/locked-Werte undefined und false werden für Transfer-Zustandsvergleich gleich behandelt
-- [ ] #2 Regression für beide Flags und bestehende Konflikt-/Undo-/Redo-Tests bestehen; Versionsschutz bleibt erhalten
-- [ ] #3 Gezieltes unabhängiges Review sowie finale Tests und statische Prüfungen sind dokumentiert
+- [x] #1 Optionale hidden/locked-Werte undefined und false werden für Transfer-Zustandsvergleich gleich behandelt
+- [x] #2 Regression für beide Flags und bestehende Konflikt-/Undo-/Redo-Tests bestehen; Versionsschutz bleibt erhalten
+- [x] #3 Gezieltes unabhängiges Review sowie finale Tests und statische Prüfungen sind dokumentiert
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -30,3 +31,9 @@ Explizit freigegebene Restkorrektur I4 aus final-fix-review.md: hidden/locked mi
 2. Regression RED, minimalen Vergleich korrigieren, GREEN
 3. Gezieltes Review und finale Verifikation, Übergabedokument aktualisieren
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+e4d38b7: nur hidden/locked mit Boolean-Semantik verglichen, alle Versions-/sonstigen Feldprüfungen unverändert. Zwei permanente Regressionen (hidden/locked): RED2fehlgeschlagen/32bestanden, GREEN34/34; volle4Worker147Dateien/1161Tests erfolgreich, Typecheck/FULLLint/Build/DocLint/OwnFormat0. Spock-Nachreview Spec compliant, Quality PASS, I4 ADDRESSED, keine Critical/Important. Controller las Rohlogs, prüfte17Trailer, geschützteDateien, entfernteModule undmain. Keine neueRundumprüfung. Aufgabenstatus bleibt bis manueller Benutzerbestätigung In Progress.
+<!-- SECTION:NOTES:END -->

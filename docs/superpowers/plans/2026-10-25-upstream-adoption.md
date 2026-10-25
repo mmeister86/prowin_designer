@@ -42,103 +42,114 @@ Run focused tests during iterations and the full suite once at the task gate; do
 **Source:** `7f509bd`.
 **Files:** `server/db/persist.ts`, `tests/pages.test.ts`.
 **Interfaces:** Consumes existing `savePageCopy`; produces persisted hidden/locked flags, no API change.
-- [ ] Import upstream test changes first. Register the pages owner with `POST /api/prowin/creator` and assert status 200; retain all lock/visibility and database-reopen assertions.
-- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/pages.test.ts --maxWorkers=1` and capture the missing-persisted-flags RED assertion.
-- [ ] Adopt `7f509bd` with provenance; only the Creator fixture setup differs from upstream.
-- [ ] Run the pages test, typecheck, full task suite, self-review and report; commit source adoption separately.
+
+- [x] Import upstream test changes first. Register the pages owner with `POST /api/prowin/creator` and assert status 200; retain all lock/visibility and database-reopen assertions.
+- [x] Run `TMPDIR=/tmp/opencode bun run test tests/pages.test.ts --maxWorkers=1` and capture the missing-persisted-flags RED assertion.
+- [x] Adopt `7f509bd` with provenance; only the Creator fixture setup differs from upstream.
+- [x] Run the pages test, typecheck, full task suite, self-review and report; commit source adoption separately.
 
 ### Task 2: Keep visibility changes during inline text edits
 
 **Source:** `1df6c0b`.
 **Files:** `src/lib/frameRuntime.ts`, `src/lib/layerEdits.ts`, `tests/frameVisibilityBrowser.test.ts`, `tests/layersEye.test.tsx`.
 **Interfaces:** Adds `doop:visibility` runtime handling through existing `requestFrame`.
-- [ ] Import regression tests; use `tests/fixtures/frameRuntime.html` instead of the removed `frameReplay.html`, remove PostHog optimizeDeps and retain removal of PostHog mocks.
-- [ ] Run browser/layers tests for RED before production patch; test absence of a visibility response may timeout, record this distinction honestly.
-- [ ] Adopt `1df6c0b`, resolve the test mock conflict keeping the frameBridge mock and no analytics.
-- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/frameVisibilityBrowser.test.ts tests/layersEye.test.tsx --maxWorkers=2`, typecheck, full task suite; commit and report.
+
+- [x] Import regression tests; use `tests/fixtures/frameRuntime.html` instead of the removed `frameReplay.html`, remove PostHog optimizeDeps and retain removal of PostHog mocks.
+- [x] Run browser/layers tests for RED before production patch; test absence of a visibility response may timeout, record this distinction honestly.
+- [x] Adopt `1df6c0b`, resolve the test mock conflict keeping the frameBridge mock and no analytics.
+- [x] Run `TMPDIR=/tmp/opencode bun run test tests/frameVisibilityBrowser.test.ts tests/layersEye.test.tsx --maxWorkers=2`, typecheck, full task suite; commit and report.
 
 ### Task 3: Make resolved comment replies readable
 
 **Source:** `d1f9752`.
 **Files:** `src/components/CommentsPanel.tsx`, `tests/commentsPanel.test.tsx`.
 **Interfaces:** Uses existing Disclosure, preserves existing permission/agent behavior.
-- [ ] Import upstream resolved-thread regression tests, run `TMPDIR=/tmp/opencode bun run test tests/commentsPanel.test.tsx --maxWorkers=1` for RED.
-- [ ] Adopt `d1f9752` without restoring PostHog imports.
-- [ ] Run focused tests, typecheck, full task suite; commit and report.
+
+- [x] Import upstream resolved-thread regression tests, run `TMPDIR=/tmp/opencode bun run test tests/commentsPanel.test.tsx --maxWorkers=1` for RED.
+- [x] Adopt `d1f9752` without restoring PostHog imports.
+- [x] Run focused tests, typecheck, full task suite; commit and report.
 
 ### Task 4: Adopt the complete design-panel foundation
 
 **Sources in exact order:** `4e3e8b6`, `1a3373f`, `8ef7396`, `d98df37`.
 **Files:** Paths returned by `git show --name-only` for these sources, chiefly ElementPanel, property-field, icons, frameBridge, frameRuntime, history, cssValues, new use-value-scrub/FlexLayoutControls/flexLayout, tests and fixtures.
 **Interfaces:** Produces `onFrameChange`, frame-updated notifications, `styleGesture`, aspectRatio helpers, geometry/layout metadata consumed by Task 8.
-- [ ] For EACH source separately import its tests first, capture focused RED, adopt it with provenance, then run focused GREEN and typecheck before moving on.
-- [ ] Focused command: `TMPDIR=/tmp/opencode bun run test tests/elementPanelBrowser.test.ts tests/cssValues.test.ts tests/frameLocalEdits.test.ts tests/pageControlsBrowser.test.ts --maxWorkers=2`; only name test files that exist at the current source step.
-- [ ] Preserve removed replay runtime and analytics code; retain localHtml/remote-edit protection and history gesture grouping.
-- [ ] After all four individually tested commits run the full task suite, self-review and report one per-commit evidence section.
+
+- [x] For EACH source separately import its tests first, capture focused RED, adopt it with provenance, then run focused GREEN and typecheck before moving on.
+- [x] Focused command: `TMPDIR=/tmp/opencode bun run test tests/elementPanelBrowser.test.ts tests/cssValues.test.ts tests/frameLocalEdits.test.ts tests/pageControlsBrowser.test.ts --maxWorkers=2`; only name test files that exist at the current source step.
+- [x] Preserve removed replay runtime and analytics code; retain localHtml/remote-edit protection and history gesture grouping.
+- [x] After all four individually tested commits run the full task suite, self-review and report one per-commit evidence section.
 
 ### Task 5: Copy links to specific elements
 
 **Source:** `81fb23a`.
 **Files:** ElementLink, FrameView, LayersPanel, Stage, server/mcp, README/TECHSTACK and upstream test/fixture paths.
 **Interfaces:** Adds element-link parsing/copy and focus; builds on existing frame selectors, no permission change.
-- [ ] Import upstream test changes; run `TMPDIR=/tmp/opencode bun run test tests/elementLink.test.tsx tests/pageCanvasBrowser.test.ts --maxWorkers=2` for RED.
-- [ ] Adopt `81fb23a` with provenance, retaining fork documentation and removed integration code.
-- [ ] Run focused GREEN, typecheck, full task suite; commit and report.
+
+- [x] Import upstream test changes; run `TMPDIR=/tmp/opencode bun run test tests/elementLink.test.tsx tests/pageCanvasBrowser.test.ts --maxWorkers=2` for RED.
+- [x] Adopt `81fb23a` with provenance, retaining fork documentation and removed integration code.
+- [x] Run focused GREEN, typecheck, full task suite; commit and report.
 
 ### Task 6: Protect drawing transfers against concurrent writes
 
 **Source:** `2caad52`.
 **Files:** `server/index.ts`, `src/lib/api.ts`, `src/lib/drawingMove.ts`, `tests/drawingMove.test.ts`, `tests/frameConcurrentSave.test.ts`.
 **Interfaces:** `requireFrame(..., expectedUpdatedAt?)`, optional deleteFrame expected version, conflict-safe transfer/rollback.
-- [ ] Import regression tests first; resolve drawingMove mock with importOriginal/ApiError but no PostHog. Capture meaningful conflict/delete RED.
-- [ ] Adopt `2caad52` while preserving Creator identity/permission middleware and backwards-compatible DELETE without version.
-- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/drawingMove.test.ts tests/frameConcurrentSave.test.ts tests/prowinCapabilities.test.ts --maxWorkers=2`, typecheck, full task suite; commit and report.
+
+- [x] Import regression tests first; resolve drawingMove mock with importOriginal/ApiError but no PostHog. Capture meaningful conflict/delete RED.
+- [x] Adopt `2caad52` while preserving Creator identity/permission middleware and backwards-compatible DELETE without version.
+- [x] Run `TMPDIR=/tmp/opencode bun run test tests/drawingMove.test.ts tests/frameConcurrentSave.test.ts tests/prowinCapabilities.test.ts --maxWorkers=2`, typecheck, full task suite; commit and report.
 
 ### Task 7: Restore the selected-frame destination picker
 
 **Source:** `3edf6e8`.
 **Files:** `src/components/PagesPanel.tsx`, `tests/pageControlsBrowser.test.ts`.
 **Interfaces:** Reuses `moveFramesToPage`, excludes locked frames, picker key events must not reach canvas shortcuts.
-- [ ] Import regression tests and capture missing-picker RED. Task 4 supplies the prerequisite shortcut helper.
-- [ ] Adopt `3edf6e8` with provenance.
-- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/pageControlsBrowser.test.ts tests/pageEdits.test.ts --maxWorkers=2`, typecheck, full task suite; commit and report.
+
+- [x] Import regression tests and capture missing-picker RED. Task 4 supplies the prerequisite shortcut helper.
+- [x] Adopt `3edf6e8` with provenance.
+- [x] Run `TMPDIR=/tmp/opencode bun run test tests/pageControlsBrowser.test.ts tests/pageEdits.test.ts --maxWorkers=2`, typecheck, full task suite; commit and report.
 
 ### Task 8: Adopt resize handles with all reviewed correctness fixes
 
 **Sources in exact order:** `f897395`, `cb176aa`, `91e8bad`, `0ab9cf0`, `0531b70`.
 **Files:** Source commit paths, chiefly ElementResizeHandles, elementResize, FrameView, ElementPanel, frameBridge/frameRuntime, flexLayout, TECHSTACK, tests and fixtures.
 **Interfaces:** Consumes Task 4 styleGesture/geometry; produces selection resize UI respecting locked frames/elements and unsupported transforms.
-- [ ] For EACH source separately import tests first, capture RED, adopt with provenance, run focused GREEN and typecheck, and retain its own commit.
-- [ ] Focused command: `TMPDIR=/tmp/opencode bun run test tests/elementResize.test.ts tests/elementResizeBrowser.test.ts tests/elementPanelBrowser.test.ts --maxWorkers=2`.
-- [ ] For CSS-only `0531b70`, verify the hover overlay sits above selection outline; add a small behavioral regression to the browser suite if no existing assertion proves it, then run it RED/GREEN.
-- [ ] Keep removed sync/GitHub/analytics imports absent. Run full task suite after all five, self-review and report per source.
+
+- [x] For EACH source separately import tests first, capture RED, adopt with provenance, run focused GREEN and typecheck, and retain its own commit.
+- [x] Focused command: `TMPDIR=/tmp/opencode bun run test tests/elementResize.test.ts tests/elementResizeBrowser.test.ts tests/elementPanelBrowser.test.ts --maxWorkers=2`.
+- [x] For CSS-only `0531b70`, verify the hover overlay sits above selection outline; add a small behavioral regression to the browser suite if no existing assertion proves it, then run it RED/GREEN.
+- [x] Keep removed sync/GitHub/analytics imports absent. Run full task suite after all five, self-review and report per source.
 
 ### Task 9: Copy rendered frames as PNG
 
 **Source:** `06169b4`.
 **Files:** `src/components/FrameContextMenu.tsx`, `src/components/Inspector.tsx`, `src/lib/frameExport.ts`, `tests/frameExport.test.ts`.
 **Interfaces:** Adds `copyFramePng(frame): Promise<void>` reusing export URL/reporting; read-only action, no extra permission gate.
-- [ ] Import upstream tests first and capture RED. Keep missing/refusing clipboard and render-failure coverage.
-- [ ] Adopt `06169b4`, preserving fork manageLocks gating elsewhere in the components.
-- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/frameExport.test.ts tests/frameExportModal.test.tsx --maxWorkers=2`, typecheck, full task suite; commit and report.
+
+- [x] Import upstream tests first and capture RED. Keep missing/refusing clipboard and render-failure coverage.
+- [x] Adopt `06169b4`, preserving fork manageLocks gating elsewhere in the components.
+- [x] Run `TMPDIR=/tmp/opencode bun run test tests/frameExport.test.ts tests/frameExportModal.test.tsx --maxWorkers=2`, typecheck, full task suite; commit and report.
 
 ### Task 10: Adopt sharp zoom and stable peer cursors without removed integrations
 
 **Source:** `aa04e95`.
 **Files:** Source commit paths, chiefly FrameView, Stage, DrawingMove, FrameLabelLayer, GhostFrames, follow/frameRuntime, new layoutZoom, TECHSTACK and drawing/frameRasterZoom/follow tests and fixtures.
 **Interfaces:** Replaces raster prop with layoutZoom consistently; screen-space frame label portal and peer cursor/viewport scaling.
-- [ ] Import upstream tests first, capture zoom/cursor RED and preserve any existing locked-frame assertions.
-- [ ] Adopt `aa04e95` as a complete commit, manually resolve FrameView label portal while excluding Sync/GitHub tooltip blocks and deleted module imports; never restore FlowOverlay to Stage.
-- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/drawingBrowser.test.ts tests/frameRasterZoom.test.ts tests/follow.test.ts tests/elementResizeBrowser.test.ts tests/pageCanvasBrowser.test.ts --maxWorkers=2`, typecheck, full task suite; commit and report.
-- [ ] Controller runs final full suite, lint, build, doc-lint and protected-module/deleted-module comparisons, then dispatches an independent whole-branch review. No merge/push or task closure without the user.
+
+- [x] Import upstream tests first, capture zoom/cursor RED and preserve any existing locked-frame assertions.
+- [x] Adopt `aa04e95` as a complete commit, manually resolve FrameView label portal while excluding Sync/GitHub tooltip blocks and deleted module imports; never restore FlowOverlay to Stage.
+- [x] Run `TMPDIR=/tmp/opencode bun run test tests/drawingBrowser.test.ts tests/frameRasterZoom.test.ts tests/follow.test.ts tests/elementResizeBrowser.test.ts tests/pageCanvasBrowser.test.ts --maxWorkers=2`, typecheck, full task suite; commit and report.
+- [x] Controller runs final full suite, lint, build, doc-lint and protected-module/deleted-module comparisons, then dispatches an independent whole-branch review. No merge/push or task closure without the user.
 
 ### Task 11: Normalize optional flags in transfer history (explicit follow-up approval)
 
 **Source finding:** `final-fix-review.md` I4, explicitly approved by the user after the final-review cap.
 **Files:** `src/lib/history.ts`, `tests/drawingMove.test.ts`; controller owns Backlog and handoff documentation.
 **Interfaces:** Preserve `sameTransferState(a: Frame, b: Frame)` and all three callers. Only `hidden` and `locked` compare by their existing Boolean semantics; all other snapshot fields and expected-version checks stay strict.
-- [ ] Add a parameterized regression for each of `hidden` and `locked`: transfer into a frame whose optional false flag is omitted, apply/record an own false-to-true toggle, Undo the toggle, Undo the transfer, then Redo. Assert no false conflict, no unwanted duplicate drawing, correct HTML/source survival, and ordinary redo behavior. Reuse the real history/drawing test harness.
-- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/drawingMove.test.ts --maxWorkers=1` and capture the false-conflict RED before production changes.
-- [ ] In the existing snapshot-key comparison use `!!a[key] === !!b[key]` only for `hidden`/`locked`; retain strict equality otherwise. No permission/history redesign and no unrelated Minor fixes.
-- [ ] Run the focused file, typecheck, full lint, build, doc-lint, formatting for changed files, and one full four-worker suite. Archive explicit exit codes. Commit the narrow fix separately, preserving all source adoption commits.
-- [ ] One fresh scoped review verifies I4, preserved version/other-field guards, and tests. Controller verifies logs/provenance/protected paths, updates handoff/Backlog, and leaves all task statuses In Progress until manual user acceptance. No additional broad review round, push or merge.
+
+- [x] Add a parameterized regression for each of `hidden` and `locked`: transfer into a frame whose optional false flag is omitted, apply/record an own false-to-true toggle, Undo the toggle, Undo the transfer, then Redo. Assert no false conflict, no unwanted duplicate drawing, correct HTML/source survival, and ordinary redo behavior. Reuse the real history/drawing test harness.
+- [x] Run `TMPDIR=/tmp/opencode bun run test tests/drawingMove.test.ts --maxWorkers=1` and capture the false-conflict RED before production changes.
+- [x] In the existing snapshot-key comparison use `!!a[key] === !!b[key]` only for `hidden`/`locked`; retain strict equality otherwise. No permission/history redesign and no unrelated Minor fixes.
+- [x] Run the focused file, typecheck, full lint, build, doc-lint, formatting for changed files, and one full four-worker suite. Archive explicit exit codes. Commit the narrow fix separately, preserving all source adoption commits.
+- [x] One fresh scoped review verifies I4, preserved version/other-field guards, and tests. Controller verifies logs/provenance/protected paths, updates handoff/Backlog, and leaves all task statuses In Progress until manual user acceptance. No additional broad review round, push or merge.
