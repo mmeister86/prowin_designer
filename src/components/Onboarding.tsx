@@ -26,6 +26,9 @@ interface Progress {
   dismissed?: boolean
   connected?: boolean
   tasked?: boolean
+  /* the AI notice is acknowledged on its own: closing the checklist must not
+     count as accepting it, and users who closed it earlier still get it once */
+  notice?: boolean
 }
 
 function load(): Progress {
@@ -71,7 +74,8 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
 
   useEffect(() => save(progress), [progress])
 
-  if (progress.dismissed) return null
+  if (progress.dismissed && progress.notice) return null
+  const showChecklist = !progress.dismissed
   const allDone = progress.connected && progress.tasked
 
   function dismiss() {
@@ -92,36 +96,59 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
 
   const checklist = (
     <>
-      <Step done={!!progress.connected} label="Connect your own agent">
-        {!progress.connected && (
-          <>
-            <p className={obHint}>Claude Code, Codex, Cursor or any MCP client can design on this canvas as you.</p>
-            <Button size="sm" className="self-start" onClick={() => setShowConnect(true)}>
-              Connect AI
-            </Button>
-          </>
-        )}
-      </Step>
+      {showChecklist && (
+        <>
+          <Step done={!!progress.connected} label="Connect your own agent">
+            {!progress.connected && (
+              <>
+                <p className={obHint}>Claude Code, Codex, Cursor or any MCP client can design on this canvas as you.</p>
+                <Button size="sm" className="self-start" onClick={() => setShowConnect(true)}>
+                  Connect AI
+                </Button>
+              </>
+            )}
+          </Step>
 
-      <Step done={!!progress.tasked} label="Give it a task">
-        {progress.connected && !progress.tasked && (
-          <>
-            <Button size="sm" className={obCopy} onClick={() => copy(prompt)}>
-              {copied ? '✓ copied' : 'copy a starter prompt'}
-            </Button>
-            <p className={obHint}>Paste it into your agent's chat and watch the frame stream in.</p>
-          </>
-        )}
-      </Step>
+          <Step done={!!progress.tasked} label="Give it a task">
+            {progress.connected && !progress.tasked && (
+              <>
+                <Button size="sm" className={obCopy} onClick={() => copy(prompt)}>
+                  {copied ? '✓ copied' : 'copy a starter prompt'}
+                </Button>
+                <p className={obHint}>Paste it into your agent's chat and watch the frame stream in.</p>
+              </>
+            )}
+          </Step>
 
-      {allDone && (
-        <div className="flex flex-col gap-2.5 border-t border-line-soft pt-2.5">
-          <p className="text-[12.5px] leading-[1.5] text-ink-soft">
-            That's the loop. One more trick: hover a task in the panel and reply with ↩ — your note becomes an open
-            request any agent picks up mid-flight.
+          {allDone && (
+            <div className="flex flex-col gap-2.5 border-t border-line-soft pt-2.5">
+              <p className="text-[12.5px] leading-[1.5] text-ink-soft">
+                That's the loop. One more trick: hover a task in the panel and reply with ↩ — your note becomes an open
+                request any agent picks up mid-flight.
+              </p>
+              <Button className="self-start" onClick={dismiss}>
+                Got it
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {!progress.notice && (
+        <div className="flex flex-col gap-2 border-t border-line-soft pt-2.5">
+          <p className="text-[11.5px] leading-[1.5] text-ink-faint">
+            AI notice: your design HTML, the screenshots the agent takes to check its work, and your text prompts go to
+            Requesty (EU). E-mail addresses, phone numbers and IBANs are replaced with placeholders before a request
+            leaves our server. Names and postal addresses are not detected. Image generation via Magnific (planned) will
+            only run when you click it, without contact details in the prompt.
           </p>
-          <Button className="self-start" onClick={dismiss}>
-            Got it
+          <Button
+            variant="link"
+            size="sm"
+            className="self-start px-0 text-[11.5px] text-ink-faint"
+            onClick={() => setProgress((p) => ({ ...p, notice: true }))}
+          >
+            Dismiss
           </Button>
         </div>
       )}
@@ -156,14 +183,16 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
               </SheetDescription>
             </div>
             <div className="flex flex-col gap-4 px-5 py-5">{checklist}</div>
-            <Button
-              variant="link"
-              size="sm"
-              className="mx-5 mb-5 self-start px-0 text-xs text-ink-faint"
-              onClick={dismiss}
-            >
-              Dismiss checklist
-            </Button>
+            {showChecklist && (
+              <Button
+                variant="link"
+                size="sm"
+                className="mx-5 mb-5 self-start px-0 text-xs text-ink-faint"
+                onClick={dismiss}
+              >
+                Dismiss checklist
+              </Button>
+            )}
           </SheetContent>
         </Sheet>
       </>
@@ -176,9 +205,11 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
     <div className="pointer-events-auto absolute bottom-3.5 left-[var(--chrome-left,14px)] z-40 flex w-[300px] flex-col gap-2.5 rounded-[14px] bg-surface px-4 pt-3.5 pb-4 shadow-pop transition-[left] duration-150 max-md:right-4 max-md:bottom-4 max-md:left-auto">
       <header className="flex items-center justify-between">
         <span className="text-[13px] font-medium">Getting started</span>
-        <Button variant="bare" size="icon-sm" className="text-xs" onClick={dismiss} title="Dismiss">
-          ✕
-        </Button>
+        {showChecklist && (
+          <Button variant="bare" size="icon-sm" className="text-xs" onClick={dismiss} title="Dismiss">
+            ✕
+          </Button>
+        )}
       </header>
 
       {checklist}

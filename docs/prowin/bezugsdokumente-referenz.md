@@ -1,6 +1,6 @@
 # proWIN Content Designer — Bezugsdokumente (konsolidierte Referenz)
 
-> **Version:** 0.2 (Draft)
+> **Version:** 0.3 (Draft)
 > **Author:** Matthias Meister
 > **Date:** 22. Oktober 2026
 > **Zweck:** Fasst die sechs Specs des Fabric.js/Convex-Ansatzes zusammen und ordnet jeden Inhalt für den doop-Fork ein. Nach diesem Dokument muss niemand mehr die Original-Specs öffnen, um zu wissen, was noch gilt.
@@ -301,19 +301,19 @@ Der [Testkorpus](evidence/requesty-benchmark-corpus.json) enthält 20 deutsche T
 
 - **Usage-Limits (Vorschlag aus der Spec, pro Pro-Nutzerin und Monat):** Text 100 · Layout 30 · Bild 20 · Komplett-Design 10 · Brand-Analyse 3. Free: keine KI, eventuell 5 Probeaufrufe. Im Fork über das Allowance-System (Umsetzung § 7.3).
 - **UX-Prinzipien bleiben:** drei Vorschläge statt einem · „Übernehmen / Anpassen / Nochmal“ (Nochmal mit leicht erhöhter Temperatur) · Bildgenerierung nur auf ausdrücklichen Klick (Kostenkontrolle).
-- **Einmaliger KI-Hinweis in der UI** (Text aus § 6.3 übernehmen und um Magnific ergänzen).
+- **Einmaliger KI-Hinweis in der UI** (Text aus § 6.3, um Magnific ergänzt): **umgesetzt** (TASK-21) im Onboarding. Er nennt HTML, Screenshots, Requesty (EU), die Platzhalter für E-Mail/Telefon/IBAN und Magnific als geplant (nur auf Klick, ohne Kontaktdaten im Prompt).
 
-### R4.6 DSGVO ✅ (Datenfluss angepasst)
+### R4.6 DSGVO ✅ (Datenfluss angepasst, Q10 entschieden)
 
-| Datenkategorie                         | An ein Modell?                  | Hinweis                                                                                                                                                                                           |
-| -------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Frame-HTML (Struktur + Text)           | ✅ Requesty                     | ZDR                                                                                                                                                                                               |
-| Screenshots für Agent-Selbstprüfung    | ✅ Requesty (Vision)            | **Neu gegenüber Spec v0.2:** Bilddaten gehen jetzt regelmäßig raus. Der UI-Hinweis muss das sagen                                                                                                 |
-| Personenbezogene Daten (Name, Telefon) | ⚠️ stehen im HTML der Beraterin | **Neu:** Die Spec-Aussage „keine pbD“ gilt im Fork nicht mehr automatisch. Optionen: Platzhalter-Ersetzung vor dem Agent-Call oder Rechtsgrundlage plus Hinweis (→ offene Frage in der Umsetzung) |
-| Bildprompts an Magnific                | ✅                              | ohne pbD (Filter im Adapter)                                                                                                                                                                      |
-| Brand Kit                              | ✅                              | keine pbD                                                                                                                                                                                         |
+| Datenkategorie                         | An ein Modell?                   | Hinweis                                                                                                                                                                                                                    |
+| -------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Frame-HTML (Struktur + Text)           | ✅ Requesty                      | ZDR. Kontaktdaten gehen als `[[PII-n]]` raus, der Store behält das Original                                                                                                                                                |
+| Screenshots für Agent-Selbstprüfung    | ✅ Requesty (Vision)             | **Neu gegenüber Spec v0.2:** Bilddaten gehen regelmäßig raus. Seit TASK-21 wird der Screenshot aus der redigierten HTML-Kopie gerendert                                                                                    |
+| Personenbezogene Daten (Name, Telefon) | ✅ Platzhalter (seit 25.10.2026) | **Q10, Option A:** E-Mail, Telefon und IBAN werden vor jedem Requesty-Request ersetzt. Namen und freie Adressen erkennt die Regex nicht (→ TASK-29), Bildinhalte gar nicht. Details: [Datenfluss zur KI](datenfluss-ki.md) |
+| Bildprompts an Magnific                | 🔜 geplant (TASK-39/40)          | Adapter noch nicht gebaut. Bei Umsetzung: nur auf Klick, ohne Kontaktdaten im Prompt (Filter im Adapter, § 11 der Umsetzung)                                                                                               |
+| Brand Kit                              | ✅                               | keine pbD                                                                                                                                                                                                                  |
 
-**Compliance-Checkliste für den Pitch** (Art. 5(1)(c), 5(1)(e), 17, 28, 44–49, kein Training): Die Struktur bleibt. Die Nachweise müssen für Requesty **und** Magnific gelten, und die pbD-Zeile muss neu bewertet werden.
+**Compliance-Checkliste für den Pitch** (Art. 5(1)(c), 5(1)(e), 17, 28, 44–49, kein Training): Die Struktur bleibt. Die Nachweise müssen für Requesty **und** Magnific gelten. Die pbD-Zeile lautet seit TASK-21: _E-Mail, Telefon und IBAN werden vor dem Request durch Platzhalter ersetzt; gespeicherte Designs behalten die Originale; Namen, Adressen und Bildinhalte sind nicht abgedeckt und stehen so im UI-Hinweis._ Magnific ist noch nicht angebunden — der Nachweis dafür folgt mit TASK-39/40, nicht vorher.
 
 **Offene Frage aus der Spec:** Freepik-Stock (jetzt Magnific) für Stockfotos nutzen? Wenn ja, Lizenz- und Attributionspflichten tracken.
 
@@ -389,7 +389,8 @@ Offen und kostenlos, ein Community-Ökosystem statt Shop. **Pitch-Metriken:** mo
 
 ## Changelog
 
-| Version | Datum      | Änderung                                                                                                                                                    |
-| ------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0.2     | 2026-10-23 | R6: Stalwart durch Resend ersetzt (inkl. US-Speicherung)                                                                                                    |
-| 0.1     | 2026-10-22 | Erstfassung: sechs Specs konsolidiert, Status pro Abschnitt, Mapping auf den doop-Fork, neue DSGVO-Punkte (Screenshots an Vision-Modell, pbD im Frame-HTML) |
+| Version | Datum      | Änderung                                                                                                                                                                                                  |
+| ------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.3     | 2026-10-25 | R4.6 auf den umgesetzten Datenfluss umgestellt (Q10, Option A, TASK-21): Platzhalter für E-Mail/Telefon/IBAN, Screenshot aus redigierter Kopie, Magnific als geplant markiert; Pitch-Checkliste angepasst |
+| 0.2     | 2026-10-23 | R6: Stalwart durch Resend ersetzt (inkl. US-Speicherung)                                                                                                                                                  |
+| 0.1     | 2026-10-22 | Erstfassung: sechs Specs konsolidiert, Status pro Abschnitt, Mapping auf den doop-Fork, neue DSGVO-Punkte (Screenshots an Vision-Modell, pbD im Frame-HTML)                                               |
