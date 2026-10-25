@@ -11,6 +11,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { PanelBody } from './ui/panel'
 import { CheckIcon } from './ui/icons'
+import { Disclosure } from './ui/collapsible'
 import { isResidentLimit } from './TeamAllowance'
 
 const emptyNote = 'px-4 py-6 text-center text-[12px] leading-[1.45] text-ink-faint'
@@ -191,6 +192,24 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
           </span>
         )}
       </div>
+      {resolved && thread.replies.length > 0 && (
+        <Disclosure
+          label={`${thread.replies.length} ${thread.replies.length === 1 ? 'reply' : 'replies'}`}
+          className="py-1 pr-1.5 pl-[28px] text-label text-ink-soft"
+        >
+          <ol className="space-y-3" aria-label="Resolved replies">
+            {thread.replies.map((reply) => (
+              <li key={reply.id}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-medium text-ink">{reply.from}</span>
+                  <span className="shrink-0 text-caption text-ink-faint">{timeAgo(reply.at)}</span>
+                </div>
+                <p className="whitespace-pre-wrap break-words">{reply.text}</p>
+              </li>
+            ))}
+          </ol>
+        </Disclosure>
+      )}
       {!resolved && (
         <div className="flex items-center gap-1.5 py-1 pr-1.5 pl-[28px]">
           <Input
