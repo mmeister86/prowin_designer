@@ -1,3 +1,4 @@
+import './prowin/guard.ts'
 import { canvasCapabilities, CreatorPermissionError, withUserPermissions } from './prowin/permissions.ts'
 import { creatorRouter, permissionIdentity } from './prowin/accounts.ts'
 import { env } from './env.ts'

@@ -128,7 +128,8 @@ const COMPONENT_LAYER_SELECTORS = [
    JavaScript that no type check sees (oxlint's is still a nursery rule).
    No type information is loaded, so this run is cheap. */
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/', 'desktop/src-tauri/target/', 'storybook-static/'] },
+  /* Local runtime data is gitignored and may contain generated scripts. */
+  { ignores: ['dist/', 'node_modules/', 'data/', 'desktop/src-tauri/target/', 'storybook-static/'] },
   {
     files: ['**/*.{js,mjs,cjs}'],
     rules: { 'no-undef': 'error' },
