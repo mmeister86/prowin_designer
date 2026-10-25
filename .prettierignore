@@ -19,3 +19,6 @@ storybook-static/
 
 # agent worktrees (git worktrees under the repo)
 .claude/
+
+# Backlog.md CLI owns this file's YAML style (rewrites it on config changes)
+backlog/config.yml
