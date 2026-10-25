@@ -414,6 +414,12 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
   /* only thread roots get a pin; replies live inside the root's popover */
   const comments = frameComments.filter((c) => !c.parentId && !c.resolvedAt)
   const [probe, setProbe] = useState<ProbeHit | null>(null)
+  /* A deselect can overtake the probe it clears: a stale render may commit
+     the old probe afterwards (proven by stuck grips re-selecting a cleared
+     element). The cleared probe object is stamped so the shared effect below
+     drops it instead of re-picking from it. Every live probe arrives as a
+     fresh runtime-reply object, so identity separates stale from live. */
+  const clearedProbeRef = useRef<ProbeHit | null>(null)
   /* element selected for text editing inside the iframe (edit mode only) */
   const [activeHit, setActiveHit] = useState<ProbeHit | null>(null)
   const [composing, setComposing] = useState(false)
@@ -538,8 +544,10 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
   const [wasSelected, setWasSelected] = useState(selected)
   if (wasSelected !== selected) {
     setWasSelected(selected)
-    if (!selected) setProbe(null)
-    else if (linkedThread) {
+    if (!selected) {
+      clearedProbeRef.current = probe
+      setProbe(null)
+    } else if (linkedThread) {
       /* the emailed thread, now that selection will not close it again */
       setOpenThread(linkedThread)
       setLinkedThread(null)
@@ -575,6 +583,12 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
     previousProbe.current = probeSel
     const cur = useStore.getState().selectedElement
     if (probeSel) {
+      if (probe === clearedProbeRef.current) {
+        /* stale redelivery of the probe a deselect just cleared: drop it
+           instead of resurrecting the selection */
+        setProbe(null)
+        return
+      }
       const el = { frameId: frame.id, selector: probeSel }
       /* the Comment tool outlines the element without sliding its properties panel in */
       if (useStore.getState().tool === 'comment') useStore.getState().setSelectedElement(el)
@@ -591,7 +605,10 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
     setSeenWantedSel(wantedSel)
     /* Returning to a frame-only link (or closing the element panel) also
        removes the previous element's toolbar and outline. */
-    if (!wantedSel) setProbe(null)
+    if (!wantedSel) {
+      clearedProbeRef.current = probe
+      setProbe(null)
+    }
   }
   const selectReq = useRef(0)
   const selectSel = useRef<string | null>(null)
