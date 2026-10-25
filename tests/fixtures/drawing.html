@@ -37,8 +37,7 @@
         /* true once the frame's live runtime answers a round-trip: store
            updates can precede the frame's throttled render, and pointer
            hit tests posted before registration are never answered */
-        ping: (frameId) =>
-          requestFrame(frameId, 'doop:hover', { x: -10, y: -10 }).then((reply) => reply !== null),
+        ping: (frameId) => requestFrame(frameId, 'doop:hover', { x: -10, y: -10 }).then((reply) => reply !== null),
       }
       createRoot(document.getElementById('root')).render(
         React.createElement(

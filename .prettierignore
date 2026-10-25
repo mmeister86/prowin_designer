@@ -22,3 +22,6 @@ storybook-static/
 
 # Backlog.md CLI owns this file's YAML style (rewrites it on config changes)
 backlog/config.yml
+
+# Backlog.md CLI owns task section-marker spacing; never format task files directly
+backlog/tasks/

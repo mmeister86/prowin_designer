@@ -4,7 +4,7 @@ title: Übernimm geprüfte Upstream-Commits einzeln und sichere den Fork-Stand
 status: In Progress
 assignee: []
 created_date: '2026-10-25T12:19:00Z'
-updated_date: '2026-10-25T17:39:00Z'
+updated_date: '2026-10-25T18:41:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -48,4 +48,6 @@ Finale Fixwelle1ec5dc3: drei reproduzierte Important-Befunde und zwei inertePost
 Benutzer hat I4-Fix ausdrücklich freigegeben und weitere unnötige Prozessstopps beanstandet. TASK67.11 übernimmt nur Boolean-Normalisierung+Regression, ein enges Review und finale Prüfungen; keine neue breite Reviewwelle und kein Funktionsausbau. Vorherige Gesamtwellen-Grenze gilt nicht als Stop für diese neue explizite Freigabe.
 
 Abschlussfreigabe zur manuellen Abnahme: I4 in e4d38b7 korrigiert und gezielt unabhängig freigegeben (Spec/QualityPASS, keine offenen Critical/Important). Letzte vollständige4Worker-Suite147Dateien/1161Tests0, Typecheck/FULLLint/Build/DocLint0; geänderteSource- und Übergabedokumente formatiert. Alle17individuellenUpstream-Commits/Backup/main unverändert erhalten. Keine weiteren Produktänderungen, keinPush/Merge. Dokumentierte Minor-/Plattformgrenzen bleiben: Designpanel-Reopen, nativeiOS/WebKit/Clipboardnichtgeprüft. AlleACverifiziert; Status bleibtInProgress bis ausdrücklicherBestätigung nachmanuellemTest.
+
+Benutzer hat lokalenMerge nachmain und anschließendenPush ausdrücklich freigegeben. main perFast-forward2272d9d→c4c65d5 integriert; direktaufmain147Dateien/1161Tests, Typecheck/FULLLint/Build/DocLint erfolgreich. Repo-weiterFormatcheck zeigte nurCLI-Markerabstände in neuenBacklog-Dateien undFixture-Zeilenumbruch. CLI-eigene backlog/tasks/ deshalb wiebacklog/config.yml vonPrettier ausgenommen, keineTaskdatei direkteditiert; Fixture reineFormatierung. Danach globalFormatcheck/Typecheck/Lint erfolgreich und DrawingBrowser28/28. Backup unverändert; Aufgabenstatus weiterhinInProgress bismanuellerBestätigung. Pushzielorigin/main, keinForcePush.
 <!-- SECTION:NOTES:END -->

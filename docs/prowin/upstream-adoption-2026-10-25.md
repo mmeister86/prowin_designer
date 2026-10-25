@@ -2,14 +2,14 @@
 
 ## Stand und Rückkehrpunkt
 
-- Ausgangsstand und unverändertes `main`: `2272d9d3056588c92af5c1a28974bdb04d90fe5c`.
+- Ausgangsstand von `main` vor der Integration: `2272d9d3056588c92af5c1a28974bdb04d90fe5c`.
 - Arbeitsbranch: `integrate/upstream-2026-10-25`.
 - Upstream-Prüfstand: `aa04e959bb9dfef75e0abfb6145bb491f817807a`.
 - Backup-Branch: `backup/pre-upstream-2026-10-25-2272d9d`.
 - Externes Git-Bundle: `/home/matthias/code/prowin_designer-backups/pre-upstream-2026-10-25-2272d9d.bundle` (Dateimodus 600).
 - `git bundle verify` erfolgreich. Zusätzlich in ein separates Bare-Repository geklont, `git fsck --full` erfolgreich und exakt den Ausgangs-HEAD wiederhergestellt.
 - Das Backup sichert die Git-Historie einschließlich aller Referenzen, nicht ignorierte `.env`-Dateien, Live-Datenbanken oder andere Laufzeitdaten. Diese Daten wurden nicht verändert.
-- Kein Push, kein Merge nach `main`, keine Migration gegen Nutzerdaten und keine Veröffentlichung.
+- Während der isolierten Übernahme kein Push, kein Merge nach `main`, keine Migration gegen Nutzerdaten und keine Veröffentlichung. Die nachfolgende Integration wurde gesondert freigegeben (siehe unten).
 
 Eine Wiederherstellung kann in einem **neuen** Verzeichnis aus dem Bundle erfolgen. Nicht den laufenden Checkout zurücksetzen:
 
@@ -18,6 +18,12 @@ git clone --branch backup/pre-upstream-2026-10-25-2272d9d \
   /home/matthias/code/prowin_designer-backups/pre-upstream-2026-10-25-2272d9d.bundle \
   /pfad/zu/einem/neuen/wiederherstellungsverzeichnis
 ```
+
+## Lokal integrierter Stand
+
+Der Benutzer hat anschließend ausdrücklich „Lokal nach Main mergen, dann pushen“ freigegeben. Der geprüfte Branch wurde ohne Konflikte per Fast-forward bis `c4c65d5` nach lokalem `main` übernommen. Direkt auf diesem gemergten Stand bestanden erneut 147 Dateien / 1161 Tests, Typecheck, vollständiger Lint, Build und Doc-Lint. Der Push ist für `origin/main` vorgesehen, ohne Force-Push.
+
+Der zusätzliche repo-weite Formatcheck zeigte ausschließlich Backlog-CLI-Markerabstände und einen Fixture-Zeilenumbruch. Da Aufgaben nur über die Backlog-CLI geändert werden dürfen, sind die CLI-eigenen `backlog/tasks/`-Dateien nun wie `backlog/config.yml` von Prettier ausgenommen. Die Fixture-Änderung ist reine Formatierung. Backup-Branch und externes Bundle bleiben erhalten; Aufgaben werden dadurch nicht automatisch geschlossen.
 
 ## Einzelne Originalcommits
 
@@ -76,7 +82,7 @@ Die erste Vermutung eines reinen Polling-/Lastproblems war unvollständig. Die s
 - Nach `1ec5dc3`: fokussiert 19 Dateien / 269 Tests, vollständige Vier-Worker-Suite 147 Dateien / **1159 Tests**, Typecheck, vollständiger Lint, Build, Doc-Lint und Formatprüfung der Fixdateien erfolgreich. Das unabhängige Nachreview bestätigt die drei ursprünglichen Befunde als behoben.
 - Im Nachreview blieb zunächst Important I4 offen: Transfer → eigener Lock/Hide-Toggle → Toggle-Undo → Transfer-Undo erzeugte einen falschen Konflikt wegen `undefined !== false`. Der Benutzer hat die begrenzte Folgekorrektur ausdrücklich freigegeben. `e4d38b7` behebt sie mit den beiden beschriebenen Regressionen; das unabhängige, eng begrenzte Nachreview bestätigt **Spec compliant, Quality PASS, I4 ADDRESSED, keine offenen Critical/Important-Befunde**. Keine neue breite Reviewwelle und kein weiterer Funktionsausbau.
 - Abschließender Stand nach dieser Korrektur: fokussiert `drawingMove` **34/34**, gesamte Vier-Worker-Suite **147 Dateien / 1161 Tests** erfolgreich (ein vollständiger Lauf, 141,19 s). Typecheck, vollständiger Lint, Build, Doc-Lint und Formatprüfung der geänderten Quelldateien erfolgreich. RED vor der Korrektur: exakt beide neuen Flag-Fälle scheiterten mit falschem Konflikt (2 fehlgeschlagen / 32 bestanden). Controller hat Rohlogs, Versions-/anderen Feldschutz, alle 17 Herkunfts-Trailer, geschützte Dateien, entfernte Module und unverändertes `main` geprüft.
-- Der Branch ist damit zur manuellen Abnahme bereit, nicht automatisch integriert: kein Push/Merge. Backlog-Abschluss nur nach ausdrücklicher Benutzerbestätigung; alle Aufgaben bleiben vorerst In Progress. Der letzte Stopp am Review-Limit wurde vom Benutzer beanstandet; die Folgearbeit blieb auf I4, Regression, gezieltes Review und eine abschließende Verifikation begrenzt.
+- Freigabestand vor der anschließend genehmigten Integration: zur manuellen Abnahme bereit, noch nicht automatisch integriert. Backlog-Abschluss nur nach ausdrücklicher Benutzerbestätigung; alle Aufgaben bleiben vorerst In Progress. Der letzte Stopp am Review-Limit wurde vom Benutzer beanstandet; die Folgearbeit blieb auf I4, Regression, gezieltes Review und eine abschließende Verifikation begrenzt.
 - Nichtblockierender neuer Hinweis M2: Eine Rect-Aktualisierung kann ein bewusst geschlossenes Design-Panel wieder öffnen. Das Nachreview stuft dies als Minor ein; keine Auswahl-/Daten-/Rechteverluste.
 - Reale WebKit-/Tauri-Darstellung und Zwischenablage sowie iOS-Laufzeit wurden nicht auf den Zielgeräten geprüft. Keine Live-Requesty-Anfragen für diese Übernahme nötig.
 - Implementierungsplan: `docs/superpowers/plans/2026-10-25-upstream-adoption.md`. Detaillierte Berichte, Rohlogs und Review-Pakete liegen bis zur manuellen Abnahme im ignorierten `.superpowers/sdd/2026-10-25-upstream-adoption/` dieses Worktrees.
