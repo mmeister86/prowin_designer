@@ -2,7 +2,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Canvas, Frame } from '../shared/types'
 
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
 vi.mock('../src/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/api')>()),
   api: { createFrame: vi.fn(), updateFrame: vi.fn(), deleteFrame: vi.fn(), getCanvas: vi.fn() },
@@ -98,10 +97,15 @@ describe('moving drawings between frames and canvas', () => {
     expect(frames()).toHaveLength(2)
     expect(frames()[0]!.html).toBe(base.html)
     expect(frames()[1]).toMatchObject({ x: 0, y: 0, width: 80, height: 80, html: shape.html })
+    expect(api.updateFrame).toHaveBeenLastCalledWith(base.id, { html: base.html }, 1)
+    expect(frames()[0]!.updatedAt).toBe(2)
+    const recreated = frames()[1]!
     await redo()
     expect(frames()).toHaveLength(1)
     expect(frames()[0]!.html).toContain('data-doop-drawing="circle"')
     expect([...db.values()]).toHaveLength(1)
+    expect(api.updateFrame).toHaveBeenLastCalledWith(base.id, { html: expect.stringContaining('data-doop-drawing') }, 2)
+    expect(api.deleteFrame).toHaveBeenLastCalledWith(recreated.id, recreated.updatedAt)
   })
 
   it('preserves SVG curves and edited styles through frame-to-frame moves and detaching', async () => {
@@ -204,6 +208,170 @@ describe('moving drawings between frames and canvas', () => {
     await undo()
     expect(frames()).toHaveLength(2)
     expect(frames()[0]!.html).toBe(base.html)
+    log.mockRestore()
+  })
+
+  it.each([true, false])('keeps a successful transfer destination edited before undo (known=%s)', async (known) => {
+    await moveDrawing(shape, undefined, rect, base.id)
+    const transferred = db.get(base.id)!
+    const remote = {
+      ...transferred,
+      html: transferred.html + '<p>Remote work</p>',
+      updatedAt: transferred.updatedAt + 1,
+    }
+    db.set(remote.id, remote)
+    if (known) useStore.getState().upsertFrame(remote)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(api.updateFrame).mockClear()
+    await undo()
+    expect(db.get(remote.id)).toEqual(remote)
+    expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
+    expect([...db.values()].find((f) => f.id !== remote.id)?.html).toBe(shape.html)
+    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    if (known) expect(api.updateFrame).not.toHaveBeenCalled()
+    else expect(api.updateFrame).toHaveBeenCalledWith(base.id, { html: base.html }, transferred.updatedAt)
+    // A failed inverse remains retryable, but retry must never adopt Bob's version.
+    await undo()
+    expect(db.get(remote.id)).toEqual(remote)
+    expect(db.size).toBe(2)
+    log.mockRestore()
+  })
+
+  it.each([true, false])('keeps remote work and the source when transfer redo conflicts (known=%s)', async (known) => {
+    await moveDrawing(shape, undefined, rect, base.id)
+    await undo()
+    const beforeRedo = db.get(base.id)!
+    const source = [...db.values()].find((f) => f.id !== base.id)!
+    const remote = { ...beforeRedo, html: '<p>Remote work after undo</p>', updatedAt: beforeRedo.updatedAt + 1 }
+    db.set(remote.id, remote)
+    if (known) useStore.getState().upsertFrame(remote)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.mocked(api.updateFrame).mockClear()
+    vi.mocked(api.deleteFrame).mockClear()
+    await redo()
+    expect(db.get(remote.id)).toEqual(remote)
+    expect(db.get(source.id)).toEqual(source)
+    expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
+    expect(api.deleteFrame).not.toHaveBeenCalled()
+    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    if (known) expect(api.updateFrame).not.toHaveBeenCalled()
+    else
+      expect(api.updateFrame).toHaveBeenCalledWith(
+        base.id,
+        { html: expect.stringContaining('data-doop-drawing') },
+        beforeRedo.updatedAt,
+      )
+    log.mockRestore()
+  })
+
+  it.each([true, false])(
+    'does not delete an edited successful detached destination on undo (known=%s)',
+    async (known) => {
+      await moveDrawing(shape, undefined, rect, base.id)
+      clearHistory()
+      const source = frames()[0]!
+      const selector = `#${parse(source.html).querySelector('[data-doop-drawing]')!.id}`
+      await moveDrawing(source, selector, { ...rect, x: -100 })
+      const detached = [...db.values()].find((f) => f.id !== source.id)!
+      const remote = { ...detached, name: 'Remote rename', updatedAt: detached.updatedAt + 1 }
+      db.set(remote.id, remote)
+      if (known) useStore.getState().upsertFrame(remote)
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+      vi.mocked(api.deleteFrame).mockClear()
+      await undo()
+      expect(db.get(remote.id)).toEqual(remote)
+      expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
+      expect(db.get(source.id)?.html).toBe(source.html)
+      expect(useStore.getState().notice?.text).toBe('The frame changed.')
+      if (known) expect(api.deleteFrame).not.toHaveBeenCalled()
+      else expect(api.deleteFrame).toHaveBeenCalledWith(detached.id, detached.updatedAt)
+      log.mockRestore()
+    },
+  )
+
+  it.each([true, false])('guards failed-rollback copy history against later edits (embedded=%s)', async (embedded) => {
+    let source = shape
+    let selector: string | undefined
+    if (!embedded) {
+      await moveDrawing(shape, undefined, rect, base.id)
+      source = frames()[0]!
+      selector = `#${parse(source.html).querySelector('[data-doop-drawing]')!.id}`
+    }
+    clearHistory()
+    if (embedded) {
+      const update = vi.mocked(api.updateFrame).getMockImplementation()!
+      vi.mocked(api.updateFrame).mockImplementationOnce(update).mockRejectedValueOnce(new Error('Offline rollback'))
+      vi.mocked(api.deleteFrame).mockRejectedValueOnce(new Error('Offline source'))
+    } else {
+      vi.mocked(api.updateFrame).mockRejectedValueOnce(new Error('Offline source'))
+      vi.mocked(api.deleteFrame).mockRejectedValueOnce(new Error('Offline rollback'))
+    }
+    await moveDrawing(source, selector, rect, embedded ? base.id : undefined)
+    expect(useStore.getState().notice?.text).toBe(
+      'The drawing was copied, but its original could not be removed. You can undo the copy.',
+    )
+    const destination = [...db.values()].find((f) => f.id !== source.id)!
+    const remote = {
+      ...destination,
+      html: destination.html + '<p>Remote fallback work</p>',
+      updatedAt: destination.updatedAt + 1,
+    }
+    db.set(remote.id, remote)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await undo()
+    expect(db.get(remote.id)).toEqual(remote)
+    expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
+    expect(db.get(source.id)?.html).toBe(source.html)
+    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    log.mockRestore()
+  })
+
+  it('keeps an already edited detached fallback when undo is requested', async () => {
+    await moveDrawing(shape, undefined, rect, base.id)
+    clearHistory()
+    const source = frames()[0]!
+    const selector = `#${parse(source.html).querySelector('[data-doop-drawing]')!.id}`
+    let remote!: Frame
+    vi.mocked(api.updateFrame).mockImplementationOnce(async () => {
+      const copy = [...db.values()].find((f) => f.id !== source.id)!
+      remote = { ...copy, html: '<p>Remote edited copy</p>', updatedAt: copy.updatedAt + 1 }
+      db.set(copy.id, remote)
+      useStore.getState().upsertFrame(remote)
+      throw new Error('Offline source')
+    })
+    await moveDrawing(source, selector, { ...rect, x: -100 })
+    expect(useStore.getState().notice?.text).toBe(
+      'The original could not be removed. The detached copy was kept because it was edited.',
+    )
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await undo()
+    expect(db.get(remote.id)).toEqual(remote)
+    expect(db.get(source.id)).toEqual(source)
+    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    log.mockRestore()
+  })
+
+  it('keeps a partially applied transfer inverse retryable without deleting an edited restored source', async () => {
+    await moveDrawing(shape, undefined, rect, base.id)
+    const destination = db.get(base.id)!
+    const remoteDestination = { ...destination, html: destination.html + '<p>Remote destination</p>', updatedAt: 2 }
+    db.set(base.id, remoteDestination)
+    useStore.getState().upsertFrame(remoteDestination)
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await undo()
+    const restored = [...db.values()].find((f) => f.id !== base.id)!
+    const remoteSource = { ...restored, name: 'Remote restored source', updatedAt: restored.updatedAt + 1 }
+    db.set(remoteSource.id, remoteSource)
+    useStore.getState().upsertFrame(remoteSource)
+    useStore.setState({ notice: null })
+    await redo()
+    expect(db.get(base.id)).toEqual(remoteDestination)
+    expect(db.get(remoteSource.id)).toEqual(remoteSource)
+    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    useStore.setState({ notice: null })
+    await redo()
+    expect(db.get(remoteSource.id)).toEqual(remoteSource)
+    expect(useStore.getState().notice?.text).toBe('The frame changed.')
     log.mockRestore()
   })
 

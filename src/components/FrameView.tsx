@@ -621,7 +621,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
          select an element before this frame has mounted its runtime. */
       useStore.getState().pickElement(null)
     }
-  }, [probeSel, frame.id])
+  }, [probe, probeSel, frame.id])
   const wantedSel = useStore((s) => (s.selectedElement?.frameId === frame.id ? s.selectedElement.selector : null))
   const [seenWantedSel, setSeenWantedSel] = useState(wantedSel)
   if (seenWantedSel !== wantedSel) {

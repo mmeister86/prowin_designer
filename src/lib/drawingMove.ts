@@ -2,7 +2,7 @@ import type { Frame } from '../../shared/types'
 import { framePageId } from '../../shared/pages'
 import { api, ApiError } from './api'
 import { drawingDocument, isCanvasElement, queueDrawingSave, type Point } from './drawing'
-import { recordCreate, recordDrawingTransfer, recordUpdates } from './history'
+import { recordDrawingTransfer, recordUpdates } from './history'
 import { currentPageCanvas } from './pages'
 import { useStore } from './store'
 
@@ -212,7 +212,7 @@ export function moveDrawing(
           (key) => latest[key] !== destination[key],
         )
       if (!target && changed) {
-        if (active()) recordCreate(latest)
+        if (active()) recordDrawingTransfer({ before: null, after: destination })
         throw new Error('The original could not be removed. The detached copy was kept because it was edited.', {
           cause: err,
         })
@@ -243,8 +243,7 @@ export function moveDrawing(
           )
         }
         if (active()) {
-          if (target) recordUpdates([{ frameId: target.id, before: { html: target.html }, after: { html } }])
-          else recordCreate(destination)
+          recordDrawingTransfer({ before: target ?? null, after: destination })
         }
         throw new Error('The drawing was copied, but its original could not be removed. You can undo the copy.', {
           cause: rollbackError,

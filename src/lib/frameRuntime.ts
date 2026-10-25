@@ -265,7 +265,7 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
   document.addEventListener('input', function () {
     if (!editing) return
     if (editTimer) clearTimeout(editTimer)
-    editTimer = setTimeout(postEdited, 400)
+    editTimer = setTimeout(function () { editTimer = null; postEdited() }, 400)
   })
 
   /* Escape pressed with focus inside the frame: the parent never sees the
@@ -741,9 +741,11 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     if (!el || isLocked(el)) return false
     if (styleEdit) endStyleEdit(styleEdit.selector, false)
     // Save a previous typed/slider edit before opening this separate action.
-    if (styleTimer) {
+    if (styleTimer || editTimer) {
       clearTimeout(styleTimer)
       styleTimer = null
+      clearTimeout(editTimer)
+      editTimer = null
       postEdited()
     }
     styleEdit = { selector: selector, original: el.style.cssText, styles: {}, touched: {} }

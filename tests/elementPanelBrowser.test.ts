@@ -28,6 +28,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   let browser: Browser
   let page: Page
   let saved: Frame
+  let writes: string[] = []
   let seedId = 0
   const errors: string[] = []
   beforeAll(async () => {
@@ -44,6 +45,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       if (new URL(request.url()).pathname === '/tests/fixtures/late-font.css') return
       if (new URL(request.url()).pathname === '/api/frames/f' && request.method() === 'PATCH') {
         saved = { ...saved, ...JSON.parse(request.postData()!) }
+        writes.push(saved.html)
         await request.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) })
       } else await request.continue()
     })
@@ -862,6 +864,56 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     // Cancellation leaves the previous real edit on top of the undo stack.
     await page.evaluate(() => window.elementPanelHarness.undo())
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+  }, 20_000)
+
+  it('flushes pending inline text before scrub preview, cancels without saving width, and commits one undo step', async () => {
+    const frame = await seedScrubTarget('width:120px;height:80px')
+    const box = (await (await frame.$('#scrub'))!.boundingBox())!
+    await page.mouse.click(box.x + 20, box.y + 10, { count: 2, delay: 60 })
+    await page.waitForSelector('[title="Save and finish editing (Esc)"]')
+    await selectLayer('#scrub')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '120')
+    writes = []
+    await frame.click('#scrub')
+    await frame.waitForSelector('#scrub[contenteditable]')
+    await page.keyboard.press('End')
+    await page.keyboard.type(' typed')
+    // Like picking the layer in Layers, move keyboard focus back to the panel.
+    await page.click('[aria-label="Width"]')
+    const point = await startScrub('Width')
+    await page.mouse.move(point.x + 20, point.y)
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    expect(writes).toHaveLength(1)
+    expect(writes[0]).toContain('typed')
+    expect(writes[0]).not.toContain('width: 140px')
+    const textSave = saved.html
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+    expect(saved.html).toBe(textSave)
+    expect(
+      await page.evaluate(
+        (html) =>
+          (new DOMParser().parseFromString(html, 'text/html').querySelector('#scrub') as HTMLElement).style.width,
+        saved.html,
+      ),
+    ).toBe('120px')
+    expect(writes).toHaveLength(1)
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '120')
+    await drag('Width', 30)
+    await expect.poll(() => saved.html).toContain('width: 150px')
+    expect(saved.html).toContain('typed')
+    expect(writes).toHaveLength(2)
+    await page.click('[title="Save and finish editing (Esc)"]')
+    await page.waitForFunction(() => !document.querySelector('[title="Save and finish editing (Esc)"]'))
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+    expect(saved.html).toContain('typed')
+    expect(saved.html).not.toContain('width: 150px')
+    await page.evaluate(() => window.elementPanelHarness.undo())
+    await frame.waitForFunction(() => !document.querySelector('#scrub')!.textContent!.includes('typed'))
+    expect(saved.html).not.toContain('typed')
   }, 20_000)
 
   it('keeps remote edits when a preview is cancelled', async () => {

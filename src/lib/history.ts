@@ -1,6 +1,6 @@
 import { applyPageChanges, canvasPages, samePages } from '../../shared/pages'
 import type { CanvasPageInfo, Frame } from '../../shared/types'
-import { api } from './api'
+import { api, ApiError } from './api'
 import { useStore } from './store'
 
 /** Local undo/redo for this client's own frame edits. Undo re-issues the
@@ -22,9 +22,17 @@ type Entry =
       activeBefore: string | null
       activeAfter: string | null
     }
-  | { type: 'update'; frameId: string; before: Patch; after: Patch; at: number; discrete?: boolean }
-  | { type: 'create'; frameId: string; snapshot: Snapshot }
-  | { type: 'delete'; frameId: string; snapshot: Snapshot }
+  | {
+      type: 'update'
+      frameId: string
+      before: Patch
+      after: Patch
+      at: number
+      discrete?: boolean
+      expected?: Frame
+    }
+  | { type: 'create'; frameId: string; snapshot: Snapshot; expected?: Frame }
+  | { type: 'delete'; frameId: string; snapshot: Snapshot; expected?: Frame }
   /* Destination first, then source removal; reverse that order on undo so
      a failed request can never remove the only copy of a drawing. */
   | { type: 'transfer'; canvasId: string; entries: Entry[] }
@@ -146,15 +154,21 @@ export function recordCreate(frame: Frame) {
 
 export function recordDrawingTransfer(
   destination: { before: Frame | null; after: Frame },
-  source: { before: Frame; after: Frame | null },
+  source?: { before: Frame; after: Frame | null },
 ) {
   const added: Entry = destination.before
     ? updateEntry(destination.after.id, { html: destination.before.html }, { html: destination.after.html })!
     : { type: 'create', frameId: destination.after.id, snapshot: snapshot(destination.after) }
-  const removed: Entry = source.after
-    ? updateEntry(source.before.id, { html: source.before.html }, { html: source.after.html })!
-    : { type: 'delete', frameId: source.before.id, snapshot: snapshot(source.before) }
-  push({ type: 'transfer', canvasId: source.before.canvasId, entries: [added, removed] })
+  added.expected = destination.after
+  const entries: Entry[] = [added]
+  if (source) {
+    const removed: Entry = source.after
+      ? updateEntry(source.before.id, { html: source.before.html }, { html: source.after.html })!
+      : { type: 'delete', frameId: source.before.id, snapshot: snapshot(source.before) }
+    removed.expected = source.after ?? source.before
+    entries.push(removed)
+  }
+  push({ type: 'transfer', canvasId: destination.after.canvasId, entries })
 }
 
 /** A page duplicated together with its frames: one undo step that removes
@@ -213,12 +227,15 @@ export function deleteFramesTracked(frames: Frame[]) {
 function remapId(oldId: string, newId: string) {
   const visit = (e: Entry) => {
     if (e.type === 'group' || e.type === 'transfer') e.entries.forEach(visit)
-    else if (e.type !== 'pages' && e.frameId === oldId) e.frameId = newId
+    else if (e.type !== 'pages' && e.frameId === oldId) {
+      e.frameId = newId
+      if (e.expected) e.expected = { ...e.expected, id: newId }
+    }
   }
   for (const e of [...undoStack, ...redoStack]) visit(e)
 }
 
-async function recreate(e: { frameId: string; snapshot: Snapshot }) {
+async function recreate(e: { frameId: string; snapshot: Snapshot; expected?: Frame }) {
   const { canvasId, ...rest } = e.snapshot
   const canvas = useStore.getState().canvas
   if (!canvas || canvas.id !== canvasId) throw new Error('Canvas changed')
@@ -228,6 +245,50 @@ async function recreate(e: { frameId: string; snapshot: Snapshot }) {
   useStore.getState().upsertFrame(f)
   remapId(e.frameId, f.id)
   e.frameId = f.id
+  if (e.expected) e.expected = f
+  advanceTransferVersions(f)
+}
+
+function sameTransferState(a: Frame, b: Frame) {
+  return (Object.keys(snapshot(a)) as (keyof Snapshot)[]).every((key) => a[key] === b[key])
+}
+
+/* Only our own successful inverses can advance a matching history state's
+   version. A collaborator's newer version must never become permission to undo. */
+function advanceTransferVersions(frame: Frame) {
+  const visit = (e: Entry) => {
+    if (e.type === 'group' || e.type === 'transfer') e.entries.forEach(visit)
+    else if (e.type !== 'pages' && e.expected?.id === frame.id && sameTransferState(e.expected, frame))
+      e.expected = frame
+  }
+  for (const e of [...undoStack, ...redoStack]) visit(e)
+}
+
+async function transferWrite<T>(expected: Frame, request: () => Promise<T>): Promise<T> {
+  const canvas = useStore.getState().canvas
+  if (canvas?.id !== expected.canvasId) throw new Error('Canvas changed')
+  const current = canvas.frames.find((frame) => frame.id === expected.id)
+  if (!current || current.updatedAt !== expected.updatedAt || !sameTransferState(current, expected))
+    throw new Error('The frame changed.')
+  try {
+    return await request()
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 409) {
+      const remote = error.body.frame as Frame | undefined
+      const live = useStore.getState().canvas
+      const local = live?.frames.find((frame) => frame.id === expected.id)
+      if (
+        live?.id === expected.canvasId &&
+        remote?.id === expected.id &&
+        remote.canvasId === expected.canvasId &&
+        local &&
+        local.updatedAt <= remote.updatedAt
+      )
+        useStore.getState().upsertFrame(remote)
+      throw new Error('The frame changed.', { cause: error })
+    }
+    throw error
+  }
 }
 
 /* Recreated frames and frames moved between pages become the selection,
@@ -322,7 +383,10 @@ async function apply(e: Entry, direction: 'undo' | 'redo'): Promise<Entry | null
         // Leave a partially applied transfer reversible and retryable. Never
         // remove the source when saving/recreating its destination failed.
         const remaining = { ...e, entries: e.entries.filter((entry) => !applied.includes(entry)) }
-        throw new PrerequisiteFailed(remaining, groupOf(applied, false), err, e.canvasId)
+        const reversible = applied.length
+          ? { ...e, entries: e.entries.filter((entry) => applied.includes(entry)) }
+          : null
+        throw new PrerequisiteFailed(remaining, reversible, err, e.canvasId)
       }
     }
     return e
@@ -359,22 +423,30 @@ async function apply(e: Entry, direction: 'undo' | 'redo'): Promise<Entry | null
       : forward
         ? e.before
         : e.after
-    useStore.getState().patchFrameLocal(e.frameId, patch)
+    if (!e.expected) useStore.getState().patchFrameLocal(e.frameId, patch)
     try {
-      await api.updateFrame(e.frameId, patch)
+      const saved = e.expected
+        ? await transferWrite(e.expected, () => api.updateFrame(e.frameId, patch, e.expected!.updatedAt))
+        : await api.updateFrame(e.frameId, patch)
+      const current = useStore.getState().canvas?.frames.find((frame) => frame.id === e.frameId)
+      if (current && current.updatedAt <= saved.updatedAt && sameTransferState(current, e.expected ?? saved))
+        useStore.getState().upsertFrame(saved)
+      if (e.expected) e.expected = saved
+      advanceTransferVersions(saved)
       // Remember the actual fallback so the opposite operation stays reversible.
       if (forward) e.after = patch
       else e.before = patch
     } catch (err) {
       /* the server kept the old value — put the local copy back in step
          with it rather than leave a client-only position behind */
-      useStore.getState().patchFrameLocal(e.frameId, rollback)
+      if (!e.expected) useStore.getState().patchFrameLocal(e.frameId, rollback)
       throw err
     }
   } else if ((e.type === 'create') === forward) {
     await recreate(e)
   } else {
-    await api.deleteFrame(e.frameId)
+    if (e.expected) await transferWrite(e.expected, () => api.deleteFrame(e.frameId, e.expected!.updatedAt))
+    else await api.deleteFrame(e.frameId)
     useStore.getState().removeFrame(e.frameId)
   }
   return e

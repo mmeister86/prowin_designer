@@ -8,8 +8,6 @@ import { LayersPanel } from '../src/components/LayersPanel'
 import { TooltipProvider } from '../src/components/ui/tooltip'
 import type { Frame } from '../shared/types'
 
-vi.mock('../src/lib/posthog', () => ({ posthog: { capture: vi.fn() } }))
-
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const frame: Frame = {
