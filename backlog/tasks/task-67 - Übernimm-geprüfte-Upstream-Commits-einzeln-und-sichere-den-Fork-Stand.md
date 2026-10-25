@@ -4,7 +4,7 @@ title: Übernimm geprüfte Upstream-Commits einzeln und sichere den Fork-Stand
 status: In Progress
 assignee: []
 created_date: '2026-10-25T12:19:00Z'
-updated_date: '2026-10-25T12:19:00Z'
+updated_date: '2026-10-25T16:44:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -20,8 +20,8 @@ Den Stand 2272d9d als Backup erhalten und die 17 geprüften Web-/Server-Commits 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Backup-Branch und externes Git-Bundle sind erstellt und verifiziert
-- [ ] #2 Alle 17 ausgewählten Upstream-Commits sind einzeln mit Herkunft und gezielten Testergebnissen dokumentiert
-- [ ] #3 Requesty, PII-Redaktion, Boot-Guard, Creator-Rechte und entfernte Integrationen bleiben erhalten
+- [x] #2 Alle 17 ausgewählten Upstream-Commits sind einzeln mit Herkunft und gezielten Testergebnissen dokumentiert
+- [x] #3 Requesty, PII-Redaktion, Boot-Guard, Creator-Rechte und entfernte Integrationen bleiben erhalten
 - [ ] #4 Abschließende Tests, Typecheck, Lint, Build und unabhängiges Gesamt-Review sind dokumentiert
 <!-- AC:END -->
 
@@ -38,4 +38,8 @@ Den Stand 2272d9d als Backup erhalten und die 17 geprüften Web-/Server-Commits 
 
 <!-- SECTION:NOTES:BEGIN -->
 Backup: refs/heads/backup/pre-upstream-2026-10-25-2272d9d; externes und verifiziertes Bundle /home/matthias/code/prowin_designer-backups/pre-upstream-2026-10-25-2272d9d.bundle. Ausgangs-HEAD 2272d9d3056588c92af5c1a28974bdb04d90fe5c. Git-Backup enthält Versionshistorie; ignorierte .env-/Laufzeitdaten werden nicht verändert und sind nicht Teil des Bundles.
+
+Backup zusätzlich wiederhergestellt: Bundle in separates Bare-Repository /tmp/opencode/task67-restore-check-0unXBk/repo.git geklont; git fsck --full erfolgreich, HEAD exakt 2272d9d3056588c92af5c1a28974bdb04d90fe5c. Unreferenzierte T3-Checkpoint-Commits im Single-Branch-Restore sind erwartete zusätzliche Bundle-Objekte, keine Integritätsfehler.
+
+Alle17Source-SHAs eindeutig separaten lokalen Commits zugeordnet, Autoridentitäten geprüft; iOSbf3ebac ausgelassen. Controller-Gesamtsuite147Dateien/1148Tests bei4Workern erfolgreich, Typecheck0. Geschützte Requesty/Auth/PII/Guard/Creator/Schema/Migrations-/Dependency-/iOS-Dateien bytegleich Ausgangsstand; entfernteModule weiterhin abwesend, main unverändert. Controller-Lint findet in FrameView:611 fehlendeEffect-Abhängigkeit probe; wird in finaler Fixwelle behoben, Abschluss-AK4 noch OFFEN. Finales Gesamt-Review folgt.
 <!-- SECTION:NOTES:END -->

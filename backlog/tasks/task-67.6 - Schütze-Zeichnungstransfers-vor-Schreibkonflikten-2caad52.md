@@ -4,6 +4,7 @@ title: Schütze Zeichnungstransfers vor Schreibkonflikten (2caad52)
 status: In Progress
 assignee: []
 created_date: '2026-10-25T12:22:00Z'
+updated_date: '2026-10-25T13:48:00Z'
 labels: []
 dependencies: []
 parent_task_id: TASK-67
@@ -18,8 +19,8 @@ Teil 6 des Plans docs/superpowers/plans/2026-10-25-upstream-adoption.md. Eigenst
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Upstream-Commit(s) einzeln mit Herkunft übernommen und Fork-Verhalten bewahrt
-- [ ] #2 Tests und unabhängiges Spec-/Qualitätsreview dokumentiert
+- [x] #1 Upstream-Commit(s) einzeln mit Herkunft übernommen und Fork-Verhalten bewahrt
+- [x] #2 Tests und unabhängiges Spec-/Qualitätsreview dokumentiert
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -29,3 +30,9 @@ Teil 6 des Plans docs/superpowers/plans/2026-10-25-upstream-adoption.md. Eigenst
 2. Regressionstest RED, Upstream-Commit einzeln portieren, GREEN
 3. Task-Verifikation und unabhängiges Spec-/Qualitätsreview
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2caad52→4ebbe6b (897d20d ausschließlich für Original-Committext/-x-Trailer korrigiert, identischer Codebaum). RED12/28, GREEN40/40, Typecheck0, volle Suite145Dateien/1089Tests0 bei2Workern. Obi-Wan: Codequalität PASS; Provenienzbefund in Fixrunde1 behoben und unabhängig nachgeprüft (Spec/Quality PASS). Finale Controller-Suite läuft mit4Workern. Erfolgreiches Undo bleibt wie upstream unversioniert; finaler Reviewer bewertet den Hinweis. Status bleibt In Progress.
+<!-- SECTION:NOTES:END -->

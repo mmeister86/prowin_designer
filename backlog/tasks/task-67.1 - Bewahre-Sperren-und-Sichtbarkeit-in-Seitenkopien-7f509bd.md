@@ -4,6 +4,7 @@ title: Bewahre Sperren und Sichtbarkeit in Seitenkopien (7f509bd)
 status: In Progress
 assignee: []
 created_date: '2026-10-25T12:22:00Z'
+updated_date: '2026-10-25T12:33:00Z'
 labels: []
 dependencies: []
 parent_task_id: TASK-67
@@ -18,8 +19,8 @@ Teil 1 des Plans docs/superpowers/plans/2026-10-25-upstream-adoption.md. Eigenst
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Upstream-Commit(s) einzeln mit Herkunft übernommen und Fork-Verhalten bewahrt
-- [ ] #2 Tests und unabhängiges Spec-/Qualitätsreview dokumentiert
+- [x] #1 Upstream-Commit(s) einzeln mit Herkunft übernommen und Fork-Verhalten bewahrt
+- [x] #2 Tests und unabhängiges Spec-/Qualitätsreview dokumentiert
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -29,3 +30,9 @@ Teil 1 des Plans docs/superpowers/plans/2026-10-25-upstream-adoption.md. Eigenst
 2. Regressionstest RED, Upstream-Commit einzeln portieren, GREEN
 3. Task-Verifikation und unabhängiges Spec-/Qualitätsreview
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Upstream 7f509bd -> 3d8ec21; Creator-Fixture ergänzt. RED: fehlende Flags nach DB-Reopen; GREEN: pages 4/4, volle Suite 140 Dateien/1019 Tests, Typecheck/Lint/Prettier erfolgreich. Spock-Review: Spec compliant, Quality Approved. Wartet auf manuelle Benutzerbestätigung, bleibt In Progress.
+<!-- SECTION:NOTES:END -->
