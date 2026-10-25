@@ -423,7 +423,7 @@ private struct NativeSettings: View {
                     Section("Account") {
                         LabeledContent("Name", value: user.name)
                         LabeledContent("Email", value: user.email)
-                        Link("Manage model accounts on the web", destination: app.client.server.origin.appendingPathComponent("settings"))
+                        Link("Account settings on the web", destination: app.client.server.origin.appendingPathComponent("settings"))
                         Button("Sign out", role: .destructive) {
                             busy = true
                             Task { do { try await app.signOut(); dismiss() } catch { self.error = error.localizedDescription }; busy = false }

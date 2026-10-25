@@ -280,11 +280,11 @@ it('creates, completes, runs and lists an automation for its owner only', async 
     (await (await owner.patch(`/api/automations/${created.id}`, { enabled: true })).json()).nextRunAt,
   ).not.toBeNull()
 
-  /* run now: the test server has no model account, so the agent step fails
+  /* run now: the test server has no server-task allowance, so the agent step fails
      cleanly and the run says why */
   const run = await (await owner.post(`/api/automations/${created.id}/run`)).json()
   expect(run).toMatchObject({ automationId: created.id, status: 'failed', canvasId: canvas.id })
-  expect(run.error).toMatch(/no model account/)
+  expect(run.error).toMatch(/server agent task allowance/)
   expect(run.endedAt).toBeGreaterThanOrEqual(run.startedAt)
 
   const runs = await (await owner.get(`/api/automations/${created.id}/runs`)).json()

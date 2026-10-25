@@ -11,35 +11,11 @@ import {
 } from './openaiAgent.ts'
 import type { StopReason, TurnBlock, TurnRequest, TurnResult } from './openaiAgent.ts'
 
-/**
- * Runs one Doop Agent turn against an OpenAI-compatible Chat Completions
- * endpoint, speaking the Anthropic message shape the agent loop is written
- * in. This is the transport behind the wide-roster providers:
- *
- *  - OpenRouter (a user's `sk-or-` key) — one key, many vendors' models;
- *  - Google Gemini (a user's AI Studio key), through Google's own
- *    OpenAI-compatibility endpoint.
- *
- * Both URLs are fixed constants. Like the Azure transport, this module never
- * takes a user-supplied endpoint: a configurable base URL would be a
- * server-side fetch target, i.e. an SSRF into whatever network Doop runs on.
- *
- * Chat Completions shares the Responses API's one real impedance mismatch:
- * `role: 'tool'` messages are text-only, so images inside tool results are
- * re-attached as a following user message (openaiAgent's flattenToolResult).
- * On top of that this transport carries the roster's second mismatch: some
- * models cannot see images at all. With `vision: false` every image — tool
- * result or user block — is replaced by a text note here, at the one choke
- * point all seven image-producing tools pass through, so no request can 400
- * on a modality the model lacks.
- */
-
-export const OPENROUTER_URL = env.OPENROUTER_CHAT_URL
-export const GEMINI_OPENAI_URL = env.GEMINI_OPENAI_CHAT_URL
+/** Requesty EU Chat Completions transport using the agent's Anthropic-shaped
+ * messages and tools. Tool-result images are reattached as user messages;
+ * vision:false replaces images with text notes. Endpoints are operator-owned. */
 
 export const IMAGE_OMITTED_NOTE = '[image omitted — the selected model cannot view images]'
-
-const APP_ORIGIN = env.BETTER_AUTH_URL
 
 export interface ChatCompletionsConfig {
   /** one of the fixed URL constants above — never user input */
@@ -50,26 +26,20 @@ export interface ChatCompletionsConfig {
   label: string
   /** false = strip every image into a text note before sending */
   vision: boolean
+  /** Requesty EU must never resend canvas contents to a redirect target. */
+  redirect?: 'error'
 }
 
-export function openrouterConfig(apiKey: string, model: string, vision: boolean): ChatCompletionsConfig {
+/** Server credentials and the verified EU endpoint, never a user's URL. */
+export function requestyConfig(model: string, vision = true): ChatCompletionsConfig | null {
+  if (!env.REQUESTY_API_KEY) return null
   return {
-    url: OPENROUTER_URL,
-    /* the attribution headers are how OpenRouter credits the calling app */
-    headers: { Authorization: `Bearer ${apiKey}`, 'HTTP-Referer': APP_ORIGIN, 'X-Title': 'Doop' },
+    url: env.REQUESTY_CHAT_URL,
+    headers: { Authorization: `Bearer ${env.REQUESTY_API_KEY}` },
     model,
-    label: 'OpenRouter',
+    label: 'Requesty EU',
     vision,
-  }
-}
-
-export function geminiConfig(apiKey: string, model: string, vision: boolean): ChatCompletionsConfig {
-  return {
-    url: GEMINI_OPENAI_URL,
-    headers: { Authorization: `Bearer ${apiKey}` },
-    model,
-    label: 'Gemini',
-    vision,
+    redirect: 'error',
   }
 }
 
@@ -91,7 +61,7 @@ interface ChatToolCall {
 }
 
 function toMessages(system: string, messages: Anthropic.MessageParam[], vision: boolean): ChatMessage[] {
-  const out: ChatMessage[] = [{ role: 'system', content: system }]
+  const out: ChatMessage[] = system.trim() ? [{ role: 'system', content: system }] : []
   for (const message of messages) {
     if (typeof message.content === 'string') {
       out.push(
@@ -225,7 +195,7 @@ function fromCompletion(body: CompletionBody, label: string): TurnResult {
     })
   }
   const truncated = choice.finish_reason === 'length'
-  const stop: StopReason = refused ? 'refusal' : toolCalls > 0 ? 'tool_use' : truncated ? 'max_tokens' : 'end_turn'
+  const stop: StopReason = refused ? 'refusal' : truncated ? 'max_tokens' : toolCalls > 0 ? 'tool_use' : 'end_turn'
   /* a response with nothing in it would end the loop silently; make it a
      visible failure instead */
   if (content.length === 0 && !refused) throw new Error(`${label} returned an empty response`)
@@ -236,15 +206,27 @@ function fromCompletion(body: CompletionBody, label: string): TurnResult {
 /* transport                                                        */
 /* ---------------------------------------------------------------- */
 
-export async function runChatCompletionsTurn(config: ChatCompletionsConfig, req: TurnRequest): Promise<TurnResult> {
+interface ChatCompletionsTurnRequest extends TurnRequest {
+  toolChoice?: 'auto' | 'none' | { type: 'function'; function: { name: string } }
+  responseFormat?: {
+    type: 'json_schema'
+    json_schema: { name: string; strict: boolean; schema: Record<string, unknown> }
+  }
+}
+
+export async function runChatCompletionsTurn(
+  config: ChatCompletionsConfig,
+  req: ChatCompletionsTurnRequest,
+): Promise<TurnResult> {
   const res = await fetch(config.url, {
     method: 'POST',
+    ...(config.redirect ? { redirect: config.redirect } : {}),
     headers: { ...config.headers, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: config.model,
       messages: toMessages(req.system, req.messages, config.vision),
-      tools: toTools(req.tools),
-      tool_choice: 'auto',
+      ...(req.tools.length > 0 ? { tools: toTools(req.tools), tool_choice: req.toolChoice ?? 'auto' } : {}),
+      ...(req.responseFormat ? { response_format: req.responseFormat } : {}),
       max_tokens: req.maxTokens,
     }),
   })

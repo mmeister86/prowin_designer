@@ -29,8 +29,8 @@ runs on **GPT, Claude, Gemini, DeepSeek, Kimi or Qwen** models
 - **Design with agents, not prompts-and-refresh** — connect Claude Code (or any MCP client) once,
   then watch it sketch, stream and self-review designs on your canvas, next to your cursor.
 - **A built-in Doop Agent** — queue a card or @mention a role and it designs on its own, no client
-  to connect. Runs on the server's `ANTHROPIC_API_KEY` for a handful of free tasks, then on the
-  **ChatGPT subscription** (or OpenAI key) each user connects ([setup](#the-doop-agent)); the
+  to connect. Runs through the centrally managed Requesty EU server, or on an eligible Creator/Admin
+  Local Agent ([setup](#the-doop-agent)); the
   first-canvas welcome performance is scripted and runs without any of it.
 - **Pages within a canvas** — organize frames into named pages from the Layers panel. Add, rename,
   drag to reorder, double-click to rename, or right-click to rename and delete empty pages.
@@ -65,9 +65,8 @@ tasks. **Connect AI** in the top bar walks you through each one.
 | OpenCode, VS Code Copilot, OpenClaw and more | Any MCP client, over OAuth or with an agent key ([setup](#connect-an-ai-agent)) |
 | Headless agents (n8n, Mastra, CI)            | An agent key as a bearer header ([setup](#headless-agents-agent-keys))          |
 
-No agent of your own? The built-in [Doop Agent](#the-doop-agent) runs on the model account you
-connect: a ChatGPT subscription, or an OpenAI, Claude, Gemini or OpenRouter key. OpenRouter brings
-DeepSeek, Kimi, Qwen, GLM and MiniMax ([details](#past-the-free-tasks-connect-your-own-chatgpt)).
+The built-in agent uses Requesty EU on the server; Creator/Admin accounts can also use
+Local Agent on their desktop. Private model-account connections are removed.
 
 ## Quickstart
 
@@ -86,7 +85,7 @@ lockfile); the server itself runs on Node.
 Everything works with no configuration: data persists to an embedded Postgres (PGlite) in `data/pg`,
 and every optional integration (SMTP, stock photos, object storage, analytics) degrades gracefully
 until its variable in [.env.example](.env.example) is set. The one you will most likely want is
-`ANTHROPIC_API_KEY`, which turns on the built-in [Doop Agent](#the-doop-agent) — agents you connect
+`REQUESTY_API_KEY` with `RESIDENT_TASK_LIMIT>0`, which turns on the built-in [Doop Agent](#the-doop-agent) — agents you connect
 yourself over MCP need no key.
 
 Or self-host the production build with Docker:
@@ -118,13 +117,16 @@ render; the desktop app opens its native save panel.
 
 ## Integrations
 
-**Integrations** in the rail is where an account connects the outside tools Doop works with:
+In the proWIN fork, Linear, Slack, the GitHub App, website/repository imports,
+Design Sync, the ChatGPT App and private model accounts have been removed.
+Meta Ads, Refero, the background library and automations are paused behind fixed
+feature gates; old keys do not enable them. Figma and Canva cloud integrations
+are not available in this fork.
 
-| Integration | What it does                                                                                 |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| Meta Ads    | Pull ad creatives onto a canvas on a schedule with an automation (`/automations`)            |
-| Figma       | Import frames as editable HTML and export frames back to Figma. Doop Cloud only              |
-| Canva       | Import Canva designs as editable frames and send frames back with live text. Doop Cloud only |
+Local Agent, MCP, workspaces, community gallery, design memory, webhooks and
+APNs/Live Activities remain. Pexels photo search is optional and requires
+`PEXELS_API_KEY`. See the [M1 acceptance matrix](docs/prowin/m1-abnahme.md) for
+test evidence, documented exceptions and native validation limits.
 
 <p align="center">
   <img src=".github/assets/integrations.png" alt="Historical upstream Integrations page; available integrations differ in this fork" width="100%">
@@ -191,14 +193,23 @@ without a human in the loop. Roles (Doop builds; specialists own one pass each �
 accessibility) are defined in [`shared/agents.ts`](shared/agents.ts), and a card can be routed
 through several in order.
 
-The server pays for the free tier, on Anthropic by default:
+The server pays for the configured free tier through **Requesty EU** by default:
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-...   # in .env, or the environment of your deployment
+REQUESTY_API_KEY=...   # in .env, or the environment of your deployment
+DOOP_AGENT_MODEL=policy/prowin-layout-gen
+RESIDENT_TASK_LIMIT=1000  # example test allowance; default is 0
 ```
 
-Same key gates the **guideline distiller** ([`server/distill.ts`](server/distill.ts)), which proposes
-durable style rules from your canvas.
+The fixed EU endpoint, key budget, policy requirements and error behavior are
+documented in [Requesty server setup](docs/prowin/requesty-server.md). Missing keys disable
+the server tier without switching providers. Configure a spend limit and alerts in Requesty;
+the task allowance is not a monetary budget.
+
+The **guideline distiller** ([`server/distill.ts`](server/distill.ts)), which proposes
+durable style rules, uses Requesty EU with `DOOP_DISTILL_MODEL=policy/prowin-text-gen`.
+It quietly turns off without `REQUESTY_API_KEY`, independently of the agent provider.
+Explicit legacy Anthropic installations can set `DOOP_AGENT_PROVIDER=anthropic`.
 
 The free tier can run on **Azure OpenAI** instead — useful when your organisation's credits or
 compliance rules live there:
@@ -210,102 +221,42 @@ AZURE_OPENAI_API_KEY=...
 AZURE_OPENAI_DEPLOYMENT=my-deployment
 ```
 
-The distiller stays on `ANTHROPIC_API_KEY` either way and quietly turns off without it.
+The distiller continues to use Requesty EU when the agent provider is Azure or Anthropic.
 
-### Past the free tasks: connect your own ChatGPT
+### Central server and Local Agent
 
-When a user's `RESIDENT_TASK_LIMIT` free tasks are gone, they don't lose the agent — they connect a
-model account and the Doop Agent keeps running on it. **A connected account takes over immediately**,
-from the very next task: the free tier is a trial that gets people here, not a balance to spend down
-first, and connecting stops costing the server anything from that moment. The connection is
-account-level, so it lives at **/settings** (Home → Settings); the free-tier wall links there rather
-than carrying its own copy, and "Connect an AI agent" on a canvas stays about MCP clients only. Five
-kinds of account:
+Private ChatGPT, OpenAI, Anthropic, OpenRouter and Gemini model accounts are removed
+in this fork. Settings and prompt composers offer no private key, OAuth or model-account
+selection. Old `/api/model-account` requests return authenticated JSON **410 Gone**.
 
-- **ChatGPT subscription** — OAuth against `auth.openai.com`, then inference through the Codex
-  backend that Plus/Pro/Business plans include. Tokens live in `model_accounts` and never reach a
-  browser.
-- **OpenAI API key** — pay-as-you-go on the user's own OpenAI account, no subscription involved.
-- **OpenRouter API key** — one key for a curated multi-vendor roster: Kimi, Qwen, GLM, DeepSeek,
-  MiniMax, MiMo and Gemini Flash (the menu lives in
-  [`shared/modelMenu.ts`](shared/modelMenu.ts)). Models without image input still work, in a
-  degraded mode: the agent skips screenshot review, verifies through the frame HTML instead, and
-  the picker labels them "no visual review".
-- **Gemini API key** — Google's Gemini models through their OpenAI-compatible endpoint, plus Nano
-  Banana image generation.
-- **Claude API key** — pay-as-you-go on the user's own Anthropic account.
+The built-in agent uses the configured server provider. `RESIDENT_TASK_LIMIT=0` disables
+server-paid work; the operator must configure a positive allowance and a Requesty spend
+limit. Only currently eligible **Creator/Admin** accounts can select Local Agent on their
+desktop and bypass the server-task meter. A stale preference after role revocation grants
+no bypass and does not block ordinary server selection. An eligible user's explicit local
+selection stays paused when their desktop is offline; there is no silent server fallback.
 
-Azure OpenAI is deliberately _not_ a connectable account kind, and the OpenRouter/Gemini endpoints
-are fixed constants: a user-supplied endpoint would be a URL the server fetches with the run's full
-context — an SSRF vector — so custom endpoints stay server-level configuration only.
+MCP clients remain separate: they drive the canvas directly, and connecting one never
+raises the built-in agent's server allowance. Server-paid image generation continues to
+use only operator-configured keys until the separate image-provider migration.
 
-Either way the user picks their **model tier** in Settings from that provider's curated menu — on
-OpenAI, `gpt-6-astra` (the newest flagship; on a ChatGPT subscription it needs Plus or better and
-OpenAI is still rolling it out per account), `gpt-5.6-sol` (flagship), `gpt-5.6-terra` (the default
-workhorse) or `gpt-5.6-luna` (cheap and fast). They are paying for it, so the choice is theirs;
-`DOOP_AGENT_OPENAI_MODEL`, `DOOP_AGENT_OPENROUTER_MODEL` and `DOOP_AGENT_GEMINI_MODEL` only set the
-default they start on. Note that
-`gpt-5.4` and `gpt-5.4-mini` retire from ChatGPT-authenticated Codex on **31 August 2026**, so
-pinning a 5.4 id via that env var will break the subscription path after that date.
+Upgrade instructions, credential deletion and rollback limits are documented in
+[BYO removal and Local Agent](docs/prowin/model-account-removal.md).
 
-OpenAI registers no redirect URI for a hosted app, so connecting ChatGPT takes one of three shapes
-and Doop picks the cheapest one available:
-
-| Where Doop runs                              | Flow                                         | What the user does                                            |
-| -------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------- |
-| Same machine as the browser (dev, self-host) | Loopback catch — Doop holds `127.0.0.1:1455` | Approve in the OpenAI tab. Nothing to copy, no setup          |
-| Hosted (doop.design)                         | Device code (`/api/accounts/deviceauth/*`)   | Type a short code at `auth.openai.com/codex/device`           |
-| Device codes disallowed                      | Browser redirect + paste                     | Paste the dead `localhost:1455` page's address back into Doop |
-
-The device flow needs **device code authorization** switched on in ChatGPT → Settings → Security
-(workspace members need an admin to allow it) — that is why the loopback flow, which needs no
-setting at all, stays the default when Doop is local. All three end at the same server-side PKCE
-exchange.
-
-> **Before you turn this on for real users:** driving a ChatGPT subscription from a third-party
-> server is not something OpenAI's terms sanction, and heavy use can get an account rate-limited or
-> suspended. The API-key path is the fully supported alternative and shares all the same code.
-> `CHATGPT_CONNECT_DISABLED=1` switches the subscription path off and leaves the key path.
-
-Runs are attributed to the human whose card, comment or feedback they picked up, so the person who
-asked for the work is the person whose account runs it. The translation between the agent's
-Anthropic-shaped loop and OpenAI's Responses API lives in
-[`server/openaiAgent.ts`](server/openaiAgent.ts); which credential a run gets is decided in
-[`server/agentModel.ts`](server/agentModel.ts).
-
-**With no server key and no connected account** the Doop Agent is off, and it fails quietly by
-design — queued cards and `@mentions` simply wait for some agent to claim them. The startup banner
-tells you which state you're in.
-
-**All of this is separate from connecting your own agent.** Claude Code and any other MCP client
-authenticate over OAuth and drive the canvas from outside, on your own subscription — never metered.
-Three paths, same canvas: the Doop Agent on our key (free tier), the Doop Agent on your key, or your
-own agent over MCP.
-
-| Variable                        | Default                     | What it does                                                                         |
-| ------------------------------- | --------------------------- | ------------------------------------------------------------------------------------ |
-| `DOOP_AGENT_PROVIDER`           | `anthropic`                 | What the free tier runs on: `anthropic` \| `azure`                                   |
-| `ANTHROPIC_API_KEY`             | _unset_                     | Pays for the free Doop Agent tier (default provider) and the distiller               |
-| `AZURE_OPENAI_ENDPOINT`         | _unset_                     | The free tier's Azure OpenAI resource, when `DOOP_AGENT_PROVIDER=azure`              |
-| `AZURE_OPENAI_API_KEY`          | _unset_                     | A key of that resource                                                               |
-| `AZURE_OPENAI_DEPLOYMENT`       | _unset_                     | The deployment the free tier runs on                                                 |
-| `AZURE_OPENAI_API_VERSION`      | _unset_                     | Pins an `api-version` query parameter; the v1 surface needs none                     |
-| `AZURE_OPENAI_REASONING_EFFORT` | _unset_                     | Reasoning effort on Azure runs; unset sends none (non-reasoning-safe)                |
-| `RESIDENT_TASK_LIMIT`           | `0`                         | Free Doop Agent tasks per account; `0` means a connected account from the first task |
-| `DOOP_AGENT_MODEL`              | `claude-opus-5`             | Model for the Doop Agent on the server's Anthropic key                               |
-| `DOOP_AGENT_OPENAI_MODEL`       | `gpt-5.6-terra`             | Default tier on a user's account; each user can pick another in Settings             |
-| `DOOP_AGENT_OPENROUTER_MODEL`   | `moonshotai/kimi-k2.6`      | Default model on a connected OpenRouter key                                          |
-| `DOOP_AGENT_GEMINI_MODEL`       | `gemini-3.7-flash`          | Default model on a connected Gemini key                                              |
-| `CHATGPT_CONNECT_DISABLED`      | _unset_                     | `1` hides the ChatGPT flow, leaving the API-key path                                 |
-| `DOOP_DISTILL_MODEL`            | `claude-haiku-4-5-20251001` | Model for the guideline distiller                                                    |
-
-`RESIDENT_TASK_LIMIT` is the free-tier meter. By default it is `0`: the Doop Agent only runs once
-the user connects a model account (their ChatGPT subscription or an OpenAI key) — a connected
-account is never metered. Connecting your own MCP agent does not lift the meter: it runs on your
-model when _it_ designs, but resident tasks still bill a credential. Set the limit above 0 to
-grant that many free tasks on the server's key; everything that triggers resident work counts,
-including feedback and retries. There is no "unlimited" value: self-hosting with your own key, set
-it to a large number, since you're paying Anthropic directly either way.
+| Variable                        | Default                                             | Purpose                                                               |
+| ------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------- |
+| `DOOP_AGENT_PROVIDER`           | `requesty`                                          | Server provider; explicit legacy `anthropic`/`azure` remain available |
+| `REQUESTY_API_KEY`              | unset                                               | Requesty server credentials; missing key disables that tier           |
+| `REQUESTY_CHAT_URL`             | `https://router.eu.requesty.ai/v1/chat/completions` | Pinned EU endpoint                                                    |
+| `DOOP_AGENT_MODEL`              | `policy/prowin-layout-gen`                          | Requesty agent policy                                                 |
+| `DOOP_DISTILL_MODEL`            | `policy/prowin-text-gen`                            | Requesty memory policy                                                |
+| `RESIDENT_TASK_LIMIT`           | `0`                                                 | Server-paid tasks per account; zero disables server-paid work         |
+| `ANTHROPIC_API_KEY`             | unset                                               | Explicit legacy Anthropic server provider only                        |
+| `AZURE_OPENAI_ENDPOINT`         | unset                                               | Explicit legacy Azure server resource                                 |
+| `AZURE_OPENAI_API_KEY`          | unset                                               | Azure server credential                                               |
+| `AZURE_OPENAI_DEPLOYMENT`       | unset                                               | Azure server deployment                                               |
+| `AZURE_OPENAI_API_VERSION`      | unset                                               | Optional pinned Azure API version                                     |
+| `AZURE_OPENAI_REASONING_EFFORT` | unset                                               | Optional Azure reasoning effort                                       |
 
 ## Accounts
 
@@ -569,26 +520,26 @@ Steering happens at three layers (the same architecture paper.design uses, plus 
 
 ### MCP tools
 
-| Tool                   | What it does                                                                                                                                                           |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_guide`            | The agent playbook — agents are instructed to load this first                                                                                                          |
-| `set_status`           | Broadcast a one-line "what I'm working on" — shown live in the working-now strip, avatar tooltip, and activity feed                                                    |
-| `get_feedback`         | Fetch & claim open human feedback requests — for agents whose job is to poll the canvas periodically                                                                   |
-| `get_comments`         | Read element-pinned comments and replies, optionally filtered by frame or resolution state, without claiming work                                                      |
-| `reply_to_comment`     | Reply inside an element-comment thread; `@mention` of a resident role is metered like a browser comment                                                                |
-| `resolve_comment`      | Resolve an element-comment thread; resolving an `@mention` thread records the exchange in canvas Memory                                                                |
-| `list_canvases`        | List all canvases                                                                                                                                                      |
-| `create_canvas`        | Create a canvas, returns its shareable id                                                                                                                              |
-| `get_canvas`           | Canvas layout: every frame's position/size/meta                                                                                                                        |
-| `create_frame`         | Add a frame with HTML (auto-placed if no x/y)                                                                                                                          |
-| `get_frame`            | Read a frame including its HTML                                                                                                                                        |
-| `get_frame_screenshot` | Render the frame headlessly and return a PNG — lets agents _see_ and iterate on their design                                                                           |
-| `set_frame_html`       | Replace a frame's design in one shot — renders live for everyone                                                                                                       |
-| `append_frame_html`    | **Stream** a design in chunks (`start=true` first, `done=true` last) — viewers watch it build up                                                                       |
-| `edit_frame_html`      | Targeted exact find/replace in a frame's HTML — morphs into the render in place                                                                                        |
-| `update_frame`         | Rename / move / resize a frame                                                                                                                                         |
-| `delete_frame`         | Remove a frame                                                                                                                                                         |
-| `generate_image`       | Generate an image from a prompt with the image model picked in Settings (GPT Image, Nano Banana or Seedream), on the user's own account, else a server key → asset URL |
+| Tool                   | What it does                                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `get_guide`            | The agent playbook — agents are instructed to load this first                                                                                                            |
+| `set_status`           | Broadcast a one-line "what I'm working on" — shown live in the working-now strip, avatar tooltip, and activity feed                                                      |
+| `get_feedback`         | Fetch & claim open human feedback requests — for agents whose job is to poll the canvas periodically                                                                     |
+| `get_comments`         | Read element-pinned comments and replies, optionally filtered by frame or resolution state, without claiming work                                                        |
+| `reply_to_comment`     | Reply inside an element-comment thread; `@mention` of a resident role is metered like a browser comment                                                                  |
+| `resolve_comment`      | Resolve an element-comment thread; resolving an `@mention` thread records the exchange in canvas Memory                                                                  |
+| `list_canvases`        | List all canvases                                                                                                                                                        |
+| `create_canvas`        | Create a canvas, returns its shareable id                                                                                                                                |
+| `get_canvas`           | Canvas layout: every frame's position/size/meta                                                                                                                          |
+| `create_frame`         | Add a frame with HTML (auto-placed if no x/y)                                                                                                                            |
+| `get_frame`            | Read a frame including its HTML                                                                                                                                          |
+| `get_frame_screenshot` | Render the frame headlessly and return a PNG — lets agents _see_ and iterate on their design                                                                             |
+| `set_frame_html`       | Replace a frame's design in one shot — renders live for everyone                                                                                                         |
+| `append_frame_html`    | **Stream** a design in chunks (`start=true` first, `done=true` last) — viewers watch it build up                                                                         |
+| `edit_frame_html`      | Targeted exact find/replace in a frame's HTML — morphs into the render in place                                                                                          |
+| `update_frame`         | Rename / move / resize a frame                                                                                                                                           |
+| `delete_frame`         | Remove a frame                                                                                                                                                           |
+| `generate_image`       | Generate an image from a prompt with the image model picked in Settings (GPT Image, Nano Banana or Seedream), on operator-configured server credentials only → asset URL |
 
 Mutating tools accept `agent_name`; the agent then appears in the presence stack (pulsing square avatar),
 gets an "editing" ring + chip on the frame it touched, and its actions land in the activity feed. Agents

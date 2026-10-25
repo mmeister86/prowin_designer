@@ -1,70 +1,18 @@
 import { env } from './env.ts'
 import { randomUUID } from 'node:crypto'
 import type Anthropic from '@anthropic-ai/sdk'
-import type { ModelAccount } from './modelAccounts.ts'
 import { ModelStreamInterruptedError } from './modelTurnRetry.ts'
 
-/**
- * Runs one Doop Agent turn on OpenAI, speaking the Anthropic message shape
- * the agent loop is already written in. Everything OpenAI-specific — the
- * Responses API item format, tool-call ids, streaming — is contained here, so
- * server/resident.ts stays a single provider-neutral loop.
- *
- * Three transports, one body:
- *  - a connected ChatGPT subscription, through the same Codex backend the
- *    Codex CLI uses (SSE only, no max_output_tokens);
- *  - a plain OpenAI API key against api.openai.com (ordinary JSON);
- *  - an Azure OpenAI deployment (same Responses API, authenticated with
- *    Azure's api-key header) — SERVER config only, the free tier when
- *    DOOP_AGENT_PROVIDER=azure. Deliberately not a connectable per-user
- *    account: a user-supplied endpoint would be a server-side fetch target,
- *    i.e. an SSRF into whatever network Doop runs on.
- *
- * The one real impedance mismatch is images. Anthropic returns screenshots
- * inside tool results; the Responses API only accepts text in a
- * function_call_output, so each image is re-attached as a following user
- * message. The model sees the same pixels in the same order.
- */
+/** Shared Responses message mapping, streaming helpers and the explicit
+ * legacy Azure server transport. No private model-account transports. */
 
-export const CHATGPT_URL = env.CHATGPT_RESPONSES_URL
 export const OPENAI_URL = env.OPENAI_RESPONSES_URL
-/**
- * The OpenAI tiers a ChatGPT sign-in and an API key can both reach: GPT-6
- * Astra (the September 2026 flagship — on Codex it needs a Plus plan or
- * better, and OpenAI is still rolling it out account by account) on top of
- * the three GPT-5.6 tiers. Users pick one in Settings — they are paying for
- * it, and the tiers trade real money against real quality — so this list is
- * the menu, not a detail. Ordered best-first; the default stays on Terra:
- * Astra bills several times Sol per token, which is a choice to opt into.
- */
-export const AGENT_MODELS = [
-  { id: 'gpt-6-astra', name: 'GPT-6 Astra', blurb: 'Newest flagship — the sharpest reasoning, at the highest price' },
-  { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol', blurb: 'Flagship — the most detail and polish, and the priciest' },
-  { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra', blurb: 'The everyday workhorse. A good default for design work' },
-  { id: 'gpt-5.6-luna', name: 'GPT-5.6 Luna', blurb: 'Fastest and cheapest — fine for small, mechanical edits' },
-] as const
-
-export const DEFAULT_OPENAI_MODEL = env.DOOP_AGENT_OPENAI_MODEL
-const REASONING_EFFORT = env.DOOP_AGENT_OPENAI_EFFORT
 /* Azure deployments are named by their owner and can host non-reasoning
    models, which reject a `reasoning` block outright — so unlike the OpenAI
    paths there is no default effort: unset means the parameter stays home. */
 const AZURE_REASONING_EFFORT = env.AZURE_OPENAI_REASONING_EFFORT
 /* Azure's v1 surface needs no api-version; older resources can pin one. */
 const AZURE_API_VERSION = env.AZURE_OPENAI_API_VERSION
-
-export function isKnownModel(id: string): boolean {
-  return AGENT_MODELS.some((model) => model.id === id)
-}
-
-/** What this account runs on: the user's choice, else the server default. */
-export function modelFor(account: Pick<ModelAccount, 'model'>): string {
-  return account.model || DEFAULT_OPENAI_MODEL
-}
-/* The Codex backend only answers clients it recognises, so this is the value
-   it expects rather than a free-form product name. Override if OpenAI ever
-   admits other originators. */
-export const ORIGINATOR = env.CHATGPT_ORIGINATOR
 
 export type TurnBlock = Anthropic.TextBlockParam | Anthropic.ToolUseBlockParam
 export type StopReason = 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal'
@@ -346,56 +294,6 @@ export async function responseError(res: Response, label: string): Promise<Error
   return new Error(`${label} request failed (${res.status}). ${detail}`)
 }
 
-/** One turn against a connected ChatGPT subscription. */
-async function runChatgpt(account: ModelAccount, req: TurnRequest): Promise<TurnResult> {
-  const res = await fetch(CHATGPT_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${account.accessToken}`,
-      'Content-Type': 'application/json',
-      Accept: 'text/event-stream',
-      'OpenAI-Beta': 'responses=experimental',
-      originator: ORIGINATOR,
-      session_id: randomUUID(),
-      ...(account.accountId ? { 'chatgpt-account-id': account.accountId } : {}),
-    },
-    body: JSON.stringify({
-      model: modelFor(account),
-      instructions: req.system,
-      input: toInput(req.messages),
-      tools: toTools(req.tools),
-      tool_choice: 'auto',
-      parallel_tool_calls: false,
-      reasoning: { effort: REASONING_EFFORT, summary: 'auto' },
-      store: false,
-      stream: true,
-    }),
-  })
-  if (!res.ok) throw await responseError(res, 'ChatGPT')
-  return fromResponse(await readEventStream(res))
-}
-
-/** One turn against a plain OpenAI API key. */
-async function runApiKey(account: ModelAccount, req: TurnRequest): Promise<TurnResult> {
-  const res = await fetch(OPENAI_URL, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${account.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: modelFor(account),
-      instructions: req.system,
-      input: toInput(req.messages),
-      tools: toTools(req.tools),
-      tool_choice: 'auto',
-      parallel_tool_calls: false,
-      reasoning: { effort: REASONING_EFFORT },
-      max_output_tokens: req.maxTokens,
-      store: false,
-    }),
-  })
-  if (!res.ok) throw await responseError(res, 'OpenAI')
-  return fromResponse((await res.json()) as ResponseBody)
-}
-
 /** Everything one Azure OpenAI call needs, straight from the AZURE_OPENAI_*
  *  env vars — server config, never user input. */
 export interface AzureConfig {
@@ -433,21 +331,6 @@ export async function runAzureTurn(config: AzureConfig, req: TurnRequest): Promi
   })
   if (!res.ok) throw await responseError(res, 'Azure OpenAI')
   return fromResponse((await res.json()) as ResponseBody)
-}
-
-const transports: Record<
-  Exclude<ModelAccount['kind'], 'anthropic-key' | 'openrouter-key' | 'gemini-key'>,
-  (account: ModelAccount, req: TurnRequest) => Promise<TurnResult>
-> = {
-  chatgpt: runChatgpt,
-  'openai-key': runApiKey,
-}
-
-export function runOpenAiTurn(account: ModelAccount, req: TurnRequest): Promise<TurnResult> {
-  if (account.kind === 'anthropic-key' || account.kind === 'openrouter-key' || account.kind === 'gemini-key') {
-    throw new Error(`${account.kind} accounts do not use the OpenAI transport`)
-  }
-  return transports[account.kind](account, req)
 }
 
 /* exported for tests */

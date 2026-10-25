@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import Anthropic from '@anthropic-ai/sdk'
+import { requestyConfig, runChatCompletionsTurn } from './chatCompletionsAgent.ts'
 import { eq } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import sharp from 'sharp'
@@ -101,7 +101,6 @@ const MIN_SOURCE_WIDTH = 1200
 const DISPLAY_WIDTH = 1600
 const THUMB_WIDTH = 320
 const TAGGING_WIDTH = 768
-const TAGGING_MODEL = 'claude-opus-5'
 
 const SEED_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'backgrounds.json')
 
@@ -570,19 +569,23 @@ Describe the image for that search:
 - description: one plain sentence, under 20 words, as a designer would say it ("Soft teal aurora ribbon drifting across a near-black field").`
 
 export function taggingEnabled(): boolean {
-  return OPTIONAL_FEATURES.backgrounds && Boolean(env.ANTHROPIC_API_KEY)
+  return OPTIONAL_FEATURES.backgrounds && Boolean(env.REQUESTY_API_KEY)
 }
 
 /** Ask the model to describe an image. Throws when tagging is off or refused. */
 export async function tagWithModel(jpeg: Buffer): Promise<BackgroundTags> {
-  if (!taggingEnabled()) throw new Error('auto-tagging is off (ANTHROPIC_API_KEY is not set)')
-  const client = new Anthropic()
-  const response = await client.beta.messages.create({
-    model: TAGGING_MODEL,
-    max_tokens: 2048,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: TAG_SCHEMA } },
+  if (!taggingEnabled())
+    throw new Error('auto-tagging is off (background library disabled or REQUESTY_API_KEY not set)')
+  const config = requestyConfig(env.DOOP_AGENT_MODEL, true)
+  if (!config) throw new Error('auto-tagging is off (REQUESTY_API_KEY not set)')
+  const response = await runChatCompletionsTurn(config, {
+    system: '',
+    tools: [],
+    maxTokens: 2048,
+    responseFormat: {
+      type: 'json_schema',
+      json_schema: { name: 'background_tags', strict: true, schema: TAG_SCHEMA },
+    },
     messages: [
       {
         role: 'user',
@@ -594,6 +597,7 @@ export async function tagWithModel(jpeg: Buffer): Promise<BackgroundTags> {
     ],
   })
   if (response.stop_reason === 'refusal') throw new Error('the model declined to describe this image')
+  if (response.stop_reason !== 'end_turn') throw new Error('incomplete tagging response')
   const block = response.content.find((b) => b.type === 'text')
   if (!block || block.type !== 'text') throw new Error('no text in tagging response')
   return normalizeTags(JSON.parse(block.text))

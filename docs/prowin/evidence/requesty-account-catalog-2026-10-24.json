@@ -1,0 +1,30 @@
+{
+  "retrievedAt": "2026-10-24T19:16:07.396Z",
+  "endpoint": "https://router.eu.requesty.ai/v1/models",
+  "status": 200,
+  "totalModels": 801,
+  "geolocationCounts": {
+    "unspecified": 2,
+    "global": 413,
+    "eu": 233,
+    "us": 114,
+    "ap": 15,
+    "sg": 21,
+    "uk": 3
+  },
+  "policies": [
+    {
+      "id": "policy/prowin-layout-gen",
+      "description": "Your dynamic policy. Configure via the Requesty UI.\nAll features are shown as supported to avoid any restrictions from the application.\nContext window and max output tokens are set to the minimal value across policy providers.\nPrices are set to zero, as the price depends on the actual model used during inference.\nYou can see your spending in your Requesty dashboard.\n",
+      "context_window": 1000000,
+      "max_output_tokens": 32768
+    },
+    {
+      "id": "policy/prowin-text-gen",
+      "description": "Your dynamic policy. Configure via the Requesty UI.\nAll features are shown as supported to avoid any restrictions from the application.\nContext window and max output tokens are set to the minimal value across policy providers.\nPrices are set to zero, as the price depends on the actual model used during inference.\nYou can see your spending in your Requesty dashboard.\n",
+      "context_window": 1050000,
+      "max_output_tokens": 128000
+    }
+  ],
+  "note": "Policy capability flags are advertised as supported irrespective of underlying members. Returned non-EU models mean the listing does not demonstrate an EU-only model allowlist."
+}

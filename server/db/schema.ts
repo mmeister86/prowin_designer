@@ -229,6 +229,7 @@ export const tasks = pgTable(
   'tasks',
   {
     id: text('id').primaryKey(),
+    serverPaid: boolean('server_paid'),
     canvasId: text('canvas_id').notNull(),
     agentName: text('agent_name').notNull(),
     owner: text('owner'),
@@ -264,6 +265,7 @@ export const feedback = pgTable(
   'feedback',
   {
     id: text('id').primaryKey(),
+    serverPaid: boolean('server_paid'),
     taskId: text('task_id').notNull(),
     canvasId: text('canvas_id').notNull(),
     agentName: text('agent_name').notNull(),
@@ -285,6 +287,7 @@ export const comments = pgTable(
   'comments',
   {
     id: text('id').primaryKey(),
+    serverPaid: boolean('server_paid'),
     canvasId: text('canvas_id').notNull(),
     /* element comment: the frame + selector + snippet; canvas comment: no
        frame, a page and a world point instead (selector/snippet empty) */
@@ -454,31 +457,6 @@ export const activity = pgTable(
 export const residentUsage = pgTable('resident_usage', {
   userId: text('user_id').primaryKey(),
   used: integer('used').notNull().default(0),
-  updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
-})
-
-/** A user's own model subscription, connected so the Doop Agent keeps running
- *  once their free tasks are gone. Today that is ChatGPT (OAuth against
- *  auth.openai.com, refreshed here) or a plain OpenAI API key — `kind` says
- *  which, and the token columns are empty for the key path. Secrets: these
- *  rows are as sensitive as a password, and never leave the server. */
-export const modelAccounts = pgTable('model_accounts', {
-  userId: text('user_id').primaryKey(),
-  /** 'chatgpt' (subscription, OAuth) | 'openai-key' (pay-as-you-go API key) */
-  kind: text('kind').notNull(),
-  /** chatgpt: the ChatGPT account the tokens are scoped to */
-  accountId: text('account_id'),
-  /** display only — whose subscription this is, and which plan */
-  email: text('email'),
-  plan: text('plan'),
-  accessToken: text('access_token'),
-  refreshToken: text('refresh_token'),
-  /** epoch ms the access token expires; refreshed ahead of this */
-  expiresAt: bigint('expires_at', { mode: 'number' }),
-  apiKey: text('api_key'),
-  /** the model tier this user picked; null = the server default */
-  model: text('model'),
-  connectedAt: bigint('connected_at', { mode: 'number' }).notNull(),
   updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),
 })
 

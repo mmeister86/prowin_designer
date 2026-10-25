@@ -9,9 +9,9 @@ import { CheckIcon } from './ui/icons'
 
 /** Why an entry is disabled, phrased as the fix. */
 const UNAVAILABLE_HINTS = {
-  openai: 'Needs a ChatGPT subscription or OpenAI API key connected above (or a server key).',
-  gemini: 'Needs a Gemini API key connected above (or a server key).',
-  ark: 'Not configured on this server (its operator sets ARK_API_KEY).',
+  openai: 'Not configured on this server. Contact the administrator.',
+  gemini: 'Not configured on this server. Contact the administrator.',
+  ark: 'Not configured on this server. Contact the administrator.',
 } as const
 
 /**
@@ -24,7 +24,7 @@ export function ImageModelCard() {
   const [models, setModels] = useState<ImageModelStatus[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  /* availability follows the connected account — re-read when it changes */
+  /* availability follows server configuration — re-read when it changes */
   const version = useStore((s) => s.allowanceVersion)
   const refresh = useCallback(() => {
     api.imageModels().then(
@@ -57,8 +57,7 @@ export function ImageModelCard() {
       <CardHeader>
         <CardTitle>Image model</CardTitle>
         <CardDescription>
-          Which model the agent draws generated images with. It runs on the matching account above, or on this server’s
-          key when you connected nothing.
+          Choose an image model configured by your administrator. Generated images use the central service.
         </CardDescription>
       </CardHeader>
       <div className="px-4 pb-5 pt-4 sm:px-[22px]">

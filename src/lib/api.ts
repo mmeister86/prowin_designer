@@ -47,45 +47,8 @@ export interface Allowance {
   limit: number
   /** connected an agent of their own over MCP — unmetered */
   connected: boolean
-  /** connected a model account the Doop Agent itself can run on */
-  byoModel: boolean
-  byoKind?: ModelAccountKind | 'claude-local'
-  byoEmail?: string
-  /** free tasks are spent and their own account is carrying the agent */
-  onOwnAccount: boolean
-}
-
-export type ModelAccountKind = 'chatgpt' | 'openai-key' | 'anthropic-key' | 'openrouter-key' | 'gemini-key'
-
-/** An in-flight device sign-in: the user types `userCode` at `verificationUrl`
- *  and the server polls OpenAI until they approve. */
-export interface DeviceFlow {
-  userCode: string
-  verificationUrl: string
-  status: 'pending' | 'connected' | 'error'
-  error?: string
-}
-
-export interface AgentModelOption {
-  id: string
-  name: string
-  blurb: string
-  /** false = the model cannot see screenshots; runs skip visual review */
-  vision?: boolean
-}
-
-export interface ModelAccountStatus {
-  connected: boolean
-  kind?: ModelAccountKind
-  email?: string
-  plan?: string
-  /** the model tier this account runs on right now */
-  model?: string
-  connectedAt?: number
-  /** false when the server has switched the ChatGPT flow off */
-  chatgptEnabled?: boolean
-  /** the curated menu each provider's picker offers */
-  menus?: Record<ModelAccountKind, AgentModelOption[]>
+  /** Currently eligible Creator/Admin selected Local Agent. */
+  localAgent: boolean
 }
 
 /** One image-model registry entry's availability for this user. */
@@ -323,25 +286,6 @@ export const api = {
   sendTaskFeedback: (taskId: string, text: string) =>
     req(`/api/tasks/${taskId}/feedback`, { method: 'POST', body: JSON.stringify({ text, from: getIdentity().name }) }),
   agentAllowance: () => req<Allowance>('/api/agent-allowance'),
-  modelAccount: () => req<ModelAccountStatus>('/api/model-account'),
-  chatgptAuthorize: () =>
-    req<{ url: string; state: string; catching: boolean }>('/api/model-account/chatgpt/authorize', { method: 'POST' }),
-  startDeviceAuth: () => req<DeviceFlow>('/api/model-account/chatgpt/device', { method: 'POST' }),
-  deviceAuthStatus: () => req<DeviceFlow | { status: 'none' }>('/api/model-account/chatgpt/device'),
-  cancelDeviceAuth: () => req('/api/model-account/chatgpt/device', { method: 'DELETE' }),
-  connectChatgpt: (redirect: string) =>
-    req<ModelAccountStatus>('/api/model-account/chatgpt', { method: 'POST', body: JSON.stringify({ redirect }) }),
-  connectOpenAiKey: (apiKey: string) =>
-    req<ModelAccountStatus>('/api/model-account/openai-key', { method: 'POST', body: JSON.stringify({ apiKey }) }),
-  connectAnthropicKey: (apiKey: string) =>
-    req<ModelAccountStatus>('/api/model-account/anthropic-key', { method: 'POST', body: JSON.stringify({ apiKey }) }),
-  connectOpenRouterKey: (apiKey: string) =>
-    req<ModelAccountStatus>('/api/model-account/openrouter-key', { method: 'POST', body: JSON.stringify({ apiKey }) }),
-  connectGeminiKey: (apiKey: string) =>
-    req<ModelAccountStatus>('/api/model-account/gemini-key', { method: 'POST', body: JSON.stringify({ apiKey }) }),
-  disconnectModelAccount: () => req<ModelAccountStatus>('/api/model-account', { method: 'DELETE' }),
-  setAgentModel: (model: string) =>
-    req<ModelAccountStatus>('/api/model-account', { method: 'PATCH', body: JSON.stringify({ model }) }),
   imageModels: () => req<{ models: ImageModelStatus[] }>('/api/image-model'),
   setImageModel: (model: string) =>
     req<{ models: ImageModelStatus[] }>('/api/image-model', { method: 'PUT', body: JSON.stringify({ model }) }),

@@ -268,20 +268,24 @@ Das `BrandKit`-Interface wird zur Gliederung der Markdown-Datei:
 
 Die Ausgabe-Regeln aus dem System-Prompt (§ 3.3) gehen in den Agent-Prompt über: alles innerhalb der Safe Zone, nur Brand-Farben und -Schriften, `maxLength` einhalten, Produktnamen exakt.
 
-### R4.3 Requesty EU ✅
+### R4.3 Requesty EU 🔄
 
-- **Gateway:** `https://router.eu.requesty.ai/v1`, Frankfurt, Zero Data Retention, ein DPA. PAYG mit ca. 5 % Aufschlag. Kosten stehen in `response.usage.cost`.
-- **Modell-String-Format laut Spec v0.2:** `policy/<name>` (vor Gebrauch gegen die Requesty-Doku prüfen).
+**Prüfstand vom 24.10.2026 (TASK-15):** [Prüfprotokoll und Benchmark](requesty-pruefung.md). Die vorhandenen Policies ersetzen die früher vorgeschlagenen Modellketten.
 
-| Policy              | Primär                           | Fallback 1                       | Fallback 2                      |
-| ------------------- | -------------------------------- | -------------------------------- | ------------------------------- |
-| `prowin-text-gen`   | `zhipu/glm-5.3-flash@eu`         | `mistral/mistral-small@eu`       | `anthropic/claude-haiku-4-5@eu` |
-| `prowin-layout-gen` | `mistral/mistral-medium@eu`      | `anthropic/claude-sonnet-4-6@eu` | `openai/gpt-4.1@eu`             |
-| `prowin-vision`     | `anthropic/claude-sonnet-4-6@eu` | `google/gemini-3.5-flash@eu`     | —                               |
+- **Gateway:** `https://router.eu.requesty.ai/v1`. Für durchgängige EU-Verarbeitung müssen zusätzlich sämtliche Modelle einschließlich Fallbacks EU-gehostet sein. Organisationsweite EU-Erzwingung und EU-only Approved Models sind gesondert zu prüfen. [EU-Routing-Dokumentation](https://docs.requesty.ai/features/eu-routing).
+- **Policy-Syntax bestätigt:** `policy/<name>`; beide bestehenden Policies liefern authentifiziert HTTP 200. [Fallback-Dokumentation](https://docs.requesty.ai/features/fallback-policies).
+- **Kosten:** `response.usage.cost` in USD wurde in den Testantworten gemessen. Bei Streaming ist `stream_options.include_usage` erforderlich. ZDR, DPA und Gebühren nicht pauschal aus der EU-URL ableiten. [Kosten-Dokumentation](https://docs.requesty.ai/features/cost-tracking).
 
-**Neu für den Fork:** `prowin-design-agent` für den doop-Agent-Loop. Er braucht Tool-Calling und Vision. Der naheliegende Startpunkt ist die `prowin-layout-gen`-Kette, mit Vision-fähigen Modellen vorn.
+| Bestehende Policy          | Im Test tatsächlich verwendetes Modell   | Noch offen                                                                                                 |
+| -------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `policy/prowin-text-gen`   | `azure/gpt-5.4@germanywestcentral`       | GPT-5.5 als im Screenshot sichtbarer Primärkandidat liefert direkt HTTP 404; vollständige Kette bestätigen |
+| `policy/prowin-layout-gen` | `bedrock/claude-sonnet-5-5@eu-central-1` | Exakte IDs, Reihenfolge und Nutzbarkeit der übrigen Fallbacks bestätigen                                   |
 
-- **Benchmark (bleibt geplant):** 20 typische deutsche proWIN-Prompts gegen GLM-5.3-flash, Mistral Small und Claude Haiku (Sprachqualität, Constraint-Treue, Latenz). Für den Agent kommen Tool-Call-Fehlerrate und Kosten pro fertigem Design dazu.
+Die früher genannten sieben `@eu`-Modell-IDs sind im öffentlichen Modellkatalog vom 24.10.2026 **nicht enthalten und nicht freigegeben**. [Katalogevidenz](evidence/requesty-public-catalog-2026-10-24.json). `prowin-vision` und `prowin-design-agent` erscheinen nicht im authentifizierten Katalog; ihre Existenz wird nicht vorausgesetzt.
+
+Für TASK-16 ist die bestehende `policy/prowin-layout-gen` ein **Integrationskandidat** für den Agenten. Tool-Calling und Vision müssen auch für jeden einzelnen Fallback nachgewiesen werden. Die Policy-Capability-Flags allein reichen nicht: Die API beschreibt sie ausdrücklich als pauschale Platzhalter.
+
+Der [Testkorpus](evidence/requesty-benchmark-corpus.json) enthält 20 deutsche Textprompts und 10 Agent-Briefs. Der vollständige Resident-Benchmark benötigt den Requesty-Pfad aus TASK-16, Ausgangsframes und Brand-Fixtures; isolierte API-Tests ersetzen diese Abnahme nicht.
 
 ### R4.4 Die fünf Features im Fork 🔄
 

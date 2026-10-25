@@ -29,7 +29,7 @@ export const Cards: Story = {
         <CardHeader>
           <CardTitle>Doop Agent</CardTitle>
           <CardDescription>
-            Choose how the Doop Agent runs on your canvases: a connected model account or Claude CLI on your desktop.
+            Centrally managed design assistance, with optional local desktop execution for Creators and administrators.
           </CardDescription>
         </CardHeader>
         <CardBody>

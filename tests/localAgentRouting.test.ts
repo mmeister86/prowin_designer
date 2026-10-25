@@ -2,17 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../server/prowin/accounts.ts', () => ({ permissionIdentity: async () => ({ creator: true }) }))
 const mocks = vi.hoisted(() => ({ preference: vi.fn(), account: vi.fn(), online: vi.fn() }))
 vi.mock('../server/localAgentPreferences.ts', () => ({ getLocalAgentPreference: mocks.preference }))
-vi.mock('../server/modelAccounts.ts', () => ({
-  getAccount: mocks.account,
-  withFreshToken: vi.fn(),
-  accountModelFor: (account: { model?: string }) => account.model ?? 'default',
-}))
 vi.mock('../server/localAgentRuns.ts', () => ({ localAgentRuns: { online: mocks.online, start: vi.fn() } }))
+import { stubEnv, unstubAllEnvs } from './envStub.ts'
 import { pickModel } from '../server/agentModel.ts'
 
 afterEach(() => {
   vi.clearAllMocks()
-  vi.unstubAllEnvs()
+  unstubAllEnvs()
 })
 describe('local provider routing', () => {
   it('selects the local harness even if a legacy cloud pilot setting is present', async () => {
@@ -41,10 +37,9 @@ describe('local provider routing', () => {
     expect(model?.runHarness).toBeTypeOf('function')
     expect(mocks.account).not.toHaveBeenCalled()
   })
-  it('retains the existing account when local execution is deselected', async () => {
+  it('uses the server when local execution is deselected', async () => {
     mocks.preference.mockResolvedValue({ enabled: false, model: 'default' })
-    mocks.account.mockResolvedValue({ kind: 'chatgpt', userId: 'alice', connectedAt: 1 })
-    expect((await pickModel('alice'))?.provider).toBe('chatgpt')
-    expect(mocks.account).toHaveBeenCalledWith('alice')
+    stubEnv('REQUESTY_API_KEY', 'test-server-key')
+    expect((await pickModel('alice'))?.provider).toBe('requesty')
   })
 })

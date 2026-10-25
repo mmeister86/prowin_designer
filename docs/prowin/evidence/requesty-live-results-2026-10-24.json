@@ -1,0 +1,1943 @@
+{
+  "startedAt": "2026-10-24T19:18:25.272Z",
+  "endpoint": "https://router.eu.requesty.ai/v1/chat/completions",
+  "textRuns": [
+    {
+      "id": "T01",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Einladung zum Beratungsabend\",\"body\":\"Komm am 14. November zu unserem fiktiven Beratungsabend und entdecke proWIN-Testdesigns in entspannter Runde. Wir freuen uns auf dich!\",\"cta\":\"Jetzt Platz sichern\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1446,
+      "costUsd": 0.00138325
+    },
+    {
+      "id": "T02",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Produktvorführung am 18. November\",\"body\":\"Wir kündigen eine fiktive Produktvorführung am 18. November um 19 Uhr an. Weitere Informationen folgen.\",\"cta\":\"Jetzt für 19 Uhr merken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": false
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": false,
+      "elapsedMs": 1282,
+      "costUsd": 0.001309
+    },
+    {
+      "id": "T03",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Infoabend: Jetzt anmelden\",\"body\":\"Melde dich für unseren fiktiven Infoabend an. Die Anmeldung endet am 12. November.\",\"cta\":\"Jetzt anmelden\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 976,
+      "costUsd": 0.0011385
+    },
+    {
+      "id": "T04",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Erinnerung an morgen, 18 Uhr\",\"body\":\"Nur eine kurze Erinnerung an deinen fiktiven Termin morgen um 18 Uhr. Plane dir dafür bitte etwas Zeit ein.\",\"cta\":\"Termin vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1082,
+      "costUsd": 0.00125125
+    },
+    {
+      "id": "T05",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Danke für den schönen Abend\",\"body\":\"Danke für Ihr Vertrauen und die angenehme Zeit beim Beratungsabend. Der persönliche Austausch war sehr wertvoll.\",\"cta\":\"Alles Gute für Sie\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 878,
+      "costUsd": 0.0011715
+    },
+    {
+      "id": "T06",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Terminänderung: 14. November\",\"body\":\"Der geplante Termin am 14. November wurde verschoben. Neuer Termin ist der 21. November. Bitte merken Sie sich das neue Datum vor.\",\"cta\":\"Jetzt 21. November merken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": false
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": false,
+      "elapsedMs": 1116,
+      "costUsd": 0.00142175
+    },
+    {
+      "id": "T07",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Einladung zur Informationsveranstaltung\",\"body\":\"Wir laden Sie herzlich zu unserer fiktiven Informationsveranstaltung im Musterraum ein. Informieren Sie sich in angenehmer Atmosphäre.\",\"cta\":\"Jetzt Teilnahme anfragen\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1206,
+      "costUsd": 0.0012815
+    },
+    {
+      "id": "T08",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Individuelle Beratung mit proWIN\",\"body\":\"Finde mit proWIN die Beratung, die zu deinem Alltag passt – persönlich, nah und auf deine Wünsche abgestimmt.\",\"cta\":\"Jetzt beraten lassen\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1201,
+      "costUsd": 0.0012265
+    },
+    {
+      "id": "T09",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Kurze Erinnerung: Anmeldung bis Freitag\",\"body\":\"Freundliche Erinnerung an die fiktive Anmeldung bis Freitag. Wenn es passt, freuen wir uns auf Ihre Rückmeldung.\",\"cta\":\"Bis Freitag anmelden\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": false,
+          "body": false,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": false,
+      "elapsedMs": 1028,
+      "costUsd": 0.00122375
+    },
+    {
+      "id": "T10",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Einladung zum online Abend\",\"body\":\"Sei am 20. November bei unserem fiktiven online Abend dabei. Wir laden dich herzlich zu diesem besonderen Termin ein.\",\"cta\":\"Jetzt online anmelden\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1056,
+      "costUsd": 0.00122375
+    },
+    {
+      "id": "T11",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Hinweis: Neuer Veranstaltungsort\",\"body\":\"Der Veranstaltungsort hat sich geändert und heißt jetzt Musterhaus. Wir entschuldigen uns kurz für die Umstände.\",\"cta\":\"Jetzt Musterhaus merken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1096,
+      "costUsd": 0.00124575
+    },
+    {
+      "id": "T12",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Einladung zum Kennenlernen\",\"body\":\"Ich lade dich herzlich ein, mich und proWIN in einem persönlichen Gespräch ganz unverbindlich kennenzulernen.\",\"cta\":\"Jetzt unverbindlich\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1038,
+      "costUsd": 0.00120725
+    },
+    {
+      "id": "T13",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Infohinweis: 10 Uhr & 15 Uhr\",\"body\":\"Bitte beachten: Es gibt zwei Termine am selben Tag, um 10 Uhr und um 15 Uhr. Wählen Sie den passenden Zeitpunkt.\",\"cta\":\"10 Uhr oder 15 Uhr\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1368,
+      "costUsd": 0.00141625
+    },
+    {
+      "id": "T14",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Event für Einsteigerinnen\",\"body\":\"Unsere fiktive Veranstaltung richtet sich an Einsteigerinnen. Es werden keine Vorkenntnisse vorausgesetzt. Jetzt unverbindlich informieren.\",\"cta\":\"Mehr zur Veranstaltung\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1139,
+      "costUsd": 0.00128425
+    },
+    {
+      "id": "T15",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Persönliche Terminvereinbarung\",\"body\":\"Für eine persönliche Terminvereinbarung senden Sie einfach eine Nachricht. So stimmen wir den passenden Zeitpunkt ab.\",\"cta\":\"Jetzt Nachricht senden\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": false
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": false,
+      "elapsedMs": 955,
+      "costUsd": 0.00114675
+    },
+    {
+      "id": "T16",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Termin am 16. November entfällt\",\"body\":\"Der Termin am 16. November entfällt. Aktuell gibt es noch keinen Ersatztermin. Wir informieren, sobald neue Details vorliegen.\",\"cta\":\"Danke für Ihr Verständnis\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": false
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": false,
+      "elapsedMs": 2542,
+      "costUsd": 0.00132825
+    },
+    {
+      "id": "T17",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Lerne uns am Samstag kennen\",\"body\":\"Wir laden dich herzlich ein, uns am Samstag in entspannter Runde kennenzulernen.\",\"cta\":\"Am Samstag dabei\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1117,
+      "costUsd": 0.0011275
+    },
+    {
+      "id": "T18",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"deine story-einladung\",\"body\":\"Schön, dass du dabei bist. Eine kleine, fiktive Einladung zum Reinschauen – Fragen willkommen.\",\"cta\":\"Jetzt ansehen\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1137,
+      "costUsd": 0.001188
+    },
+    {
+      "id": "T19",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"proWIN Veranstaltung am 22. November\",\"body\":\"Sachlicher Hinweis auf eine fiktive proWIN Veranstaltung am 22. November. Weitere Informationen folgen in einem separaten Hinweis.\",\"cta\":\"Termin vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1145,
+      "costUsd": 0.00130625
+    },
+    {
+      "id": "T20",
+      "policy": "policy/prowin-text-gen",
+      "status": 200,
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "content": "{\"headline\":\"Einladung in den Musterraum\",\"body\":\"Fiktiver Austausch im Musterraum am 25. November um 17 Uhr. Wir laden herzlich ein.\",\"cta\":\"Am 25. November\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1091,
+      "costUsd": 0.0012375
+    },
+    {
+      "id": "T01",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Komm zum Beratungsabend!\",\"body\":\"Am 14. November laden wir dich herzlich zu unserem Beratungsabend ein. Wir freuen uns auf dich und auf nette Gespräche.\",\"cta\":\"Sei dabei!\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 4596,
+      "costUsd": 0.0076384
+    },
+    {
+      "id": "T02",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Produktvorführung am 18. November\",\"body\":\"Wir laden zur Produktvorführung ein. Termin: 18. November, 19 Uhr. Dies ist eine fiktive Ankündigung für ein Testdesign.\",\"cta\":\"Termin vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 3865,
+      "costUsd": 0.006578
+    },
+    {
+      "id": "T03",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Einladung zum Infoabend\",\"body\":\"Die Anmeldung zum Infoabend läuft bis zum 12. November. Melde dich gern in Ruhe an.\",\"cta\":\"Jetzt anmelden\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 5173,
+      "costUsd": 0.008195
+    },
+    {
+      "id": "T04",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Morgen um 18 Uhr sehen wir uns\",\"body\":\"Eine kleine Erinnerung: Dein fiktiver Termin findet morgen um 18 Uhr statt. Nimm dir Zeit und komm in Ruhe an.\",\"cta\":\"Termin vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 1402,
+      "costUsd": 0.0018722
+    },
+    {
+      "id": "T05",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Danke für deinen Abend mit uns\",\"body\":\"Schön, dass du beim Beratungsabend dabei warst. Wir haben uns über die netten Gespräche und deine Zeit sehr gefreut.\",\"cta\":\"Bis bald!\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 5642,
+      "costUsd": 0.0094534
+    },
+    {
+      "id": "T06",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Neuer Termin: 21. November\",\"body\":\"Der Termin vom 14. November wird verschoben. Er findet jetzt am 21. November statt. Bitte den neuen Termin vormerken.\",\"cta\":\"Termin vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 3429,
+      "costUsd": 0.0053262
+    },
+    {
+      "id": "T07",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Informationsveranstaltung im Musterraum\",\"body\":\"Wir laden Sie herzlich zu einer fiktiven Informationsveranstaltung in den Musterraum ein. Wir freuen uns auf Ihren Besuch.\",\"cta\":\"Jetzt informieren\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 4622,
+      "costUsd": 0.0078144
+    },
+    {
+      "id": "T08",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Beratung, die zu dir passt\",\"body\":\"Dein Alltag ist einzigartig. Deshalb gibt es bei proWIN Beratung, die auf deine Fragen und Wünsche eingeht. Lass uns persönlich sprechen.\",\"cta\":\"Jetzt Beratung anfragen\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": false
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": false,
+      "elapsedMs": 1605,
+      "costUsd": 0.0019646
+    },
+    {
+      "id": "T09",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Deine Anmeldung bis Freitag\",\"body\":\"Eine freundliche Erinnerung: Du kannst dich bis Freitag anmelden. Schau gern in Ruhe vorbei.\",\"cta\":\"Zur Anmeldung\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 4629,
+      "costUsd": 0.0076384
+    },
+    {
+      "id": "T10",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Dein proWIN Onlineabend am 20. November\",\"body\":\"Sei dabei, wenn wir uns am 20. November online treffen. Das Format ist rein online. Wir freuen uns auf dich!\",\"cta\":\"Jetzt vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 5412,
+      "costUsd": 0.0091454
+    },
+    {
+      "id": "T11",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Neuer Veranstaltungsort: Musterhaus\",\"body\":\"Der Veranstaltungsort hat sich geändert und heißt jetzt Musterhaus. Bitte entschuldigt die Umstände, die dadurch entstehen. Danke für euer Verständnis!\",\"cta\":\"Details ansehen\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": false,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": false,
+      "elapsedMs": 1611,
+      "costUsd": 0.002002
+    },
+    {
+      "id": "T12",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Lernen wir uns kennen!\",\"body\":\"Ich lade dich herzlich zu einem unverbindlichen Kennenlernen ein. Wir plaudern in Ruhe und du stellst deine Fragen.\",\"cta\":\"Ja, ich bin dabei\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 5280,
+      "costUsd": 0.008173
+    },
+    {
+      "id": "T13",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Zwei Termine: 10 Uhr und 15 Uhr\",\"body\":\"Infohinweis: Es gibt zwei Termine, einen um 10 Uhr und einen um 15 Uhr.\",\"cta\":\"Termin merken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 3731,
+      "costUsd": 0.0063514
+    },
+    {
+      "id": "T14",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Der Abend für Einsteigerinnen\",\"body\":\"Du bist neu dabei? Kein Problem: Für unsere fiktive Veranstaltung brauchst du keine Vorkenntnisse. Komm vorbei und fang einfach an.\",\"cta\":\"Mehr erfahren\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 5203,
+      "costUsd": 0.0080366
+    },
+    {
+      "id": "T15",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Dein Termin, persönlich vereinbart\",\"body\":\"Schick uns eine Nachricht und wir finden gemeinsam einen passenden Termin für ein persönliches Gespräch.\",\"cta\":\"Nachricht senden\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 3447,
+      "costUsd": 0.0057068
+    },
+    {
+      "id": "T16",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Termin am 16. November entfällt\",\"body\":\"Leider müssen wir absagen: Der Termin am 16. November entfällt. Einen Ersatztermin nennen wir aktuell noch nicht.\",\"cta\":\"Verstanden\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 4617,
+      "costUsd": 0.0066946
+    },
+    {
+      "id": "T17",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Lerne uns am Samstag kennen\",\"body\":\"Wir laden dich herzlich zu einem entspannten Gespräch ein.\",\"cta\":\"Sei dabei\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 3386,
+      "costUsd": 0.005269
+    },
+    {
+      "id": "T18",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Komm in unsere Story\",\"body\":\"Wir laden dich zu unserer Story ein. Schau rein und lerne uns kennen. Fragen willkommen!\",\"cta\":\"Story ansehen\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 4928,
+      "costUsd": 0.0076098
+    },
+    {
+      "id": "T19",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"proWIN Veranstaltung am 22. November\",\"body\":\"Am 22. November findet eine fiktive proWIN-Veranstaltung statt. Bitte den Termin vormerken.\",\"cta\":\"Termin vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 5986,
+      "costUsd": 0.0099792
+    },
+    {
+      "id": "T20",
+      "policy": "policy/prowin-layout-gen",
+      "status": 200,
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "content": "{\"headline\":\"Austausch im Musterraum\",\"body\":\"Fiktiver Austausch am 25. November um 17 Uhr im Musterraum. Wir freuen uns auf dich!\",\"cta\":\"Termin vormerken\"}",
+      "finishReason": "stop",
+      "checks": {
+        "exactFields": true,
+        "lengths": {
+          "headline": true,
+          "body": true,
+          "cta": true
+        },
+        "required": true,
+        "forbidden": true
+      },
+      "pass": true,
+      "elapsedMs": 4228,
+      "costUsd": 0.0068354
+    }
+  ],
+  "toolVisionRuns": [
+    {
+      "policy": "policy/prowin-text-gen",
+      "transport": "server/chatCompletionsAgent.ts:runChatCompletionsTurn",
+      "calls": [
+        {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "call_a6FfKuutT30RV3OIgg7lDtAd",
+              "name": "inspect_test_image",
+              "input": {}
+            }
+          ],
+          "stop_reason": "tool_use"
+        },
+        {
+          "content": [
+            {
+              "type": "text",
+              "text": "R7K2"
+            }
+          ],
+          "stop_reason": "end_turn"
+        }
+      ],
+      "pass": true,
+      "toolCallValid": true,
+      "answer": "R7K2",
+      "elapsedMs": 1739,
+      "costUsd": 0.001507,
+      "models": ["azure/gpt-5.4@germanywestcentral", "azure/gpt-5.4@germanywestcentral"]
+    },
+    {
+      "policy": "policy/prowin-layout-gen",
+      "transport": "server/chatCompletionsAgent.ts:runChatCompletionsTurn",
+      "calls": [
+        {
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "toolu_bdrk_018Ui8cQbwZTPQnzvgGuiCfH",
+              "name": "inspect_test_image",
+              "input": {}
+            }
+          ],
+          "stop_reason": "tool_use"
+        },
+        {
+          "content": [
+            {
+              "type": "text",
+              "text": "R7K2"
+            }
+          ],
+          "stop_reason": "end_turn"
+        }
+      ],
+      "pass": true,
+      "toolCallValid": true,
+      "answer": "R7K2",
+      "elapsedMs": 1835,
+      "costUsd": 0.003256,
+      "models": ["bedrock/claude-sonnet-5-5@eu-central-1", "bedrock/claude-sonnet-5-5@eu-central-1"]
+    }
+  ],
+  "apiCalls": [
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1446,
+      "usage": {
+        "completion_tokens": 57,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 161,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 218,
+        "cost": 0.00138325
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1281,
+      "usage": {
+        "completion_tokens": 52,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 164,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 216,
+        "cost": 0.001309
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 975,
+      "usage": {
+        "completion_tokens": 41,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 168,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 209,
+        "cost": 0.0011385
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1080,
+      "usage": {
+        "completion_tokens": 49,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 161,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 210,
+        "cost": 0.00125125
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 877,
+      "usage": {
+        "completion_tokens": 44,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 162,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 206,
+        "cost": 0.0011715
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1116,
+      "usage": {
+        "completion_tokens": 58,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 169,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 227,
+        "cost": 0.00142175
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1205,
+      "usage": {
+        "completion_tokens": 50,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 166,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 216,
+        "cost": 0.0012815
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1201,
+      "usage": {
+        "completion_tokens": 47,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 164,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 211,
+        "cost": 0.0012265
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1027,
+      "usage": {
+        "completion_tokens": 48,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 157,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 205,
+        "cost": 0.00122375
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1055,
+      "usage": {
+        "completion_tokens": 47,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 163,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 210,
+        "cost": 0.00122375
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1095,
+      "usage": {
+        "completion_tokens": 48,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 165,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 213,
+        "cost": 0.00124575
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1037,
+      "usage": {
+        "completion_tokens": 46,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 163,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 209,
+        "cost": 0.00120725
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1367,
+      "usage": {
+        "completion_tokens": 58,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 167,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 225,
+        "cost": 0.00141625
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1139,
+      "usage": {
+        "completion_tokens": 50,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 167,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 217,
+        "cost": 0.00128425
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 955,
+      "usage": {
+        "completion_tokens": 42,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 165,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 207,
+        "cost": 0.00114675
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 2541,
+      "usage": {
+        "completion_tokens": 53,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 165,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 218,
+        "cost": 0.00132825
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1116,
+      "usage": {
+        "completion_tokens": 40,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 170,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 210,
+        "cost": 0.0011275
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1136,
+      "usage": {
+        "completion_tokens": 45,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 162,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 207,
+        "cost": 0.001188
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1144,
+      "usage": {
+        "completion_tokens": 50,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 175,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 225,
+        "cost": 0.00130625
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1090,
+      "usage": {
+        "completion_tokens": 46,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 174,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 220,
+        "cost": 0.0012375
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 4595,
+      "usage": {
+        "completion_tokens": 633,
+        "prompt_tokens": 307,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 940,
+        "cost": 0.0076384
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 3865,
+      "usage": {
+        "completion_tokens": 536,
+        "prompt_tokens": 310,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 846,
+        "cost": 0.006578
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 5172,
+      "usage": {
+        "completion_tokens": 681,
+        "prompt_tokens": 320,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 1001,
+        "cost": 0.008195
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 1401,
+      "usage": {
+        "completion_tokens": 106,
+        "prompt_tokens": 321,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 427,
+        "cost": 0.0018722
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 5641,
+      "usage": {
+        "completion_tokens": 796,
+        "prompt_tokens": 317,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 1113,
+        "cost": 0.0094534
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 3428,
+      "usage": {
+        "completion_tokens": 421,
+        "prompt_tokens": 316,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 737,
+        "cost": 0.0053262
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 4621,
+      "usage": {
+        "completion_tokens": 645,
+        "prompt_tokens": 327,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 972,
+        "cost": 0.0078144
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 1604,
+      "usage": {
+        "completion_tokens": 113,
+        "prompt_tokens": 328,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 441,
+        "cost": 0.0019646
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 4628,
+      "usage": {
+        "completion_tokens": 632,
+        "prompt_tokens": 312,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 944,
+        "cost": 0.0076384
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 5411,
+      "usage": {
+        "completion_tokens": 769,
+        "prompt_tokens": 312,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 1081,
+        "cost": 0.0091454
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 1610,
+      "usage": {
+        "completion_tokens": 116,
+        "prompt_tokens": 330,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 446,
+        "cost": 0.002002
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 5279,
+      "usage": {
+        "completion_tokens": 679,
+        "prompt_tokens": 320,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 999,
+        "cost": 0.008173
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 3730,
+      "usage": {
+        "completion_tokens": 511,
+        "prompt_tokens": 332,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 843,
+        "cost": 0.0063514
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 5202,
+      "usage": {
+        "completion_tokens": 663,
+        "prompt_tokens": 338,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 1001,
+        "cost": 0.0080366
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 3446,
+      "usage": {
+        "completion_tokens": 451,
+        "prompt_tokens": 339,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 790,
+        "cost": 0.0057068
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 4616,
+      "usage": {
+        "completion_tokens": 546,
+        "prompt_tokens": 313,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 859,
+        "cost": 0.0066946
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 3385,
+      "usage": {
+        "completion_tokens": 412,
+        "prompt_tokens": 335,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 747,
+        "cost": 0.005269
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 4927,
+      "usage": {
+        "completion_tokens": 628,
+        "prompt_tokens": 319,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 947,
+        "cost": 0.0076098
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 5985,
+      "usage": {
+        "completion_tokens": 840,
+        "prompt_tokens": 336,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 1176,
+        "cost": 0.0099792
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 4227,
+      "usage": {
+        "completion_tokens": 554,
+        "prompt_tokens": 337,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 891,
+        "cost": 0.0068354
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 724,
+      "usage": {
+        "completion_tokens": 15,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 95,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 110,
+        "cost": 0.00050875
+      },
+      "rawToolCalls": [
+        {
+          "index": 0,
+          "function": {
+            "arguments": "{}",
+            "name": "inspect_test_image"
+          },
+          "id": "call_a6FfKuutT30RV3OIgg7lDtAd",
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "requestedModel": "policy/prowin-text-gen",
+      "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+      "status": 200,
+      "elapsedMs": 1010,
+      "usage": {
+        "completion_tokens": 8,
+        "completion_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "prompt_tokens": 315,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_tokens": 0
+        },
+        "total_tokens": 323,
+        "cost": 0.00099825
+      }
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 897,
+      "usage": {
+        "completion_tokens": 30,
+        "prompt_tokens": 441,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 471,
+        "cost": 0.0013002
+      },
+      "rawToolCalls": [
+        {
+          "function": {
+            "arguments": "{}",
+            "name": "inspect_test_image"
+          },
+          "id": "toolu_bdrk_018Ui8cQbwZTPQnzvgGuiCfH",
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "requestedModel": "policy/prowin-layout-gen",
+      "resolvedModel": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "status": 200,
+      "elapsedMs": 935,
+      "usage": {
+        "completion_tokens": 6,
+        "prompt_tokens": 688,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 684,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 684
+        },
+        "total_tokens": 694,
+        "cost": 0.0019558
+      }
+    }
+  ],
+  "costUsd": 0.1621653,
+  "missingCostResponses": 0,
+  "finishedAt": "2026-10-24T19:20:15.596Z",
+  "summary": {
+    "startedAt": "2026-10-24T19:18:25.272Z",
+    "finishedAt": "2026-10-24T19:20:15.596Z",
+    "texts": [
+      {
+        "policy": "policy/prowin-text-gen",
+        "model": ["azure/gpt-5.4@germanywestcentral"],
+        "total": 20,
+        "passed": 15,
+        "failed": [
+          {
+            "id": "T02",
+            "checks": {
+              "exactFields": true,
+              "lengths": {
+                "headline": true,
+                "body": true,
+                "cta": false
+              },
+              "required": true,
+              "forbidden": true
+            }
+          },
+          {
+            "id": "T06",
+            "checks": {
+              "exactFields": true,
+              "lengths": {
+                "headline": true,
+                "body": true,
+                "cta": false
+              },
+              "required": true,
+              "forbidden": true
+            }
+          },
+          {
+            "id": "T09",
+            "checks": {
+              "exactFields": true,
+              "lengths": {
+                "headline": false,
+                "body": false,
+                "cta": true
+              },
+              "required": true,
+              "forbidden": true
+            }
+          },
+          {
+            "id": "T15",
+            "checks": {
+              "exactFields": true,
+              "lengths": {
+                "headline": true,
+                "body": true,
+                "cta": false
+              },
+              "required": true,
+              "forbidden": true
+            }
+          },
+          {
+            "id": "T16",
+            "checks": {
+              "exactFields": true,
+              "lengths": {
+                "headline": true,
+                "body": true,
+                "cta": false
+              },
+              "required": true,
+              "forbidden": true
+            }
+          }
+        ],
+        "costUsd": 0.0251185,
+        "meanMs": 1195,
+        "medianMs": 1116.5,
+        "p95Ms": 1446
+      },
+      {
+        "policy": "policy/prowin-layout-gen",
+        "model": ["bedrock/claude-sonnet-5-5@eu-central-1"],
+        "total": 20,
+        "passed": 18,
+        "failed": [
+          {
+            "id": "T08",
+            "checks": {
+              "exactFields": true,
+              "lengths": {
+                "headline": true,
+                "body": true,
+                "cta": false
+              },
+              "required": true,
+              "forbidden": true
+            }
+          },
+          {
+            "id": "T11",
+            "checks": {
+              "exactFields": true,
+              "lengths": {
+                "headline": true,
+                "body": false,
+                "cta": true
+              },
+              "required": true,
+              "forbidden": true
+            }
+          }
+        ],
+        "costUsd": 0.1322838,
+        "meanMs": 4140,
+        "medianMs": 4606.5,
+        "p95Ms": 5642
+      }
+    ],
+    "toolVision": [
+      {
+        "policy": "policy/prowin-text-gen",
+        "transport": "server/chatCompletionsAgent.ts:runChatCompletionsTurn",
+        "pass": true,
+        "toolCallValid": true,
+        "answer": "R7K2",
+        "elapsedMs": 1739,
+        "costUsd": 0.001507,
+        "models": ["azure/gpt-5.4@germanywestcentral", "azure/gpt-5.4@germanywestcentral"]
+      },
+      {
+        "policy": "policy/prowin-layout-gen",
+        "transport": "server/chatCompletionsAgent.ts:runChatCompletionsTurn",
+        "pass": true,
+        "toolCallValid": true,
+        "answer": "R7K2",
+        "elapsedMs": 1835,
+        "costUsd": 0.003256,
+        "models": ["bedrock/claude-sonnet-5-5@eu-central-1", "bedrock/claude-sonnet-5-5@eu-central-1"]
+      }
+    ],
+    "inferenceRequests": 44,
+    "reportedCostUsd": 0.1621653,
+    "missingCostResponses": 0,
+    "method": "Single run per prompt per policy; client wall time; p95 nearest-rank; automatic checks are not editorial quality scores."
+  }
+}

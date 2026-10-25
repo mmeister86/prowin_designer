@@ -1,0 +1,81 @@
+{
+  "task": "TASK-16",
+  "timestamp": "2026-10-24T19:35:08.125Z",
+  "endpoint": "https://router.eu.requesty.ai/v1/chat/completions",
+  "policy": "policy/prowin-layout-gen",
+  "tier": {
+    "provider": "requesty",
+    "ready": true
+  },
+  "scope": "Live server-provider smoke test with synthetic tool/image; no canvas or customer data",
+  "passed": true,
+  "imageCodeCorrect": true,
+  "observations": [
+    {
+      "status": 200,
+      "model": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "usage": {
+        "completion_tokens": 28,
+        "prompt_tokens": 391,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 0,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 0
+        },
+        "total_tokens": 419,
+        "cost": 0.0011682
+      },
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{}",
+                  "name": "view_test_image"
+                },
+                "id": "toolu_bdrk_013PTb7qUszcGmdXfkELBEZv",
+                "type": "function"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "status": 200,
+      "model": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "usage": {
+        "completion_tokens": 4,
+        "prompt_tokens": 551,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "caching_token_details": {
+            "caching_5m_tokens": 547,
+            "caching_1h_tokens": 0
+          },
+          "caching_tokens": 547
+        },
+        "total_tokens": 555,
+        "cost": 0.00155705
+      },
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "8472",
+            "role": "assistant"
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": "No full resident benchmark, no forced fallback or real budget exhaustion test"
+}

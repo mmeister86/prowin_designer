@@ -1,10 +1,10 @@
-import { describe, expect, it, vi, afterEach } from 'vitest'
+import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest'
+import { stubEnv, unstubAllEnvs } from './envStub.ts'
 import type Anthropic from '@anthropic-ai/sdk'
 import {
   _internal,
   IMAGE_OMITTED_NOTE,
-  geminiConfig,
-  openrouterConfig,
+  requestyConfig,
   runChatCompletionsTurn,
 } from '../server/chatCompletionsAgent.ts'
 import { IMAGE_NOTE, ModelAuthError, ModelUnavailableError } from '../server/openaiAgent.ts'
@@ -42,7 +42,11 @@ function toolResultWithImage(): Anthropic.MessageParam {
   }
 }
 
-afterEach(() => vi.restoreAllMocks())
+beforeEach(() => stubEnv('REQUESTY_API_KEY', 'requesty-test-key'))
+afterEach(() => {
+  vi.restoreAllMocks()
+  unstubAllEnvs()
+})
 
 describe('toMessages', () => {
   it('puts the system prompt first and round-trips tool calls under one id', () => {
@@ -154,6 +158,25 @@ describe('fromCompletion', () => {
     expect(res.stop_reason).toBe('max_tokens')
   })
 
+  it('reports truncation even when the response contains a partial tool call', () => {
+    const res = fromCompletion(
+      {
+        choices: [
+          {
+            finish_reason: 'length',
+            message: {
+              tool_calls: [
+                { id: 'partial', function: { name: 'distill_result', arguments: '{"has_rule":true,"rule":"- Blue"}' } },
+              ],
+            },
+          },
+        ],
+      },
+      'Requesty EU',
+    )
+    expect(res.stop_reason).toBe('max_tokens')
+  })
+
   it('reports a refusal', () => {
     const res = fromCompletion({ choices: [{ message: { content: 'no', refusal: 'cannot do that' } }] }, 'X')
     expect(res.stop_reason).toBe('refusal')
@@ -179,42 +202,39 @@ describe('the request', () => {
     maxTokens: 16000,
   }
 
-  it('sends the fixed OpenRouter URL with auth and attribution headers', async () => {
+  it.each(['', ' \n '])('omits an empty system prompt from Requesty requests (%j)', async (system) => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(Response.json({ choices: [{ message: { content: 'ok' } }] }))
+    await runChatCompletionsTurn(requestyConfig('policy/prowin-text-gen')!, { ...req, system, tools: [] })
+    const body = JSON.parse(String(fetchSpy.mock.calls[0]![1]!.body))
+    expect(body.messages).toEqual([{ role: 'user', content: 'hi' }])
+  })
+
+  it('sends the fixed Requesty EU URL with server auth', async () => {
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 }))
-    await runChatCompletionsTurn(openrouterConfig('sk-or-abc', 'moonshotai/kimi-k2.6', true), req)
+    await runChatCompletionsTurn(requestyConfig('policy/prowin-layout-gen')!, req)
     const [url, init] = fetchSpy.mock.calls[0]!
-    expect(String(url)).toBe('https://openrouter.ai/api/v1/chat/completions')
+    expect(String(url)).toBe('https://router.eu.requesty.ai/v1/chat/completions')
     const headers = init!.headers as Record<string, string>
-    expect(headers.Authorization).toBe('Bearer sk-or-abc')
-    expect(headers['X-Title']).toBe('Doop')
-    expect(headers['HTTP-Referer']).toBeTruthy()
+    expect(headers.Authorization).toBe('Bearer requesty-test-key')
     const body = JSON.parse(String(init!.body)) as Record<string, unknown>
-    expect(body.model).toBe('moonshotai/kimi-k2.6')
+    expect(body.model).toBe('policy/prowin-layout-gen')
     expect(body.max_tokens).toBe(16000)
     expect(body.tool_choice).toBe('auto')
   })
 
-  it('sends Gemini turns to Google’s OpenAI-compatibility endpoint', async () => {
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 }))
-    await runChatCompletionsTurn(geminiConfig('AIzaKey', 'gemini-3.7-flash', true), req)
-    const [url, init] = fetchSpy.mock.calls[0]!
-    expect(String(url)).toBe('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions')
-    expect((init!.headers as Record<string, string>).Authorization).toBe('Bearer AIzaKey')
-  })
-
   it('classifies a 401 as a dead credential and a missing model as unavailable', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('nope', { status: 401 }))
-    await expect(runChatCompletionsTurn(openrouterConfig('sk-or-x', 'm', true), req)).rejects.toThrow(ModelAuthError)
+    await expect(runChatCompletionsTurn(requestyConfig('policy/prowin-layout-gen')!, req)).rejects.toThrow(
+      ModelAuthError,
+    )
     vi.restoreAllMocks()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('{"error":{"message":"kimi-k9 is not a valid model ID"}}', { status: 400 }),
     )
-    await expect(runChatCompletionsTurn(openrouterConfig('sk-or-x', 'kimi-k9', true), req)).rejects.toThrow(
-      ModelUnavailableError,
-    )
+    await expect(runChatCompletionsTurn(requestyConfig('policy/missing')!, req)).rejects.toThrow(ModelUnavailableError)
   })
 })

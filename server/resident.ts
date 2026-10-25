@@ -2,8 +2,10 @@ import { withUserPermissions } from './prowin/permissions.ts'
 import { env } from './env.ts'
 import type Anthropic from '@anthropic-ai/sdk'
 import { store } from './store.ts'
-import { ModelAuthError, ModelConfigurationError, ModelUnavailableError, pickModel } from './agentModel.ts'
+import { ModelAuthError, ModelUnavailableError, pickModel } from './agentModel.ts'
 import { RESIDENT_TASK_LIMIT } from './allowance.ts'
+import { prepareServerWork } from './residentAdmission.ts'
+import * as persist from './db/persist.ts'
 import * as actions from './actions.ts'
 import { inspectFrame, renderFrame } from './screenshot.ts'
 import { AGENT_ROLES, DEFAULT_ROLE_ID, roleById, roleByAgentName, roleName } from '../shared/agents.ts'
@@ -22,7 +24,7 @@ import { executeGuardedBatch } from './guardedBatch.ts'
 import { retryModelTurn } from './modelTurnRetry.ts'
 
 /**
- * The resident design team: a server-side Claude tool loop, run once per
+ * The resident design team: a server-side model tool loop, run once per
  * agent role that has work waiting. Doop builds; the specialists (UX, copy,
  * brand, accessibility, polish) each own one pass. A board card names an
  * ordered pipeline of roles and moves down it one stage at a time, so a
@@ -33,11 +35,9 @@ import { retryModelTurn } from './modelTurnRetry.ts'
  * strip, a task in the panel, and edits playing back through the reveal.
  *
  * Which model each run uses is server/agentModel.ts's decision: the server
- * tier (Anthropic by default, or an Azure OpenAI deployment via
- * DOOP_AGENT_PROVIDER) covers the free tasks, and past that the run moves onto
- * the model account the requesting human connected (their ChatGPT
- * subscription or OpenAI key). With neither, the queue behaves as it always
- * did — the work waits for the next agent to connect over MCP.
+ * tier (Requesty EU by default, selected via
+ * DOOP_AGENT_PROVIDER) covers the metered tasks. Eligible Creator/Admin accounts
+ * can opt into Local Agent. Missing configuration leaves work queued.
  */
 
 const MAX_TURNS = 24
@@ -110,7 +110,7 @@ Rules:
 - Call set_status when you start ("Fixing: …") and when your focus shifts. One line, under 80 chars, present tense. People watch this live.
 - Never leave a frame worse than you found it.
 - Reference sites: when a request names a site or URL, use an existing source frame or attached screenshot. If neither is available, ask the user to attach screenshots; never invent the site's content. Leave source frames unchanged and deliver your design in a separate frame.
-- Real imagery: when a design calls for photography, use search_images (you see thumbnails — pick the one whose mood and palette fit) and embed its image_url with object-fit: cover and a real alt text. ${OPTIONAL_FEATURES.backgrounds ? "For a hero, section band or bento tile that wants atmosphere or a focal glow, list_backgrounds shows a page of the curated library as thumbnails (filter by tone; judge by eye which one fits the frame's style and palette, paste its css line, put copy in the text_zone); a quiet typographic design may be better on a flat surface, but never settle for a default two-stop gradient, and draw the background yourself when nothing in the library genuinely fits. " : 'For backgrounds, use uploaded assets or draw CSS/SVG; the curated library is temporarily disabled. '}For UI icons use search_icons and hotlink the SVG URL. For company logos (customer walls, integration rows, press bars, payment methods, testimonial cards) call search_logos once per brand BEFORE writing that section, and use real, recognizable brands — never a gray tile, "LOGO" text, initials or an invented wordmark. When the design needs a visual that stock cannot supply — a full-bleed hero background in the frame's exact palette (a monochrome mountain range behind the product window, say), brand-specific illustration, a product render, a mascot — or the card asks for a generated image, call generate_image with ONE considered prompt (subject, style, composition, palette hexes, lighting, exclusions; for a hero background: aspect landscape, low contrast, and name the empty region where the copy or product window will sit) and embed the returned url with object-fit: cover and a legibility scrim over the copy; it spends the requester's quota or money, so refine a near miss by prompt rather than regenerating blind. Never fake a photo with a gray box or a made-up URL; if search is unavailable, draw the visual as inline SVG/CSS.
+- Real imagery: when a design calls for photography, use search_images (you see thumbnails — pick the one whose mood and palette fit) and embed its image_url with object-fit: cover and a real alt text. ${OPTIONAL_FEATURES.backgrounds ? "For a hero, section band or bento tile that wants atmosphere or a focal glow, list_backgrounds shows a page of the curated library as thumbnails (filter by tone; judge by eye which one fits the frame's style and palette, paste its css line, put copy in the text_zone); a quiet typographic design may be better on a flat surface, but never settle for a default two-stop gradient, and draw the background yourself when nothing in the library genuinely fits. " : 'For backgrounds, use uploaded assets or draw CSS/SVG; the curated library is temporarily disabled. '}For UI icons use search_icons and hotlink the SVG URL. For company logos (customer walls, integration rows, press bars, payment methods, testimonial cards) call search_logos once per brand BEFORE writing that section, and use real, recognizable brands — never a gray tile, "LOGO" text, initials or an invented wordmark. When the design needs a visual that stock cannot supply — a full-bleed hero background in the frame's exact palette (a monochrome mountain range behind the product window, say), brand-specific illustration, a product render, a mascot — or the card asks for a generated image, call generate_image with ONE considered prompt (subject, style, composition, palette hexes, lighting, exclusions; for a hero background: aspect landscape, low contrast, and name the empty region where the copy or product window will sit) and embed the returned url with object-fit: cover and a legibility scrim over the copy; it uses the centrally configured image service, so refine a near miss by prompt rather than regenerating blind. Never fake a photo with a gray box or a made-up URL; if search is unavailable, draw the visual as inline SVG/CSS.
 - If a request is unclear or impossible (missing frame, contradictory ask), do the closest reasonable thing and say what you did in your final message.
 - Your final message should be one or two sentences: what you changed and where.
 
@@ -302,13 +302,11 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     return 'no-model'
   }
   /* With no free tier, the server's key never pays for resident work. Work
-     can still reach this point without a payable account — queued before the
-     account was disconnected, or before metering tightened — and it must
+     can still reach this point after the allowance was disabled or metering tightened — and it must
      fail visibly with a fix, not crash on a key that was never meant to pay. */
   const actor = actions.resolveActor({ name: role.name, kind: 'agent' })
   if (!model.userId && RESIDENT_TASK_LIMIT <= 0) {
-    const reason =
-      'The Doop Agent needs a connected account — connect your ChatGPT subscription or an OpenAI, OpenRouter, Gemini or Claude API key in Settings, then retry.'
+    const reason = 'The server agent is disabled by its task allowance. Contact the administrator, then retry.'
     for (const f of actions.takeFeedbackFor(canvasId, role.name, payer)) actions.failTaskFeedback(f.id, reason)
     for (const c of actions.takeAgentCommentsFor(canvasId, role.name, payer)) actions.failComment(c.id, reason)
     for (const c of actions.takeQueuedCardsFor(canvasId, role.name, payer)) actions.failCard(canvasId, c.id, reason)
@@ -318,9 +316,58 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
   /* claim this agent's open work — the UI flips to "picked up" instantly.
      Claiming happens before the try so an agent with nothing to do never
      shows up in presence. */
-  const claimed = actions.takeFeedbackFor(canvasId, role.name, payer)
-  const comments = actions.takeAgentCommentsFor(canvasId, role.name, payer)
-  const allCards = actions.takeQueuedCardsFor(canvasId, role.name, payer)
+  let claimed = actions.takeFeedbackFor(canvasId, role.name, payer)
+  let comments = actions.takeAgentCommentsFor(canvasId, role.name, payer)
+  let allCards = actions.takeQueuedCardsFor(canvasId, role.name, payer)
+  if (model.provider !== 'claude-local') {
+    const userId = payer || canvasOwner
+    // Flush ordered snapshots before the admission transaction locks each row.
+    const admittedFeedback = []
+    for (const item of claimed) {
+      if (
+        await prepareServerWork(
+          userId,
+          'feedback',
+          item,
+          () => persist.saveFeedback(item),
+          (reason) => actions.failTaskFeedback(item.id, reason),
+        )
+      ) {
+        admittedFeedback.push(item)
+      }
+    }
+    const admittedComments = []
+    for (const item of comments) {
+      if (
+        await prepareServerWork(
+          userId,
+          'comment',
+          item,
+          () => persist.saveComment(item),
+          (reason) => actions.failComment(item.id, reason),
+        )
+      ) {
+        admittedComments.push(item)
+      }
+    }
+    const admittedCards = []
+    for (const item of allCards) {
+      if (
+        await prepareServerWork(
+          userId,
+          'card',
+          item,
+          () => persist.saveTask(canvasId, item),
+          (reason) => actions.failCard(canvasId, item.id, reason),
+        )
+      ) {
+        admittedCards.push(item)
+      }
+    }
+    claimed = admittedFeedback
+    comments = admittedComments
+    allCards = admittedCards
+  }
   if (claimed.length === 0 && comments.length === 0 && allCards.length === 0) {
     /* nothing actually claimable for this payer — do not re-pick them */
     stalled.add(payer)
@@ -482,9 +529,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     }
     let refused = false
     let crashed = false
-    let staleAccount = false
-    let accountError: string | undefined
-    let unavailableModel = false
+    let crashReason: string | undefined
     let finished = false
     let mutationNudgeSent = false
     let verificationNudgeSent = false
@@ -654,27 +699,12 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       if (canceled()) return 'ran'
       /* An API/tool crash becomes a visible, manually retryable failure. */
       crashed = true
-      /* a dead credential is the one crash a human can actually fix, so it
-         gets its own wording all the way through to the card — but only when
-         the credential is theirs: a server-tier run has no account to
-         reconnect, whatever error class its transport leaks */
-      accountError = err instanceof ModelConfigurationError && model.userId ? err.message : undefined
-      staleAccount = err instanceof ModelAuthError && !!model.userId
-      /* likewise a model the account cannot run yet (Astra mid-rollout): the
-         fix is a different tier in Settings, and a retry on the same one
-         would only fail the same way */
-      unavailableModel = err instanceof ModelUnavailableError && !!model.userId
       console.error('[resident] run errored', err)
-      actions.setAgentStatus(
-        canvasId,
-        actor,
-        accountError ??
-          (staleAccount
-            ? 'Your model connection expired — reconnect it'
-            : unavailableModel
-              ? 'Model not available on your account — pick another in Settings'
-              : 'Hit a snag — waiting for a retry'),
-      )
+      const providerError = err instanceof Error ? (err.cause ?? err) : err
+      if (providerError instanceof ModelAuthError || providerError instanceof ModelUnavailableError) {
+        crashReason = 'The server agent needs administrator attention before retrying.'
+      }
+      actions.setAgentStatus(canvasId, actor, crashReason ?? 'Hit a snag — waiting for a retry')
     }
 
     /* only a NATURALLY finished run completes its work — refused, crashed,
@@ -715,14 +745,10 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       for (const c of cards) actions.advanceCard(canvasId, c.id, actor)
     } else {
       let reason: string
-      if (staleAccount) {
-        reason = accountError ?? `${model.label} turned down the connected account. Reconnect it in Doop, then retry.`
-      } else if (unavailableModel) {
-        reason = `${model.label} is not available on your connected account yet. Pick another model in Settings, then retry.`
-      } else if (refused) {
+      if (refused) {
         reason = `${role.name} could not take this request. Retry when you are ready.`
       } else if (crashed) {
-        reason = `${role.name} hit a snag before finishing. Retry when you are ready.`
+        reason = crashReason ?? `${role.name} hit a snag before finishing. Retry when you are ready.`
       } else if (exhausted) {
         reason = `${role.name} ran out of turns before finishing. Retry when you are ready.`
       } else if (noMutation) {
@@ -890,7 +916,7 @@ const ALL_TOOLS: Anthropic.Tool[] = [
   {
     name: 'generate_image',
     description:
-      "Generate an image from a text prompt with AI and get a permanent URL to embed, plus a preview to judge. For visuals stock search cannot supply: brand-specific illustration, product renders, mascots, abstract hero art in the frame's exact palette. Prefer search_images for ordinary photography. It spends the requester's ChatGPT quota or OpenAI money and takes 20–60 seconds, so write ONE considered prompt (subject, style, composition, palette hexes, lighting, what to leave out) and refine a near miss by prompt.",
+      "Generate an image from a text prompt with AI and get a permanent URL to embed, plus a preview to judge. For visuals stock search cannot supply: brand-specific illustration, product renders, mascots, abstract hero art in the frame's exact palette. Prefer search_images for ordinary photography. It uses the centrally configured image service and takes 20–60 seconds, so write ONE considered prompt (subject, style, composition, palette hexes, lighting, what to leave out) and refine a near miss by prompt.",
     input_schema: {
       type: 'object',
       properties: {

@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { navigate } from '../App'
-import { ModelAccountPanel } from '../components/ModelAccount'
+import { AgentExecutionPanel } from '../components/AgentExecutionPanel'
 import { ImageModelCard } from '../components/ImageModelCard'
 import { useAllowance } from '../components/TeamAllowance'
-import { ACCOUNT_KIND_LABELS } from '../../shared/modelMenu'
 import { AccountSettings } from '../components/AccountSettings'
 import { AppearanceSettings } from '../components/AppearanceSettings'
 import { AgentKeys } from '../components/AgentKeys'
@@ -32,7 +31,7 @@ type Pane = 'agent' | 'keys' | 'webhooks' | 'account' | 'appearance'
 
 /* the heading over each pane, and the line under it */
 const panes: Record<Pane, { title: string; blurb: string }> = {
-  agent: { title: 'Doop Agent', blurb: 'Which model account the agent runs on, for every canvas you work on.' },
+  agent: { title: 'Doop Agent', blurb: 'Design assistance and local execution for your canvases.' },
   keys: { title: 'Agent keys', blurb: 'Bearer credentials that let headless agents design as you.' },
   webhooks: {
     title: 'Webhooks',
@@ -55,15 +54,7 @@ function initialPane(): Pane {
   return isPane(pane) ? pane : 'agent'
 }
 
-/**
- * Account settings. Today it holds one thing — which model account the Doop
- * Agent runs on once the free tasks are spent — but it is the account-level
- * home for that kind of setting, so the canvas surfaces can link here instead
- * of carrying their own copy of it.
- *
- * It wears the same shell as the home dashboard: same rail, same top bar, same
- * account menu. Only the rail's middle changes, to a settings sub-nav.
- */
+/** Account settings, central agent status and eligible local execution. */
 export function Settings() {
   /* the sub-nav switches panes rather than scrolling to an anchor — on a page
      this short an anchor jump looks like nothing happened */
@@ -76,15 +67,13 @@ export function Settings() {
   const back = from && /^\/c\/[A-Za-z0-9_-]+$/.test(from) ? from : '/'
 
   const meter = allowance
-    ? allowance.byoModel
-      ? allowance.byoKind === 'claude-local'
-        ? 'Claude CLI selected — runs on your connected desktop.'
-        : `Running on your ${allowance.byoKind === 'chatgpt' || !allowance.byoKind ? 'ChatGPT subscription' : `${ACCOUNT_KIND_LABELS[allowance.byoKind]} key`}.`
+    ? allowance.localAgent
+      ? 'Local Agent selected — runs on your connected desktop.'
       : allowance.limit <= 0
-        ? 'No free tasks on this server — connect an account to use the Doop Agent.'
+        ? 'Server agent is not enabled. Contact the administrator.'
         : left === 0
-          ? 'Your free tasks are used up.'
-          : `${left} of ${allowance.limit} free task${allowance.limit === 1 ? '' : 's'} left.`
+          ? 'Task allowance used up. Contact the administrator.'
+          : `${left} of ${allowance.limit} agent tasks left.`
     : null
 
   return (
@@ -188,12 +177,12 @@ export function Settings() {
                 <CardHeader>
                   <CardTitle>Doop Agent</CardTitle>
                   <CardDescription>
-                    Choose how the Doop Agent runs on your canvases: a connected model account or Claude CLI on your
-                    desktop. Your provider’s usage limits and charges apply.
+                    Use the centrally managed design agent. Creators and administrators can also select local desktop
+                    execution.
                   </CardDescription>
                   {meter && (
                     <div className="mt-[11px] flex flex-col items-start gap-[7px] text-caption text-ink-faint sm:flex-row sm:items-center sm:gap-2.5">
-                      {allowance && allowance.limit > 0 && !allowance.byoModel && (
+                      {allowance && allowance.limit > 0 && !allowance.localAgent && (
                         <Progress
                           className="w-[min(100%,240px)] sm:w-[180px]"
                           value={left ?? 0}
@@ -205,7 +194,7 @@ export function Settings() {
                     </div>
                   )}
                 </CardHeader>
-                <ModelAccountPanel onChange={refresh} />
+                <AgentExecutionPanel onChange={refresh} />
               </SettingsCard>
               <ImageModelCard />
             </>

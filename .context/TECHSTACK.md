@@ -96,6 +96,11 @@
 
 - Vitest 5 - unit/integration tests across `server/` and `src/`; run via `bun run test`
   (`vitest run`). Tests live in `tests/`.
+- For the local full-suite acceptance, run `bun run test --maxWorkers=4 --exclude tests/claudeExtension.test.ts`,
+  then `bun run test tests/claudeExtension.test.ts --maxWorkers=1`. The extension test writes
+  into `public/claude-extension`, which can reload Vite browser fixtures when run concurrently.
+  Both groups are required. The [M1 acceptance matrix](../docs/prowin/m1-abnahme.md) records
+  integration removal, retained core functions, Pexels key gating, Memory decisions and native test limits.
 
 ## 8. CI/CD and Delivery
 
@@ -149,3 +154,11 @@ The integration registries are empty in the proWIN fork. External design imports
 frame exports offer PNG/JPG with progress feedback and desktop saving.
 Figma, Canva and PSD are deferred. Migration 0019 is reserved for the deferred Figma integration;
 the OSS journal skips it while retaining the shared migration tags and timestamps for 0020–0022.
+Private model accounts are removed; the authenticated legacy API returns 410 and migration 0039
+drops their credentials. The default server provider is Requesty EU. Creator/Admin Local Agent
+execution remains a separate opt-in with current role and canvas checks. Explicit legacy server
+providers and server image models remain pending the later boot-guard/egress and Magnific work;
+M1 acceptance does not certify exclusive EU egress or native client distribution.
+Resident credential and unavailable-policy failures pause work with a fixed administrator hint;
+upstream diagnostics stay out of the visible task failure. `tests/requestyResident.test.ts`
+exercises both HTTP error classes through the real resident loop with a simulated upstream.

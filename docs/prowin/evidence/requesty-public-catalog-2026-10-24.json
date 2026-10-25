@@ -1,0 +1,441 @@
+{
+  "retrievedAt": "2026-10-24T19:14:14.960Z",
+  "url": "https://router.eu.requesty.ai/v1/models",
+  "authenticated": false,
+  "status": 200,
+  "elapsedMs": 1110,
+  "totalModels": 799,
+  "rawSnapshotSha256": "bff4b4e9e9f22d6f7152df7c8ba98f1b8a2e7b85f2d7dd9739f814aa81961678",
+  "scope": "Public catalog only. Candidates are not confirmed policy members, account-approved models or inference-tested models.",
+  "candidates": [
+    {
+      "id": "azure/gpt-5.5@germanywestcentral",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1050000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000055,
+          "cached_price": 5.5e-7,
+          "output_price": 0.000033
+        },
+        {
+          "prompt_tokens_threshold": 272000,
+          "input_price": 0.000011,
+          "cached_price": 0.0000011,
+          "output_price": 0.0000495
+        }
+      ]
+    },
+    {
+      "id": "azure/gpt-5.4@germanywestcentral",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1050000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.00000275,
+          "cached_price": 2.75e-7,
+          "output_price": 0.0000165
+        },
+        {
+          "prompt_tokens_threshold": 272000,
+          "input_price": 0.0000055,
+          "cached_price": 5.5e-7,
+          "output_price": 0.00002475
+        }
+      ]
+    },
+    {
+      "id": "azure/gpt-4.1-mini@francecentral",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 32768,
+      "context_window": 1047576,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 4.4e-7,
+          "cached_price": 1.1e-7,
+          "output_price": 0.00000176
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-sonnet-5-5@eu-central-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000022,
+          "caching_price": 0.00000275,
+          "caching_5m_price": 0.00000275,
+          "caching_1h_price": 0.0000044,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000011
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-sonnet-5-5@eu-north-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000022,
+          "caching_price": 0.00000275,
+          "caching_5m_price": 0.00000275,
+          "caching_1h_price": 0.0000044,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000011
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-sonnet-5-5@eu-west-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000022,
+          "caching_price": 0.00000275,
+          "caching_5m_price": 0.00000275,
+          "caching_1h_price": 0.0000044,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000011
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-sonnet-5-5@eu-west-3",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000022,
+          "caching_price": 0.00000275,
+          "caching_5m_price": 0.00000275,
+          "caching_1h_price": 0.0000044,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000011
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5-5@eu-central-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000044,
+          "caching_price": 0.0000055,
+          "caching_5m_price": 0.0000055,
+          "caching_1h_price": 0.0000088,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000022
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5-5@eu-north-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000044,
+          "caching_price": 0.0000055,
+          "caching_5m_price": 0.0000055,
+          "caching_1h_price": 0.0000088,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000022
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5-5@eu-west-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000044,
+          "caching_price": 0.0000055,
+          "caching_5m_price": 0.0000055,
+          "caching_1h_price": 0.0000088,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000022
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5-5@eu-west-3",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000044,
+          "caching_price": 0.0000055,
+          "caching_5m_price": 0.0000055,
+          "caching_1h_price": 0.0000088,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000022
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5@eu-central-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000055,
+          "caching_price": 0.000006875,
+          "caching_5m_price": 0.000006875,
+          "caching_1h_price": 0.000011,
+          "cached_price": 5.5e-7,
+          "output_price": 0.0000275
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5@eu-north-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000055,
+          "caching_price": 0.000006875,
+          "caching_5m_price": 0.000006875,
+          "caching_1h_price": 0.000011,
+          "cached_price": 5.5e-7,
+          "output_price": 0.0000275
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5@eu-west-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000055,
+          "caching_price": 0.000006875,
+          "caching_5m_price": 0.000006875,
+          "caching_1h_price": 0.000011,
+          "cached_price": 5.5e-7,
+          "output_price": 0.0000275
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-opus-5@eu-west-3",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000055,
+          "caching_price": 0.000006875,
+          "caching_5m_price": 0.000006875,
+          "caching_1h_price": 0.000011,
+          "cached_price": 5.5e-7,
+          "output_price": 0.0000275
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-sonnet-5@eu-central-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000022,
+          "caching_price": 0.00000275,
+          "caching_5m_price": 0.00000275,
+          "caching_1h_price": 0.0000044,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000011
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-sonnet-5@eu-north-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000022,
+          "caching_price": 0.00000275,
+          "caching_5m_price": 0.00000275,
+          "caching_1h_price": 0.0000044,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000011
+        }
+      ]
+    },
+    {
+      "id": "bedrock/claude-sonnet-5@eu-west-1",
+      "geolocation": "eu",
+      "supports_vision": true,
+      "supports_tool_calling": true,
+      "data_retention": false,
+      "data_retention_days": 0,
+      "data_used_for_training": false,
+      "max_output_tokens": 128000,
+      "context_window": 1000000,
+      "pricing": [
+        {
+          "prompt_tokens_threshold": 0,
+          "input_price": 0.0000022,
+          "caching_price": 0.00000275,
+          "caching_5m_price": 0.00000275,
+          "caching_1h_price": 0.0000044,
+          "cached_price": 2.2e-7,
+          "output_price": 0.000011
+        }
+      ]
+    }
+  ],
+  "draftIds": [
+    {
+      "id": "zhipu/glm-5.3-flash@eu",
+      "present": false
+    },
+    {
+      "id": "mistral/mistral-small@eu",
+      "present": false
+    },
+    {
+      "id": "anthropic/claude-haiku-4-5@eu",
+      "present": false
+    },
+    {
+      "id": "mistral/mistral-medium@eu",
+      "present": false
+    },
+    {
+      "id": "anthropic/claude-sonnet-4-6@eu",
+      "present": false
+    },
+    {
+      "id": "openai/gpt-4.1@eu",
+      "present": false
+    },
+    {
+      "id": "google/gemini-3.5-flash@eu",
+      "present": false
+    }
+  ]
+}

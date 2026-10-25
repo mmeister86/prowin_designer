@@ -2,11 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { api, ApiError } from '../lib/api'
 import type { Allowance } from '../lib/api'
 import { useStore } from '../lib/store'
-import { navigate } from '../App'
 import { Button } from './ui/button'
 import { Modal, ModalActions, ModalLede, ModalTitle } from './ui/modal'
 import { cn } from '@/lib/utils'
-import { ACCOUNT_KIND_LABELS } from '../../shared/modelMenu'
 
 /**
  * Free-tier metering UI for the resident team: the shared allowance hook,
@@ -18,7 +16,7 @@ export type { Allowance }
 
 export function useAllowance(): { allowance: Allowance | null; refresh: () => void } {
   const [allowance, setAllowance] = useState<Allowance | null>(null)
-  /* re-read whenever a model account is connected or dropped anywhere in the
+  /* re-read whenever the Local Agent selection changes anywhere in the
      app, so every meter on screen agrees without prop-drilling */
   const version = useStore((s) => s.allowanceVersion)
   const refresh = useCallback(() => {
@@ -36,55 +34,22 @@ export function isResidentLimit(err: unknown): boolean {
 /** The meter as one plain sentence, for a tooltip. */
 export function meterText(allowance: Allowance | null): string | null {
   if (!allowance) return null
-  if (allowance.byoModel) {
-    const on =
-      allowance.byoKind === 'claude-local'
-        ? 'local Claude CLI'
-        : allowance.byoKind === 'chatgpt' || !allowance.byoKind
-          ? 'ChatGPT'
-          : `${ACCOUNT_KIND_LABELS[allowance.byoKind]} key`
-    return `Doop Agent on your ${on}`
-  }
-  if (allowance.limit <= 0) return 'Connect a plan in Settings to use the Doop Agent'
+  if (allowance.localAgent) return 'Doop Agent on your local Claude CLI'
+  if (allowance.limit <= 0) return 'Server agent is not enabled — contact the administrator'
   const left = Math.max(0, allowance.limit - allowance.used)
   return left === 0
-    ? 'Free Doop Agent tasks used up — connect ChatGPT to continue'
-    : `${left} of ${allowance.limit} free Doop Agent task${allowance.limit === 1 ? '' : 's'} left`
+    ? 'Agent task allowance used up — contact the administrator'
+    : `${left} of ${allowance.limit} agent tasks left`
 }
 
 export function MeterLine({ allowance }: { allowance: Allowance | null }) {
-  if (!allowance) return null
-  /* their own account is behind the agent now — say so instead of counting,
-     and say it even where there is no free tier to count (limit 0) */
-  if (allowance.byoModel) {
-    return (
-      <span className="text-[12px] text-success-ink">
-        Doop Agent on your{' '}
-        {allowance.byoKind === 'claude-local'
-          ? 'local Claude CLI'
-          : allowance.byoKind === 'chatgpt' || !allowance.byoKind
-            ? 'ChatGPT'
-            : `${ACCOUNT_KIND_LABELS[allowance.byoKind]} key`}
-      </span>
-    )
-  }
-  /* no free tier on this server: say what connecting gets them instead of
-     counting tasks that don't exist */
-  if (allowance.limit <= 0) {
-    return <span className="text-[12px] text-ink-faint">Connect a plan in Settings to use the Doop Agent</span>
-  }
-  const left = Math.max(0, allowance.limit - allowance.used)
-  return (
-    <span className={cn('text-[12px]', left === 0 ? 'text-accent-ink' : 'text-ink-faint')}>
-      {left === 0
-        ? 'free Doop Agent tasks used up — connect ChatGPT to continue'
-        : `${left} of ${allowance.limit} free Doop Agent task${allowance.limit === 1 ? '' : 's'} left`}
-    </span>
-  )
+  const text = meterText(allowance)
+  return text ? (
+    <span className={cn('text-[12px]', allowance?.localAgent ? 'text-success-ink' : 'text-ink-faint')}>{text}</span>
+  ) : null
 }
 
 export function LimitWall({
-  canvasId,
   onClose,
   onOpenConnect,
 }: {
@@ -100,36 +65,10 @@ export function LimitWall({
   return (
     <Modal size="lg" onClose={onClose}>
       <>
-        <ModalTitle>
-          {hadFreeTier ? 'Your free Doop Agent tasks are used up' : 'Connect a plan to use the Doop Agent'}
-        </ModalTitle>
+        <ModalTitle>{hadFreeTier ? 'Agent task allowance used up' : 'Server agent is not enabled'}</ModalTitle>
         <ModalLede>
-          {hadFreeTier ? (
-            <>
-              Those were on the house. Connect your <b>ChatGPT subscription</b> and the Doop Agent keeps working exactly
-              as it does now — same canvas, same agent, running on your plan instead of ours.
-            </>
-          ) : (
-            <>
-              The Doop Agent designs on your canvases using a subscription you already have. Connect <b>ChatGPT</b> once
-              and every task runs on your plan — nothing metered, no separate bill.
-            </>
-          )}
+          Contact your administrator to enable or extend the agent task allowance. Your designs remain available.
         </ModalLede>
-        {/* the connection itself is an account setting, so this hands off to
-            Settings rather than carrying a second copy of the panel */}
-        <ModalActions className="justify-start">
-          <Button
-            variant="primary"
-            onClick={() => {
-              /* carry the canvas so Settings can send them straight back */
-              navigate(`/settings?from=${encodeURIComponent(`/c/${canvasId}`)}`)
-            }}
-          >
-            Connect your plan
-          </Button>
-        </ModalActions>
-
         {/* the MCP path is a different mode — an agent you prompt yourself, not
             one that picks up queued tasks — so it hands off instead of inlining
             the setup steps here where they read like a fix for the queued card */}

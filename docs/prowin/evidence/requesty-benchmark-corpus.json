@@ -1,0 +1,177 @@
+{
+  "version": 1,
+  "language": "de-DE",
+  "dataPolicy": "Ausschließlich synthetische Testinhalte; keine echten Kontaktdaten, Produktversprechen oder kostenpflichtige Bildgenerierung.",
+  "textOutput": {
+    "format": "JSON object with exactly headline, body, cta string fields; no Markdown",
+    "system": "Du schreibst deutsche Texte für fiktive proWIN-Testdesigns. Verwende nur Fakten aus dem Brief. Erfinde keine Preise, Produkteigenschaften, Umwelt- oder Gesundheitsversprechen. Antworte als JSON-Objekt mit genau den String-Feldern headline, body und cta. Keine Markdown-Zäune. Alle Zeichenlimits zählen einschließlich Leerzeichen. Pflichtbegriffe müssen wörtlich in einem der drei Felder stehen."
+  },
+  "texts": [
+    {
+      "id": "T01",
+      "brief": "Lade freundlich zu einem fiktiven Beratungsabend am 14. November ein. Du-Ansprache, keine Preise.",
+      "required": ["14. November"],
+      "limits": { "headline": 40, "body": 140, "cta": 24 }
+    },
+    {
+      "id": "T02",
+      "brief": "Kündige eine fiktive Produktvorführung am 18. November um 19 Uhr an. Sachlich und knapp.",
+      "required": ["18. November", "19 Uhr"],
+      "limits": { "headline": 36, "body": 150, "cta": 22 }
+    },
+    {
+      "id": "T03",
+      "brief": "Schreibe einen WhatsApp-Status für einen fiktiven Infoabend. Die Anmeldung endet am 12. November. Keine künstliche Verknappung.",
+      "required": ["12. November"],
+      "limits": { "headline": 32, "body": 100, "cta": 18 }
+    },
+    {
+      "id": "T04",
+      "brief": "Formuliere eine ruhige Erinnerung an einen fiktiven Termin morgen um 18 Uhr. Keine Ausrufezeichen.",
+      "required": ["18 Uhr"],
+      "forbidden": ["!"],
+      "limits": { "headline": 35, "body": 120, "cta": 20 }
+    },
+    {
+      "id": "T05",
+      "brief": "Schreibe eine wertschätzende Dankesnachricht nach einem fiktiven Beratungsabend. Keine erneute Verkaufsaufforderung.",
+      "required": ["Danke"],
+      "limits": { "headline": 35, "body": 140, "cta": 22 }
+    },
+    {
+      "id": "T06",
+      "brief": "Kündige eine fiktive Terminänderung vom 14. November auf den 21. November an. Beide Daten müssen eindeutig vorkommen.",
+      "required": ["14. November", "21. November"],
+      "limits": { "headline": 40, "body": 160, "cta": 24 }
+    },
+    {
+      "id": "T07",
+      "brief": "Lade in formeller Sie-Ansprache zu einer fiktiven Informationsveranstaltung ein. Der Ort heißt Musterraum. Keine Du-Ansprache.",
+      "required": ["Musterraum"],
+      "limits": { "headline": 40, "body": 150, "cta": 24 }
+    },
+    {
+      "id": "T08",
+      "brief": "Schreibe einen fiktiven Instagram-Post zur individuellen Beratung. Der Markenname proWIN muss exakt geschrieben sein. Keine Hashtags.",
+      "required": ["proWIN"],
+      "forbidden": ["#"],
+      "limits": { "headline": 35, "body": 140, "cta": 20 }
+    },
+    {
+      "id": "T09",
+      "brief": "Erinnere an eine fiktive Anmeldung bis Freitag. Freundlich, ohne Druck und ohne Rabattversprechen.",
+      "required": ["Freitag"],
+      "limits": { "headline": 36, "body": 110, "cta": 20 }
+    },
+    {
+      "id": "T10",
+      "brief": "Schreibe eine Einladung zu einem fiktiven Onlineabend am 20. November. Benenne das Format ausdrücklich als online.",
+      "required": ["20. November", "online"],
+      "limits": { "headline": 40, "body": 140, "cta": 24 }
+    },
+    {
+      "id": "T11",
+      "brief": "Formuliere einen fiktiven Hinweis: Der Veranstaltungsort hat sich geändert und heißt jetzt Musterhaus. Entschuldige die Umstände kurz.",
+      "required": ["Musterhaus"],
+      "limits": { "headline": 40, "body": 150, "cta": 24 }
+    },
+    {
+      "id": "T12",
+      "brief": "Schreibe eine fiktive persönliche Einladung zum Kennenlernen. Das Wort unverbindlich muss vorkommen. Keine Emojis.",
+      "required": ["unverbindlich"],
+      "limits": { "headline": 35, "body": 130, "cta": 22 }
+    },
+    {
+      "id": "T13",
+      "brief": "Schreibe einen fiktiven Infohinweis zu zwei Terminen: 10 Uhr und 15 Uhr. Beide Uhrzeiten beibehalten.",
+      "required": ["10 Uhr", "15 Uhr"],
+      "limits": { "headline": 32, "body": 120, "cta": 20 }
+    },
+    {
+      "id": "T14",
+      "brief": "Kündige eine fiktive Veranstaltung für Einsteigerinnen an. Der Begriff Einsteigerinnen muss vorkommen. Keine Vorkenntnisse voraussetzen.",
+      "required": ["Einsteigerinnen"],
+      "limits": { "headline": 40, "body": 150, "cta": 24 }
+    },
+    {
+      "id": "T15",
+      "brief": "Schreibe einen fiktiven Hinweis auf persönliche Terminvereinbarung. Keine Telefonnummer, E-Mail oder URL erfinden. Verwende Nachricht als Kontaktweg.",
+      "required": ["Nachricht"],
+      "limits": { "headline": 36, "body": 120, "cta": 20 }
+    },
+    {
+      "id": "T16",
+      "brief": "Schreibe eine fiktive Absage: Der Termin am 16. November entfällt. Noch keinen Ersatztermin nennen.",
+      "required": ["16. November", "entfällt"],
+      "limits": { "headline": 40, "body": 140, "cta": 22 }
+    },
+    {
+      "id": "T17",
+      "brief": "Verkürze diese fiktive Botschaft: Wir laden dich herzlich ein, uns am Samstag bei einem entspannten Gespräch kennenzulernen. Samstag muss stehen bleiben.",
+      "required": ["Samstag"],
+      "limits": { "headline": 28, "body": 90, "cta": 16 }
+    },
+    {
+      "id": "T18",
+      "brief": "Schreibe eine fiktive Story-Einladung. Verwende die Worte Fragen willkommen. Keine Versalien als ganze Überschrift.",
+      "required": ["Fragen willkommen"],
+      "limits": { "headline": 35, "body": 110, "cta": 18 }
+    },
+    {
+      "id": "T19",
+      "brief": "Schreibe einen fiktiven sachlichen Veranstaltungshinweis für proWIN am 22. November. Keine Emojis, Hashtags oder Ausrufezeichen.",
+      "required": ["proWIN", "22. November"],
+      "forbidden": ["#", "!"],
+      "limits": { "headline": 40, "body": 140, "cta": 22 }
+    },
+    {
+      "id": "T20",
+      "brief": "Lade zu einem fiktiven Austausch im Musterraum am 25. November um 17 Uhr ein. Halte alle Fakten trotz enger Zeichenlimits fest.",
+      "required": ["Musterraum", "25. November", "17 Uhr"],
+      "limits": { "headline": 32, "body": 100, "cta": 18 }
+    }
+  ],
+  "agentProtocol": "Nach TASK-16 mit dem echten Resident-Loop ausführen. Für Bearbeitungsfälle Ausgangsframes und Sperren vorab versionieren. Diese Briefs sind vorbereitet, nicht ausgeführt. Brand-Regeln aus der dann freigegebenen DESIGN-prowin.md übernehmen.",
+  "agents": [
+    {
+      "id": "A01",
+      "brief": "Erstelle einen quadratischen Einladungsentwurf mit 1080 × 1080 Pixeln für einen fiktiven Beratungsabend am 14. November um 19 Uhr. Verwende nur Text und CSS-Flächen. Prüfe das Ergebnis per Screenshot."
+    },
+    {
+      "id": "A02",
+      "brief": "Erstelle eine Story mit 1080 × 1920 Pixeln für einen fiktiven Onlineabend am 20. November. Halte Text in einer Safe Zone von 250 Pixeln oben und unten. Prüfe den Screenshot."
+    },
+    {
+      "id": "A03",
+      "brief": "Erstelle ein Querformat mit 1200 × 630 Pixeln für einen fiktiven proWIN-Infoabend im Musterraum. Keine externen Bilder oder Schriften. Prüfe den Screenshot auf abgeschnittenen Text."
+    },
+    {
+      "id": "A04",
+      "brief": "Ändere im vorbereiteten quadratischen Ausgangsframe nur den Termin von 14. November auf 21. November. Layout, Format und gesperrter Logo-Platzhalter bleiben erhalten. Prüfe den Screenshot."
+    },
+    {
+      "id": "A05",
+      "brief": "Kürze im vorbereiteten Ausgangsframe die Überschrift auf höchstens 35 Zeichen. Erhalte alle Daten im übrigen Text und den gesperrten Logo-Platzhalter. Prüfe den Screenshot."
+    },
+    {
+      "id": "A06",
+      "brief": "Erstelle aus dem vorbereiteten quadratischen Ausgangsframe eine Story mit 1080 × 1920 Pixeln. Erhalte die Inhalte, passe die Anordnung an und halte 250 Pixel oben und unten frei. Prüfe den Screenshot."
+    },
+    {
+      "id": "A07",
+      "brief": "Erstelle zwei Varianten einer fiktiven Einladung zum Kennenlernen im Format 1080 × 1080 Pixel. Beide müssen proWIN und unverbindlich enthalten und sich sichtbar im Layout unterscheiden. Prüfe beide Screenshots."
+    },
+    {
+      "id": "A08",
+      "brief": "Behebe den Textüberlauf im vorbereiteten Ausgangsframe. Erhalte den Wortlaut, die Framegröße und alle gesperrten Elemente. Prüfe den Screenshot nach der Änderung."
+    },
+    {
+      "id": "A09",
+      "brief": "Ersetze im vorbereiteten Ausgangsframe ausschließlich den CTA durch Nachricht senden. Keine Preise, Termine oder Kontaktdaten ergänzen. Prüfe den Screenshot und erhalte gesperrte Elemente."
+    },
+    {
+      "id": "A10",
+      "brief": "Erstelle einen quadratischen fiktiven Absagehinweis für den 16. November. Der Termin entfällt; es gibt keinen Ersatztermin. Nutze eine klare ruhige Hierarchie ohne externe Assets. Prüfe den Screenshot."
+    }
+  ]
+}

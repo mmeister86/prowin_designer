@@ -49,15 +49,9 @@ import * as backgrounds from './backgrounds.ts'
 import * as storage from './storage.ts'
 import { seed } from './seed.ts'
 import * as allowance from './allowance.ts'
-import * as modelAccounts from './modelAccounts.ts'
-import { getLocalAgentPreference, saveLocalAgentPreference } from './localAgentPreferences.ts'
 import { serverTierInfo } from './agentModel.ts'
 import { imageModelAvailability, serverImageGenEnabled } from './imageGen.ts'
 import { setImagePref } from './imagePrefs.ts'
-import { AGENT_MODELS } from './openaiAgent.ts'
-import { CLAUDE_MODELS } from '../shared/localAgent.ts'
-import { GEMINI_MODELS, OPENROUTER_MODELS } from '../shared/modelMenu.ts'
-import type { ModelOption } from '../shared/modelMenu.ts'
 import { mentionedRole } from '../shared/agents.ts'
 import { activeAgentTasks } from '../shared/agentActivity.ts'
 import { colorFor } from '../shared/types.ts'
@@ -640,7 +634,7 @@ app.use('/api/live-activities', liveActivitiesRouter)
 startLiveActivityDelivery()
 app.use('/api/billing', billing.billingRouter)
 
-/* free-tier meter for the resident team: {used, limit, connected, byoModel} */
+/* free-tier meter for the resident team: {used, limit, connected, localAgent} */
 app.get('/api/agent-allowance', (req, res) => {
   allowance
     .getAllowance(req.user!.id)
@@ -648,142 +642,9 @@ app.get('/api/agent-allowance', (req, res) => {
     .catch(() => res.status(500).json({ error: 'allowance unavailable' }))
 })
 
-/* ---- the user's own model account: what keeps the Doop Agent running once
-   the free tasks are gone. Tokens live server-side and are never returned. */
-
-/* one curated menu per account kind, with the vision flag the picker renders;
-   the pre-roster providers all see images */
-const MODEL_MENUS: Record<modelAccounts.AccountKind, ModelOption[]> = {
-  chatgpt: AGENT_MODELS.map((m) => ({ ...m, vision: true })),
-  'openai-key': AGENT_MODELS.map((m) => ({ ...m, vision: true })),
-  'anthropic-key': CLAUDE_MODELS.map((m) => ({ ...m, vision: true })),
-  'openrouter-key': OPENROUTER_MODELS,
-  'gemini-key': GEMINI_MODELS,
-}
-
-/* Every route that returns an account status returns the SAME shape: the
-   client re-renders straight from the response, so dropping the menus on
-   a PATCH would collapse the picker until the next reload. */
-function accountView(status: modelAccounts.AccountStatus) {
-  return { ...status, chatgptEnabled: modelAccounts.chatgptConnectEnabled(), menus: MODEL_MENUS }
-}
-
-app.get('/api/model-account', (req, res) => {
-  modelAccounts
-    .getStatus(req.user!.id)
-    .then((status) => res.json(accountView(status)))
-    .catch(() => res.status(500).json({ error: 'account status unavailable' }))
-})
-
-/* which model tier the connected account runs on */
-app.patch('/api/model-account', async (req, res) => {
-  try {
-    res.json(accountView(await modelAccounts.setAccountModel(req.user!.id, String(req.body?.model ?? ''))))
-  } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'could not change the model' })
-  }
-})
-
-/* OpenAI's only registered redirect is a loopback URL, so the browser's
-   callback is reachable by us exactly when the browser is on this machine.
-   A forwarded request came through a proxy and is by definition not. */
-function isSameMachine(req: express.Request): boolean {
-  if (req.headers['x-forwarded-for'] || req.headers['forwarded']) return false
-  const ip = req.socket.remoteAddress ?? ''
-  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
-}
-
-/* step 1 of the ChatGPT flow: hand back the OpenAI authorize URL to open.
-   `catching` tells the client we will pick the redirect up ourselves, so it
-   can poll instead of asking the user to copy anything. */
-app.post('/api/model-account/chatgpt/authorize', async (req, res) => {
-  if (!modelAccounts.chatgptConnectEnabled()) {
-    return res.status(404).json({ error: 'ChatGPT connections are disabled on this server' })
-  }
-  const started = modelAccounts.beginChatgptAuth(req.user!.id)
-  const catching = isSameMachine(req) ? await modelAccounts.startCallbackCatcher() : false
-  res.json({ ...started, catching })
-})
-
-/* step 2: the user pastes the redirect URL they landed on; we do the code
-   exchange server-side, so the browser never handles a token */
-app.post('/api/model-account/chatgpt', async (req, res) => {
-  if (!modelAccounts.chatgptConnectEnabled()) {
-    return res.status(404).json({ error: 'ChatGPT connections are disabled on this server' })
-  }
-  try {
-    res.json(accountView(await modelAccounts.completeChatgptAuth(req.user!.id, String(req.body?.redirect ?? ''))))
-  } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'could not connect that ChatGPT account' })
-  }
-})
-
-/* device flow: no redirect URI at all, so it works wherever Doop is hosted.
-   We poll OpenAI in the background; the browser polls the status below. */
-app.post('/api/model-account/chatgpt/device', async (req, res) => {
-  if (!modelAccounts.chatgptConnectEnabled()) {
-    return res.status(404).json({ error: 'ChatGPT connections are disabled on this server' })
-  }
-  try {
-    res.json(await modelAccounts.beginDeviceAuth(req.user!.id))
-  } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'could not start a device sign-in' })
-  }
-})
-
-app.get('/api/model-account/chatgpt/device', (req, res) => {
-  res.json(modelAccounts.deviceAuthStatus(req.user!.id) ?? { status: 'none' })
-})
-
-app.delete('/api/model-account/chatgpt/device', (req, res) => {
-  modelAccounts.cancelDeviceAuth(req.user!.id)
-  res.json({ ok: true })
-})
-
-app.post('/api/model-account/openai-key', async (req, res) => {
-  try {
-    res.json(accountView(await modelAccounts.connectApiKey(req.user!.id, String(req.body?.apiKey ?? ''))))
-  } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'could not save that API key' })
-  }
-})
-
-app.post('/api/model-account/anthropic-key', async (req, res) => {
-  try {
-    const previous = await modelAccounts.getAccount(req.user!.id)
-    const status = await modelAccounts.connectAnthropicKey(req.user!.id, String(req.body?.apiKey ?? ''))
-    if (previous?.kind !== 'anthropic-key') {
-      const preference = await getLocalAgentPreference(req.user!.id)
-      await saveLocalAgentPreference(req.user!.id, { ...preference, enabled: false })
-    }
-    res.json(accountView(status))
-  } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'could not save that API key' })
-  }
-})
-
-/* the two wide-roster keys share the anthropic-key route's shape, including
-   switching off the local-CLI preference so the new account is not shadowed */
-for (const kind of ['openrouter-key', 'gemini-key'] as const) {
-  const connect = kind === 'openrouter-key' ? modelAccounts.connectOpenRouterKey : modelAccounts.connectGeminiKey
-  app.post(`/api/model-account/${kind}`, async (req, res) => {
-    try {
-      const previous = await modelAccounts.getAccount(req.user!.id)
-      const status = await connect(req.user!.id, String(req.body?.apiKey ?? ''))
-      if (previous?.kind !== kind) {
-        const preference = await getLocalAgentPreference(req.user!.id)
-        await saveLocalAgentPreference(req.user!.id, { ...preference, enabled: false })
-      }
-      res.json(accountView(status))
-    } catch (e) {
-      res.status(400).json({ error: e instanceof Error ? e.message : 'could not save that API key' })
-    }
-  })
-}
-
-app.delete('/api/model-account', async (req, res) => {
-  await modelAccounts.disconnect(req.user!.id)
-  res.json(accountView({ connected: false }))
+/* Retired account API: never accept credentials or fall through to the SPA. */
+app.use('/api/model-account', (_req, res) => {
+  res.status(410).json({ error: 'Private model accounts have been removed' })
 })
 
 /* ---- which image model generate_image draws with (the shared registry;
@@ -1325,8 +1186,9 @@ app.post('/api/frames/:id/comments', async (req, res) => {
   const { selector, snippet, text } = req.body ?? {}
   /* a comment that @mentions a resident agent is a new command to the team,
      so it's metered like a card; plain comments and replies stay free */
+  let gate: Awaited<ReturnType<typeof allowance.consumeResidentTask>> | undefined
   if (mentionedRole(String(text ?? ''))) {
-    const gate = await allowance.consumeResidentTask(req.user!.id)
+    gate = await allowance.consumeResidentTask(req.user!.id)
     if (!gate.ok) {
       return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
     }
@@ -1336,6 +1198,7 @@ app.post('/api/frames/:id/comments', async (req, res) => {
     { selector: String(selector ?? ''), snippet: String(snippet ?? ''), text: String(text ?? '') },
     req.user!.name,
     req.user!.id,
+    gate ? !gate.localAgent : undefined,
   )
   if (!comment) return res.status(404).json({ error: 'frame not found or empty text' })
   res.json(comment)
@@ -1365,6 +1228,7 @@ app.post('/api/canvases/:id/comments', async (req, res) => {
     { pageId, x: Number(x), y: Number(y), text: body },
     req.user!.name,
     req.user!.id,
+    gate ? !gate.localAgent : undefined,
   )
   if (!comment) {
     /* the page went away while the meter was being written: give the task
@@ -1395,7 +1259,14 @@ app.post('/api/comments/:id/replies', async (req, res) => {
       return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
     }
   }
-  const reply = actions.replyToComment(req.params.id, text, req.user!.name, req.user!.id)
+  const reply = actions.replyToComment(
+    req.params.id,
+    text,
+    req.user!.name,
+    req.user!.id,
+    'user',
+    gate ? !gate.localAgent : undefined,
+  )
   if (!reply) {
     /* the thread closed while the meter was being written: give the task
        back — a failed refund is logged, never turned into a 500 */
@@ -1424,7 +1295,7 @@ app.post('/api/comments/:id/retry', async (req, res) => {
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
   }
-  res.json(actions.retryComment(req.params.id, req.user!.name))
+  res.json(actions.retryComment(req.params.id, req.user!.name, !gate.localAgent))
 })
 
 app.post('/api/canvases/:id/cards', async (req, res) => {
@@ -1443,6 +1314,7 @@ app.post('/api/canvases/:id/cards', async (req, res) => {
     req.body?.attachments,
     req.user!.id,
     req.body?.scope,
+    !gate.localAgent,
   )
   if (!card) return res.status(404).json({ error: 'canvas not found or empty title' })
   res.json(card)
@@ -1461,7 +1333,7 @@ app.post('/api/canvases/:canvasId/cards/:id/retry', async (req, res) => {
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
   }
-  const card = actions.retryCard(req.params.canvasId, req.params.id, req.user!.name)
+  const card = actions.retryCard(req.params.canvasId, req.params.id, req.user!.name, !gate.localAgent)
   if (!card) return res.status(404).json({ error: 'card not found' })
   res.json(card)
 })
@@ -1476,7 +1348,7 @@ app.post('/api/tasks/:id/feedback', async (req, res) => {
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
   }
-  const fb = actions.addTaskFeedback(req.params.id, req.user!.name, text, req.user!.id)
+  const fb = actions.addTaskFeedback(req.params.id, req.user!.name, text, req.user!.id, !gate.localAgent)
   if (!fb) return res.status(404).json({ error: 'task not found or empty text' })
   res.json(fb)
 })
@@ -1489,7 +1361,7 @@ app.post('/api/feedback/:id/retry', async (req, res) => {
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
   }
-  res.json(actions.retryTaskFeedback(req.params.id, req.user!.name))
+  res.json(actions.retryTaskFeedback(req.params.id, req.user!.name, !gate.localAgent))
 })
 
 app.get('/api/frames/:id/screenshot.png', async (req, res) => {
@@ -1707,15 +1579,25 @@ server.listen(PORT, () => {
      a self-hoster cannot debug from the UI — board cards and @mentions just
      sit there. Say so at boot, not only when the first card is queued. */
   const tier = serverTierInfo()
+  const tierLabel = {
+    requesty: 'Requesty EU key',
+    azure: 'Azure OpenAI deployment',
+    anthropic: 'Anthropic key',
+  }[tier.provider]
+  const tierSetup = {
+    requesty: 'REQUESTY_API_KEY',
+    azure: 'the AZURE_OPENAI_* vars',
+    anthropic: 'ANTHROPIC_API_KEY',
+  }[tier.provider]
   console.log(
     tier.ready
-      ? `⟡ doop agent        on — free tier on this server’s ${tier.provider === 'azure' ? 'Azure OpenAI deployment' : 'Anthropic key'}, then each user’s own model account`
-      : `⟡ doop agent        no server ${tier.provider === 'azure' ? 'Azure config' : 'key'} — runs only for users who connect their own ChatGPT subscription or OpenAI key (${tier.provider === 'azure' ? 'set the AZURE_OPENAI_* vars' : 'set ANTHROPIC_API_KEY'} for a free tier; agents connected over MCP work regardless)`,
+      ? `⟡ doop agent        server tier ready on this server’s ${tierLabel} (RESIDENT_TASK_LIMIT=${env.RESIDENT_TASK_LIMIT}); eligible Local Agent selection takes priority`
+      : `⟡ doop agent        no server ${tierLabel} — set ${tierSetup} and RESIDENT_TASK_LIMIT>0; eligible Local Agents and MCP clients work independently`,
   )
   console.log(
     serverImageGenEnabled()
-      ? '⟡ image generation  on — each user’s connected ChatGPT/OpenAI account, else this server’s OPENAI_API_KEY'
-      : '⟡ image generation  on for users with a connected ChatGPT/OpenAI account only (set OPENAI_API_KEY to cover everyone else)',
+      ? '⟡ image generation  on — operator-configured server credentials'
+      : '⟡ image generation  off — no server image provider configured',
   )
   /* automations fire from here: one tick a minute over the due rows */
   startScheduler()

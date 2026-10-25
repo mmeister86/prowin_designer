@@ -314,6 +314,8 @@ export interface Presence {
  *  and an agent claims it — cards stay open until explicitly completed. */
 export interface AgentTask {
   id: string
+  /** Server admission for this attempt: false = local-only; absent = legacy/unknown. */
+  serverPaid?: boolean
   /** empty string while a queued card waits for an agent */
   agentName: string
   /** whose token the agent connected with */
@@ -388,6 +390,8 @@ export interface RepoCardPayload {
  *  agent can pick up — delivered inside the next identified agent tool result. */
 export interface TaskFeedback {
   id: string
+  /** Server admission for this attempt: false = local-only; absent = legacy/unknown. */
+  serverPaid?: boolean
   taskId: string
   canvasId: string
   /** whose work the feedback is about (the task's agent), not who must handle it */
@@ -420,6 +424,8 @@ export interface TaskFeedback {
  *  shared/comments.ts tells them apart. */
 export interface ElementComment {
   id: string
+  /** Server admission for this attempt: false = local-only; absent = legacy/unknown. */
+  serverPaid?: boolean
   canvasId: string
   /** the frame the element lives in; absent on a canvas comment */
   frameId?: string

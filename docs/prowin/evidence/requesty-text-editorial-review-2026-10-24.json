@@ -1,0 +1,324 @@
+{
+  "evaluatedAt": "2026-10-24T19:22:19.744Z",
+  "evaluator": "Codex gpt-6.1-sol, medium reasoning",
+  "method": "Model-assisted editorial review of A/B responses without policy or model labels; assignment alternates by prompt. One evaluator; no human acceptance.",
+  "rubric": {
+    "languageQuality": {
+      "1": "Sprachlich unbrauchbar; grundlegende Überarbeitung nötig.",
+      "2": "Deutlich unnatürlich oder mit störender Meta-/Testsprache; nicht veröffentlichungsreif.",
+      "3": "Verständlich, aber mit auffälligen stilistischen Schwächen; redaktionelle Überarbeitung nötig.",
+      "4": "Natürlich und weitgehend veröffentlichungsreif; kleinere Schwächen.",
+      "5": "Natürliches, stimmiges Deutsch mit passendem Ton; als Marketingmaterial direkt geeignet."
+    },
+    "briefAdherence": {
+      "1": "Zentrale Aufgabe verfehlt oder mehrere wesentliche Vorgaben verletzt.",
+      "2": "Wesentliche inhaltliche Vorgabe verletzt.",
+      "3": "Aufgabe grundsätzlich erfüllt, aber mit relevanten unbelegten Ergänzungen oder Abweichungen.",
+      "4": "Vorgaben weitgehend erfüllt; kleinere Abweichung oder unbelegte Nebenbehauptung.",
+      "5": "Explizite redaktionelle und inhaltliche Vorgaben erfüllt."
+    },
+    "method": "Anonymisierte modellgestützte Einzelbewertung anhand des jeweiligen Briefs. Fakten und Pflichtangaben werden über Headline, Body und CTA zusammen betrachtet. Testkennzeichnungen wie 'fiktiv' gehören nicht in fertigen Kundentext und mindern primär languageQuality. Zeichenlimits und JSON-Struktur werden nicht separat benotet. Unbelegte konkrete Fakten werden von zulässiger allgemeiner Einladungssprache unterschieden."
+  },
+  "limitations": [
+    "Modellgestützte redaktionelle Bewertung durch Hermione; keine menschliche Freigabe und kein Code-Review.",
+    "Einzige Bewertungsquelle ist data/requesty-evaluation/blind-texts.json mit 20 Briefs und 40 anonymisierten Antworten. Keine Mapping-Dateien, anderen Ergebnisdateien, externen Quellen oder Geheimnisse wurden gelesen.",
+    "Zeichenlimits und JSON-Gültigkeit wurden nicht nachgezählt beziehungsweise maschinell geprüft; die Noten bewerten Sprache und redaktionelle Brief-Treue.",
+    "Nicht vorgegebene Anredeformen sind zulässig. Allgemeine Einladungssprache gilt nicht allein als erfundene Tatsache; konkrete zusätzliche Veranstaltungsinhalte, Markenbezüge, Zeitangaben und Zusagen werden dagegen kritisch bewertet.",
+    "Die Auslegung von 'Story-Einladung' ist ohne weiteren Kontext offen. Bewertet wurde die Eignung als kurze Einladung im Story-Kontext; keine zusätzliche Veranstaltungsart wurde vorausgesetzt.",
+    "Die Skala ist ordinal und die Einordnung redaktionell-subjektiv; kleine Notenunterschiede sind keine statistisch abgesicherte Aussage über die zugrunde liegenden Modelle."
+  ],
+  "summary": [
+    {
+      "policy": "policy/prowin-layout-gen",
+      "languageQualityMean": 4,
+      "briefAdherenceMean": 4.85
+    },
+    {
+      "policy": "policy/prowin-text-gen",
+      "languageQualityMean": 3.3,
+      "briefAdherenceMean": 4.55
+    }
+  ],
+  "cases": [
+    {
+      "id": "T01",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Freundliche, natürliche Einladung mit durchgängiger Du-Ansprache. Datum enthalten, keine Preise."
+    },
+    {
+      "id": "T01",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 2,
+      "briefAdherence": 3,
+      "note": "'Fiktiver Beratungsabend' und 'proWIN-Testdesigns' wirken wie interner Testtext. Die Testdesigns sind als Veranstaltungsinhalt nicht vorgegeben; Datum, Du-Ansprache und Preisverzicht stimmen."
+    },
+    {
+      "id": "T02",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 3,
+      "briefAdherence": 4,
+      "note": "Sachlich und verständlich, aber 'Wir kündigen ... an' wirkt administrativ und 'fiktive Produktvorführung' ist nicht kundentauglich. Datum und Uhrzeit stimmen; 'Weitere Informationen folgen' verspricht unbelegt eine spätere Mitteilung."
+    },
+    {
+      "id": "T02",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 2,
+      "briefAdherence": 5,
+      "note": "Terminangaben sind klar und der Ton sachlich. Der ganze Satz über die 'fiktive Ankündigung für ein Testdesign' ist jedoch störende Metasprache im Kundentext."
+    },
+    {
+      "id": "T03",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Klarer, freundlicher Status mit korrekter Anmeldefrist und ohne Verknappung. 'Gern in Ruhe' klingt etwas bemüht, bleibt aber verständlich."
+    },
+    {
+      "id": "T03",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Kurz, klar und ohne künstlichen Druck; die Anmeldefrist stimmt. 'Fiktiver Infoabend' muss für fertiges Marketingmaterial entfallen."
+    },
+    {
+      "id": "T04",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Ruhige Erinnerung ohne Ausrufezeichen, morgen und 18 Uhr sind eindeutig. 'Deinen fiktiven Termin' klingt im Kundentext befremdlich."
+    },
+    {
+      "id": "T04",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Ruhiger, zugewandter Ton und klare Zeitangabe ohne Ausrufezeichen. Die Testkennzeichnung 'dein fiktiver Termin' stört die Veröffentlichungsreife."
+    },
+    {
+      "id": "T05",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Wertschätzender, persönlicher Dank ohne Verkaufsaufforderung. Die Headline 'deinen Abend mit uns' ist etwas weniger idiomatisch als 'den Abend mit uns'."
+    },
+    {
+      "id": "T05",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Stimmiger, wertschätzender Dank in konsistenter Sie-Ansprache; die Anrede war frei wählbar. Keine erneute Verkaufsaufforderung."
+    },
+    {
+      "id": "T06",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Der Body erklärt die Verschiebung eindeutig mit beiden Daten. Die Headline betont das alte Datum und der CTA 'Jetzt 21. November merken' klingt verkürzt."
+    },
+    {
+      "id": "T06",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Neues Datum prominent, alter und neuer Termin im Body eindeutig zugeordnet. Knapp, sachlich und direkt verwendbar."
+    },
+    {
+      "id": "T07",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Formelle Sie-Ansprache und Musterraum sind korrekt. 'Fiktive Informationsveranstaltung' ist eine störende Testkennzeichnung in einer ansonsten klaren Einladung."
+    },
+    {
+      "id": "T07",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Konsequent formell, mit korrektem Ort und passendem CTA. 'Fiktive Informationsveranstaltung' verhindert die direkte Verwendung als Kundentext."
+    },
+    {
+      "id": "T08",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Marke korrekt, keine Hashtags und klarer Bezug zur individuellen Beratung. 'Finde ... die Beratung' und 'persönlich, nah' wirken etwas allgemein und werblich formelhaft."
+    },
+    {
+      "id": "T08",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Natürlich, persönlich und klar auf individuelle Fragen ausgerichtet. proWIN ist korrekt geschrieben; keine Hashtags oder erfundenen Produkteigenschaften."
+    },
+    {
+      "id": "T09",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Freundliche Erinnerung mit Freitag als Frist, ohne Druck oder Rabattversprechen. 'Schau ... vorbei' ist als Übergang zur Anmeldung etwas unpräzise."
+    },
+    {
+      "id": "T09",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Die bedingte Formulierung 'Wenn es passt' hält den Ton druckfrei; Freitag und Rabattverzicht stimmen. 'Fiktive Anmeldung' klingt unnatürlich und gehört nicht in den Kundentext."
+    },
+    {
+      "id": "T10",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 2,
+      "briefAdherence": 5,
+      "note": "'Onlineabend' wäre die natürliche Schreibweise; 'fiktiver online Abend' wirkt sprachlich unfertig. Datum und ausdrückliche Online-Kennzeichnung sind vorhanden."
+    },
+    {
+      "id": "T10",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 4,
+      "briefAdherence": 4,
+      "note": "Freundliche Einladung mit klarem Datum. 'Online treffen' und 'Format ist rein online' wiederholen sich unnötig; die Zuordnung zu proWIN ist im Brief nicht vorgegeben."
+    },
+    {
+      "id": "T11",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Ortswechsel und Musterhaus sind klar, die Entschuldigung ist passend und ausreichend kurz. 'Die dadurch entstehen' ist entbehrlich, der Text insgesamt aber gut verwendbar."
+    },
+    {
+      "id": "T11",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 2,
+      "briefAdherence": 5,
+      "note": "Ortswechsel, neuer Name und Entschuldigung sind enthalten. 'Wir entschuldigen uns kurz' übernimmt eine Schreibanweisung ungeschickt in den Kundentext; auch der CTA klingt holprig."
+    },
+    {
+      "id": "T12",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 4,
+      "briefAdherence": 4,
+      "note": "Persönlicher, natürlicher Einladungssatz mit 'unverbindlich' und ohne Emojis. Der CTA 'Jetzt unverbindlich' bleibt unvollständig; proWIN wird ohne Vorgabe als Gegenstand des Kennenlernens ergänzt."
+    },
+    {
+      "id": "T12",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 5,
+      "briefAdherence": 4,
+      "note": "Locker, persönlich und einladend, ohne Emojis. Die Unverbindlichkeit ist inhaltlich enthalten, aber statt des ausdrücklich verlangten Wortes 'unverbindlich' steht nur 'unverbindlichen'."
+    },
+    {
+      "id": "T13",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Beide Uhrzeiten bleiben unverändert erhalten. Klar und sachlich, aber die vollständige Wiederholung der Headline im Body und 'Infohinweis' wirken etwas mechanisch."
+    },
+    {
+      "id": "T13",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 4,
+      "briefAdherence": 3,
+      "note": "Gut verständlicher Hinweis mit beiden korrekten Uhrzeiten; 'Infohinweis' wirkt bürokratisch. 'Am selben Tag' ergänzt eine nicht belegte Terminangabe, zudem wird freie Terminwahl vorausgesetzt."
+    },
+    {
+      "id": "T14",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Zielgruppe und fehlende Voraussetzung von Vorkenntnissen sind ausdrücklich genannt. 'Fiktive Veranstaltung' und die passive Formulierung wirken wenig einladend; der Informationsaufruf steht doppelt in Body und CTA."
+    },
+    {
+      "id": "T14",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 3,
+      "briefAdherence": 4,
+      "note": "Zugewandte Du-Ansprache, Einsteigerinnen und fehlende Vorkenntnisse sind klar. 'Fiktive Veranstaltung' stört; die Headline legt ohne Vorgabe einen Abendtermin fest."
+    },
+    {
+      "id": "T15",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Natürlich und persönlich formuliert. Nachricht ist eindeutig der Kontaktweg; keine Telefonnummer, E-Mail-Adresse oder URL erfunden."
+    },
+    {
+      "id": "T15",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Klarer, höflicher Hinweis in stimmiger Sie-Ansprache mit nachvollziehbarem nächsten Schritt. Nachricht als Kontaktweg, keine erfundenen Kontaktdaten."
+    },
+    {
+      "id": "T16",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 5,
+      "briefAdherence": 4,
+      "note": "Klare, höfliche Absage mit korrektem Datum und 'entfällt'. Es wird kein Ersatzdatum genannt; 'es gibt noch keinen Ersatztermin' behauptet jedoch mehr als verlangt, und die spätere Information wird zusätzlich zugesagt."
+    },
+    {
+      "id": "T16",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 4,
+      "briefAdherence": 5,
+      "note": "Absage, Datum und 'entfällt' sind eindeutig, kein Ersatztermin wird genannt. 'Nennen wir aktuell noch nicht' klingt zurückhaltend bis abweisend; 'Verstanden' ist als CTA recht kühl."
+    },
+    {
+      "id": "T17",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Natürlich und deutlich gekürzt. Samstag und Kennenlernen stehen in der Headline, die entspannte Gesprächsatmosphäre bleibt im Body erhalten."
+    },
+    {
+      "id": "T17",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 4,
+      "briefAdherence": 4,
+      "note": "Natürlich formuliert und inhaltlich nah an der Vorlage. Die Kürzung des Bodys fällt gering aus; Samstag wird über alle drei Felder unnötig wiederholt."
+    },
+    {
+      "id": "T18",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 2,
+      "briefAdherence": 5,
+      "note": "'Fragen willkommen' ist vorhanden, die Überschrift steht nicht in Versalien. 'deine story-einladung' missachtet die übliche Substantivschreibung; 'fiktive Einladung' und die Benennung der Textsorte wirken wie ein Entwurf."
+    },
+    {
+      "id": "T18",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 5,
+      "briefAdherence": 5,
+      "note": "Kurze, natürliche Story-Einladung mit passendem CTA. 'Fragen willkommen' ist exakt enthalten, die Überschrift normal geschrieben."
+    },
+    {
+      "id": "T19",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Sachlich, mit korrekter Marke und Datum sowie ohne verbotene Elemente. 'Fiktive proWIN-Veranstaltung' ist eine unpassende Testkennzeichnung; 'proWIN-Veranstaltung' wäre auch in der Headline sauberer."
+    },
+    {
+      "id": "T19",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 2,
+      "briefAdherence": 4,
+      "note": "'Sachlicher Hinweis auf eine fiktive ... Veranstaltung' beschreibt den Schreibauftrag statt direkt zu informieren; auch 'separater Hinweis' wirkt bürokratisch. Marke, Datum und Verbote stimmen; weitere Informationen werden unbelegt zugesagt."
+    },
+    {
+      "id": "T20",
+      "policy": "policy/prowin-text-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Ort, Datum und Uhrzeit sind vollständig und eindeutig. 'Fiktiver Austausch' muss aus dem Kundentext entfernt werden; der CTA 'Am 25. November' bleibt ohne Handlung."
+    },
+    {
+      "id": "T20",
+      "policy": "policy/prowin-layout-gen",
+      "languageQuality": 3,
+      "briefAdherence": 5,
+      "note": "Alle Fakten bleiben erhalten, Einladung und CTA sind freundlich und klar. 'Fiktiver Austausch' ist eine störende Testkennzeichnung im ansonsten gut verwendbaren Text."
+    }
+  ]
+}

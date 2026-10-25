@@ -9,7 +9,6 @@ import { Note } from './ui/note'
 import { Tooltip } from './ui/tooltip'
 import { DoopMark } from './Logo'
 import { ArrowUpIcon, AttachmentIcon, FrameIcon, XIcon } from './ui/icons'
-import { ModelPicker } from './ModelPicker'
 import { LayerKindIcon } from './LayerKindIcon'
 import { buildLayerTree, findLayer, layerName } from '../lib/layers'
 import type { CardScope } from '../../shared/types'
@@ -117,11 +116,11 @@ async function sendPrompt(args: {
      against the server first, since the cached allowance can be stale
      (an account connected in another tab). The server enforces either
      way, so an unreachable check just falls through. Text stays in place. */
-  if (allowance && !allowance.byoModel && allowance.used >= allowance.limit) {
+  if (allowance && !allowance.localAgent && allowance.used >= allowance.limit) {
     setSend({ canvasId, status: 'busy' })
     const fresh = await api.agentAllowance().catch(() => null)
     setSend(null)
-    if (fresh && !fresh.byoModel && fresh.used >= fresh.limit) {
+    if (fresh && !fresh.localAgent && fresh.used >= fresh.limit) {
       store.setLimitWall(true)
       return
     }
@@ -392,7 +391,6 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
             <AttachmentIcon className="size-3.5" />
           </Button>
           <span className="flex-1" />
-          <ModelPicker disabled={busy} />
           {/* the meter rides on the send button; a disabled button takes no
               pointer events, so the span under it is what the tooltip hangs on */}
           <Tooltip label={meterText(allowance) ?? 'Send (Enter)'} side="top" align="end">

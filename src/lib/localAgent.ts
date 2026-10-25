@@ -32,10 +32,14 @@ export const useLocalAgent = create<{
 
 export async function refreshLocalAgent(userId: string) {
   const [preference, native] = await Promise.all([
-    api.localAgent(),
+    api.localAgent().then((preference) => {
+      // Server routing must remain visible even if native status fails or hangs.
+      useLocalAgent.setState({ preference })
+      return preference
+    }),
     hasLocalClaude() ? invokeClaude<NativeStatus>('claude_status', { userId }) : Promise.resolve(null),
   ])
-  useLocalAgent.setState({ preference, native })
+  useLocalAgent.setState({ native })
   return { preference, native }
 }
 

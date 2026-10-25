@@ -1,52 +1,17 @@
 import { env } from './env.ts'
-import { randomUUID } from 'node:crypto'
 import sharp from 'sharp'
-import { getAccount, withFreshToken } from './modelAccounts.ts'
-import type { ModelAccount } from './modelAccounts.ts'
 import { getImagePref } from './imagePrefs.ts'
 import { IMAGE_MODELS } from '../shared/modelMenu.ts'
 import type { ImageModelOption } from '../shared/modelMenu.ts'
-import {
-  CHATGPT_URL,
-  DEFAULT_OPENAI_MODEL,
-  ModelAuthError,
-  modelFor,
-  OPENAI_URL,
-  ORIGINATOR,
-  readEventStream,
-  responseError,
-} from './openaiAgent.ts'
+import { ModelAuthError, OPENAI_URL, readEventStream, responseError } from './openaiAgent.ts'
 
-/**
- * AI image generation for design agents (the generate_image tool, MCP and
- * resident). Powers the same "make me a hero illustration" moment Paper's
- * paper-gen:// URLs do, but as a tool call that returns a stored asset.
- *
- * There is no image model of our own: the user picks one from the shared
- * IMAGE_MODELS registry in Settings (else the server default), and each
- * entry's provider names the credentials that can run it:
- *
- *  - `openai` (GPT Image) rides the Responses API's hosted `image_generation`
- *    tool — a connected ChatGPT subscription through the Codex backend (the
- *    same request the Codex CLI's $imagegen skill makes) or an OpenAI key,
- *    else the server's OPENAI_API_KEY;
- *  - `gemini` (Nano Banana) calls generateContent with image output — a
- *    connected Gemini key, else the server's GEMINI_API_KEY;
- *  - `ark` (Seedream, BytePlus ModelArk) — server-only via ARK_API_KEY; there
- *    is no ByteDance BYO account.
- *
- * Whoever pays for the agent run pays for its images; nobody's subscription
- * ever draws for someone else, and an unavailable choice refuses with the fix
- * rather than quietly billing a different key.
- *
- * The Codex path is Codex's current app behaviour, not a published contract:
- * keep every request detail in this one module so a change upstream is a
- * local fix.
- */
+/** Image generation uses only operator-configured server credentials.
+ * Per-user image preferences select an available model, never a private key.
+ * The planned Magnific migration is separate from BYO-account removal. */
 
 /* the registry entry used when a user never picked one */
 const DEFAULT_IMAGE_MODEL = env.DOOP_IMAGE_MODEL
-/* the text model that fronts OpenAI's hosted tool; unset = the account's own tier */
+/* text model for the server's hosted image tool */
 const ROUTER_MODEL = env.DOOP_IMAGE_ROUTER_MODEL
 const FETCH_TIMEOUT_MS = 5 * 60 * 1000
 const PREVIEW_PX = 512
@@ -77,7 +42,7 @@ export interface GeneratedImage {
   height: number
   /** a small preview the agent can look at without paying for the full image */
   preview: { data: string; mime: 'image/jpeg' }
-  /** who paid: "ChatGPT", "OpenAI", "Gemini", or "server" */
+  /** who paid: "server" */
   billedTo: string
 }
 
@@ -153,28 +118,6 @@ async function generateViaResponses(url: string, headers: Record<string, string>
   }
   if (!call.result) throw new Error(`${label} image generation ended with status "${call.status ?? 'unknown'}"`)
   return Buffer.from(call.result, 'base64')
-}
-
-function chatgptGenerator(account: ModelAccount, imageModel: string): Generator {
-  return {
-    ok: true,
-    label: 'ChatGPT',
-    run: async (req) => {
-      const live = await withFreshToken(account)
-      return generateViaResponses(
-        CHATGPT_URL,
-        {
-          Authorization: `Bearer ${live.accessToken}`,
-          'OpenAI-Beta': 'responses=experimental',
-          originator: ORIGINATOR,
-          session_id: randomUUID(),
-          ...(live.accountId ? { 'chatgpt-account-id': live.accountId } : {}),
-        },
-        'ChatGPT',
-        requestBody(ROUTER_MODEL || modelFor(live), imageModel, req),
-      )
-    },
-  }
 }
 
 function apiKeyGenerator(apiKey: string, label: string, routerModel: string, imageModel: string): Generator {
@@ -311,19 +254,13 @@ function arkGenerator(apiKey: string, label: string, model: string): Generator {
 /* ---------------------------------------------------------------- */
 
 const NO_GENERATOR =
-  'image generation is not available: connect a ChatGPT subscription or an OpenAI or Gemini API key in Settings (or the server operator sets OPENAI_API_KEY, GEMINI_API_KEY or ARK_API_KEY). Meanwhile draw the visual as inline SVG/CSS or use search_images.'
+  'image generation is not configured on this server. Contact the administrator. Meanwhile draw the visual as inline SVG/CSS or use search_images.'
 
-/* A connected account pays for its own provider's models and nothing else:
-   the server keys only ever cover users who connected nothing — with one
-   deliberate exception, Seedream, which has no BYO path at all, so setting
-   ARK_API_KEY is the operator opting into paying for it. */
-function available(option: ImageModelOption, account: ModelAccount | null): boolean {
+function available(option: ImageModelOption): boolean {
   switch (option.provider) {
     case 'openai':
-      if (account) return account.kind === 'chatgpt' || (account.kind === 'openai-key' && Boolean(account.apiKey))
       return Boolean(env.OPENAI_API_KEY)
     case 'gemini':
-      if (account) return account.kind === 'gemini-key' && Boolean(account.apiKey)
       return Boolean(env.GEMINI_API_KEY)
     case 'ark':
       return Boolean(env.ARK_API_KEY)
@@ -334,11 +271,10 @@ function available(option: ImageModelOption, account: ModelAccount | null): bool
 export async function imageModelAvailability(
   payerId?: string,
 ): Promise<{ id: string; available: boolean; selected: boolean }[]> {
-  const account = payerId ? await getAccount(payerId).catch(() => null) : null
-  const chosen = await chosenImageModel(payerId, account)
+  const chosen = await chosenImageModel(payerId)
   return IMAGE_MODELS.map((option) => ({
     id: option.id,
-    available: available(option, account),
+    available: available(option),
     selected: chosen?.id === option.id,
   }))
 }
@@ -347,10 +283,7 @@ let warnedDefault = false
 
 /** The model a run will draw with: the user's pick, else the server default,
  *  else the first entry their credentials can run. */
-async function chosenImageModel(
-  payerId: string | undefined,
-  account: ModelAccount | null,
-): Promise<ImageModelOption | null> {
+async function chosenImageModel(payerId: string | undefined): Promise<ImageModelOption | null> {
   const pref = payerId ? await getImagePref(payerId) : undefined
   if (pref) {
     const option = IMAGE_MODELS.find((entry) => entry.id === pref)
@@ -363,31 +296,26 @@ async function chosenImageModel(
       `[image-gen] DOOP_IMAGE_MODEL="${DEFAULT_IMAGE_MODEL}" is not on the image-model registry — ignoring it`,
     )
   }
-  if (fallback && available(fallback, account)) return fallback
-  return IMAGE_MODELS.find((entry) => available(entry, account)) ?? fallback ?? null
+  if (fallback && available(fallback)) return fallback
+  return IMAGE_MODELS.find((entry) => available(entry)) ?? fallback ?? null
 }
 
-function providerGenerator(option: ImageModelOption, account: ModelAccount | null): Generator {
+function providerGenerator(option: ImageModelOption): Generator {
   switch (option.provider) {
     case 'openai': {
-      if (account?.kind === 'chatgpt') return chatgptGenerator(account, option.id)
-      if (account?.kind === 'openai-key' && account.apiKey) {
-        return apiKeyGenerator(account.apiKey, 'OpenAI', ROUTER_MODEL || modelFor(account), option.id)
-      }
-      const serverKey = account ? undefined : env.OPENAI_API_KEY
-      if (serverKey) return apiKeyGenerator(serverKey, 'server', ROUTER_MODEL || DEFAULT_OPENAI_MODEL, option.id)
+      const serverKey = env.OPENAI_API_KEY
+      if (serverKey) return apiKeyGenerator(serverKey, 'server', ROUTER_MODEL, option.id)
       return {
         ok: false,
-        reason: `${option.name} is not available: connect a ChatGPT subscription or OpenAI API key in Settings, or pick another image model there. Meanwhile draw the visual as inline SVG/CSS or use search_images.`,
+        reason: `${option.name} is not available: contact the administrator or pick another configured image model in Settings. Meanwhile draw the visual as inline SVG/CSS or use search_images.`,
       }
     }
     case 'gemini': {
-      if (account?.kind === 'gemini-key' && account.apiKey) return geminiGenerator(account.apiKey, 'Gemini', option.id)
-      const serverKey = account ? undefined : env.GEMINI_API_KEY
+      const serverKey = env.GEMINI_API_KEY
       if (serverKey) return geminiGenerator(serverKey, 'server', option.id)
       return {
         ok: false,
-        reason: `${option.name} is not available: connect a Gemini API key in Settings, or pick another image model there. Meanwhile draw the visual as inline SVG/CSS or use search_images.`,
+        reason: `${option.name} is not available: contact the administrator or pick another configured image model in Settings. Meanwhile draw the visual as inline SVG/CSS or use search_images.`,
       }
     }
     case 'ark': {
@@ -403,22 +331,14 @@ function providerGenerator(option: ImageModelOption, account: ModelAccount | nul
 
 /**
  * The generator for one payer: the image model they picked (else the server
- * default), on their own credentials first, else the matching server key.
+ * default), on the matching operator-configured server key.
  * An explicit pick that cannot run refuses with the fix — it never quietly
  * swaps in a different model or bills a key the user did not choose.
  */
 export async function generatorFor(payerId?: string): Promise<Generator> {
-  /* a lookup failure must not read as "no account": that would quietly move
-     the charge from the user's own account onto the server key */
-  const account = payerId
-    ? await getAccount(payerId).catch((err) => {
-        console.error('[image-gen] could not read the connected model account', err)
-        throw new Error('could not read your connected model account — try again in a moment')
-      })
-    : null
-  const option = await chosenImageModel(payerId, account)
+  const option = await chosenImageModel(payerId)
   if (!option) return { ok: false, reason: NO_GENERATOR }
-  return providerGenerator(option, account)
+  return providerGenerator(option)
 }
 
 /* ---------------------------------------------------------------- */

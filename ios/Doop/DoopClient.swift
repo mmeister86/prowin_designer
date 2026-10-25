@@ -43,7 +43,7 @@ final class DoopClient {
         guard (200..<300).contains(http.statusCode) else {
             let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
             let detail = payload?["message"] as? String ?? payload?["error"] as? String
-            let message = detail == "resident_limit" ? "Your agent allowance is used up. Connect a model account in Doop’s account settings." : detail
+            let message = detail == "resident_limit" ? "Your agent allowance is used up. Contact your administrator." : detail
             throw APIError(status: http.statusCode, message: message ?? "Request failed (\(http.statusCode)).")
         }
         return data

@@ -1,0 +1,23 @@
+{
+  "retrievedAt": "2026-10-24T19:16:46.484Z",
+  "endpoint": "https://router.eu.requesty.ai/v1/chat/completions",
+  "requestedModel": "policy/prowin-text-gen",
+  "status": 200,
+  "elapsedMs": 952,
+  "resolvedModel": "azure/gpt-5.4@germanywestcentral",
+  "usage": {
+    "completion_tokens": 7,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 15,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "caching_tokens": 0
+    },
+    "total_tokens": 22,
+    "cost": 0.00015675
+  },
+  "content": "EU-Test erfolgreich",
+  "finishReason": "stop"
+}

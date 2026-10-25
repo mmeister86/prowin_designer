@@ -2,14 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type Anthropic from '@anthropic-ai/sdk'
 import {
   _internal,
-  AGENT_MODELS,
   azureResponsesUrl,
-  isKnownModel,
   ModelUnavailableError,
   responseError,
   runAzureTurn,
 } from '../server/openaiAgent.ts'
-import { parseAuthCode } from '../server/modelAccounts.ts'
 
 /**
  * The Doop Agent loop is written against Anthropic's message shape. When a run
@@ -153,30 +150,7 @@ describe('OpenAI Responses output -> Anthropic blocks', () => {
   })
 })
 
-describe('model menu', () => {
-  afterEach(() => {
-    vi.unstubAllEnvs()
-    vi.resetModules()
-  })
-
-  it('offers GPT-6 Astra above the GPT-5.6 tiers', () => {
-    expect(AGENT_MODELS.map((model) => model.id)).toEqual([
-      'gpt-6-astra',
-      'gpt-5.6-sol',
-      'gpt-5.6-terra',
-      'gpt-5.6-luna',
-    ])
-    expect(isKnownModel('gpt-6-astra')).toBe(true)
-    expect(isKnownModel('gpt-6')).toBe(false)
-  })
-
-  it('defaults to Terra when no override is set, whatever this shell exports', async () => {
-    vi.stubEnv('DOOP_AGENT_OPENAI_MODEL', '')
-    vi.resetModules()
-    const fresh = await import('../server/openaiAgent.ts')
-    expect(fresh.DEFAULT_OPENAI_MODEL).toBe('gpt-5.6-terra')
-  })
-
+describe('response errors', () => {
   it('tells a model the account cannot run apart from a dead credential', async () => {
     const noAccess = await responseError(
       new Response(
@@ -201,29 +175,6 @@ describe('model menu', () => {
 
     const denied = await responseError(new Response('denied', { status: 401 }), 'OpenAI')
     expect(denied).not.toBeInstanceOf(ModelUnavailableError)
-  })
-})
-
-describe('ChatGPT redirect parsing', () => {
-  it('accepts the whole pasted redirect URL', () => {
-    expect(parseAuthCode('http://localhost:1455/auth/callback?code=abc123&state=xyz')).toEqual({
-      code: 'abc123',
-      state: 'xyz',
-    })
-  })
-
-  it('accepts a bare code', () => {
-    expect(parseAuthCode('  abc123 ')).toEqual({ code: 'abc123' })
-  })
-
-  it('reports OpenAI refusing the connection', () => {
-    expect(() =>
-      parseAuthCode('http://localhost:1455/auth/callback?error=access_denied&error_description=User+said+no'),
-    ).toThrow(/User said no/)
-  })
-
-  it('rejects a redirect URL with no code', () => {
-    expect(() => parseAuthCode('http://localhost:1455/auth/callback')).toThrow(/no \?code=/)
   })
 })
 

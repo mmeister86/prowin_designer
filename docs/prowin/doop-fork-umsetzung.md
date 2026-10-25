@@ -109,6 +109,11 @@ Erreichbar per Tailscale vom Mac aus (`http://devbox:4300`). PGlite reicht lokal
 
 ### 5.1 Deaktivieren ohne Code (`.env`)
 
+**Historischer Phase-0-Plan:** Die folgende Tabelle beschreibt den Stand vor den
+Entfernungen. Die alten Integrationsvariablen sind keine aktuelle Konfigurationsanleitung.
+TASK-3–18 haben die beschlossenen Pfade entfernt beziehungsweise gemäß TASK-12
+fest deaktiviert. Der aktuelle M1-Prüfstand steht in der [Abnahmematrix](m1-abnahme.md).
+
 Die meisten Integrationen sind aus, solange ihre Variablen **nicht gesetzt** sind. Für die Devbox gilt deshalb: nur das Nötige setzen.
 
 | Feature                    | Aus, wenn …                                                                      |
@@ -134,26 +139,30 @@ UI-Einträge, Routen und MCP-Tools bleiben trotzdem sichtbar. Das räumt Phase 1
 
 **Vorgehen pro Feature:** eigener Branch, löschen, `bun run typecheck` + Tests, ein Commit pro Feature (`chore(prowin): remove <feature>`). So bleibt jeder Schritt einzeln revertierbar und der Upstream-Merge nachvollziehbar.
 
-| Feature                                 | Server                                                                                              | Client / Sonstiges                                 | Hinweise                                                                     |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |
-| **Linear**                              | `server/linear/`                                                                                    | Settings-Einträge                                  | Aus `extensions` in `server/extensions.ts` austragen                         |
-| **Slack**                               | `server/slack/`                                                                                     | Settings-Einträge                                  | wie Linear                                                                   |
-| **GitHub-App**                          | `githubApp.ts`, `github.ts`, `githubRecon.ts`, Tabelle `github_connections`                         | Import-Quelle „GitHub repo“ in `ImportSources.tsx` | Migration für die Tabelle                                                    |
-| **Gemini Cloud**                        | `geminiCloudRuns.ts`, `geminiCloudWorker*.ts`, `geminiCloudMcp.ts`, `shared/geminiCloud.ts`         | `workers/gemini/`                                  | Zweig in `pickModel()` (`agentModel.ts`) entfernen                           |
-| **ChatGPT-Plugin/App**                  | `chatgptApp.ts`                                                                                     | `chatgpt-plugin/`                                  |                                                                              |
-| **BYO-Modellkonten**                    | `modelAccounts.ts` (Kinds `chatgpt`, `openai-key`, `anthropic-key`, `openrouter-key`, `gemini-key`) | `ModelAccount.tsx`                                 | Siehe § 7.3. Erst ausblenden, später entfernen                               |
-| **Design Sync**                         | `ingest.ts`, Tabellen `sync_*`                                                                      | `public/doop-sync.js`, Import-Quelle „Live app“    |                                                                              |
-| **Webseiten-Import**                    | `importer.ts`, `webpageImport.ts`, `contextDev.ts`                                                  | Import-Quelle „Website“                            | Prüfen, ob `cssPrune.ts` noch anderweitig genutzt wird                       |
-| **Website-Publishing / -Viewer**        | `website.ts`, `websiteAccess.ts`, MCP-Tool `view_website`                                           |                                                    |                                                                              |
-| **SSO/OIDC + Microsoft**                | OIDC-/Microsoft-Teile in `auth.ts`, `env.ts`                                                        | Login-Buttons; iOS liest `/api/oidc-config`        | Google + Apple bleiben (Apple ist Store-Pflicht, wenn Google angeboten wird) |
-| _Vorschlag:_ **Meta Ads**               | `meta.ts`, Pull-Provider in `shared/automations.ts`                                                 |                                                    | Nicht auf deiner Liste, aber eine Fremd-Integration ohne Nutzen              |
-| _Vorschlag:_ **Refero-Inspiration**     | `inspiration.ts`, Tool `search_inspiration`                                                         |                                                    | Externe Fremd-Designs. Ersetzen durch proWIN-Referenzframes (§ 8)            |
-| _Vorschlag:_ **Hintergrund-Bibliothek** | `backgrounds.ts`                                                                                    |                                                    | Zieht per `BACKGROUNDS_ORIGIN` Bilder von doop.design → § 7.5                |
-| **PostHog**                             | `analytics.ts`                                                                                      | `posthog-js` in ca. 10 Komponenten                 | Ersatz → § 12                                                                |
+| Feature                                 | Server                                                                                      | Client / Sonstiges                                     | Hinweise                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| **Linear**                              | `server/linear/`                                                                            | Settings-Einträge                                      | Aus `extensions` in `server/extensions.ts` austragen                         |
+| **Slack**                               | `server/slack/`                                                                             | Settings-Einträge                                      | wie Linear                                                                   |
+| **GitHub-App**                          | `githubApp.ts`, `github.ts`, `githubRecon.ts`, Tabelle `github_connections`                 | Import-Quelle „GitHub repo“ in `ImportSources.tsx`     | Migration für die Tabelle                                                    |
+| **Gemini Cloud**                        | `geminiCloudRuns.ts`, `geminiCloudWorker*.ts`, `geminiCloudMcp.ts`, `shared/geminiCloud.ts` | `workers/gemini/`                                      | Zweig in `pickModel()` (`agentModel.ts`) entfernen                           |
+| **ChatGPT-Plugin/App**                  | `chatgptApp.ts`                                                                             | `chatgpt-plugin/`                                      |                                                                              |
+| **BYO-Modellkonten**                    | TASK-18: entfernt; Alt-API liefert 410; Migration 0039 löscht Credentials                   | `AgentExecutionPanel.tsx` erhält Server-/Local-Auswahl | Siehe § 7.3 und [Migrationshinweise](model-account-removal.md)               |
+| **Design Sync**                         | `ingest.ts`, Tabellen `sync_*`                                                              | `public/doop-sync.js`, Import-Quelle „Live app“        |                                                                              |
+| **Webseiten-Import**                    | `importer.ts`, `webpageImport.ts`, `contextDev.ts`                                          | Import-Quelle „Website“                                | Prüfen, ob `cssPrune.ts` noch anderweitig genutzt wird                       |
+| **Website-Publishing / -Viewer**        | `website.ts`, `websiteAccess.ts`, MCP-Tool `view_website`                                   |                                                        |                                                                              |
+| **SSO/OIDC + Microsoft**                | OIDC-/Microsoft-Teile in `auth.ts`, `env.ts`                                                | Login-Buttons; iOS liest `/api/oidc-config`            | Google + Apple bleiben (Apple ist Store-Pflicht, wenn Google angeboten wird) |
+| _Vorschlag:_ **Meta Ads**               | `meta.ts`, Pull-Provider in `shared/automations.ts`                                         |                                                        | Nicht auf deiner Liste, aber eine Fremd-Integration ohne Nutzen              |
+| _Vorschlag:_ **Refero-Inspiration**     | `inspiration.ts`, Tool `search_inspiration`                                                 |                                                        | Externe Fremd-Designs. Ersetzen durch proWIN-Referenzframes (§ 8)            |
+| _Vorschlag:_ **Hintergrund-Bibliothek** | `backgrounds.ts`                                                                            |                                                        | Zieht per `BACKGROUNDS_ORIGIN` Bilder von doop.design → § 7.5                |
+| **PostHog**                             | `analytics.ts`                                                                              | `posthog-js` in ca. 10 Komponenten                     | Ersatz → § 12                                                                |
 
 **Behalten:** Local Agent (`localAgent*.ts`, `LocalClaude.tsx`), Desktop (`desktop/`), iOS (`ios/`), Live Activities/APNs (gehört zu iOS), Webhooks, Workspaces, Community-Gallery (wird Marketplace, Lückenliste → R5.2), Design Memory, MCP-Server, Pexels-Suche (optional, nur mit Key).
 
 **Offen:** Automations (geplante Workflows). Ohne Meta bleiben nur Agent-Task-Schritte. Vorerst UI ausblenden, später entscheiden (→ Q6).
+
+**Aktueller Abnahmestand:** [TASK-19: M1-Abnahmematrix](m1-abnahme.md) dokumentiert
+Entfernungen, die beschlossenen TASK-12-Ausnahmen, erhaltene Kernfunktionen und Testgrenzen.
+Die Automations-Entscheidung ist durch TASK-12 als vorläufige Deaktivierung getroffen.
 
 ---
 
@@ -220,28 +229,28 @@ const serverTiers: Record<ServerProvider, () => AgentModel | null> = {
 }
 ```
 
-- `DOOP_AGENT_MODEL` zeigt auf eine **Requesty Routing Policy**. Die bisherige Spec nutzt das Format `policy/<name>` (→ R4.3). Vor Gebrauch gegen die Requesty-Doku prüfen.
-- **Neue Policy `prowin-design-agent`:** Der Agent-Loop braucht zuverlässiges **Tool-Calling** und **Vision** (er prüft seine eigenen Screenshots). Startpunkt ist die Kette von `prowin-layout-gen` (Mistral Medium → Claude Sonnet 4.6 → GPT-4.1, → R4.3), mit Vision-fähigen Modellen vorn. Benchmark-Kriterien → Q2.
+- `DOOP_AGENT_MODEL` zeigt auf eine **Requesty Routing Policy** im bestätigten Format `policy/<name>` (TASK-15, [Prüfprotokoll](requesty-pruefung.md)). Die bestehenden `policy/prowin-text-gen` und `policy/prowin-layout-gen` wurden authentifiziert aufgerufen.
+- **Agent-Policy:** Der Agent-Loop braucht zuverlässiges **Tool-Calling** und **Vision** (er prüft seine eigenen Screenshots). Die vorhandene `policy/prowin-layout-gen` ist der Integrationskandidat; ihre vollständige Fallback-Kette bleibt zu bestätigen (→ R4.3). `prowin-design-agent` im obigen Codebeispiel ist ein unbestätigter Platzhalter, keine vorhandene oder freigegebene Policy. Die frühere Mistral-/Sonnet-4.6-/GPT-4.1-Kette ist überholt. Benchmark-Kriterien → Q2.
 - `joinSystem()` existiert bereits in `agentModel.ts`. Es flacht die System-Blöcke zu einem String ab, wie es der OpenRouter-Pfad in `byoModel()` auch tut.
 
 ### 7.3 Free-Tier-Meter und BYO-Konten
 
-`RESIDENT_TASK_LIMIT` ist standardmäßig **0**. Ohne BYO-Konto läuft der Agent dann für niemanden. Weil BYO-Konten wegfallen, muss der Meter umgedeutet werden:
+`RESIDENT_TASK_LIMIT` ist standardmäßig **0** und deaktiviert serverbezahlte Aufgaben. **TASK-18 umgesetzt (24.10.2026):** BYO-Konten entfallen vollständig; ausschließlich aktuell berechtigter Local-Agent-Opt-in von Creator/Admins hebt den Server-Aufgabenzähler auf. Alte Local-Präferenzen nach Rollenentzug umgehen den Zähler nicht und blockieren die reguläre Serverauswahl nicht.
 
 - **Test:** `RESIDENT_TASK_LIMIT` hoch setzen (z. B. `1000`) und das Budget-Limit **in Requesty** konfigurieren. Das ist die eigentliche Kostenbremse.
 - **Später:** Meter pro Workspace/Monat statt pro Konto, gekoppelt an den Stripe-Plan (`allowance.ts`, `TeamAllowance.tsx`). Die Limit-Vorschläge der bisherigen Spec sind der Ausgangspunkt (→ R4.5). Die Tarife bleiben bis zur Klärung mit der Vertriebsleitung eingefroren (→ R1.9).
-- BYO-Konten (ChatGPT, OpenAI, Anthropic, OpenRouter, Gemini) **ausblenden**: Daten der Beraterinnen sollen nicht über private US-Konten laufen, und weniger Einstellungen bedeuten weniger Komplexität.
+- BYO-Konten (ChatGPT, OpenAI, Anthropic, OpenRouter, Gemini) sind aus UI, APIs und Text-/Bildinferenz entfernt. Alt-Endpunkte liefern authentifiziert JSON mit 410; Migration 0039 entfernt gespeicherte Zugänge. [Upgrade und Grenzen](model-account-removal.md).
 - **Local Agent bleibt**, aber nur für Creator/Admins sichtbar. Wer ihn nutzt, schickt Canvas-Inhalte über das _eigene_ Claude-Konto. Das ist für das Team okay, für Beraterinnen nicht.
 
 ### 7.4 Distiller → Requesty (Fund 2)
 
-`server/distill.ts` erzeugt `new Anthropic()` und ruft `anthropic.messages.create` an zwei Stellen auf (Zusammenfassung von Entscheidungen, Distill mit `DISTILL_TOOL`). Aktiv ist das, sobald `ANTHROPIC_API_KEY` gesetzt ist, **unabhängig** vom Agent-Provider.
+Der ursprüngliche `server/distill.ts` rief Anthropic an zwei Stellen direkt auf, unabhängig vom Agent-Provider. **TASK-17 umgesetzt (24.10.2026):** Zusammenfassung und Regelprüfung verwenden jetzt Requesty EU mit `DOOP_DISTILL_MODEL=policy/prowin-text-gen`, Vision aus und Aktivierung ausschließlich durch `REQUESTY_API_KEY`. Der Distill-Aufruf erzwingt das benannte Tool; ungültige oder unvollständige Antworten verbrauchen keine Evidenz. Details und Testgrenzen: [Requesty-Server](requesty-server.md#memory-distiller-und-verbleibendes-bild-tagging-task-17).
 
 **Umbau:** Weil `runChatCompletionsTurn` bereits Anthropic-förmige Messages und Tools annimmt, ist der Eingriff klein:
 
 ```ts
 // server/distill.ts — replace the Anthropic client
-const config = () => requestyConfig(env.DOOP_DISTILL_MODEL ?? 'policy/prowin-text-gen', false)
+const config = () => requestyConfig(env.DOOP_DISTILL_MODEL, false) // Default in env.ts: policy/prowin-text-gen
 
 async function complete(system: string, messages: Anthropic.MessageParam[], tools: Anthropic.Tool[] = []) {
   const cfg = config()
@@ -256,12 +265,12 @@ async function complete(system: string, messages: Anthropic.MessageParam[], tool
 
 ### 7.5 Weitere direkte Modell-Aufrufe
 
-| Datei               | Was                                                       | Maßnahme                                                                                                                                              |
-| ------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `backgrounds.ts`    | Bild-Tagging mit `claude-opus-5` über `ANTHROPIC_API_KEY` | Auf `requestyConfig(..., true)` umstellen oder die Bibliothek ganz entfernen                                                                          |
-| `backgrounds.ts`    | `BACKGROUNDS_ORIGIN` lädt Bilder **von doop.design**      | Nicht setzen. Eigene proWIN-Bildbibliothek oder Feature entfernen. Sonst lädt der Browser der Beraterin Bilder von einem Fremdserver (IP-Übertragung) |
-| `imageGen.ts`       | OpenAI/Gemini/Ark für Bilder                              | → Magnific (§ 10)                                                                                                                                     |
-| `localAgentRuns.ts` | Claude lokal                                              | bleibt (§ 7.3)                                                                                                                                        |
+| Datei               | Was                                                  | Maßnahme                                                                                                                                              |
+| ------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backgrounds.ts`    | Verbleibendes Bild-Tagging                           | TASK-17: `requestyConfig(env.DOOP_AGENT_MODEL, true)` mit JSON-Schema; Bibliothek bleibt gemäß TASK-12 deaktiviert                                    |
+| `backgrounds.ts`    | `BACKGROUNDS_ORIGIN` lädt Bilder **von doop.design** | Nicht setzen. Eigene proWIN-Bildbibliothek oder Feature entfernen. Sonst lädt der Browser der Beraterin Bilder von einem Fremdserver (IP-Übertragung) |
+| `imageGen.ts`       | OpenAI/Gemini/Ark für Bilder                         | → Magnific (§ 10)                                                                                                                                     |
+| `localAgentRuns.ts` | Claude lokal                                         | bleibt (§ 7.3)                                                                                                                                        |
 
 ### 7.6 DSGVO-Leitplanken (technisch erzwungen)
 
@@ -543,19 +552,19 @@ doop entwickelt sich schnell (Server ca. 27 k Zeilen TS). Damit Upstream-Fixes �
 
 ## 17. Offene Fragen
 
-| #   | Frage                                                                   | Optionen                                                                                                       | Empfehlung                                                                                                              | Status                   |
-| --- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Q1  | Agent-Loop vs. Workflow-Entscheidung (Okt 2026: „Workflow statt Agent“) | A) doop-Agent wie er ist, B) zusätzlich ein One-Shot-Generierungspfad                                          | **A für den Test**, Kosten/Latenz messen, danach entscheiden                                                            | offen                    |
-| Q2  | Welche Modelle in `prowin-design-agent`?                                | Kette von `prowin-layout-gen` als Start, Vision-Modelle vorn (→ R4.3)                                          | Benchmark: 10 Briefs, Tool-Call-Fehlerrate, Kosten pro Design. Den geplanten 20-Prompt-Textbenchmark (→ R4.3) mitnehmen | offen                    |
-| Q3  | iOS-Verteilung unter AGPL (App Store/TestFlight)                        | A) kommerzielle Lizenz/Freigabe vom Maintainer, B) nur Web/Desktop                                             | Maintainer früh kontaktieren                                                                                            | offen                    |
-| Q4  | Wer ist Creator?                                                        | Instanz-Admin bleibt Matthias; Creator-Selbstregistrierung plus separate Workspace-Rollen Owner/Creator/Member | Beschlossen und umgesetzt in TASK-14, [Details](rollen-berechtigungen.md)                                               | entschieden (24.10.2026) |
-| Q5  | Kann die Magnific-API ein Brand Kit nutzen?                             | ja / nein → Prompt-Fallback                                                                                    | Mit Test-Request früh klären                                                                                            | offen                    |
-| Q6  | Automations behalten?                                                   | ausblenden / entfernen / ausbauen                                                                              | ausblenden                                                                                                              | offen                    |
-| Q7  | Frame-CSP mit `null`-Origin                                             | explizite Instanz-Origin, Proxy-Pfad                                                                           | Prototyp in `FRAME_BOOTSTRAP`                                                                                           | offen                    |
-| Q8  | Fonts in Blitz (iOS)                                                    | per URL / im App-Bundle                                                                                        | im Code von `ios/Doop/Blitz` prüfen                                                                                     | offen                    |
-| Q9  | Requesty-Modell-String für Routing Policies                             | `policy/<name>` laut Spec v0.2 (→ R4.3)                                                                        | gegen aktuelle Requesty-Doku prüfen                                                                                     | teilweise geklärt        |
-| Q10 | Personenbezogene Daten und Screenshots an die KI                        | A) Platzhalter vor Agent-Call ersetzen und danach wieder einsetzen, B) Rechtsgrundlage + UI-Hinweis            | A prüfen. Erhält die alte „keine pbD“-Zusage aus dem Pitch (→ R4.6)                                                     | offen                    |
-| Q11 | Reiner Ansichts-Link                                                    | doop kennt nur Mitbearbeiten per Link                                                                          | Für Beraterinnen-Sharing nachrüsten oder bewusst nur Gallery/Export (→ R5.2)                                            | offen                    |
+| #   | Frage                                                                   | Optionen                                                                                                       | Empfehlung                                                                                                              | Status                          |
+| --- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Q1  | Agent-Loop vs. Workflow-Entscheidung (Okt 2026: „Workflow statt Agent“) | A) doop-Agent wie er ist, B) zusätzlich ein One-Shot-Generierungspfad                                          | **A für den Test**, Kosten/Latenz messen, danach entscheiden                                                            | offen                           |
+| Q2  | Welche Modelle in `prowin-design-agent`?                                | Kette von `prowin-layout-gen` als Start, Vision-Modelle vorn (→ R4.3)                                          | Benchmark: 10 Briefs, Tool-Call-Fehlerrate, Kosten pro Design. Den geplanten 20-Prompt-Textbenchmark (→ R4.3) mitnehmen | offen                           |
+| Q3  | iOS-Verteilung unter AGPL (App Store/TestFlight)                        | A) kommerzielle Lizenz/Freigabe vom Maintainer, B) nur Web/Desktop                                             | Maintainer früh kontaktieren                                                                                            | offen                           |
+| Q4  | Wer ist Creator?                                                        | Instanz-Admin bleibt Matthias; Creator-Selbstregistrierung plus separate Workspace-Rollen Owner/Creator/Member | Beschlossen und umgesetzt in TASK-14, [Details](rollen-berechtigungen.md)                                               | entschieden (24.10.2026)        |
+| Q5  | Kann die Magnific-API ein Brand Kit nutzen?                             | ja / nein → Prompt-Fallback                                                                                    | Mit Test-Request früh klären                                                                                            | offen                           |
+| Q6  | Automations behalten?                                                   | ausblenden / entfernen / ausbauen                                                                              | ausblenden                                                                                                              | offen                           |
+| Q7  | Frame-CSP mit `null`-Origin                                             | explizite Instanz-Origin, Proxy-Pfad                                                                           | Prototyp in `FRAME_BOOTSTRAP`                                                                                           | offen                           |
+| Q8  | Fonts in Blitz (iOS)                                                    | per URL / im App-Bundle                                                                                        | im Code von `ios/Doop/Blitz` prüfen                                                                                     | offen                           |
+| Q9  | Requesty-Modell-String für Routing Policies                             | `policy/<name>` laut aktueller Doku und erfolgreichen authentifizierten Aufrufen (→ R4.3)                      | Bestehende Policies verwenden; vollständige Modellketten und EU-Fallbacks weiter prüfen (TASK-15)                       | Syntax verifiziert (24.10.2026) |
+| Q10 | Personenbezogene Daten und Screenshots an die KI                        | A) Platzhalter vor Agent-Call ersetzen und danach wieder einsetzen, B) Rechtsgrundlage + UI-Hinweis            | A prüfen. Erhält die alte „keine pbD“-Zusage aus dem Pitch (→ R4.6)                                                     | offen                           |
+| Q11 | Reiner Ansichts-Link                                                    | doop kennt nur Mitbearbeiten per Link                                                                          | Für Beraterinnen-Sharing nachrüsten oder bewusst nur Gallery/Export (→ R5.2)                                            | offen                           |
 
 ---
 

@@ -283,8 +283,17 @@ async function runAgent(
   actorName: string,
 ): Promise<string> {
   const gate = await allowance.consumeResidentTask(row.ownerId)
-  if (!gate.ok) throw new StepError('no model account connected — the Doop Agent has nothing to run on')
-  const card = actions.addQueuedCard(step.canvasId, step.prompt, actorName, step.roles, undefined, row.ownerId)
+  if (!gate.ok) throw new StepError('server agent task allowance is unavailable')
+  const card = actions.addQueuedCard(
+    step.canvasId,
+    step.prompt,
+    actorName,
+    step.roles,
+    undefined,
+    row.ownerId,
+    undefined,
+    !gate.localAgent,
+  )
   if (!card) {
     await allowance.refundResidentTask(gate, row.ownerId)
     throw new StepError('canvas not found')

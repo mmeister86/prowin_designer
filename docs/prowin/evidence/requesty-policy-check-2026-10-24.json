@@ -1,0 +1,9 @@
+{
+  "retrievedAt": "2026-10-24T19:16:28.930Z",
+  "url": "https://api-v2.requesty.ai/v1/manage/policy",
+  "status": 403,
+  "error": {
+    "origin": "api-v2",
+    "message": "API key does not have permissions"
+  }
+}

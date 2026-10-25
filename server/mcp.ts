@@ -684,15 +684,19 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       let gate: Awaited<ReturnType<typeof allowance.consumeResidentTask>> | undefined
       if (mentionedRole(body) && ownerId) {
         gate = await allowance.consumeResidentTask(ownerId)
-        if (!gate.ok)
-          return err(
-            `resident task limit reached (${gate.used}/${gate.limit}) — connect a model account or retry later`,
-          )
+        if (!gate.ok) return err(`resident task limit reached (${gate.used}/${gate.limit}) — contact the administrator`)
       }
       /* attributed to the agent, billed to the connecting user: the resident
          picks whose model account pays from the requester id, and without one
          it falls back to the canvas owner's — wrong on a shared canvas */
-      const reply = actions.replyToComment(comment_id, body, actor.name, ownerId, 'agent')
+      const reply = actions.replyToComment(
+        comment_id,
+        body,
+        actor.name,
+        ownerId,
+        'agent',
+        gate ? !gate.localAgent : undefined,
+      )
       if (!reply) {
         /* the thread closed while the meter was being written: give the task back */
         if (gate && ownerId) {
@@ -1006,7 +1010,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     {
       title: 'Generate an image with AI',
       description:
-        "Generate an image from a text prompt and store it as a permanent asset on this origin — returns the URL to embed plus a preview you can look at. Use it for visuals stock search cannot supply: brand-specific illustration, a product render, a mascot, abstract hero art in the frame's exact palette. Prefer search_images for ordinary photography. It runs on the connecting human's connected ChatGPT subscription or OpenAI key (else the server's key) and costs them quota or money, so write ONE considered prompt: subject, style, composition, palette hexes, lighting, what to leave out. Generation takes 20–60 seconds. ONLY generate when the design genuinely needs it or the human asked.",
+        "Generate an image from a text prompt and store it as a permanent asset on this origin — returns the URL to embed plus a preview you can look at. Use it for visuals stock search cannot supply: brand-specific illustration, a product render, a mascot, abstract hero art in the frame's exact palette. Prefer search_images for ordinary photography. It uses the configured server provider and its budget, so write ONE considered prompt: subject, style, composition, palette hexes, lighting, what to leave out. Generation takes 20–60 seconds. ONLY generate when the design genuinely needs it or the human asked.",
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       inputSchema: {
         prompt: z.string().describe('What to draw: subject, style, composition, palette, lighting, mood'),

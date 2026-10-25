@@ -84,7 +84,7 @@ function failInterruptedWork() {
         /* a live status row from the dead process — just close it out */
         t.endedAt = now
       }
-      persist.saveTask(canvasId, t)
+      void persist.saveTask(canvasId, t)
     }
   }
   for (const [, list] of feedbackLog) {
@@ -92,7 +92,7 @@ function failInterruptedWork() {
       if (f.deliveredAt && !f.completedAt && !f.failedAt) {
         f.failedAt = now
         f.failureReason = reason
-        persist.saveFeedback(f)
+        void persist.saveFeedback(f)
       }
     }
   }
@@ -101,7 +101,7 @@ function failInterruptedWork() {
       if (c.claimedBy && !c.resolvedAt && !c.failedAt) {
         c.failedAt = now
         c.failureReason = reason
-        persist.saveComment(c)
+        void persist.saveComment(c)
       }
     }
   }
@@ -265,7 +265,7 @@ export function setAgentStatus(canvasId: string, actor: Actor, status: string) {
   const runStartedAt = open ? (open.runStartedAt ?? open.startedAt) : undefined
   if (open) {
     open.endedAt = Date.now()
-    persist.saveTask(canvasId, open)
+    void persist.saveTask(canvasId, open)
     broadcast(canvasId, { type: 'task', task: open })
   }
   if (clean) {
@@ -281,7 +281,7 @@ export function setAgentStatus(canvasId: string, actor: Actor, status: string) {
     list.unshift(task)
     if (list.length > 100) list.length = 100
     taskLog.set(canvasId, list)
-    persist.saveTask(canvasId, task)
+    void persist.saveTask(canvasId, task)
     broadcast(canvasId, { type: 'task', task })
     logActivity(canvasId, actor, `is working on: ${clean}`)
   }
@@ -313,6 +313,7 @@ export function addTaskFeedback(
   from: string,
   text: string,
   fromUserId?: string,
+  serverPaid?: boolean,
 ): TaskFeedback | undefined {
   const clean = text.trim()
   if (!clean) return undefined
@@ -324,6 +325,7 @@ export function addTaskFeedback(
     const target = roleByAgentName(task.agentName)?.name
     const fb: TaskFeedback = {
       id: nanoid(8),
+      serverPaid,
       taskId,
       canvasId,
       agentName: task.agentName,
@@ -337,7 +339,7 @@ export function addTaskFeedback(
     list.unshift(fb)
     if (list.length > 100) list.length = 100
     feedbackLog.set(canvasId, list)
-    persist.saveFeedback(fb)
+    void persist.saveFeedback(fb)
     broadcast(canvasId, { type: 'feedback', feedback: fb })
     /* resident Doop agent picks feedback up instantly (no-op without an API
        key). Dynamic import: resident depends on this module. */
@@ -366,7 +368,7 @@ export function takeFeedbackFor(canvasId: string, agentName: string, payer?: str
   for (const f of pending) {
     f.deliveredAt = Date.now()
     f.claimedBy = agentName
-    persist.saveFeedback(f)
+    void persist.saveFeedback(f)
     broadcast(canvasId, { type: 'feedback', feedback: f }) // clients flip the entry to "picked up"
   }
   return pending
@@ -378,7 +380,7 @@ export function failTaskFeedback(feedbackId: string, reason: string): TaskFeedba
     if (!feedback) continue
     feedback.failedAt = Date.now()
     feedback.failureReason = reason
-    persist.saveFeedback(feedback)
+    void persist.saveFeedback(feedback)
     broadcast(canvasId, { type: 'feedback', feedback })
     return feedback
   }
@@ -392,7 +394,7 @@ export function completeTaskFeedback(feedbackId: string): TaskFeedback | undefin
     feedback.completedAt = Date.now()
     delete feedback.failedAt
     delete feedback.failureReason
-    persist.saveFeedback(feedback)
+    void persist.saveFeedback(feedback)
     broadcast(canvasId, { type: 'feedback', feedback })
     /* addressed feedback is a settled design decision — capture it into Memory */
     captureDecision(canvasId, {
@@ -406,17 +408,18 @@ export function completeTaskFeedback(feedbackId: string): TaskFeedback | undefin
   return undefined
 }
 
-export function retryTaskFeedback(feedbackId: string, by: string): TaskFeedback | undefined {
+export function retryTaskFeedback(feedbackId: string, by: string, serverPaid?: boolean): TaskFeedback | undefined {
   for (const [canvasId, list] of feedbackLog) {
     const feedback = list.find((f) => f.id === feedbackId)
     if (!feedback) continue
     if (!feedback.failedAt) return feedback
+    feedback.serverPaid = serverPaid
     delete feedback.deliveredAt
     delete feedback.claimedBy
     delete feedback.completedAt
     delete feedback.failedAt
     delete feedback.failureReason
-    persist.saveFeedback(feedback)
+    void persist.saveFeedback(feedback)
     broadcast(canvasId, { type: 'feedback', feedback })
     logActivity(canvasId, resolveActor({ name: by, kind: 'user' }), 'retried agent feedback')
     import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
@@ -455,6 +458,7 @@ export function addElementComment(
   input: { selector: string; snippet: string; text: string },
   from: string,
   fromUserId?: string,
+  serverPaid?: boolean,
 ): ElementComment | undefined {
   const frame = store.getFrame(frameId)
   if (!frame) return undefined
@@ -464,6 +468,9 @@ export function addElementComment(
     input.text,
     from,
     fromUserId,
+    'user',
+    undefined,
+    serverPaid,
   )
 }
 
@@ -475,11 +482,21 @@ export function addCanvasComment(
   input: { pageId: string; x: number; y: number; text: string },
   from: string,
   fromUserId?: string,
+  serverPaid?: boolean,
 ): ElementComment | undefined {
   const canvas = store.getCanvas(canvasId)
   if (!canvas || !canvasPages(canvas).some((page) => page.id === input.pageId)) return undefined
   if (!Number.isFinite(input.x) || !Number.isFinite(input.y)) return undefined
-  return postComment(canvasId, { pageId: input.pageId, x: input.x, y: input.y }, input.text, from, fromUserId)
+  return postComment(
+    canvasId,
+    { pageId: input.pageId, x: input.x, y: input.y },
+    input.text,
+    from,
+    fromUserId,
+    'user',
+    undefined,
+    serverPaid,
+  )
 }
 
 /** Reply inside a thread: the reply inherits the root comment's anchor (its
@@ -491,12 +508,13 @@ export function replyToComment(
   from: string,
   fromUserId?: string,
   kind: ActorKind = 'user',
+  serverPaid?: boolean,
 ): ElementComment | undefined {
   const open = openThread(commentId)
   if (!open) return undefined
   const anchor = replyAnchor(open)
   if (!anchor) return undefined
-  return postComment(open.root.canvasId, anchor, text, from, fromUserId, kind, open.root.id)
+  return postComment(open.root.canvasId, anchor, text, from, fromUserId, kind, open.root.id, serverPaid)
 }
 
 function replyAnchor({ root, frame }: { root: ElementComment; frame?: Frame }): CommentAnchor | undefined {
@@ -527,6 +545,7 @@ function postComment(
   fromUserId?: string,
   kind: ActorKind = 'user',
   parentId?: string,
+  serverPaid?: boolean,
 ): ElementComment | undefined {
   const clean = text.trim()
   if (!clean) return undefined
@@ -539,6 +558,7 @@ function postComment(
   const frame = 'frame' in anchor ? anchor.frame : undefined
   const comment: ElementComment = {
     id: nanoid(8),
+    serverPaid,
     canvasId,
     ...('frame' in anchor
       ? { frameId: anchor.frame.id, selector: anchor.selector, snippet: anchor.snippet }
@@ -553,7 +573,7 @@ function postComment(
   list.unshift(comment)
   if (list.length > 100) list.length = 100
   commentLog.set(canvasId, list)
-  persist.saveComment(comment)
+  void persist.saveComment(comment)
   broadcast(canvasId, { type: 'comment', comment })
   const excerpt = clean.length > 80 ? clean.slice(0, 77) + '…' : clean
   const where = frame ? `in “${frame.name}”` : 'on the canvas'
@@ -606,7 +626,7 @@ export function takeAgentCommentsFor(canvasId: string, agentName: string, payer?
   for (const c of pending) {
     c.claimedBy = agentName
     c.claimedAt = Date.now()
-    persist.saveComment(c)
+    void persist.saveComment(c)
     broadcast(canvasId, { type: 'comment', comment: c }) // pins flip to "Doop is on it"
   }
   return pending
@@ -618,23 +638,24 @@ export function failComment(commentId: string, reason: string): ElementComment |
     if (!comment || comment.resolvedAt) continue
     comment.failedAt = Date.now()
     comment.failureReason = reason
-    persist.saveComment(comment)
+    void persist.saveComment(comment)
     broadcast(canvasId, { type: 'comment', comment })
     return comment
   }
   return undefined
 }
 
-export function retryComment(commentId: string, by: string): ElementComment | undefined {
+export function retryComment(commentId: string, by: string, serverPaid?: boolean): ElementComment | undefined {
   for (const [canvasId, list] of commentLog) {
     const comment = list.find((c) => c.id === commentId)
     if (!comment || comment.resolvedAt) continue
     if (!comment.failedAt) return comment
+    comment.serverPaid = serverPaid
     delete comment.claimedBy
     delete comment.claimedAt
     delete comment.failedAt
     delete comment.failureReason
-    persist.saveComment(comment)
+    void persist.saveComment(comment)
     broadcast(canvasId, { type: 'comment', comment })
     logActivity(canvasId, resolveActor({ name: by, kind: 'user' }), 'retried a comment', comment.frameId)
     import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
@@ -654,7 +675,7 @@ export function resolveComment(commentId: string, by: string): ElementComment | 
     for (const item of closing) {
       item.resolvedBy = by
       item.resolvedAt = Date.now()
-      persist.saveComment(item)
+      void persist.saveComment(item)
       broadcast(canvasId, { type: 'comment', comment: item })
       /* a resolved @agent comment was an instruction that got carried out —
          capture it as a decision (plain human-to-human notes are not) */
@@ -703,7 +724,7 @@ function trackTaskFrame(canvasId: string, actor: Actor, frameId: string) {
     if (!sameAgent(open, actor) || open.endedAt) continue
     if (open.frameIds?.at(-1) === frameId) continue
     open.frameIds = [...(open.frameIds ?? []).filter((id) => id !== frameId), frameId].slice(-TASK_FRAMES_CAP)
-    persist.saveTask(canvasId, open)
+    void persist.saveTask(canvasId, open)
     broadcast(canvasId, { type: 'task', task: open })
   }
 }
@@ -729,7 +750,7 @@ function autoTask(canvasId: string, actor: Actor, status: string, frameId: strin
   list.unshift(task)
   if (list.length > 100) list.length = 100
   taskLog.set(canvasId, list)
-  persist.saveTask(canvasId, task)
+  void persist.saveTask(canvasId, task)
   broadcast(canvasId, { type: 'task', task })
 }
 
@@ -737,7 +758,7 @@ function endAutoTask(canvasId: string, actor: Actor) {
   const open = (taskLog.get(canvasId) ?? []).find((t) => sameAgent(t, actor) && !t.endedAt && t.auto)
   if (open) {
     open.endedAt = Date.now()
-    persist.saveTask(canvasId, open)
+    void persist.saveTask(canvasId, open)
     broadcast(canvasId, { type: 'task', task: open })
   }
 }
@@ -754,7 +775,7 @@ export function endAgentTasks(canvasId: string, agentName: string) {
       } else {
         t.endedAt = Date.now()
       }
-      persist.saveTask(canvasId, t)
+      void persist.saveTask(canvasId, t)
       broadcast(canvasId, { type: 'task', task: t })
     }
   }
@@ -791,6 +812,7 @@ export function addQueuedCard(
   attachments?: unknown,
   fromUserId?: string,
   scope?: unknown,
+  serverPaid?: boolean,
 ): AgentTask | undefined {
   const clean = title.trim().slice(0, MAX_CARD_CHARS)
   if (!clean || !store.getCanvas(canvasId)) return undefined
@@ -814,6 +836,7 @@ export function addQueuedCard(
   if (duplicate) return duplicate
   const card: AgentTask = {
     id: nanoid(8),
+    serverPaid,
     agentName: '',
     color: colorFor(from),
     status: clean,
@@ -827,7 +850,7 @@ export function addQueuedCard(
   }
   list.unshift(card)
   taskLog.set(canvasId, trimTaskLog(list))
-  persist.saveTask(canvasId, card)
+  void persist.saveTask(canvasId, card)
   broadcast(canvasId, { type: 'task', task: card })
   logActivity(
     canvasId,
@@ -885,7 +908,7 @@ export function takeQueuedCardsFor(canvasId: string, agentName: string, payer?: 
     c.agentName = agentName
     c.color = colorFor(agentName)
     c.claimedAt = Date.now()
-    persist.saveTask(canvasId, c)
+    void persist.saveTask(canvasId, c)
     broadcast(canvasId, { type: 'task', task: c })
   }
   return pending
@@ -905,7 +928,7 @@ export function advanceCard(canvasId: string, cardId: string, by: Actor): AgentT
   delete card.claimedAt
   delete card.failedAt
   delete card.failureReason
-  persist.saveTask(canvasId, card)
+  void persist.saveTask(canvasId, card)
   broadcast(canvasId, { type: 'task', task: card })
   logActivity(canvasId, by, `handed “${card.status}” to ${roleName(pipeline[next])}`)
   import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
@@ -916,7 +939,7 @@ export function completeCard(canvasId: string, cardId: string): AgentTask | unde
   const card = (taskLog.get(canvasId) ?? []).find((t) => t.id === cardId && t.queuedBy)
   if (!card || card.endedAt) return card
   card.endedAt = Date.now()
-  persist.saveTask(canvasId, card)
+  void persist.saveTask(canvasId, card)
   broadcast(canvasId, { type: 'task', task: card })
   emitCanvasEvent(canvasId, { type: 'task.completed', task: card })
   return card
@@ -930,21 +953,22 @@ export function failCard(canvasId: string, cardId: string, reason: string): Agen
   if (!card || card.endedAt || card.failedAt) return card
   card.failedAt = Date.now()
   card.failureReason = reason
-  persist.saveTask(canvasId, card)
+  void persist.saveTask(canvasId, card)
   broadcast(canvasId, { type: 'task', task: card })
   emitCanvasEvent(canvasId, { type: 'task.failed', task: card, reason })
   return card
 }
 
-export function retryCard(canvasId: string, cardId: string, by: string): AgentTask | undefined {
+export function retryCard(canvasId: string, cardId: string, by: string, serverPaid?: boolean): AgentTask | undefined {
   const card = (taskLog.get(canvasId) ?? []).find((t) => t.id === cardId && t.queuedBy)
   if (!card || card.endedAt) return card
   if (!card.failedAt) return card
+  card.serverPaid = serverPaid
   card.agentName = ''
   delete card.claimedAt
   delete card.failedAt
   delete card.failureReason
-  persist.saveTask(canvasId, card)
+  void persist.saveTask(canvasId, card)
   broadcast(canvasId, { type: 'task', task: card })
   logActivity(canvasId, resolveActor({ name: by, kind: 'user' }), `retried a card: “${card.status}”`)
   import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})

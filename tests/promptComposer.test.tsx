@@ -12,14 +12,12 @@ import type { Canvas } from '../shared/types'
 
 const mocks = vi.hoisted(() => ({
   addCard: vi.fn(() => Promise.resolve({})),
-  agentAllowance: vi.fn(() => Promise.resolve({ used: 0, limit: 5, byoModel: false })),
+  agentAllowance: vi.fn(() => Promise.resolve({ used: 0, limit: 5, localAgent: false })),
 }))
 vi.mock('../src/lib/api', () => ({
   api: {
     addCard: mocks.addCard,
     agentAllowance: mocks.agentAllowance,
-    /* the composer's model picker reads the account it runs on */
-    modelAccount: () => Promise.resolve({ connected: false }),
   },
   ApiError: class ApiError extends Error {},
 }))

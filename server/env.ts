@@ -1,6 +1,5 @@
 import { bool, cleanEnv, EnvMissingError, makeExactValidator, port, str } from 'envalid'
 import type { ReporterOptions } from 'envalid'
-import { DEFAULT_GEMINI_MODEL, DEFAULT_OPENROUTER_MODEL } from '../shared/modelMenu.ts'
 
 /**
  * Every environment variable the server reads, declared once with its type
@@ -98,7 +97,13 @@ const schema = {
   WEBHOOK_ALLOW_PRIVATE_URLS: bool({ default: false }),
 
   /* ------------------------------------------------ resident agents */
-  DOOP_AGENT_PROVIDER: str({ choices: ['anthropic', 'azure'], default: 'anthropic' }),
+  DOOP_AGENT_PROVIDER: str({ choices: ['anthropic', 'azure', 'requesty'], default: 'requesty' }),
+  REQUESTY_API_KEY: str({ default: undefined }),
+  /* Operator-only, pinned to the verified EU router. Never a user fetch target. */
+  REQUESTY_CHAT_URL: str({
+    choices: ['https://router.eu.requesty.ai/v1/chat/completions'],
+    default: 'https://router.eu.requesty.ai/v1/chat/completions',
+  }),
   ANTHROPIC_API_KEY: str({ default: undefined }),
   AZURE_OPENAI_ENDPOINT: str({ default: undefined }),
   AZURE_OPENAI_API_KEY: str({ default: undefined }),
@@ -106,27 +111,9 @@ const schema = {
   AZURE_OPENAI_API_VERSION: str({ default: undefined }),
   AZURE_OPENAI_REASONING_EFFORT: str({ default: undefined }),
   RESIDENT_TASK_LIMIT: nonNegativeInt({ default: 0 }),
-  DOOP_AGENT_MODEL: str({ default: 'claude-opus-5' }),
-  DOOP_DISTILL_MODEL: str({ default: 'claude-haiku-4-5-20251001' }),
-  DOOP_AGENT_OPENAI_MODEL: str({ default: 'gpt-5.6-terra' }),
-  DOOP_AGENT_OPENAI_EFFORT: str({ default: 'medium' }),
-  DOOP_AGENT_OPENROUTER_MODEL: str({ default: DEFAULT_OPENROUTER_MODEL }),
-  DOOP_AGENT_GEMINI_MODEL: str({ default: DEFAULT_GEMINI_MODEL }),
-  CHATGPT_CONNECT_DISABLED: bool({ default: false }),
-  CHATGPT_OAUTH_ISSUER: origin({ default: 'https://auth.openai.com' }),
-  CHATGPT_OAUTH_CLIENT_ID: str({ default: 'app_EMoamEEZ73f0CkXaXp7hrann' }),
-  CHATGPT_OAUTH_REDIRECT_URI: str({ default: 'http://localhost:1455/auth/callback' }),
-  CHATGPT_OAUTH_CALLBACK_PORT: port({ default: 1455 }),
-  CHATGPT_AUTH_USER_AGENT: str({ default: 'doop/0.1 (+https://doop.design)' }),
-  CHATGPT_DEVICE_URL: str({ default: undefined }),
-  CHATGPT_RESPONSES_URL: str({ default: 'https://chatgpt.com/backend-api/codex/responses' }),
-  CHATGPT_ORIGINATOR: str({ default: 'codex_cli_rs' }),
+  DOOP_AGENT_MODEL: str({ default: 'policy/prowin-layout-gen' }),
+  DOOP_DISTILL_MODEL: str({ default: 'policy/prowin-text-gen' }),
   OPENAI_RESPONSES_URL: str({ default: 'https://api.openai.com/v1/responses' }),
-  OPENROUTER_CHAT_URL: str({ default: 'https://openrouter.ai/api/v1/chat/completions' }),
-  GEMINI_OPENAI_CHAT_URL: str({
-    default: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  }),
-
   /* ------------------------------------------------ image generation */
   OPENAI_API_KEY: str({ default: undefined }),
   GEMINI_API_KEY: str({ default: undefined }),
@@ -134,7 +121,7 @@ const schema = {
   ARK_IMAGES_URL: str({ default: 'https://ark.ap-southeast.bytepluses.com/api/v3/images/generations' }),
   GEMINI_MODELS_URL: str({ default: 'https://generativelanguage.googleapis.com/v1beta/models' }),
   DOOP_IMAGE_MODEL: str({ default: 'gpt-image-2' }),
-  DOOP_IMAGE_ROUTER_MODEL: str({ default: undefined }),
+  DOOP_IMAGE_ROUTER_MODEL: str({ default: 'gpt-5.6-terra' }),
 
   /* ------------------------------------------------------ integrations */
   META_APP_ID: str({ default: undefined }),
@@ -211,6 +198,8 @@ function parse() {
      something other than production; doop treats an unset NODE_ENV as
      development (bun run dev, the test harness), so say so */
   source.NODE_ENV ??= 'development'
+  /* Keep the existing model default for explicitly selected legacy installs. */
+  if (source.DOOP_AGENT_PROVIDER === 'anthropic') source.DOOP_AGENT_MODEL ??= 'claude-opus-5'
   return cleanEnv(source, schema, { reporter })
 }
 

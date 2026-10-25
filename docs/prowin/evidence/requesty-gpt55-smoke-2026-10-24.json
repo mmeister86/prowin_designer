@@ -1,0 +1,10 @@
+{
+  "retrievedAt": "2026-10-24T19:17:09.811Z",
+  "requestedModel": "azure/gpt-5.5@germanywestcentral",
+  "status": 404,
+  "elapsedMs": 351,
+  "error": {
+    "origin": "provider",
+    "message": "The API deployment for this resource does not exist. If you created the deployment within the last 5 minutes, please wait a moment and try again."
+  }
+}

@@ -59,6 +59,7 @@ it('keeps outbound integrations off even with old keys and a remote background o
   stubEnv('META_APP_ID', 'old-id')
   stubEnv('META_APP_SECRET', 'old-secret')
   stubEnv('ANTHROPIC_API_KEY', 'old-key')
+  stubEnv('REQUESTY_API_KEY', 'requesty-test-key')
   stubEnv('BACKGROUNDS_ORIGIN', 'https://doop.design')
   const request = vi.fn().mockResolvedValue(new Response('{}', { headers: { 'content-type': 'application/json' } }))
   vi.stubGlobal('fetch', request)

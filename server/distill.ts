@@ -1,5 +1,6 @@
 import { env } from './env.ts'
-import Anthropic from '@anthropic-ai/sdk'
+import type Anthropic from '@anthropic-ai/sdk'
+import { requestyConfig, runChatCompletionsTurn } from './chatCompletionsAgent.ts'
 import { store } from './store.ts'
 import * as actions from './actions.ts'
 
@@ -11,20 +12,15 @@ import * as actions from './actions.ts'
  * dismisses it. Auto-committed memory goes noisy; curated memory stays trusted.
  *
  * Event-driven, not scheduled: captureDecision pokes maybeDistill, so quiet
- * canvases cost nothing. Enabled when ANTHROPIC_API_KEY is set; silently
- * disabled otherwise, like the resident agents.
+ * canvases cost nothing. Enabled when REQUESTY_API_KEY is set; silently
+ * disabled otherwise, independently of the resident's selected provider.
  */
 
-const MODEL = env.DOOP_DISTILL_MODEL
 /** most recent unconsumed decisions the judge sees per run */
 const MAX_WINDOW = 15
 
-let client: Anthropic | null = null
-
-function getClient(): Anthropic | null {
-  if (!env.ANTHROPIC_API_KEY) return null
-  if (!client) client = new Anthropic()
-  return client
+function config() {
+  return requestyConfig(env.DOOP_DISTILL_MODEL, false)
 }
 
 const running = new Set<string>()
@@ -33,19 +29,20 @@ const running = new Set<string>()
  *  ("more white and blue, not so claude-esque" → "Prefer white and blue…"),
  *  then check whether enough decisions accumulated to propose a rule. */
 export function onDecision(canvasId: string, decisionId: string) {
-  if (!getClient()) return
+  if (!config()) return
   summarizeDecision(canvasId, decisionId)
     .catch((err) => console.error('[distill] summarize failed', err))
     .finally(() => maybeDistill(canvasId))
 }
 
 async function summarizeDecision(canvasId: string, decisionId: string) {
-  const anthropic = getClient()
+  const cfg = config()
   const decision = actions.getDecisions(canvasId).find((d) => d.id === decisionId)
-  if (!anthropic || !decision || decision.summary) return
-  const res = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 100,
+  if (!cfg || !decision || decision.summary) return
+  const res = await runChatCompletionsTurn(cfg, {
+    system: '',
+    tools: [],
+    maxTokens: 100,
     messages: [
       {
         role: 'user',
@@ -56,6 +53,7 @@ Rewrite it as ONE short, general style preference for this project's design memo
       },
     ],
   })
+  if (res.stop_reason !== 'end_turn') return
   const summary = res.content
     .filter((b): b is (typeof res.content)[number] & { type: 'text' } => b.type === 'text')
     .map((b) => b.text)
@@ -75,7 +73,7 @@ Rewrite it as ONE short, general style preference for this project's design memo
    lives in the judge prompt, not in a counter. Decisions are only consumed
    when a rule IS proposed, so slow-building patterns keep their evidence. */
 export function maybeDistill(canvasId: string) {
-  if (!getClient() || running.has(canvasId)) return
+  if (!config() || running.has(canvasId)) return
   if (actions.undistilledDecisions(canvasId).length === 0) return
   /* one open proposal at a time — a stack of pending cards reads as spam */
   if (actions.getProposals(canvasId).some((p) => p.status === 'pending')) return
@@ -113,8 +111,8 @@ const DISTILL_TOOL: Anthropic.Tool = {
 }
 
 async function distill(canvasId: string) {
-  const anthropic = getClient()
-  if (!anthropic) return
+  const cfg = config()
+  if (!cfg) return
   const decisions = actions.undistilledDecisions(canvasId).slice(0, MAX_WINDOW)
   if (decisions.length === 0) return
   const guides = store.getGuidelines(canvasId)
@@ -156,36 +154,38 @@ If these decisions reveal a durable style preference, distill it into ONE markdo
 Do not restate anything a guide already covers. Prefer an existing guide's slug; invent a new slug only when nothing fits.`
 
   console.log(`[distill] run canvas=${canvasId} decisions=${decisions.length}`)
-  const res = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 1000,
+  const res = await runChatCompletionsTurn(cfg, {
+    system: '',
+    maxTokens: 1000,
     tools: [DISTILL_TOOL],
-    tool_choice: { type: 'tool', name: 'distill_result' },
+    toolChoice: { type: 'function', function: { name: 'distill_result' } },
     messages: [{ role: 'user', content: prompt }],
   })
 
-  const block = res.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use')
-  const input = (block?.input ?? {}) as {
-    has_rule?: boolean
-    guide_name?: string
-    guide_title?: string
-    rule?: string
-    rationale?: string
-  }
-  if (!input.has_rule || !input.rule?.trim()) {
+  if (res.stop_reason !== 'tool_use') return
+  const block = res.content.find((b) => b.type === 'tool_use' && b.name === 'distill_result')
+  const raw = block?.type === 'tool_use' ? block.input : null
+  const input = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const invalidMetadata = ['guide_name', 'guide_title', 'rationale'].some(
+    (field) => input[field] !== undefined && typeof input[field] !== 'string',
+  )
+  if (input.has_rule !== true || typeof input.rule !== 'string' || !input.rule.trim() || invalidMetadata) {
     console.log(`[distill] no rule canvas=${canvasId}`)
     return
   }
-  const slug = (input.guide_name ?? 'style-notes')
+  const slug = (typeof input.guide_name === 'string' ? input.guide_name : 'style-notes')
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64)
   const proposal = actions.addProposal(canvasId, {
     guideName: actions.GUIDELINE_NAME_RE.test(slug) ? slug : 'style-notes',
-    guideTitle: input.guide_title?.trim().slice(0, 80) || undefined,
+    guideTitle: typeof input.guide_title === 'string' ? input.guide_title.trim().slice(0, 80) || undefined : undefined,
     rule: input.rule.trim(),
-    rationale: input.rationale?.trim() || 'Distilled from recent feedback.',
+    rationale:
+      typeof input.rationale === 'string' && input.rationale.trim()
+        ? input.rationale.trim()
+        : 'Distilled from recent feedback.',
     basedOn: decisions.map((d) => d.id),
   })
   /* evidence is consumed only when it turns into a proposal — a "no rule yet"

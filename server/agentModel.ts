@@ -4,32 +4,15 @@ import { getLocalAgentPreference } from './localAgentPreferences.ts'
 import { localAgentRuns, type LocalHarnessRequest } from './localAgentRuns.ts'
 import type { LocalAgentResult } from '../shared/localAgent.ts'
 import Anthropic from '@anthropic-ai/sdk'
-import { getAccount, withFreshToken, accountModelFor, accountVisionFor } from './modelAccounts.ts'
-import type { AccountKind, ModelAccount } from './modelAccounts.ts'
-import { ModelAuthError, ModelUnavailableError, runAzureTurn, runOpenAiTurn } from './openaiAgent.ts'
+import { ModelAuthError, ModelUnavailableError, runAzureTurn } from './openaiAgent.ts'
 import type { StopReason, TurnBlock } from './openaiAgent.ts'
-import { geminiConfig, openrouterConfig, runChatCompletionsTurn } from './chatCompletionsAgent.ts'
+import { requestyConfig, runChatCompletionsTurn } from './chatCompletionsAgent.ts'
 
-/**
- * Which model runs a Doop Agent turn, and on whose bill.
- *
- * Two layers, resolved in this order:
- *
- *  - a user's own model account (their ChatGPT subscription or an OpenAI API
- *    key) — the moment one is connected, that user's runs move onto it and
- *    the free-task meter stops applying to them;
- *  - the server tier, which pays for the free tasks every account starts
- *    with. DOOP_AGENT_PROVIDER picks what it runs on: 'anthropic' (the
- *    default, on ANTHROPIC_API_KEY) or 'azure' (the AZURE_OPENAI_* vars).
- *
- * A run bills exactly ONE person: the requester behind the work it claims. The
- * queue is worked one requester at a time rather than sweeping several people's
- * cards into a single call, so nobody's subscription ever pays for someone
- * else's request.
- */
+/** Server-paid Requesty EU (or explicit legacy server configuration) and
+ * Creator/Admin local execution. Private model accounts are not supported. */
 
-export type ServerProvider = 'anthropic' | 'azure'
-export type Provider = ServerProvider | AccountKind | 'claude-local'
+export type ServerProvider = 'anthropic' | 'azure' | 'requesty'
+export type Provider = ServerProvider | 'claude-local'
 
 export interface AgentTurnRequest {
   /** ordered system blocks; `cache` marks an Anthropic cache breakpoint */
@@ -46,7 +29,7 @@ export interface AgentTurnResult {
 
 export interface AgentModel {
   provider: Provider
-  /** for logs and the canvas status line, e.g. "ChatGPT (gpt-5)" */
+  /** for logs and the canvas status line, e.g. "Requesty EU (policy/prowin-layout-gen)" */
   label: string
   /** the user whose account pays, when it isn't the server's key */
   userId?: string
@@ -58,29 +41,27 @@ export interface AgentModel {
 }
 
 export { ModelAuthError, ModelUnavailableError }
-export class ModelConfigurationError extends ModelAuthError {}
 
 /* ---------------------------------------------------------------- */
 /* the server tier: pays for everyone's free tasks                  */
 /* ---------------------------------------------------------------- */
-
-const ANTHROPIC_MODEL = env.DOOP_AGENT_MODEL
 
 let anthropic: Anthropic | null = null
 
 function anthropicTier(): AgentModel | null {
   if (!env.ANTHROPIC_API_KEY) {
     warnOnce(
-      '[doop-agent] ANTHROPIC_API_KEY not set — the free Doop Agent tier is off. Users who connect a model account of their own still get the agent; everyone else sees queued cards and @mentions go unpicked. See README → "The Doop Agent".',
+      '[doop-agent] ANTHROPIC_API_KEY not set — the free Doop Agent tier is off. Server work stays queued until the operator configures a provider. See README → "The Doop Agent".',
     )
     return null
   }
   if (!anthropic) anthropic = new Anthropic()
   const client = anthropic
+  const model = env.DOOP_AGENT_MODEL
   return {
     provider: 'anthropic',
-    label: `Doop (${ANTHROPIC_MODEL})`,
-    run: (req) => runAnthropicTurn(client, ANTHROPIC_MODEL, req),
+    label: `Doop (${model})`,
+    run: (req) => runAnthropicTurn(client, model, req),
   }
 }
 
@@ -162,9 +143,49 @@ function azureTier(): AgentModel | null {
   }
 }
 
+function requestyTier(): AgentModel | null {
+  const config = requestyConfig(env.DOOP_AGENT_MODEL)
+  if (!config) {
+    warnOnce('[doop-agent] DOOP_AGENT_PROVIDER=requesty needs REQUESTY_API_KEY — the server tier is off.')
+    return null
+  }
+  return {
+    provider: 'requesty',
+    label: `Requesty EU (${config.model})`,
+    vision: config.vision,
+    async run(req) {
+      try {
+        return await runChatCompletionsTurn(config, {
+          system: joinSystem(req),
+          tools: req.tools,
+          messages: req.messages,
+          maxTokens: req.maxTokens,
+        })
+      } catch (err) {
+        /* These are the operator's credentials/policy, never an account the
+           requester can reconnect. Fail without switching providers. */
+        if (err instanceof ModelAuthError) {
+          throw new Error(
+            'Requesty EU rejected the server credentials or policy access — check REQUESTY_API_KEY and the Requesty key permissions.',
+            { cause: err },
+          )
+        }
+        if (err instanceof ModelUnavailableError) {
+          throw new Error(
+            'Requesty EU cannot run the configured policy — check DOOP_AGENT_MODEL and its EU fallback models in Requesty.',
+            { cause: err },
+          )
+        }
+        throw err
+      }
+    },
+  }
+}
+
 const serverTiers: Record<ServerProvider, () => AgentModel | null> = {
   anthropic: anthropicTier,
   azure: azureTier,
+  requesty: requestyTier,
 }
 
 /* an unknown DOOP_AGENT_PROVIDER fails at boot (server/env.ts) */
@@ -187,16 +208,8 @@ function warnOnce(message: string) {
 }
 
 /* ---------------------------------------------------------------- */
-/* a user's own account                                             */
+/* local Creator/Admin harness                                      */
 /* ---------------------------------------------------------------- */
-
-const BYO_LABELS: Record<AccountKind, string> = {
-  chatgpt: 'ChatGPT',
-  'openai-key': 'OpenAI',
-  'anthropic-key': 'Claude API',
-  'openrouter-key': 'OpenRouter',
-  'gemini-key': 'Gemini',
-}
 
 /* the OpenAI-shaped transports take one system string; cache breakpoints are
    an Anthropic concept and simply flatten away */
@@ -204,91 +217,12 @@ function joinSystem(req: AgentTurnRequest): string {
   return req.system.map((block) => block.text).join('\n\n')
 }
 
-function byoModel(account: ModelAccount): AgentModel {
-  if (account.kind === 'anthropic-key') {
-    if (!account.apiKey) throw new ModelAuthError('Reconnect your Claude API key in Settings.')
-    const client = new Anthropic({ apiKey: account.apiKey })
-    const model = accountModelFor(account)
-    return {
-      provider: account.kind,
-      label: `Claude API (${model})`,
-      userId: account.userId,
-      async run(req) {
-        try {
-          return await runAnthropicTurn(client, model, req)
-        } catch (error) {
-          if (
-            error instanceof Anthropic.APIError &&
-            (error.status === 400 || error.status === 404) &&
-            /anthropic-workspace-id|workspace/i.test(error.message)
-          ) {
-            throw new ModelConfigurationError(
-              'Create an Anthropic API key scoped to one workspace, then use Rotate key in Settings → Claude API key and retry.',
-            )
-          }
-          if (error instanceof Anthropic.APIError && (error.status === 401 || error.status === 403)) {
-            throw new ModelAuthError('Anthropic rejected your API key. Reconnect it in Settings.')
-          }
-          throw error
-        }
-      },
-    }
-  }
-  if (account.kind === 'openrouter-key' || account.kind === 'gemini-key') {
-    if (!account.apiKey) throw new ModelAuthError(`Reconnect your ${BYO_LABELS[account.kind]} key in Settings.`)
-    const model = accountModelFor(account)
-    const vision = accountVisionFor(account)
-    const config =
-      account.kind === 'openrouter-key'
-        ? openrouterConfig(account.apiKey, model, vision)
-        : geminiConfig(account.apiKey, model, vision)
-    return {
-      provider: account.kind,
-      label: `${BYO_LABELS[account.kind]} (${model})`,
-      userId: account.userId,
-      vision,
-      run: (req) =>
-        runChatCompletionsTurn(config, {
-          system: joinSystem(req),
-          tools: req.tools,
-          messages: req.messages,
-          maxTokens: req.maxTokens,
-        }),
-    }
-  }
-  return {
-    provider: account.kind,
-    label: `${BYO_LABELS[account.kind]} (${accountModelFor(account)})`,
-    userId: account.userId,
-    async run(req) {
-      /* refreshed per turn, not per run: a long design run outlives an
-         hour-long access token */
-      const live = await withFreshToken(account)
-      return runOpenAiTurn(live, {
-        system: joinSystem(req),
-        tools: req.tools,
-        messages: req.messages,
-        maxTokens: req.maxTokens,
-      })
-    },
-  }
-}
-
-/**
- * Pick the model for one run, billed to exactly one person: `payerId` is the
- * human whose work the run is about to claim. Returns null when nothing can
- * run it — they have no account of their own and the server tier is off.
- *
- * A connected account wins outright: someone who has just linked their own
- * subscription expects the very next task to run on it, and the free tier is a
- * trial to get them here, not a balance to spend down first. It also means
- * connecting stops costing us anything from that moment on.
- */
+/** Select an eligible Creator's local harness, otherwise the configured server. */
 export async function pickModel(payerId?: string): Promise<AgentModel | null> {
   if (payerId) {
     const local = await getLocalAgentPreference(payerId)
-    if (local.enabled) {
-      if (!(await permissionIdentity(payerId)).creator || !localAgentRuns.online(payerId)) return null
+    if (local.enabled && (await permissionIdentity(payerId)).creator) {
+      if (!localAgentRuns.online(payerId)) return null
       return {
         provider: 'claude-local',
         label: `Claude CLI (${local.model})`,
@@ -296,18 +230,11 @@ export async function pickModel(payerId?: string): Promise<AgentModel | null> {
         runHarness: (req) => localAgentRuns.startAuthorized(payerId, local.model, req),
         run: () =>
           Promise.reject(
-            new Error('Repository imports require a server provider. Select your connected account in Settings.'),
+            new Error('Repository imports require a server provider. Select the server agent in Settings.'),
           ),
       }
     }
   }
 
-  const account = payerId
-    ? await getAccount(payerId).catch((err) => {
-        console.error('[doop-agent] could not read the connected model account', err)
-        return null
-      })
-    : null
-  if (account) return byoModel(account)
   return serverTiers[serverProvider()]()
 }

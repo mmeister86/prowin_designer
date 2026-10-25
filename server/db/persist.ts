@@ -560,14 +560,21 @@ function repoCardFields(kind: string | null, payload: string | null): Pick<Agent
   }
 }
 
-/* Task rows are written as whole snapshots and never awaited by callers, so
-   two quick edits could otherwise race on the pool and leave the older one
-   in the table. Writes to the same task queue behind each other instead. */
-const taskWrites = new Map<string, Promise<unknown>>()
+/* Work snapshots are ordered per row. Ordinary mutations enqueue them;
+   server admission awaits the latest snapshot before taking its row lock. */
+const workWrites = new Map<string, Promise<unknown>>()
+
+function saveOrdered(key: string, write: () => PromiseLike<unknown>): Promise<unknown> {
+  const queued = (workWrites.get(key) ?? Promise.resolve()).then(write, write)
+  workWrites.set(key, queued)
+  swallow(queued.finally(() => workWrites.get(key) === queued && workWrites.delete(key)))
+  return queued
+}
 
 export function saveTask(canvasId: string, task: AgentTask) {
   const row = {
     id: task.id,
+    serverPaid: task.serverPaid ?? null,
     canvasId,
     agentName: task.agentName,
     owner: task.owner ?? null,
@@ -601,6 +608,7 @@ export function saveTask(canvasId: string, task: AgentTask) {
           agentName: row.agentName,
           color: row.color,
           claimedAt: row.claimedAt,
+          serverPaid: row.serverPaid,
           failedAt: row.failedAt,
           failureReason: row.failureReason,
           pipeline: row.pipeline,
@@ -608,14 +616,13 @@ export function saveTask(canvasId: string, task: AgentTask) {
           frameIds: row.frameIds,
         },
       })
-  const queued = (taskWrites.get(task.id) ?? Promise.resolve()).then(write, write)
-  taskWrites.set(task.id, queued)
-  swallow(queued.finally(() => taskWrites.get(task.id) === queued && taskWrites.delete(task.id)))
+  return saveOrdered(`task:${task.id}`, write)
 }
 
 export function saveFeedback(fb: TaskFeedback) {
   const row = {
     id: fb.id,
+    serverPaid: fb.serverPaid ?? null,
     taskId: fb.taskId,
     canvasId: fb.canvasId,
     agentName: fb.agentName,
@@ -630,7 +637,7 @@ export function saveFeedback(fb: TaskFeedback) {
     failedAt: fb.failedAt ?? null,
     failureReason: fb.failureReason ?? null,
   }
-  swallow(
+  return saveOrdered(`feedback:${fb.id}`, () =>
     db
       .insert(t.feedback)
       .values(row)
@@ -640,6 +647,7 @@ export function saveFeedback(fb: TaskFeedback) {
           deliveredAt: row.deliveredAt,
           claimedBy: row.claimedBy,
           completedAt: row.completedAt,
+          serverPaid: row.serverPaid,
           failedAt: row.failedAt,
           failureReason: row.failureReason,
         },
@@ -650,6 +658,7 @@ export function saveFeedback(fb: TaskFeedback) {
 export function saveComment(c: ElementComment) {
   const row = {
     id: c.id,
+    serverPaid: c.serverPaid ?? null,
     canvasId: c.canvasId,
     frameId: c.frameId ?? null,
     selector: c.selector,
@@ -671,7 +680,7 @@ export function saveComment(c: ElementComment) {
     resolvedAt: c.resolvedAt ?? null,
     parentId: c.parentId ?? null,
   }
-  swallow(
+  return saveOrdered(`comment:${c.id}`, () =>
     db
       .insert(t.comments)
       .values(row)
@@ -680,6 +689,7 @@ export function saveComment(c: ElementComment) {
         set: {
           claimedBy: row.claimedBy,
           claimedAt: row.claimedAt,
+          serverPaid: row.serverPaid,
           failedAt: row.failedAt,
           failureReason: row.failureReason,
           resolvedBy: row.resolvedBy,
@@ -842,6 +852,7 @@ export async function hydrate(): Promise<Hydrated> {
     }
     list.push({
       id: row.id,
+      ...(row.serverPaid != null ? { serverPaid: row.serverPaid } : {}),
       agentName: row.agentName,
       ...(row.owner != null ? { owner: row.owner } : {}),
       color: row.color,
@@ -880,6 +891,7 @@ export async function hydrate(): Promise<Hydrated> {
     if (interrupted) swallow(db.update(t.feedback).set({ failedAt, failureReason }).where(eq(t.feedback.id, row.id)))
     list.push({
       id: row.id,
+      ...(row.serverPaid != null ? { serverPaid: row.serverPaid } : {}),
       taskId: row.taskId,
       canvasId: row.canvasId,
       agentName: row.agentName,
@@ -907,6 +919,7 @@ export async function hydrate(): Promise<Hydrated> {
     if (interrupted) swallow(db.update(t.comments).set({ failedAt, failureReason }).where(eq(t.comments.id, row.id)))
     list.push({
       id: row.id,
+      ...(row.serverPaid != null ? { serverPaid: row.serverPaid } : {}),
       canvasId: row.canvasId,
       ...(row.frameId != null ? { frameId: row.frameId } : {}),
       selector: row.selector,

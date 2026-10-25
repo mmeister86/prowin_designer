@@ -2,7 +2,6 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type 
 import { DRAFT_OPTIONS, DRAFTS_STORAGE_KEY, isDraftCount, readStoredDrafts, type DraftCount } from '../lib/homePrompt'
 import { DoopMark } from './Logo'
 import { OPTIONAL_FEATURES } from '../../shared/prowin/features'
-import { ModelPicker } from './ModelPicker'
 import { IconButton } from './ui/icon-button'
 import { Chip } from './ui/chip'
 import { MenuButton } from './ui/menu-button'
@@ -288,7 +287,6 @@ export function HomeHero({
                 </DropdownMenuRadioGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-            <ModelPicker disabled={busy} />
             <IconButton
               variant="primary"
               size="lg"
