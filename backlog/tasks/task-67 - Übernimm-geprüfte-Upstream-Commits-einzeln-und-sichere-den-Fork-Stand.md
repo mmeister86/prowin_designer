@@ -4,7 +4,7 @@ title: Übernimm geprüfte Upstream-Commits einzeln und sichere den Fork-Stand
 status: In Progress
 assignee: []
 created_date: '2026-10-25T12:19:00Z'
-updated_date: '2026-10-25T17:25:00Z'
+updated_date: '2026-10-25T17:29:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -44,4 +44,6 @@ Backup zusätzlich wiederhergestellt: Bundle in separates Bare-Repository /tmp/o
 Alle17Source-SHAs eindeutig separaten lokalen Commits zugeordnet, Autoridentitäten geprüft; iOSbf3ebac ausgelassen. Controller-Gesamtsuite147Dateien/1148Tests bei4Workern erfolgreich, Typecheck0. Geschützte Requesty/Auth/PII/Guard/Creator/Schema/Migrations-/Dependency-/iOS-Dateien bytegleich Ausgangsstand; entfernteModule weiterhin abwesend, main unverändert. Controller-Lint findet in FrameView:611 fehlendeEffect-Abhängigkeit probe; wird in finaler Fixwelle behoben, Abschluss-AK4 noch OFFEN. Finales Gesamt-Review folgt.
 
 Finale Fixwelle1ec5dc3: drei reproduzierte Important-Befunde und zwei inertePostHog-Mocks behoben; gezielt269Tests, gesamte4Worker147Dateien/1159Tests, Typecheck/FULLLint/Build/DocLint/Format erfolgreich. Nachreview bestätigt I1-I3/M1 ADDRESSED, findet aber NEUEN ImportantI4: Transfer→eigenesLock/Hide→UndoSchalter→UndoTransfer erzeugt falschen Konflikt/Duplikat wegen undefined!==false in sameTransferState. Reproduziert, echter Funktionsfehler; KEINE Merge-Freigabe/keinAbschluss-AK4. Vorgesehene kleine Korrektur: !!hidden/!!locked vergleichen, Version/andereFelder unverändert, eigener Regressionstest. Nach begrenzter finalerFixwelle+Nachreview bleibt I4 zur Benutzerentscheidung offen; Branch/Logs/Backup erhalten, main unberührt. NeuerMinorM2: RectRefresh öffnet bewusst geschlossenesDesignpanel. Dokumentation docs/prowin/upstream-adoption-2026-10-25.md aktualisiert.
+
+Benutzer hat I4-Fix ausdrücklich freigegeben und weitere unnötige Prozessstopps beanstandet. TASK67.11 übernimmt nur Boolean-Normalisierung+Regression, ein enges Review und finale Prüfungen; keine neue breite Reviewwelle und kein Funktionsausbau. Vorherige Gesamtwellen-Grenze gilt nicht als Stop für diese neue explizite Freigabe.
 <!-- SECTION:NOTES:END -->

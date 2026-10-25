@@ -131,3 +131,14 @@ Run focused tests during iterations and the full suite once at the task gate; do
 - [ ] Adopt `aa04e95` as a complete commit, manually resolve FrameView label portal while excluding Sync/GitHub tooltip blocks and deleted module imports; never restore FlowOverlay to Stage.
 - [ ] Run `TMPDIR=/tmp/opencode bun run test tests/drawingBrowser.test.ts tests/frameRasterZoom.test.ts tests/follow.test.ts tests/elementResizeBrowser.test.ts tests/pageCanvasBrowser.test.ts --maxWorkers=2`, typecheck, full task suite; commit and report.
 - [ ] Controller runs final full suite, lint, build, doc-lint and protected-module/deleted-module comparisons, then dispatches an independent whole-branch review. No merge/push or task closure without the user.
+
+### Task 11: Normalize optional flags in transfer history (explicit follow-up approval)
+
+**Source finding:** `final-fix-review.md` I4, explicitly approved by the user after the final-review cap.
+**Files:** `src/lib/history.ts`, `tests/drawingMove.test.ts`; controller owns Backlog and handoff documentation.
+**Interfaces:** Preserve `sameTransferState(a: Frame, b: Frame)` and all three callers. Only `hidden` and `locked` compare by their existing Boolean semantics; all other snapshot fields and expected-version checks stay strict.
+- [ ] Add a parameterized regression for each of `hidden` and `locked`: transfer into a frame whose optional false flag is omitted, apply/record an own false-to-true toggle, Undo the toggle, Undo the transfer, then Redo. Assert no false conflict, no unwanted duplicate drawing, correct HTML/source survival, and ordinary redo behavior. Reuse the real history/drawing test harness.
+- [ ] Run `TMPDIR=/tmp/opencode bun run test tests/drawingMove.test.ts --maxWorkers=1` and capture the false-conflict RED before production changes.
+- [ ] In the existing snapshot-key comparison use `!!a[key] === !!b[key]` only for `hidden`/`locked`; retain strict equality otherwise. No permission/history redesign and no unrelated Minor fixes.
+- [ ] Run the focused file, typecheck, full lint, build, doc-lint, formatting for changed files, and one full four-worker suite. Archive explicit exit codes. Commit the narrow fix separately, preserving all source adoption commits.
+- [ ] One fresh scoped review verifies I4, preserved version/other-field guards, and tests. Controller verifies logs/provenance/protected paths, updates handoff/Backlog, and leaves all task statuses In Progress until manual user acceptance. No additional broad review round, push or merge.
