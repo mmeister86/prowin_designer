@@ -414,12 +414,14 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
   /* only thread roots get a pin; replies live inside the root's popover */
   const comments = frameComments.filter((c) => !c.parentId && !c.resolvedAt)
   const [probe, setProbe] = useState<ProbeHit | null>(null)
-  /* A deselect can overtake the probe it clears: a stale render may commit
-     the old probe afterwards (proven by stuck grips re-selecting a cleared
-     element). The cleared probe object is stamped so the shared effect below
-     drops it instead of re-picking from it. Every live probe arrives as a
-     fresh runtime-reply object, so identity separates stale from live. */
-  const clearedProbeRef = useRef<ProbeHit | null>(null)
+  /* A deselect can overtake queued probe work: a retained refresh updater
+     may commit a rebased clone after the clear, which object identity cannot
+     tell apart from a fresh reply. Probes carry the clear-epoch of their
+     originating reply instead; only work at least as new as the last
+     committed clear may pick. Rebased clones keep (or lack) the older
+     epoch and are dropped. */
+  const clearEpochRef = useRef(0)
+  const probeBirthEpoch = useRef(new WeakMap<ProbeHit, number>())
   /* element selected for text editing inside the iframe (edit mode only) */
   const [activeHit, setActiveHit] = useState<ProbeHit | null>(null)
   const [composing, setComposing] = useState(false)
@@ -544,10 +546,8 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
   const [wasSelected, setWasSelected] = useState(selected)
   if (wasSelected !== selected) {
     setWasSelected(selected)
-    if (!selected) {
-      clearedProbeRef.current = probe
-      setProbe(null)
-    } else if (linkedThread) {
+    if (!selected) setProbe(null)
+    else if (linkedThread) {
       /* the emailed thread, now that selection will not close it again */
       setOpenThread(linkedThread)
       setLinkedThread(null)
@@ -583,9 +583,12 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
     previousProbe.current = probeSel
     const cur = useStore.getState().selectedElement
     if (probeSel) {
-      if (probe === clearedProbeRef.current) {
-        /* stale redelivery of the probe a deselect just cleared: drop it
-           instead of resurrecting the selection */
+      /* A queued refresh predating a committed clear must not resurrect the
+         selection; an explicitly fresh surface/comment probe or Layers/link
+         selection (stamped at reply time) still picks, as does a probe the
+         store already holds. */
+      const live = cur?.frameId === frame.id && cur.selector === probeSel
+      if (!live && probeBirthEpoch.current.get(probe!) !== clearEpochRef.current) {
         setProbe(null)
         return
       }
@@ -605,11 +608,16 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
     setSeenWantedSel(wantedSel)
     /* Returning to a frame-only link (or closing the element panel) also
        removes the previous element's toolbar and outline. */
-    if (!wantedSel) {
-      clearedProbeRef.current = probe
-      setProbe(null)
-    }
+    if (!wantedSel) setProbe(null)
   }
+  /* Committed deselects invalidate queued probe refreshes. This moves here,
+     on committed values, because render-phase stamps share attempts and a
+     retained updater rebases from pre-clear base state. */
+  const prevWantedSel = useRef<string | null>(wantedSel)
+  useEffect(() => {
+    if (prevWantedSel.current !== null && wantedSel === null) clearEpochRef.current += 1
+    prevWantedSel.current = wantedSel
+  }, [wantedSel])
   const selectReq = useRef(0)
   const selectSel = useRef<string | null>(null)
   useEffect(() => {
@@ -638,6 +646,7 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
       if (ev.source !== iframeRef.current?.contentWindow) return
       if (ev.data?.type === 'doop:probe-result' && ev.data.reqId === probeReq.current) {
         const hit = (ev.data.hit ?? null) as ProbeHit | null
+        if (hit) probeBirthEpoch.current.set(hit, clearEpochRef.current)
         setProbe(hit)
         /* the Comment tool skips the element toolbar: the composer opens on
            the hit, the same one the toolbar's own Comment button opens */
@@ -653,8 +662,10 @@ export const FrameView = memo(function FrameView({ frame, raster }: { frame: Fra
         if (live?.frameId !== frame.id || live.selector !== selectSel.current) return
         const hit = (ev.data.hit ?? null) as ProbeHit | null
         closePopovers()
-        if (hit) setProbe(hit)
-        else {
+        if (hit) {
+          probeBirthEpoch.current.set(hit, clearEpochRef.current)
+          setProbe(hit)
+        } else {
           /* The live document is authoritative for linked elements and
              Layers picks, including nodes created or removed by scripts. */
           const s = useStore.getState()

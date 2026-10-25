@@ -20,6 +20,7 @@ declare global {
       undo: () => Promise<void>
       geometry: (selector: string, edit: GeometryEdit) => Promise<ElementInfo | null>
       redo: () => Promise<void>
+      selected: () => { frameId: string; selector: string } | null
     }
   }
 }
@@ -608,5 +609,34 @@ describe.skipIf(!findBrowserPath())('element resize handles', () => {
       return { hover: getComputedStyle(hover).zIndex, outline: getComputedStyle(outline).zIndex }
     })
     expect(Number(z.hover)).toBeGreaterThan(Number(z.outline))
+  }, 20_000)
+
+  it('keeps a deselect that a queued probe refresh overtakes', async () => {
+    await reset()
+    await select('#box')
+    /* a valid runtime rect refresh queued in the same task as the deselect:
+       the stale refresh must not resurrect the cleared selection */
+    await page.evaluate(() => {
+      const iframe = document.querySelector('iframe')!
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: iframe.contentWindow,
+          data: {
+            type: 'doop:located',
+            reqId: '__probe__',
+            selector: '#box',
+            rect: { x: 8, y: 8, width: 200, height: 100 },
+            sizable: true,
+          },
+        }),
+      )
+      window.elementPanelHarness.deselect()
+    })
+    /* flush the queued React work, then the cleared state must hold */
+    await page.waitForFunction(() => !document.querySelector('[data-resize-handles]'), { polling: 'mutation' })
+    expect(await page.evaluate(() => window.elementPanelHarness.selected())).toBeNull()
+    /* an intentional same-element reselection still works */
+    await select('#box')
+    expect(await page.evaluate(() => window.elementPanelHarness.selected())).toMatchObject({ selector: '#box' })
   }, 20_000)
 })

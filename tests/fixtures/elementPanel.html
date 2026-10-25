@@ -40,6 +40,7 @@
         },
         undo,
         redo,
+        selected: () => useStore.getState().selectedElement,
       }
       function Fixture() {
         const frame = useStore((s) => s.canvas?.frames[0])
