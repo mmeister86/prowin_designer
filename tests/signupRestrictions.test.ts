@@ -29,7 +29,9 @@ describe('signup domain restrictions', () => {
     const email = 'outsider@example.com'
     const res = await signUp(email, 'Outsider')
     expect(res.status).toBe(400)
-    expect((await res.json()).message).toContain('@jointhetroops.com')
+    expect((await res.json()).message).toBe(
+      'Die Registrierung ist auf E-Mail-Adressen von @jointhetroops.com, @partner.test beschränkt.',
+    )
 
     const exists = await client.post('/api/account-exists', { email })
     expect(await exists.json()).toEqual({ exists: false })

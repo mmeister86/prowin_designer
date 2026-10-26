@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import type { Frame } from '../shared/types'
 import { FrameContextMenu } from '../src/components/FrameContextMenu'
 import { ContextMenu, ContextMenuTrigger } from '../src/components/ui/context-menu'
+import { useStore } from '../src/lib/store'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -25,6 +26,7 @@ let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  useStore.setState({ selectedIds: [], canvas: null })
   container = document.createElement('div')
   document.body.appendChild(container)
   root = createRoot(container)
@@ -57,7 +59,7 @@ async function openFrameMenu(): Promise<Element> {
 async function openExportDialog(): Promise<Element> {
   const menu = await openFrameMenu()
   const exportItem = Array.from(menu.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
-    (item) => item.textContent === 'Export…',
+    (item) => item.textContent === 'Exportieren…',
   )!
   await act(async () => {
     exportItem.click()
@@ -70,21 +72,29 @@ async function openExportDialog(): Promise<Element> {
 
 it('keeps Copy image URL in the frame menu, not the export dialog', async () => {
   const menu = await openFrameMenu()
-  expect(menu.textContent).toContain('Copy image URL')
-  expect(menu.textContent).toContain('Export…')
-  expect(menu.textContent).not.toContain('Download PNG')
+  expect(menu.textContent).toContain('Bild-URL kopieren')
+  expect(menu.textContent).toContain('Exportieren…')
+  expect(menu.textContent).not.toContain('PNG herunterladen')
+})
+
+it('uses German actions for multiple selected frames', async () => {
+  useStore.setState({ selectedIds: [frame.id, 'second'] })
+  const menu = await openFrameMenu()
+  for (const text of ['2 Zeichenflächen kopieren', '2 Zeichenflächen duplizieren', '2 Zeichenflächen löschen']) {
+    expect(menu.textContent).toContain(text)
+  }
 })
 
 it('hands focus from the frame menu to a persistent export dialog and dismisses with Escape', async () => {
   const dialog = await openExportDialog()
 
   expect(document.querySelector('[role="menu"]')).toBeNull()
-  expect(dialog.textContent).toContain('Export “Poster”')
+  expect(dialog.textContent).toContain('„Poster“ exportieren')
   expect(dialog.contains(document.activeElement)).toBe(true)
-  expect(dialog.textContent).toContain('Download PNG')
-  expect(dialog.textContent).toContain('Download JPG')
+  expect(dialog.textContent).toContain('PNG herunterladen')
+  expect(dialog.textContent).toContain('JPG herunterladen')
   expect(dialog.textContent).not.toMatch(/PSD|Canva|Figma/)
-  expect(dialog.textContent).not.toContain('Copy image URL')
+  expect(dialog.textContent).not.toContain('Bild-URL kopieren')
   await act(async () => {
     document.activeElement!.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),

@@ -20,7 +20,7 @@ export function isDraftCount(value: unknown): value is DraftCount {
  *  boundary so a long brief does not become a long tab title. */
 export function canvasNameFromPrompt(text: string): string {
   const line = text.trim().split(/\r?\n/)[0]?.replace(/\s+/g, ' ').trim()
-  if (!line) return 'Untitled canvas'
+  if (!line) return 'Unbenannte Arbeitsfläche'
   if (line.length <= MAX_CANVAS_NAME) return line
   const cut = line.slice(0, MAX_CANVAS_NAME)
   const space = cut.lastIndexOf(' ')
@@ -32,7 +32,7 @@ export function canvasNameFromPrompt(text: string): string {
 export function draftsCardTitle(text: string, drafts: DraftCount): string {
   const prompt = text.trim()
   if (drafts <= 1) return prompt
-  return `Make ${drafts} distinct drafts of this, each as its own frame side by side, so they can be compared:\n\n${prompt}`
+  return `Erstelle ${drafts} unterschiedliche Entwürfe, jeweils auf einer eigenen Zeichenfläche nebeneinander, damit sie verglichen werden können:\n\n${prompt}`
 }
 
 export function readStoredDrafts(storage: Pick<Storage, 'getItem'> | undefined): DraftCount {

@@ -11,19 +11,19 @@ export function FrameExportModal({ frame, onClose }: { frame: Frame; onClose: ()
 
   return (
     <Modal size="sm" onClose={onClose}>
-      <ModalTitle className="break-words">Export “{frame.name}”</ModalTitle>
-      <ModalLede>Download this frame as a PNG or JPG image.</ModalLede>
+      <ModalTitle className="break-words">„{frame.name}“ exportieren</ModalTitle>
+      <ModalLede>Lade diese Zeichenfläche als PNG- oder JPG-Bild herunter.</ModalLede>
       <div className="mt-5 grid gap-2">
         <Button variant="ghost" className="justify-start" onClick={() => download('png')}>
-          Download PNG
+          PNG herunterladen
         </Button>
         <Button variant="ghost" className="justify-start" onClick={() => download('jpg')}>
-          Download JPG
+          JPG herunterladen
         </Button>
       </div>
       <ModalActions>
         <Button variant="ghost" onClick={onClose}>
-          Cancel
+          Abbrechen
         </Button>
       </ModalActions>
     </Modal>

@@ -13,7 +13,7 @@ public struct ExportDirectory {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let name = (suggestedFilename as NSString).lastPathComponent
             .components(separatedBy: .controlCharacters).joined()
-        let safeName = name.isEmpty || name == "." || name == ".." ? "Doop export" : String(name.prefix(120))
+        let safeName = name.isEmpty || name == "." || name == ".." ? "Doop-Export" : String(name.prefix(120))
         return directory.appendingPathComponent(safeName, isDirectory: false)
     }
 

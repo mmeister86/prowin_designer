@@ -302,7 +302,7 @@ export function PathEditor({
                       />
                       <circle
                         data-path-handle={`${index}-${handle}`}
-                        aria-label={`Point ${index + 1} ${handle === 'handleIn' ? 'incoming' : 'outgoing'} handle`}
+                        aria-label={`Punkt ${(index + 1).toLocaleString('de-DE')}: ${handle === 'handleIn' ? 'eingehender' : 'ausgehender'} Griff`}
                         className="pointer-events-auto cursor-move"
                         cx={end.x}
                         cy={end.y}
@@ -323,7 +323,7 @@ export function PathEditor({
                 />
                 <circle
                   data-path-edit-anchor={index}
-                  aria-label={`Path point ${index + 1}`}
+                  aria-label={`Pfadpunkt ${(index + 1).toLocaleString('de-DE')}`}
                   className="pointer-events-auto cursor-move"
                   cx={at.x}
                   cy={at.y}
@@ -358,7 +358,7 @@ export function PathEditor({
           className="absolute bottom-24 left-1/2 z-40 flex max-w-[90%] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink shadow-pop"
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <span>{saving ? 'Saving path…' : 'Drag points or handles · Alt to release snapping'}</span>
+          <span>{saving ? 'Pfad wird gespeichert…' : 'Ziehe Punkte oder Griffe · Alt, um das Einrasten zu lösen'}</span>
           {selected !== null && (
             <>
               <button
@@ -367,7 +367,9 @@ export function PathEditor({
                 className="font-semibold text-brand disabled:opacity-40"
                 onClick={() => toggleCurve(selected)}
               >
-                {path.points[selected]?.handleIn || path.points[selected]?.handleOut ? 'Make corner' : 'Make curve'}
+                {path.points[selected]?.handleIn || path.points[selected]?.handleOut
+                  ? 'In Ecke umwandeln'
+                  : 'In Kurve umwandeln'}
               </button>
               <button
                 type="button"
@@ -375,12 +377,12 @@ export function PathEditor({
                 className="disabled:opacity-40"
                 onClick={removePoint}
               >
-                Delete point
+                Punkt löschen
               </button>
             </>
           )}
           <button type="button" className="font-semibold text-brand" onClick={onClose}>
-            Done
+            Erledigt
           </button>
         </div>,
         stage,

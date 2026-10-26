@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
  */
 export function FramePreview({
   frameId,
-  empty = 'empty canvas',
+  empty = 'Leere Arbeitsfläche',
   className,
 }: {
   frameId?: string | null
@@ -26,7 +26,7 @@ export function FramePreview({
       <span className={cn('grid h-full w-full place-items-center text-label text-ink-faint', className)}>{text}</span>
     )
   if (!frameId) return fallback(empty)
-  if (failedId === frameId) return fallback('preview unavailable')
+  if (failedId === frameId) return fallback('Vorschau nicht verfügbar')
   return (
     <img
       src={`/i/${frameId}.jpg?preview`}
@@ -51,8 +51,8 @@ type FrameThumbSize = keyof typeof THUMB_SIZE
 /** What each size says when there is nothing to preview; xs is too small for words. */
 const THUMB_EMPTY: Record<FrameThumbSize, ReactNode> = {
   xs: null,
-  sm: 'empty',
-  md: 'empty canvas',
+  sm: 'Leer',
+  md: 'Leere Arbeitsfläche',
 }
 
 /**

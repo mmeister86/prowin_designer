@@ -26,7 +26,7 @@ export function WorkingNow({ style, className }: { style?: CSSProperties; classN
         <div
           key={p.clientId}
           className="pointer-events-auto flex h-7 max-w-full min-w-0 animate-[chip-in_0.2s_ease] items-center gap-2 rounded-[8px] bg-surface pr-2.5 pl-2 text-[12px] text-ink-soft shadow-ring"
-          title={`${p.name}${p.owner ? ` (${p.owner}'s agent)` : ''}: ${p.status}`}
+          title={`${p.name}${p.owner ? ` (Agent von ${p.owner})` : ''}: ${p.status}`}
         >
           {p.kind === 'agent' ? (
             <span className="grid size-[13px] flex-none place-items-center">

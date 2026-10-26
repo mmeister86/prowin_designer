@@ -32,6 +32,11 @@ import {
 import { timeAgo } from '../lib/time'
 
 type Pane = 'members' | 'billing' | 'general'
+const WORKSPACE_ROLE_LABELS: Record<WorkspaceRole, string> = {
+  owner: 'Eigentümer',
+  creator: 'Creator',
+  member: 'Mitglied',
+}
 
 /**
  * One workspace's settings, in the dashboard shell: who is in it, what it
@@ -77,13 +82,13 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
         .syncWorkspaceBilling(workspaceId, landing.sessionId)
         .then((summary) => {
           if (summary.active && summary.plan) {
-            showToast('Team plan is active — welcome aboard')
+            showToast('Der Team-Tarif ist aktiv — willkommen an Bord')
           }
         })
         .catch(console.error)
         .finally(reload)
     } else {
-      if (landing.checkout === 'canceled') showToast('Checkout canceled — nothing was charged')
+      if (landing.checkout === 'canceled') showToast('Zahlung abgebrochen — es wurde nichts berechnet')
       reload()
     }
   }, [landing, workspaceId, reload])
@@ -96,7 +101,7 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
   /** every 402 on this page means the same thing */
   function handle(caught: unknown, fallback: string) {
     const walled = paywalledWorkspace(caught)
-    if (walled) setUpgrade(`"${ws?.name ?? 'This workspace'}" needs a plan first.`)
+    if (walled) setUpgrade(`„${ws?.name ?? 'Dieser Arbeitsbereich'}“ benötigt zuerst einen Tarif.`)
     else showToast(errorMessage(caught, fallback))
   }
 
@@ -110,10 +115,10 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
         <DashMain className="[background:var(--paper)]">
           <DashHeader variant="bare" />
           <DashContent>
-            <DashTitle>Workspace not found</DashTitle>
-            <DashSubtitle>It may have been deleted, or you are no longer a member.</DashSubtitle>
+            <DashTitle>Arbeitsbereich nicht gefunden</DashTitle>
+            <DashSubtitle>Er wurde möglicherweise gelöscht oder Du bist kein Mitglied mehr.</DashSubtitle>
             <Button className="mt-5" onClick={() => navigate('/')}>
-              Back to canvases
+              Zurück zu den Arbeitsflächen
             </Button>
           </DashContent>
         </DashMain>
@@ -125,7 +130,7 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
     <DashLayout className={railLayout}>
       {/* the app rail, lit on this workspace, with its panes as the page's group */}
       <AppRail active={`ws:${workspaceId}`} workspaces={spaces}>
-        <DashSectionLabel density="rail">{ws?.name ?? 'Workspace'}</DashSectionLabel>
+        <DashSectionLabel density="rail">{ws?.name ?? 'Arbeitsbereich'}</DashSectionLabel>
         <nav className="flex flex-col gap-0.5">
           <DashNavItem
             density="rail"
@@ -133,7 +138,7 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
             active={pane === 'members'}
             onClick={() => setPane('members')}
           >
-            People
+            Personen
           </DashNavItem>
           <DashNavItem
             density="rail"
@@ -141,7 +146,7 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
             active={pane === 'billing'}
             onClick={() => setPane('billing')}
           >
-            Plan &amp; billing
+            Tarif &amp; Abrechnung
           </DashNavItem>
           <DashNavItem
             density="rail"
@@ -149,21 +154,21 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
             active={pane === 'general'}
             onClick={() => setPane('general')}
           >
-            General
+            Allgemein
           </DashNavItem>
         </nav>
       </AppRail>
 
       <DashMain className="[background:var(--paper)]">
         <DashHeader variant="bare">
-          <nav className="flex items-center gap-2 text-body text-ink-faint" aria-label="Breadcrumb">
+          <nav className="flex items-center gap-2 text-body text-ink-faint" aria-label="Navigationspfad">
             <Button
               variant="link"
               size="sm"
               className="px-0 py-0 text-body font-normal text-ink-faint hover:text-ink"
               onClick={() => navigate('/')}
             >
-              Home
+              Startseite
             </Button>
             <ChevronRightIcon size={12} />
             <b className="truncate font-semibold text-ink">{ws?.name ?? '…'}</b>
@@ -176,9 +181,9 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
               <DashTitle className="truncate">{ws?.name ?? '…'}</DashTitle>
               <DashSubtitle>
                 {ws
-                  ? `${ws.memberCount} ${ws.memberCount === 1 ? 'person' : 'people'} · ${ws.canvasCount} ${
-                      ws.canvasCount === 1 ? 'canvas' : 'canvases'
-                    } · ${ws.billing.enabled ? STATUS_LABELS[ws.status] : 'Self-hosted, included'}`
+                  ? `${ws.memberCount.toLocaleString('de-DE')} ${ws.memberCount === 1 ? 'Person' : 'Personen'} · ${ws.canvasCount.toLocaleString('de-DE')} ${
+                      ws.canvasCount === 1 ? 'Arbeitsfläche' : 'Arbeitsflächen'
+                    } · ${ws.billing.enabled ? STATUS_LABELS[ws.status] : 'Selbst gehostet, inklusive'}`
                   : '…'}
               </DashSubtitle>
             </div>
@@ -186,29 +191,30 @@ export function Workspace({ workspaceId }: { workspaceId: string }) {
 
           <Tabs value={pane} onValueChange={(next) => setPane(next as Pane)} className="mt-4 flex md:hidden">
             <TabsList variant="card">
-              <TabsTrigger value="members">People</TabsTrigger>
-              <TabsTrigger value="billing">Billing</TabsTrigger>
-              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="members">Personen</TabsTrigger>
+              <TabsTrigger value="billing">Abrechnung</TabsTrigger>
+              <TabsTrigger value="general">Allgemein</TabsTrigger>
             </TabsList>
           </Tabs>
 
           {ws && ws.billing.enabled && !ws.active && (
             <Callout className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
               <span className="flex-1">
-                <b>No plan yet.</b> Inviting people and adding canvases waits until this workspace is on Team.
-                {ws.status === 'canceled' ? ' Your existing canvases stay open to everyone in it.' : ''}
+                <b>Noch kein Tarif.</b> Du kannst Personen einladen und Arbeitsflächen hinzufügen, sobald dieser
+                Arbeitsbereich den Team-Tarif nutzt.
+                {ws.status === 'canceled' ? ' Deine bestehenden Arbeitsflächen bleiben für alle darin zugänglich.' : ''}
               </span>
               {isOwner && (
                 <Button variant="primary" size="sm" onClick={() => setUpgrade('')}>
-                  {ws.status === 'canceled' ? 'Reactivate' : 'Choose a plan'}
+                  {ws.status === 'canceled' ? 'Reaktivieren' : 'Tarif auswählen'}
                 </Button>
               )}
             </Callout>
           )}
           {ws && ws.status === 'past_due' && (
             <Callout tone="error" className="mt-4">
-              <b>The last payment failed.</b> Stripe is retrying; update the card in the billing portal to keep the
-              plan.
+              <b>Die letzte Zahlung ist fehlgeschlagen.</b> Stripe versucht es erneut. Aktualisiere die Karte im
+              Abrechnungsportal, um den Tarif beizubehalten.
             </Callout>
           )}
 
@@ -273,12 +279,17 @@ function MembersPane({
     setBusy(true)
     try {
       const result = await api.inviteToWorkspace(ws.id, clean, role)
-      if ('member' in result) onToast(`${result.member.name} is in`)
-      else onToast(result.emailed ? `Invite emailed to ${clean}` : `${clean} joins when they sign up with that email`)
+      if ('member' in result) onToast(`${result.member.name} ist dabei`)
+      else
+        onToast(
+          result.emailed
+            ? `Einladung per E-Mail gesendet an ${clean}`
+            : `${clean} tritt bei der Registrierung mit dieser E-Mail-Adresse bei`,
+        )
       setEmail('')
       onChange()
     } catch (caught) {
-      onError(caught, 'Couldn’t invite')
+      onError(caught, 'Einladung fehlgeschlagen')
     } finally {
       setBusy(false)
     }
@@ -289,7 +300,7 @@ function MembersPane({
       await api.setWorkspaceRole(ws.id, userId, next)
       onChange()
     } catch (caught) {
-      onError(caught, 'Couldn’t change the role')
+      onError(caught, 'Die Rolle konnte nicht geändert werden')
     }
   }
 
@@ -299,7 +310,7 @@ function MembersPane({
       if (userId === meId) navigate('/')
       else onChange()
     } catch (caught) {
-      onError(caught, 'Couldn’t remove')
+      onError(caught, 'Entfernen fehlgeschlagen')
     }
   }
 
@@ -308,40 +319,41 @@ function MembersPane({
       await api.revokeWorkspaceInvite(ws.id, inviteId)
       onChange()
     } catch (caught) {
-      onError(caught, 'Couldn’t revoke the invite')
+      onError(caught, 'Die Einladung konnte nicht widerrufen werden')
     }
   }
 
   return (
     <SettingsCard>
       <CardHeader>
-        <CardTitle>People</CardTitle>
+        <CardTitle>Personen</CardTitle>
         <CardDescription>
-          Everyone here opens every canvas in the workspace. Only the owner manages people and billing. Creator access
-          requires prior Creator registration. Members can collaborate without registering as Creator.
-          {ws.billing.enabled ? ' Each person is one seat.' : ''}
+          Alle hier können jede Arbeitsfläche im Arbeitsbereich öffnen. Nur der Eigentümer verwaltet Personen und
+          Abrechnung. Der Creator-Zugang erfordert eine vorherige Creator-Registrierung. Mitglieder können ohne
+          Creator-Registrierung mitarbeiten.
+          {ws.billing.enabled ? ' Jede Person belegt einen Platz.' : ''}
         </CardDescription>
         {admin && (
           <div className="mt-4 flex flex-col items-stretch gap-2 sm:flex-row">
             <Input
               variant="well"
               className="flex-1"
-              placeholder="Invite by email"
+              placeholder="Per E-Mail einladen"
               type="email"
               value={email}
               disabled={busy}
               onChange={(event) => setEmail(event.target.value)}
               onKeyDown={(event) => event.key === 'Enter' && invite()}
-              aria-label="Email to invite"
+              aria-label="E-Mail-Adresse für die Einladung"
             />
             <Select value={role} disabled={busy} onValueChange={(value) => setRole(value as WorkspaceRole)}>
-              <SelectTrigger aria-label="Role">
+              <SelectTrigger aria-label="Rolle">
                 <SelectValue />
               </SelectTrigger>
               <RoleOptions />
             </Select>
             <Button variant="primary" className="justify-center" disabled={busy || !email.trim()} onClick={invite}>
-              {busy ? 'Inviting…' : 'Invite'}
+              {busy ? 'Einladung wird gesendet…' : 'Einladen'}
             </Button>
           </div>
         )}
@@ -356,11 +368,11 @@ function MembersPane({
               className="py-3"
               action={
                 isOwnerRow ? (
-                  <Badge tone="accent">owner</Badge>
+                  <Badge tone="accent">Eigentümer</Badge>
                 ) : admin ? (
                   <>
                     <Select value={m.role} onValueChange={(value) => changeRole(m.userId, value as WorkspaceRole)}>
-                      <SelectTrigger size="sm" aria-label={`Role of ${m.name}`}>
+                      <SelectTrigger size="sm" aria-label={`Rolle von ${m.name}`}>
                         <SelectValue />
                       </SelectTrigger>
                       <RoleOptions />
@@ -368,21 +380,21 @@ function MembersPane({
                     <Button
                       variant="bare-danger"
                       size="sm"
-                      onClick={() => setRemoving({ userId: m.userId, name: self ? 'yourself' : m.name })}
+                      onClick={() => setRemoving({ userId: m.userId, name: self ? 'Dich selbst' : m.name })}
                     >
-                      {self ? 'Leave' : 'Remove'}
+                      {self ? 'Verlassen' : 'Entfernen'}
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Badge>{m.role}</Badge>
+                    <Badge>{WORKSPACE_ROLE_LABELS[m.role]}</Badge>
                     {self && (
                       <Button
                         variant="bare-danger"
                         size="sm"
-                        onClick={() => setRemoving({ userId: m.userId, name: 'yourself' })}
+                        onClick={() => setRemoving({ userId: m.userId, name: 'Dich selbst' })}
                       >
-                        Leave
+                        Verlassen
                       </Button>
                     )}
                   </>
@@ -392,25 +404,25 @@ function MembersPane({
               <PersonRow
                 className="flex-1"
                 avatar={<Avatar name={m.name} size={32} />}
-                name={`${m.name}${self ? ' (you)' : ''}`}
-                detail={`${m.email} · joined ${timeAgo(m.addedAt)}`}
+                name={`${m.name}${self ? ' (Du)' : ''}`}
+                detail={`${m.email} · beigetreten am ${timeAgo(m.addedAt)}`}
               />
             </CardRow>
           )
         })}
         {ws.invites.length > 0 && (
           <CardBody className="border-t border-line-soft bg-paper/60">
-            <span className="text-caption text-ink-faint">Waiting to sign up</span>
+            <span className="text-caption text-ink-faint">Wartet auf die Registrierung</span>
             {ws.invites.map((inv) => (
               <div key={inv.id} className="mt-2 flex items-center gap-3 text-body">
                 <span className="min-w-0 flex-1 truncate">
                   {inv.email}{' '}
                   <span className="text-ink-faint">
-                    · {inv.role} · invited by {inv.invitedByName}
+                    · {WORKSPACE_ROLE_LABELS[inv.role]} · eingeladen von {inv.invitedByName}
                   </span>
                 </span>
                 <Button variant="bare" size="sm" onClick={() => revoke(inv.id)}>
-                  Revoke
+                  Widerrufen
                 </Button>
               </div>
             ))}
@@ -420,13 +432,13 @@ function MembersPane({
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(open) => !open && setRemoving(null)}
-        title={removing?.userId === meId ? `Leave “${ws.name}”?` : `Remove ${removing?.name ?? ''}?`}
+        title={removing?.userId === meId ? `„${ws.name}“ verlassen?` : `Entfernen: ${removing?.name ?? ''}?`}
         description={
           removing?.userId === meId
-            ? 'You lose access to every canvas in this workspace except the ones you own.'
-            : 'They lose access to every canvas in this workspace except the ones they own. Their seat is released.'
+            ? 'Du verlierst den Zugriff auf alle Arbeitsflächen in diesem Arbeitsbereich, außer auf Deine eigenen.'
+            : 'Die Person verliert den Zugriff auf alle Arbeitsflächen in diesem Arbeitsbereich, außer auf ihre eigenen. Ihr Platz wird freigegeben.'
         }
-        confirmLabel={removing?.userId === meId ? 'Leave workspace' : 'Remove'}
+        confirmLabel={removing?.userId === meId ? 'Arbeitsbereich verlassen' : 'Entfernen'}
         destructive
         onConfirm={() => {
           if (removing) void remove(removing.userId)
@@ -463,7 +475,7 @@ function BillingPane({
       const { url } = await api.workspacePortal(ws.id)
       location.assign(url)
     } catch (caught) {
-      onToast(errorMessage(caught, 'Couldn’t open the billing portal'))
+      onToast(errorMessage(caught, 'Das Abrechnungsportal konnte nicht geöffnet werden'))
       setBusy(false)
     }
   }
@@ -474,9 +486,9 @@ function BillingPane({
     try {
       await api.syncWorkspaceBilling(ws.id)
       onSynced()
-      onToast('Up to date with Stripe')
+      onToast('Mit Stripe synchronisiert')
     } catch (caught) {
-      onToast(errorMessage(caught, 'Couldn’t refresh'))
+      onToast(errorMessage(caught, 'Aktualisieren fehlgeschlagen'))
     } finally {
       setBusy(false)
     }
@@ -485,15 +497,15 @@ function BillingPane({
   return (
     <SettingsCard>
       <CardHeader>
-        <CardTitle>Plan &amp; billing</CardTitle>
+        <CardTitle>Tarif &amp; Abrechnung</CardTitle>
         <CardDescription>
           {ws.billing.enabled
-            ? 'Team is billed per seat: every person in the workspace, monthly or yearly. Seats follow the people list — add someone and the next invoice grows, remove them and it shrinks.'
-            : 'Billing isn’t configured on this server. Workspaces are included on self-hosted doop; there is nothing to pay for here.'}
+            ? 'Der Team-Tarif wird pro Platz abgerechnet: für jede Person im Arbeitsbereich, monatlich oder jährlich. Die Plätze richten sich nach der Personenliste — mit neuen Personen steigt die nächste Rechnung, beim Entfernen sinkt sie.'
+            : 'Auf diesem Server ist keine Abrechnung eingerichtet. Bei selbst gehostetem doop sind Arbeitsbereiche inklusive; hier fallen keine Kosten an.'}
         </CardDescription>
       </CardHeader>
-      <CardRow label="Plan">
-        <b className="text-copy">{paid ? 'Team' : ws.billing.enabled ? 'Personal' : 'Self-hosted'}</b>
+      <CardRow label="Tarif">
+        <b className="text-copy">{paid ? 'Team' : ws.billing.enabled ? 'Persönlich' : 'Selbst gehostet'}</b>
         {ws.billing.enabled && (
           <Badge
             tone={
@@ -508,52 +520,57 @@ function BillingPane({
           </Badge>
         )}
         {ws.cancelAtPeriodEnd && ws.currentPeriodEnd && (
-          <span className="text-label text-ink-faint">ends {new Date(ws.currentPeriodEnd).toLocaleDateString()}</span>
+          <span className="text-label text-ink-faint">
+            endet {new Date(ws.currentPeriodEnd).toLocaleDateString('de-DE')}
+          </span>
         )}
       </CardRow>
       {paid && (
         <>
-          <CardRow label="Seats">
+          <CardRow label="Plätze">
             <span className="text-copy">
-              {ws.seats} × {formatUsd(perSeat)} = <b>{formatUsd(ws.seats * perSeat)}</b> per {ws.interval ?? 'month'}
+              {ws.seats.toLocaleString('de-DE')} × {formatUsd(perSeat)} = <b>{formatUsd(ws.seats * perSeat)}</b> pro{' '}
+              {ws.interval === 'year' ? 'Jahr' : 'Monat'}
             </span>
             {ws.seats !== ws.memberCount && (
               <span className="text-label text-ink-faint">
-                ({ws.memberCount} {ws.memberCount === 1 ? 'person' : 'people'} now — Stripe catches up on the next
-                invoice)
+                ({ws.memberCount.toLocaleString('de-DE')} {ws.memberCount === 1 ? 'Person' : 'Personen'} jetzt — Stripe
+                gleicht dies mit der nächsten Rechnung ab)
               </span>
             )}
           </CardRow>
           {ws.currentPeriodEnd && (
-            <CardRow label={ws.cancelAtPeriodEnd ? 'Ends' : 'Renews'}>
-              <span className="text-copy">{new Date(ws.currentPeriodEnd).toLocaleDateString()}</span>
+            <CardRow label={ws.cancelAtPeriodEnd ? 'Endet' : 'Verlängert sich am'}>
+              <span className="text-copy">{new Date(ws.currentPeriodEnd).toLocaleDateString('de-DE')}</span>
             </CardRow>
           )}
         </>
       )}
       {ws.billing.enabled && (
-        <CardRow label="Manage">
+        <CardRow label="Verwalten">
           {isOwner ? (
             <>
               {!ws.active || !paid ? (
                 <Button variant="primary" onClick={onUpgrade}>
-                  {ws.status === 'canceled' ? 'Reactivate on Team' : 'Choose a plan'}
+                  {ws.status === 'canceled' ? 'Team-Tarif reaktivieren' : 'Tarif auswählen'}
                 </Button>
               ) : null}
               {ws.billing.portal && (
                 <Button onClick={portal} disabled={busy}>
-                  {busy ? 'Opening…' : 'Manage billing on Stripe'}
+                  {busy ? 'Wird geöffnet…' : 'Abrechnung bei Stripe verwalten'}
                 </Button>
               )}
               {ws.billing.portal && (
                 <Button variant="ghost" onClick={sync} disabled={busy}>
-                  Refresh
+                  Aktualisieren
                 </Button>
               )}
-              <span className="text-label text-ink-faint">Cards, invoices, cancelling — all on Stripe’s portal.</span>
+              <span className="text-label text-ink-faint">Karten, Rechnungen, Kündigung — alles im Stripe-Portal.</span>
             </>
           ) : (
-            <span className="text-body text-ink-soft">The owner holds the billing; only they can change the plan.</span>
+            <span className="text-body text-ink-soft">
+              Der Eigentümer ist für die Abrechnung verantwortlich; nur er kann den Tarif ändern.
+            </span>
           )}
         </CardRow>
       )}
@@ -587,9 +604,9 @@ function GeneralPane({
     try {
       await api.renameWorkspace(ws.id, clean)
       onChange()
-      onToast('Renamed')
+      onToast('Umbenannt')
     } catch (caught) {
-      onToast(errorMessage(caught, 'Couldn’t rename'))
+      onToast(errorMessage(caught, 'Umbenennen fehlgeschlagen'))
     } finally {
       setBusy(false)
     }
@@ -601,7 +618,7 @@ function GeneralPane({
       await api.deleteWorkspace(ws.id)
       navigate('/')
     } catch (caught) {
-      onToast(errorMessage(caught, 'Couldn’t delete the workspace'))
+      onToast(errorMessage(caught, 'Der Arbeitsbereich konnte nicht gelöscht werden'))
       setBusy(false)
     }
   }
@@ -610,15 +627,17 @@ function GeneralPane({
     <>
       <SettingsCard>
         <CardHeader>
-          <CardTitle>General</CardTitle>
-          <CardDescription>The name everyone sees in their sidebar and on canvases filed here.</CardDescription>
+          <CardTitle>Allgemein</CardTitle>
+          <CardDescription>
+            Der Name, den alle in ihrer Seitenleiste und auf den hier abgelegten Arbeitsflächen sehen.
+          </CardDescription>
         </CardHeader>
         <CardRow
           label="Name"
           action={
             admin ? (
               <Button size="sm" disabled={busy || !name.trim() || name.trim() === ws.name} onClick={rename}>
-                Save
+                Speichern
               </Button>
             ) : undefined
           }
@@ -631,26 +650,26 @@ function GeneralPane({
             disabled={!admin || busy}
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => event.key === 'Enter' && rename()}
-            aria-label="Workspace name"
+            aria-label="Name des Arbeitsbereichs"
           />
         </CardRow>
-        <CardRow label="Created">
+        <CardRow label="Erstellt">
           <span className="text-body text-ink-soft">{timeAgo(ws.createdAt)}</span>
         </CardRow>
       </SettingsCard>
       {isOwner && (
         <SettingsCard tone="flat" className="border-accent-ink/30">
           <CardHeader>
-            <CardTitle className="text-accent-ink">Delete workspace</CardTitle>
+            <CardTitle className="text-accent-ink">Arbeitsbereich löschen</CardTitle>
             <CardDescription>
-              Every canvas goes back to the personal space of whoever owns it — nothing is deleted. People lose access
-              to canvases that aren’t theirs.
-              {ws.billing.enabled && ws.plan ? ' The Team subscription is canceled immediately.' : ''}
+              Jede Arbeitsfläche kehrt in den persönlichen Bereich ihres Eigentümers zurück — es wird nichts gelöscht.
+              Personen verlieren den Zugriff auf fremde Arbeitsflächen.
+              {ws.billing.enabled && ws.plan ? ' Das Team-Abonnement wird sofort gekündigt.' : ''}
             </CardDescription>
           </CardHeader>
           <CardBody>
             <Button variant="danger" disabled={busy} onClick={() => setConfirmDelete(true)}>
-              Delete “{ws.name}”
+              „{ws.name}“ löschen
             </Button>
           </CardBody>
         </SettingsCard>
@@ -658,9 +677,9 @@ function GeneralPane({
       <ConfirmDialog
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
-        title={`Delete “${ws.name}”?`}
-        description="Canvases return to their owners and the subscription ends now. This can’t be undone."
-        confirmLabel="Delete workspace"
+        title={`„${ws.name}“ löschen?`}
+        description="Arbeitsflächen kehren zu ihren Eigentümern zurück und das Abonnement endet jetzt. Das lässt sich nicht rückgängig machen."
+        confirmLabel="Arbeitsbereich löschen"
         destructive
         onConfirm={() => {
           setConfirmDelete(false)
@@ -675,7 +694,7 @@ function GeneralPane({
 function RoleOptions() {
   return (
     <SelectContent>
-      <SelectItem value="member">Member</SelectItem>
+      <SelectItem value="member">Mitglied</SelectItem>
       <SelectItem value="creator">Creator</SelectItem>
     </SelectContent>
   )

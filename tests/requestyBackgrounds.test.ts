@@ -65,7 +65,7 @@ describe('Requesty background tagging', () => {
       else features.backgrounds = false
       const fetcher = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('unexpected network'))
       expect(taggingEnabled()).toBe(false)
-      await expect(tagWithModel(image)).rejects.toThrow(/off/)
+      await expect(tagWithModel(image)).rejects.toThrow(/deaktiviert/)
       expect(fetcher).not.toHaveBeenCalled()
     },
   )
@@ -98,6 +98,6 @@ describe('Requesty background tagging', () => {
         ],
       }),
     )
-    await expect(tagWithModel(image)).rejects.toThrow(/incomplete/)
+    await expect(tagWithModel(image)).rejects.toThrow(/unvollständig/)
   })
 })

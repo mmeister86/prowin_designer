@@ -691,7 +691,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
           const s = useStore.getState()
           s.pickElement(null)
           s.setInspectorOpen(true)
-          s.pushNotice('This element no longer exists. Showing its frame instead.')
+          s.pushNotice('Dieses Element existiert nicht mehr. Stattdessen wird seine Zeichenfläche angezeigt.')
         }
       }
       if (ev.data?.type === 'doop:hover-result' && ev.data.reqId === hoverReq.current) {
@@ -919,7 +919,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                 onPointerDown={(e) => startDrag(e, 'move', false, true)}
               >
                 {frame.locked && (
-                  <Tooltip label="Locked — unlock it from the Layers panel or the Inspector" side="top" align="start">
+                  <Tooltip label="Gesperrt – entsperre es im Ebenenbereich oder im Inspektor" side="top" align="start">
                     <span className="flex shrink-0 items-center text-ink-faint">
                       <LockIcon width={11} height={11} />
                     </span>
@@ -930,7 +930,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                   {stream && (
                     <span className={EDITOR_CHIP} style={{ background: stream.color }}>
                       <AgentIcon name={stream.name} size={9} color="#fff" />
-                      {stream.name} is designing
+                      {stream.name} gestaltet
                       <span className="after:content-['…'] after:[animation:ellipsis_1.2s_steps(4)_infinite]" />
                     </span>
                   )}
@@ -1013,7 +1013,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
             />
             {!frame.html && (
               <div className="absolute inset-0 grid place-items-center bg-[repeating-linear-gradient(45deg,transparent_0_10px,rgba(28,26,21,0.025)_10px_20px)] text-[13px] text-ink-faint">
-                empty frame — add HTML
+                Leere Zeichenfläche – füge HTML hinzu
               </div>
             )}
             {/* shield keeps pointer events on the canvas, not the iframe;
@@ -1083,15 +1083,15 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
               )}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              Click any text to edit
+              Klicke auf einen Text, um ihn zu bearbeiten
               <Button
                 variant="primary"
                 size="pill"
                 className="border-transparent px-2.5 shadow-none hover:translate-x-0 hover:translate-y-0 hover:brightness-110 hover:shadow-none"
                 onClick={exitEdit}
-                title="Save and finish editing (Esc)"
+                title="Speichern und Bearbeitung beenden (Esc)"
               >
-                ✓ Done
+                ✓ Fertig
               </Button>
             </div>
           )}
@@ -1172,7 +1172,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                               setComposing(true)
                             }}
                           >
-                            💬 Comment
+                            💬 Kommentar
                           </Button>
                           <Button
                             variant="inverse"
@@ -1184,7 +1184,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                               setComposing(true)
                             }}
                           >
-                            ✦ Ask AI
+                            ✦ KI fragen
                           </Button>
                           <Button
                             variant="inverse"
@@ -1196,10 +1196,10 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                           <Button
                             variant="inverse"
                             className={EL_TOOLBAR_BTN}
-                            aria-label="Copy link to element"
+                            aria-label="Link zum Element kopieren"
                             onClick={() => void copyElementLink(frame, anchor.selector)}
                           >
-                            Copy link
+                            Link kopieren
                           </Button>
                           {!editing && canEdit && anchor.text !== '' && (
                             <Button
@@ -1209,7 +1209,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                                 enterEdit()
                               }}
                             >
-                              ✎ Edit text
+                              ✎ Text bearbeiten
                             </Button>
                           )}
                         </div>

@@ -29,8 +29,8 @@ describe('plan catalogue', () => {
   it('prices a seat at roughly $20 a month', () => {
     expect(TEAM_SEAT_PRICE.month).toBe(2000)
     expect(seatPerMonth('year')).toBe(1600)
-    expect(formatUsd(2000)).toBe('$20')
-    expect(formatUsd(1650)).toBe('$16.50')
+    expect(formatUsd(2000)).toBe('20\u00a0$')
+    expect(formatUsd(1650)).toBe('16,50\u00a0$')
   })
 
   it('folds Stripe statuses into the product’s', () => {

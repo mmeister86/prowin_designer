@@ -10,7 +10,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if app.loading {
-                VStack(spacing: 20) { DoopWordmark(); ProgressView("Opening your workspace…") }
+                VStack(spacing: 20) { DoopWordmark(); ProgressView("Dein Arbeitsbereich wird geöffnet…") }
             } else if app.user == nil {
                 SignInView(app: app, settings: $settings)
             } else {
@@ -51,11 +51,11 @@ private struct SignInView: View {
     private func finishAppleSignIn(_ result: Result<ASAuthorization, Error>) {
         switch result {
         case .failure(let failure):
-            if (failure as? ASAuthorizationError)?.code != .canceled { error = failure.localizedDescription }
+            if (failure as? ASAuthorizationError)?.code != .canceled { error = NativeMessages.error(failure) }
         case .success(let authorization):
             guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
                   let data = credential.identityToken, let token = String(data: data, encoding: .utf8) else {
-                error = "Apple did not return a sign-in token. Try again."
+                error = "Apple hat kein Anmeldetoken zurückgegeben. Versuche es erneut."
                 return
             }
             let nonce = appleNonce
@@ -66,7 +66,7 @@ private struct SignInView: View {
                 do {
                     try await app.signIn(appleIdentityToken: token, nonce: nonce,
                                          givenName: name?.givenName, familyName: name?.familyName)
-                } catch { self.error = error.localizedDescription }
+                } catch { self.error = NativeMessages.error(error) }
                 submitting = false
             }
         }
@@ -78,9 +78,9 @@ private struct SignInView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     DoopWordmark().padding(.top, 32)
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(registering ? "Make room for\nyour next idea." : "Your ideas.\nAnywhere.")
+                        Text(registering ? "Platz für\nDeine nächste Idee." : "Deine Ideen.\nÜberall.")
                             .font(.system(size: 42, weight: .bold, design: .rounded)).fixedSize(horizontal: false, vertical: true)
-                        Text("A shared design space for you, your team, and your agents.")
+                        Text("Ein gemeinsamer Designbereich für Dich, Dein Team und Deine Agenten.")
                             .font(.title3).foregroundStyle(.secondary)
                     }
                     if offersProviders {
@@ -103,13 +103,13 @@ private struct SignInView: View {
                                     Task {
                                         do { try await app.signIn(with: provider) }
                                         catch is SignInCancelled {}
-                                        catch { self.error = error.localizedDescription }
+                                        catch { self.error = NativeMessages.error(error) }
                                         submitting = false
                                     }
                                 } label: {
                                     HStack(spacing: 10) {
                                         ProviderMark(provider: provider)
-                                        Text("\(registering ? "Sign up" : "Sign in") with \(app.providers.label(for: provider))").bold()
+                                        Text("\(registering ? "Registrieren" : "Anmelden") mit \(app.providers.label(for: provider))").bold()
                                     }
                                     .frame(maxWidth: .infinity).padding(.vertical, 14)
                                     .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
@@ -122,17 +122,17 @@ private struct SignInView: View {
                         }
                         HStack(spacing: 12) {
                             Rectangle().fill(.quaternary).frame(height: 1)
-                            Text("or").font(.footnote).foregroundStyle(.secondary)
+                            Text("oder").font(.footnote).foregroundStyle(.secondary)
                             Rectangle().fill(.quaternary).frame(height: 1)
                         }
                     }
                     VStack(spacing: 16) {
                         if registering {
-                            TextField("Your name", text: $name).textContentType(.name)
+                            TextField("Dein Name", text: $name).textContentType(.name)
                         }
-                        TextField("Email", text: $email).textContentType(.username).keyboardType(.emailAddress)
+                        TextField("E-Mail", text: $email).textContentType(.username).keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityIdentifier("login.email")
-                        SecureField("Password", text: $password).textContentType(registering ? .newPassword : .password)
+                        SecureField("Passwort", text: $password).textContentType(registering ? .newPassword : .password)
                             .accessibilityIdentifier("login.password")
                     }.textFieldStyle(.roundedBorder).controlSize(.large)
                     if let message = error ?? app.error { Text(message).font(.callout).foregroundStyle(.red) }
@@ -141,22 +141,22 @@ private struct SignInView: View {
                         error = nil
                         Task {
                             do { try await app.signIn(email: email, password: password, name: registering ? name : nil); password = "" }
-                            catch { self.error = error.localizedDescription }
+                            catch { self.error = NativeMessages.error(error) }
                             submitting = false
                         }
                     } label: {
-                        HStack { Spacer(); if submitting { ProgressView().tint(.white) }; Text(registering ? "Create account" : "Sign in").bold(); Spacer() }.padding(.vertical, 8)
+                        HStack { Spacer(); if submitting { ProgressView().tint(.white) }; Text(registering ? "Konto erstellen" : "Anmelden").bold(); Spacer() }.padding(.vertical, 8)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(submitting || email.isEmpty || password.isEmpty || (registering && name.trimmingCharacters(in: .whitespaces).isEmpty))
                     .accessibilityIdentifier("login.submit")
-                    Button(registering ? "Already have an account? Sign in" : "New to Doop? Create an account") { registering.toggle(); error = nil }
+                    Button(registering ? "Du hast schon ein Konto? Anmelden" : "Neu bei Doop? Konto erstellen") { registering.toggle(); error = nil }
                     Text(app.client.server.origin.host ?? "").font(.caption).foregroundStyle(.tertiary)
                 }
                 .padding(28).frame(maxWidth: 480).frame(maxWidth: .infinity)
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .toolbar { ToolbarItem(placement: .primaryAction) { Button { settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("Server settings") } }
+            .toolbar { ToolbarItem(placement: .primaryAction) { Button { settings = true } label: { Image(systemName: "gearshape") }.accessibilityLabel("Servereinstellungen") } }
         }
     }
 }
@@ -205,26 +205,26 @@ private struct LibraryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("YOUR DESIGN SPACE").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(doopBlue)
-                        Text("What’s next, \(app.user?.name.components(separatedBy: " ").first ?? "designer")?")
+                        Text("DEIN DESIGNBEREICH").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(doopBlue)
+                        Text("Was kommt als Nächstes, \(app.user?.name.components(separatedBy: " ").first ?? "Du")?")
                             .font(.system(.largeTitle, design: .rounded).bold())
-                        Text("Pick up an idea. Or start something new.").foregroundStyle(.secondary)
+                        Text("Greife eine Idee auf. Oder starte etwas Neues.").foregroundStyle(.secondary)
                     }.padding(.top, 12)
                     HStack {
-                        Picker("Workspace", selection: $workspace) {
-                            Text("All canvases").tag("all")
-                            Text("Personal").tag("personal")
+                        Picker("Arbeitsbereich", selection: $workspace) {
+                            Text("Alle Arbeitsflächen").tag("all")
+                            Text("Persönlich").tag("personal")
                             ForEach(app.workspaces) { Text($0.name).tag($0.id) }
                         }.pickerStyle(.menu)
                         Spacer()
-                        Text("\(filtered.count) \(filtered.count == 1 ? "canvas" : "canvases")").font(.caption).foregroundStyle(.secondary)
+                        Text("\(filtered.count) \(filtered.count == 1 ? "Arbeitsfläche" : "Arbeitsflächen")").font(.caption).foregroundStyle(.secondary)
                     }
                     if let error = app.error { Text(error).foregroundStyle(.red).font(.callout) }
                     if filtered.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: query.isEmpty ? "square.stack.3d.up" : "magnifyingglass").font(.largeTitle).foregroundStyle(doopBlue)
-                            Text(query.isEmpty ? "Your next idea starts here." : "No matching canvases").font(.headline)
-                            if query.isEmpty { Button("Create a canvas") { title = ""; creating = true }.buttonStyle(.borderedProminent) }
+                            Text(query.isEmpty ? "Deine nächste Idee beginnt hier." : "Keine passenden Arbeitsflächen").font(.headline)
+                            if query.isEmpty { Button("Arbeitsfläche erstellen") { title = ""; creating = true }.buttonStyle(.borderedProminent) }
                         }.frame(maxWidth: .infinity).padding(.vertical, 60)
                     }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 280), spacing: 20)], spacing: 20) {
@@ -232,9 +232,9 @@ private struct LibraryView: View {
                             NavigationLink(value: canvas) { CanvasCard(canvas: canvas, origin: app.client.server.origin) }
                                 .buttonStyle(.plain)
                                 .contextMenu {
-                                    Button("Rename") { title = canvas.name; renaming = canvas }
-                                    Button("Duplicate") { duplicate(canvas) }
-                                    if canvas.ownerId == app.user?.id { Button("Delete", role: .destructive) { deleting = canvas } }
+                                    Button("Umbenennen") { title = canvas.name; renaming = canvas }
+                                    Button("Duplizieren") { duplicate(canvas) }
+                                    if canvas.ownerId == app.user?.id { Button("Löschen", role: .destructive) { deleting = canvas } }
                                 }
                         }
                     }
@@ -243,7 +243,7 @@ private struct LibraryView: View {
                 }
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .navigationTitle(showingAgents ? "Agents" : "").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(showingAgents ? "Agenten" : "").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Image("AppMark").resizable().frame(width: 26, height: 26)
@@ -252,10 +252,10 @@ private struct LibraryView: View {
                 ToolbarItemGroup(placement: .navigationBarTrailing) {
                     if !showingAgents {
                     Button { title = ""; creating = true } label: { Image(systemName: "plus") }
-                        .disabled(busy).accessibilityLabel("New canvas")
+                        .disabled(busy).accessibilityLabel("Neue Arbeitsfläche")
                     Button { searching.toggle(); searchFocused = searching; if !searching { query = "" } } label: {
                         Image(systemName: "magnifyingglass")
-                    }.accessibilityLabel("Search canvases")
+                    }.accessibilityLabel("Arbeitsflächen suchen")
                     }
                 }
             }
@@ -282,18 +282,18 @@ private struct LibraryView: View {
                 guard let link = CanvasLink.parse(url) else { return }
                 if app.canvases.isEmpty { pendingLink = link } else { open(link) }
             }
-            .alert("New canvas", isPresented: $creating) {
-                TextField("Canvas name", text: $title)
-                Button("Cancel", role: .cancel) {}
-                Button("Create") { create() }
+            .alert("Neue Arbeitsfläche", isPresented: $creating) {
+                TextField("Name der Arbeitsfläche", text: $title)
+                Button("Abbrechen", role: .cancel) {}
+                Button("Erstellen") { create() }
             }
-            .alert("Rename canvas", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
-                TextField("Canvas name", text: $title)
-                Button("Cancel", role: .cancel) { renaming = nil }
-                Button("Save") { if let canvas = renaming { rename(canvas) }; renaming = nil }
+            .alert("Arbeitsfläche umbenennen", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+                TextField("Name der Arbeitsfläche", text: $title)
+                Button("Abbrechen", role: .cancel) { renaming = nil }
+                Button("Speichern") { if let canvas = renaming { rename(canvas) }; renaming = nil }
             }
-            .confirmationDialog("Delete this canvas and its frames?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
-                Button("Delete canvas", role: .destructive) { if let canvas = deleting { remove(canvas) }; deleting = nil }
+            .confirmationDialog("Diese Arbeitsfläche und ihre Zeichenflächen löschen?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                Button("Arbeitsfläche löschen", role: .destructive) { if let canvas = deleting { remove(canvas) }; deleting = nil }
             }
             .overlay { if busy { ProgressView().padding(24).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20)) } }
         }
@@ -303,10 +303,10 @@ private struct LibraryView: View {
     private var librarySearchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Find a canvas", text: $query).focused($searchFocused)
-                .submitLabel(.search).accessibilityLabel("Find a canvas")
+            TextField("Arbeitsfläche suchen", text: $query).focused($searchFocused)
+                .submitLabel(.search).accessibilityLabel("Arbeitsfläche suchen")
             Button { query = ""; searching = false } label: { Image(systemName: "xmark.circle.fill") }
-                .accessibilityLabel("Close search")
+                .accessibilityLabel("Suche schließen")
         }.padding(16).modifier(FloatingGlass()).frame(maxWidth: 600)
             .frame(maxWidth: .infinity)
     }
@@ -315,16 +315,16 @@ private struct LibraryView: View {
         VStack(spacing: 10) {
             HStack(spacing: 12) {
                 GlassDock {
-                    GlassDockButton(label: "Canvases", symbol: "square.grid.2x2.fill", selected: !showingAgents) {
+                    GlassDockButton(label: "Arbeitsflächen", symbol: "square.grid.2x2.fill", selected: !showingAgents) {
                         showingAgents = false; searching = false; query = ""
                     }
-                    GlassDockButton(label: "Working agents", symbol: "sparkles", caption: "Agents", selected: showingAgents) { showingAgents = true; searchFocused = false }
+                    GlassDockButton(label: "Aktive Agenten", symbol: "sparkles", caption: "Agenten", selected: showingAgents) { showingAgents = true; searchFocused = false }
                 }
                 Button { settings = true } label: {
                     Text(String(app.user?.name.prefix(1) ?? "D")).font(.title3.bold())
                         .frame(width: 48, height: 48)
                         .background(Color.accentColor.opacity(0.15), in: Circle()).padding(6)
-                }.buttonStyle(.plain).modifier(FloatingGlass()).accessibilityLabel("Account and settings")
+                }.buttonStyle(.plain).modifier(FloatingGlass()).accessibilityLabel("Konto und Einstellungen")
             }
         }.frame(maxWidth: 600).padding(.horizontal, 20).padding(.top, 10)
             .frame(maxWidth: .infinity)
@@ -343,16 +343,16 @@ private struct LibraryView: View {
         Task {
             do {
                 let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
-                let canvas = try await app.createCanvas(name: name.isEmpty ? "Untitled canvas" : name, workspaceId: workspace == "all" || workspace == "personal" ? nil : workspace)
+                let canvas = try await app.createCanvas(name: name.isEmpty ? "Unbenannte Arbeitsfläche" : name, workspaceId: workspace == "all" || workspace == "personal" ? nil : workspace)
                 path.append(canvas)
-            } catch { app.error = error.localizedDescription }
+            } catch { app.error = NativeMessages.error(error) }
             busy = false
         }
     }
     private func duplicate(_ canvas: CanvasSummary) {
         Task {
             do { _ = try await app.client.data("/api/canvases/\(canvas.id)/duplicate", method: "POST"); await app.reload() }
-            catch { app.error = error.localizedDescription }
+            catch { app.error = NativeMessages.error(error) }
         }
     }
     private func rename(_ canvas: CanvasSummary) {
@@ -360,13 +360,13 @@ private struct LibraryView: View {
         guard !name.isEmpty else { return }
         Task {
             do { _ = try await app.client.data("/api/canvases/\(canvas.id)", method: "PATCH", body: ["name": name]); await app.reload() }
-            catch { app.error = error.localizedDescription }
+            catch { app.error = NativeMessages.error(error) }
         }
     }
     private func remove(_ canvas: CanvasSummary) {
         Task {
             do { _ = try await app.client.data("/api/canvases/\(canvas.id)", method: "DELETE"); await app.reload() }
-            catch { app.error = error.localizedDescription }
+            catch { app.error = NativeMessages.error(error) }
         }
     }
 }
@@ -392,11 +392,11 @@ private struct CanvasCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(canvas.name).font(.headline).lineLimit(2)
                 HStack {
-                    Text("\(canvas.frameCount) \(canvas.frameCount == 1 ? "frame" : "frames")")
+                    Text("\(canvas.frameCount) \(canvas.frameCount == 1 ? "Zeichenfläche" : "Zeichenflächen")")
                     Spacer()
-                    Text(Date(timeIntervalSince1970: canvas.updatedAt / 1000).formatted(.relative(presentation: .named)))
+                    Text(Date(timeIntervalSince1970: canvas.updatedAt / 1000).formatted(.relative(presentation: .named).locale(Locale(identifier: "de_DE"))))
                 }.font(.caption).foregroundStyle(.secondary)
-                if canvas.shared == true { Label("Shared with you", systemImage: "person.2").font(.caption2).foregroundStyle(doopBlue) }
+                if canvas.shared == true { Label("Mit Dir geteilt", systemImage: "person.2").font(.caption2).foregroundStyle(doopBlue) }
             }.padding(18)
         }
         .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
@@ -420,63 +420,63 @@ private struct NativeSettings: View {
             Form {
                 Section { DoopWordmark().padding(.vertical, 12) }
                 if let user = app.user {
-                    Section("Account") {
+                    Section("Konto") {
                         LabeledContent("Name", value: user.name)
-                        LabeledContent("Email", value: user.email)
-                        Link("Account settings on the web", destination: app.client.server.origin.appendingPathComponent("settings"))
-                        Button("Sign out", role: .destructive) {
+                        LabeledContent("E-Mail", value: user.email)
+                        Link("Kontoeinstellungen im Web", destination: app.client.server.origin.appendingPathComponent("settings"))
+                        Button("Abmelden", role: .destructive) {
                             busy = true
-                            Task { do { try await app.signOut(); dismiss() } catch { self.error = error.localizedDescription }; busy = false }
+                            Task { do { try await app.signOut(); dismiss() } catch { self.error = NativeMessages.error(error) }; busy = false }
                         }.disabled(busy)
                     }
                     Section {
-                        Button("Delete account…", role: .destructive) {
+                        Button("Konto löschen…", role: .destructive) {
                             busy = true
                             error = nil
                             Task {
                                 do { hasPassword = try await app.hasPassword(); confirmingDeletion = true }
-                                catch { self.error = error.localizedDescription }
+                                catch { self.error = NativeMessages.error(error) }
                                 busy = false
                             }
                         }.disabled(busy)
                     } footer: {
-                        Text("Deletes your account on this server. Canvases only you own are removed; canvases shared with others stay with them.")
+                        Text("Löscht Dein Konto auf diesem Server. Arbeitsflächen, die nur Dir gehören, werden entfernt; geteilte Arbeitsflächen bleiben bei den anderen.")
                     }
-                    .alert("Delete your account?", isPresented: $confirmingDeletion) {
+                    .alert("Dein Konto löschen?", isPresented: $confirmingDeletion) {
                         /* an account that only ever signed in through Google /
                            Apple has no password to ask for */
-                        if hasPassword { SecureField("Password", text: $deletionPassword) }
-                        Button("Delete", role: .destructive) {
+                        if hasPassword { SecureField("Passwort", text: $deletionPassword) }
+                        Button("Löschen", role: .destructive) {
                             busy = true
                             let password = hasPassword ? deletionPassword : nil
                             deletionPassword = ""
                             Task {
-                                do { try await app.deleteAccount(password: password); dismiss() } catch { self.error = error.localizedDescription }
+                                do { try await app.deleteAccount(password: password); dismiss() } catch { self.error = NativeMessages.error(error) }
                                 busy = false
                             }
                         }
-                        Button("Cancel", role: .cancel) { deletionPassword = "" }
+                        Button("Abbrechen", role: .cancel) { deletionPassword = "" }
                     } message: {
-                        Text(hasPassword ? "This cannot be undone. Enter your password to confirm." : "This cannot be undone.")
+                        Text(hasPassword ? "Das kann nicht rückgängig gemacht werden. Gib zur Bestätigung Dein Passwort ein." : "Das kann nicht rückgängig gemacht werden.")
                     }
                 }
                 Section {
-                    Link("Privacy policy", destination: app.client.server.origin.appendingPathComponent("privacy"))
-                    Link("Terms of service", destination: app.client.server.origin.appendingPathComponent("terms"))
-                    Link("Contact support, or report a canvas", destination: URL(string: "mailto:support@doop.design?subject=Doop%20for%20iOS")!)
-                } header: { Text("Help") }
+                    Link("Datenschutzerklärung", destination: app.client.server.origin.appendingPathComponent("privacy"))
+                    Link("Nutzungsbedingungen", destination: app.client.server.origin.appendingPathComponent("terms"))
+                    Link("Support kontaktieren oder Arbeitsfläche melden", destination: URL(string: "mailto:support@doop.design?subject=Doop%20for%20iOS")!)
+                } header: { Text("Hilfe") }
                 Section {
-                    TextField("https://doop.design", text: $address).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityLabel("Doop server address")
-                    Button("Use Doop Cloud") { address = "https://doop.design" }
-                } header: { Text("Server") } footer: { Text("Doop Cloud or your own HTTPS server. Your account and canvases stay on that server.") }
+                    TextField("https://doop.design", text: $address).keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityLabel("Doop-Serveradresse")
+                    Button("Doop Cloud verwenden") { address = "https://doop.design" }
+                } header: { Text("Server") } footer: { Text("Doop Cloud oder Dein eigener HTTPS-Server. Dein Konto und Deine Arbeitsflächen bleiben auf diesem Server.") }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
-                Section { Text("Built for iPhone and iPad. Native controls, live HTML designs.").foregroundStyle(.secondary) }
+                Section { Text("Für iPhone und iPad. Native Bedienelemente, HTML-Designs in Echtzeit.").foregroundStyle(.secondary) }
             }
-            .navigationTitle("Settings")
+            .navigationTitle("Einstellungen")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button("Speichern") {
                         guard let server = ServerAddress(address) else { return }
                         if server != app.client.server { Task { await app.changeServer(server) } }
                         dismiss()
@@ -512,26 +512,26 @@ struct WorkingAgentsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Across your canvases").font(.subheadline).foregroundStyle(.secondary)
-                        Text("\(workingCount) working").font(.largeTitle.bold())
-                        Text("\(queuedCount) queued").foregroundStyle(.secondary)
+                        Text("Auf Deinen Arbeitsflächen").font(.subheadline).foregroundStyle(.secondary)
+                        Text("\(workingCount) in Arbeit").font(.largeTitle.bold())
+                        Text("\(queuedCount) in der Warteschlange").foregroundStyle(.secondary)
                         if let updatedAt {
-                            Text("Updated \(updatedAt.formatted(date: .omitted, time: .standard))")
+                            Text("Aktualisiert: \(updatedAt.formatted(.dateTime.hour().minute().second().locale(Locale(identifier: "de_DE"))))")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }.padding(.top, 12)
                     if let error {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(error).foregroundStyle(.orange)
-                            Button("Try again") { Task { await refresh() } }
+                            Button("Erneut versuchen") { Task { await refresh() } }
                         }
                     }
-                    if loading { ProgressView("Checking agent activity…").frame(maxWidth: .infinity) }
+                    if loading { ProgressView("Agentenaktivität wird geprüft…").frame(maxWidth: .infinity) }
                     else if error == nil && activeCanvases.isEmpty {
                         VStack(spacing: 12) {
                             Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(.tint)
-                            Text("All quiet for now").font(.headline)
-                            Text("Agents appear here when they start working. Open a canvas to give your team a task.")
+                            Text("Im Moment ist alles ruhig").font(.headline)
+                            Text("Agenten erscheinen hier, sobald sie arbeiten. Öffne eine Arbeitsfläche, um Deinem Team eine Aufgabe zu geben.")
                                 .foregroundStyle(.secondary).multilineTextAlignment(.center)
                         }.frame(maxWidth: .infinity).padding(.vertical, 44)
                     }
@@ -543,7 +543,7 @@ struct WorkingAgentsView: View {
                                     Spacer()
                                     Image(systemName: "arrow.up.right")
                                 }
-                            }.accessibilityLabel("Open \(canvas.name)")
+                            }.accessibilityLabel("\(canvas.name) öffnen")
                             ForEach((canvas.activeTasks ?? []).sorted { $0.startedAt > $1.startedAt }) { task in
                                 HStack(alignment: .top, spacing: 12) {
                                     Image(systemName: task.agentName.isEmpty ? "clock" : "sparkles")
@@ -552,7 +552,7 @@ struct WorkingAgentsView: View {
                                         .background(Color.accentColor.opacity(0.08), in: Circle())
                                     VStack(alignment: .leading, spacing: 5) {
                                         HStack {
-                                            Text(task.agentName.isEmpty ? "Waiting for an agent" : task.agentName).font(.subheadline.bold())
+                                            Text(task.agentName.isEmpty ? "Wartet auf einen Agenten" : task.agentName).font(.subheadline.bold())
                                             Spacer()
                                             Text(Date(timeIntervalSince1970: task.startedAt / 1000), style: .relative)
                                                 .font(.caption).foregroundStyle(.secondary)
@@ -561,7 +561,7 @@ struct WorkingAgentsView: View {
                                         if let pipeline = task.pipeline, pipeline.count > 1 {
                                             let stage = task.stage ?? 0
                                             if stage >= 0 && stage < pipeline.count {
-                                                Text("Stage \(stage + 1) of \(pipeline.count)").font(.caption).foregroundStyle(.secondary)
+                                                Text("Schritt \(stage + 1) von \(pipeline.count)").font(.caption).foregroundStyle(.secondary)
                                             }
                                         }
                                     }
@@ -590,7 +590,7 @@ struct WorkingAgentsView: View {
             // An older server must not look like an idle team.
             guard result.isEmpty || result.allSatisfy({ $0.activeTasks != nil }) else {
                 canvases = []; updatedAt = nil
-                error = "Update your Doop server to see working agents here."
+                error = "Aktualisiere Deinen Doop-Server, um hier aktive Agenten zu sehen."
                 loading = false
                 return
             }
@@ -599,7 +599,7 @@ struct WorkingAgentsView: View {
         } catch {
             guard !Task.isCancelled else { return }
             canvases = []; updatedAt = nil
-            self.error = error.localizedDescription
+            self.error = NativeMessages.error(error)
         }
         loading = false
     }

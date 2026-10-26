@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   agentAllowance: vi.fn(() => Promise.resolve({ used: 0, limit: 5, localAgent: false })),
 }))
 vi.mock('../src/lib/api', () => ({
+  errorMessage: (_error: unknown, fallback: string) => fallback,
   api: {
     addCard: mocks.addCard,
     agentAllowance: mocks.agentAllowance,
@@ -51,7 +52,7 @@ async function render() {
 }
 
 function composer(): HTMLTextAreaElement {
-  const ta = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Ask the Doop Agent"]')
+  const ta = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Frag den Doop-Agenten"]')
   if (!ta) throw new Error('composer not rendered')
   return ta
 }
@@ -96,7 +97,7 @@ afterEach(() => {
 describe('the Agents tab composer', () => {
   it('is docked in the tasks tab with its send button', async () => {
     await render()
-    const send = Array.from(container.querySelectorAll('button')).find((b) => b.getAttribute('aria-label') === 'Send')
+    const send = Array.from(container.querySelectorAll('button')).find((b) => b.getAttribute('aria-label') === 'Senden')
     expect(send).toBeTruthy()
     expect(send!.disabled).toBe(true) // nothing typed yet
     expect(composer().closest('[data-slot="panel-tab-panel"]')?.getAttribute('data-state')).toBe('active')
@@ -141,7 +142,7 @@ describe('the Agents tab composer', () => {
   it('is not in the other tabs', async () => {
     useStore.setState({ panelTab: 'activity' })
     await render()
-    expect(container.querySelector('textarea[aria-label="Ask the Doop Agent"]')).toBeNull()
+    expect(container.querySelector('textarea[aria-label="Frag den Doop-Agenten"]')).toBeNull()
   })
 
   it('keeps the draft across a tab switch, per canvas', async () => {
@@ -163,15 +164,15 @@ describe('the Agents tab composer', () => {
     expect(composer().disabled).toBe(true) // in flight
 
     await switchTab('activity')
-    await act(async () => fail(new Error('upload failed')))
+    await act(async () => fail(new Error('Unknown provider error')))
     await switchTab('tasks')
-    expect(container.textContent).toContain('upload failed')
+    expect(container.textContent).toContain('Deine Anfrage konnte nicht gesendet werden. Versuche es erneut.')
     expect(composer().value).toBe('a footer') // the draft is there for a retry
     expect(composer().disabled).toBe(false)
 
     /* touching the draft takes the failure down */
     await type('a footer, retried')
-    expect(container.textContent).not.toContain('upload failed')
+    expect(container.textContent).not.toContain('Deine Anfrage konnte nicht gesendet werden. Versuche es erneut.')
   })
 
   it('flies the camera to the first new frame on this canvas only', async () => {

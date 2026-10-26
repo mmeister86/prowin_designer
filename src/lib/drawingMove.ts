@@ -1,6 +1,6 @@
 import type { Frame } from '../../shared/types'
 import { framePageId } from '../../shared/pages'
-import { api, ApiError } from './api'
+import { api, ApiError, UserFacingError } from './api'
 import { drawingDocument, isCanvasElement, queueDrawingSave, type Point } from './drawing'
 import { recordDrawingTransfer, recordUpdates } from './history'
 import { currentPageCanvas } from './pages'
@@ -104,10 +104,10 @@ export function moveDrawing(
         (key) => source[key as keyof DrawingRect] !== pressed[key as keyof DrawingRect],
       )
     ) {
-      throw new Error('The drawing changed during the drag. Please try again.')
+      throw new UserFacingError('Die Zeichnung wurde während des Ziehens geändert. Versuche es erneut.')
     }
     const el = movableDrawing(source, selector)
-    if (!el) throw new Error('This drawing can no longer be moved.')
+    if (!el) throw new UserFacingError('Diese Zeichnung kann nicht mehr verschoben werden.')
     const standalone = isCanvasElement(source.html)
     const pageId = framePageId(canvas, source)
     const target = targetId ? canvas.frames.find((f) => f.id === targetId) : undefined
@@ -119,7 +119,7 @@ export function moveDrawing(
         isCanvasElement(target.html) ||
         framePageId(canvas, target) !== pageId)
     ) {
-      throw new Error('The destination frame is no longer available.')
+      throw new UserFacingError('Die Zielzeichenfläche ist nicht mehr verfügbar.')
     }
     const active = () => useStore.getState().canvas?.id === source.canvasId
     /* `insert` adds a frame the store does not hold yet (a new destination);
@@ -185,7 +185,7 @@ export function moveDrawing(
     const destination = target
       ? await conditional(target, api.updateFrame(target.id, { html }, target.updatedAt))
       : await api.createFrame(source.canvasId, {
-          name: el.getAttribute('data-name') ?? 'Drawing',
+          name: el.getAttribute('data-name') ?? 'Zeichnung',
           pageId,
           ...rect,
           html,
@@ -195,7 +195,7 @@ export function moveDrawing(
     try {
       const live = active() ? useStore.getState().canvas?.frames.find((f) => f.id === source.id) : source
       if (!live || live.html !== source.html || live.locked || live.hidden)
-        throw new Error('The source changed during the move.')
+        throw new UserFacingError('Die Quelle wurde während des Verschiebens geändert.')
       if (standalone) {
         await conditional(source, api.deleteFrame(source.id, source.updatedAt))
         if (active()) useStore.getState().removeFrame(source.id)
@@ -213,9 +213,12 @@ export function moveDrawing(
         )
       if (!target && changed) {
         if (active()) recordDrawingTransfer({ before: null, after: destination })
-        throw new Error('The original could not be removed. The detached copy was kept because it was edited.', {
-          cause: err,
-        })
+        throw new UserFacingError(
+          'Das Original konnte nicht entfernt werden. Die losgelöste Kopie wurde beibehalten, weil sie bearbeitet wurde.',
+          {
+            cause: err,
+          },
+        )
       }
       try {
         if (target) {
@@ -237,17 +240,20 @@ export function moveDrawing(
       } catch (rollbackError) {
         if (rollbackError instanceof ApiError && rollbackError.status === 409) {
           // A whole-document undo would erase the same remote edit we just protected.
-          throw new Error(
-            'The destination changed during the move. Both copies were kept; remove the extra drawing manually.',
+          throw new UserFacingError(
+            'Das Ziel wurde während des Verschiebens geändert. Beide Kopien wurden beibehalten. Entferne die zusätzliche Zeichnung manuell.',
             { cause: rollbackError },
           )
         }
         if (active()) {
           recordDrawingTransfer({ before: target ?? null, after: destination })
         }
-        throw new Error('The drawing was copied, but its original could not be removed. You can undo the copy.', {
-          cause: rollbackError,
-        })
+        throw new UserFacingError(
+          'Die Zeichnung wurde kopiert, aber das Original konnte nicht entfernt werden. Du kannst das Kopieren rückgängig machen.',
+          {
+            cause: rollbackError,
+          },
+        )
       }
       throw err
     }
@@ -255,5 +261,5 @@ export function moveDrawing(
       recordDrawingTransfer({ before: target ?? null, after: destination }, { before: source, after: remaining })
     select(destination, target ? el.id : undefined)
   }
-  return queueDrawingSave(save, 'Couldn’t move the drawing. Please try again.')
+  return queueDrawingSave(save, 'Die Zeichnung konnte nicht verschoben werden. Versuche es erneut.')
 }

@@ -20,13 +20,14 @@ export function claudeConnectorInstallUrl(mcpUrl: string): string | null {
 }
 
 export async function addToClaudeDesktop(mcpUrl: string): Promise<void> {
-  if (!canAddToClaudeDesktop()) throw new Error('Update the Doop desktop app to add Claude directly.')
+  if (!canAddToClaudeDesktop()) throw new Error('Aktualisiere die Doop-Desktop-App, um Claude direkt hinzuzufügen.')
   const response = await fetch('/claude-extension/doop.mcpb')
-  if (!response.ok) throw new Error('Could not prepare the Claude connection. Please try again.')
+  if (!response.ok) throw new Error('Die Claude-Verbindung konnte nicht vorbereitet werden. Versuche es erneut.')
   const { default: JSZip } = await import('jszip')
   const bundle = await JSZip.loadAsync(await response.arrayBuffer())
   const manifestFile = bundle.file('manifest.json')
-  if (!manifestFile) throw new Error('The Claude extension is incomplete. Please try again after updating Doop.')
+  if (!manifestFile)
+    throw new Error('Die Claude-Erweiterung ist unvollständig. Aktualisiere Doop und versuche es erneut.')
   const manifest = JSON.parse(await manifestFile.async('string'))
   // The native handoff is already specific to this Doop instance. Prefill its
   // URL so self-hosted and local users don't have to copy one into Claude.

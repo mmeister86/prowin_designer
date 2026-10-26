@@ -39,9 +39,12 @@ const starter = z.object({
  *  user belongs to. Refreshed on every app launch; retired after 30 days. */
 liveActivitiesRouter.put('/push-to-start', async (req, res) => {
   const parsed = starter.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'invalid push-to-start registration' })
+  if (!parsed.success)
+    return res.status(400).json({ error: 'Ungültige Registrierung zum Starten einer Live-Aktivität' })
   if (!apnsConfigured())
-    return res.status(503).json({ error: 'Live Activity push delivery is not configured on this server' })
+    return res
+      .status(503)
+      .json({ error: 'Push-Mitteilungen für Live-Aktivitäten sind auf diesem Server nicht eingerichtet.' })
   const values = { ...parsed.data, userId: req.user!.id, expiresAt: Date.now() + 30 * 24 * 60 * 60_000 }
   await db
     .insert(liveActivityStarters)
@@ -66,21 +69,23 @@ liveActivitiesRouter.delete('/push-to-start/:token', async (req, res) => {
 liveActivitiesRouter.put('/:id', async (req, res) => {
   const parsed = registration.safeParse(req.body)
   if (!parsed.success || !/^[\w-]{1,100}$/.test(req.params.id))
-    return res.status(400).json({ error: 'invalid activity registration' })
+    return res.status(400).json({ error: 'Ungültige Registrierung einer Live-Aktivität' })
   const canvas = store.getCanvas(parsed.data.canvasId)
   if (!canvas || !hasDurableCanvasAccess(req.user!.id, canvas))
-    return res.status(403).json({ error: 'canvas membership required' })
+    return res.status(403).json({ error: 'Du musst Mitglied der Arbeitsfläche sein.' })
   if (!apnsConfigured())
-    return res.status(503).json({ error: 'Live Activity push delivery is not configured on this server' })
+    return res
+      .status(503)
+      .json({ error: 'Push-Mitteilungen für Live-Aktivitäten sind auf diesem Server nicht eingerichtet.' })
   try {
     const [existing] = await db.select().from(liveActivities).where(eq(liveActivities.id, req.params.id))
     if (existing && (existing.userId !== req.user!.id || existing.canvasId !== canvas.id))
-      return res.status(409).json({ error: 'activity already registered' })
+      return res.status(409).json({ error: 'Diese Live-Aktivität ist bereits registriert.' })
     const subscriptions = await db
       .select({ id: liveActivities.id })
       .from(liveActivities)
       .where(eq(liveActivities.userId, req.user!.id))
-    if (!existing && subscriptions.length >= 12) return res.status(429).json({ error: 'too many live activities' })
+    if (!existing && subscriptions.length >= 12) return res.status(429).json({ error: 'Zu viele Live-Aktivitäten' })
     const values = {
       id: req.params.id,
       userId: req.user!.id,
@@ -97,7 +102,7 @@ liveActivitiesRouter.put('/:id', async (req, res) => {
       })
     res.json({ ok: true })
   } catch {
-    res.status(409).json({ error: 'could not register live activity' })
+    res.status(409).json({ error: 'Die Live-Aktivität konnte nicht registriert werden.' })
   }
 })
 liveActivitiesRouter.delete('/:id', async (req, res) => {
@@ -161,7 +166,7 @@ export async function deliverLiveActivities(send = sendLiveActivityPush) {
       const content = state ?? {
         canvasName: 'Doop',
         agentName: 'Doop',
-        status: 'Activity ended',
+        status: 'Aktivität beendet',
         phase: 'finished',
         activeCount: 0,
         startedAt: 0,

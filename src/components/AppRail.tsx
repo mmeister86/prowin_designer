@@ -231,20 +231,20 @@ export function AppRail({
       className="flex min-h-full w-full animate-[fade-in_0.25s_ease] flex-col items-center motion-reduce:animate-none"
     >
       <DashSidebarBrand onHome={() => go('/')} />
-      <IconButton aria-label="Show sidebar" onClick={() => setRail(true)}>
+      <IconButton aria-label="Seitenleiste anzeigen" onClick={() => setRail(true)}>
         <PanelExpandIcon width={15} height={15} />
       </IconButton>
-      <IconButton aria-label="Search canvases (⌘K)" onClick={openSearch}>
+      <IconButton aria-label="Arbeitsflächen suchen (⌘K)" onClick={openSearch}>
         <SearchIcon width={15} height={15} />
       </IconButton>
       <Rule />
-      <IconButton aria-label="All canvases" on={active === 'all'} onClick={() => scope('all')}>
+      <IconButton aria-label="Alle Arbeitsflächen" on={active === 'all'} onClick={() => scope('all')}>
         <GridIcon size="rail" />
       </IconButton>
-      <IconButton aria-label="Owned by me" on={active === 'mine'} onClick={() => scope('mine')}>
+      <IconButton aria-label="Meine Arbeitsflächen" on={active === 'mine'} onClick={() => scope('mine')}>
         <UserIcon size="rail" />
       </IconButton>
-      <IconButton aria-label="Shared with me" on={active === 'shared'} onClick={() => scope('shared')}>
+      <IconButton aria-label="Mit mir geteilt" on={active === 'shared'} onClick={() => scope('shared')}>
         <UsersIcon size="rail" />
       </IconButton>
       <Rule />
@@ -254,7 +254,7 @@ export function AppRail({
         </IconButton>
       ))}
       {canCreateWorkspace && (
-        <IconButton aria-label="New workspace" onClick={createWorkspace}>
+        <IconButton aria-label="Neuer Arbeitsbereich" onClick={createWorkspace}>
           <FolderPlusIcon size="rail" />
         </IconButton>
       )}
@@ -263,12 +263,12 @@ export function AppRail({
         <WebIcon size="rail" />
       </IconButton>
       {OPTIONAL_FEATURES.automations && (
-        <IconButton aria-label="Automations" on={active === 'automations'} onClick={() => go('/automations')}>
+        <IconButton aria-label="Automatisierungen" on={active === 'automations'} onClick={() => go('/automations')}>
           <WorkflowIcon size="rail" />
         </IconButton>
       )}
       {OPTIONAL_FEATURES.metaAds && (
-        <IconButton aria-label="Integrations" on={active === 'integrations'} onClick={() => go('/integrations')}>
+        <IconButton aria-label="Integrationen" on={active === 'integrations'} onClick={() => go('/integrations')}>
           <BlocksIcon size="rail" />
         </IconButton>
       )}
@@ -278,7 +278,7 @@ export function AppRail({
           <AgentIcon name={a.name} size={14} color={colorFor(a.name)} />
         </span>
       ))}
-      <IconButton aria-label="Connect an agent" onClick={connect}>
+      <IconButton aria-label="Agenten verbinden" onClick={connect}>
         <CirclePlusIcon size="rail" />
       </IconButton>
       {children ? (
@@ -302,12 +302,12 @@ export function AppRail({
     <div key="wide" className="flex min-h-full w-full animate-[fade-in_0.25s_ease] flex-col motion-reduce:animate-none">
       <DashSidebarBrand onHome={() => go('/')}>
         <span className="ml-auto flex items-center gap-2.5 text-ink-soft">
-          <IconButton size="sm" aria-label="Search canvases (⌘K)" onClick={openSearch}>
+          <IconButton size="sm" aria-label="Arbeitsflächen suchen (⌘K)" onClick={openSearch}>
             <SearchIcon width={15} height={15} />
           </IconButton>
           <IconButton
             size="sm"
-            aria-label="Hide sidebar"
+            aria-label="Seitenleiste ausblenden"
             onClick={() => (inDrawer ? setDrawer(false) : setRail(false))}
           >
             <PanelCollapseIcon width={15} height={15} />
@@ -322,7 +322,7 @@ export function AppRail({
           active={active === 'all'}
           onClick={() => scope('all')}
         >
-          All canvases
+          Alle Arbeitsflächen
         </DashNavItem>
         <DashNavItem
           density="rail"
@@ -330,7 +330,7 @@ export function AppRail({
           active={active === 'mine'}
           onClick={() => scope('mine')}
         >
-          Owned by me
+          Meine Arbeitsflächen
         </DashNavItem>
         <DashNavItem
           density="rail"
@@ -338,11 +338,11 @@ export function AppRail({
           active={active === 'shared'}
           onClick={() => scope('shared')}
         >
-          Shared with me
+          Mit mir geteilt
         </DashNavItem>
       </nav>
 
-      <DashSectionLabel density="rail">Workspaces</DashSectionLabel>
+      <DashSectionLabel density="rail">Arbeitsbereiche</DashSectionLabel>
       <nav className="flex flex-col gap-0.5">
         {spaces.map((w) => (
           <DashNavItem
@@ -353,7 +353,7 @@ export function AppRail({
               w.active ? (
                 <em className="not-italic">{workspaceCounts.get(w.id) ?? 0}</em>
               ) : (
-                <span className="inline-flex items-center gap-1" title="No plan yet">
+                <span className="inline-flex items-center gap-1" title="Noch kein Tarif">
                   <LockIcon width={12} height={12} aria-hidden />
                 </span>
               )
@@ -366,12 +366,12 @@ export function AppRail({
         ))}
         {canCreateWorkspace && (
           <DashNavItem density="rail" icon={<FolderPlusIcon size="rail" />} onClick={createWorkspace}>
-            {spaces.length ? 'New workspace' : 'Create workspace'}
+            {spaces.length ? 'Neuer Arbeitsbereich' : 'Arbeitsbereich erstellen'}
           </DashNavItem>
         )}
       </nav>
 
-      <DashSectionLabel density="rail">Explore</DashSectionLabel>
+      <DashSectionLabel density="rail">Entdecken</DashSectionLabel>
       <nav className="flex flex-col gap-0.5">
         <DashNavItem
           density="rail"
@@ -385,7 +385,7 @@ export function AppRail({
 
       {(OPTIONAL_FEATURES.automations || OPTIONAL_FEATURES.metaAds) && (
         <>
-          <DashSectionLabel density="rail">Resources</DashSectionLabel>
+          <DashSectionLabel density="rail">Ressourcen</DashSectionLabel>
           <nav className="flex flex-col gap-0.5">
             {OPTIONAL_FEATURES.automations && (
               <DashNavItem
@@ -394,7 +394,7 @@ export function AppRail({
                 active={active === 'automations'}
                 onClick={() => go('/automations')}
               >
-                Automations
+                Automatisierungen
               </DashNavItem>
             )}
             {OPTIONAL_FEATURES.metaAds && (
@@ -404,7 +404,7 @@ export function AppRail({
                 active={active === 'integrations'}
                 onClick={() => go('/integrations')}
               >
-                Integrations
+                Integrationen
               </DashNavItem>
             )}
           </nav>
@@ -421,18 +421,18 @@ export function AppRail({
         {children}
       </div>
 
-      <DashSectionLabel density="rail">Agents</DashSectionLabel>
+      <DashSectionLabel density="rail">Agenten</DashSectionLabel>
       <div className="flex flex-col gap-0.5">
         {agents.map((a) => (
           <DashNavItem
             key={a.name}
             as="div"
             density="rail"
-            title={`${a.canvases} canvas${a.canvases === 1 ? '' : 'es'}`}
+            title={`${a.canvases.toLocaleString('de-DE')} Arbeitsfläche${a.canvases === 1 ? '' : 'n'}`}
             icon={<AgentIcon name={a.name} size={14} color={colorFor(a.name)} />}
             trailing={
               a.lastAt > 0 && now - a.lastAt < LIVE_WINDOW ? (
-                <Dot size="sm" className="bg-success" title="working right now" />
+                <Dot size="sm" className="bg-success" title="gerade aktiv" />
               ) : (
                 <span className="text-caption text-ink-faint">{a.lastAt > 0 ? timeAgo(a.lastAt) : ''}</span>
               )
@@ -442,7 +442,7 @@ export function AppRail({
           </DashNavItem>
         ))}
         <DashNavItem density="rail" icon={<CirclePlusIcon size="rail" />} onClick={connect}>
-          Connect an agent
+          Agenten verbinden
         </DashNavItem>
       </div>
 

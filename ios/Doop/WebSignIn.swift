@@ -18,11 +18,11 @@ final class WebSignIn: NSObject, ASWebAuthenticationPresentationContextProviding
                 if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
                     continuation.resume(throwing: SignInCancelled())
                 } else {
-                    continuation.resume(throwing: error ?? APIError(status: 0, message: "Could not open the sign-in page."))
+                    continuation.resume(throwing: error ?? APIError(status: 0, message: "Die Anmeldeseite konnte nicht geöffnet werden. Versuche es erneut."))
                 }
             }
             session.presentationContextProvider = self
-            if !session.start() { continuation.resume(throwing: APIError(status: 0, message: "Could not open the sign-in page.")) }
+            if !session.start() { continuation.resume(throwing: APIError(status: 0, message: "Die Anmeldeseite konnte nicht geöffnet werden. Versuche es erneut.")) }
         }
     }
 

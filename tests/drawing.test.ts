@@ -114,6 +114,25 @@ describe('drawing geometry and markup', () => {
 })
 
 describe('saving and targeting drawings', () => {
+  it('gives new drawings German names and preserves existing user names and text', async () => {
+    for (const [tool, name] of [
+      ['rectangle', 'Rechteck'],
+      ['circle', 'Kreis'],
+      ['path', 'Vektorpfad'],
+      ['frame', 'Zeichenfläche'],
+      ['text', 'Text'],
+    ] as const) {
+      await saveDrawing({ ...box, tool, text: 'My custom text' }, target)
+      expect(api.createFrame).toHaveBeenLastCalledWith('c', expect.objectContaining({ name }))
+    }
+    expect(useStore.getState().canvas?.frames.find((f) => f.id === 'f')?.name).toBe('Design')
+    expect(doc(drawingDocument({ ...box, tool: 'text', text: 'My custom text' })).querySelector('p')?.textContent).toBe(
+      'My custom text',
+    )
+    expect(buildLayerTree('<div data-doop-drawing="rectangle" data-name="My rectangle"></div>').map(layerName)).toEqual(
+      ['My rectangle'],
+    )
+  })
   it('targets the topmost visible unlocked frame on the active page; frames are always standalone', () => {
     expect(drawingTarget({ x: 130, y: 90 }, 'rectangle')).toMatchObject({ frameId: 'f' })
     expect(drawingTarget({ x: 130, y: 90 }, 'frame')?.frameId).toBeUndefined()
@@ -152,8 +171,8 @@ describe('saving and targeting drawings', () => {
     expect(rect.style.top).toBe('30px')
     expect(buildLayerTree(useStore.getState().canvas!.frames[0]!.html).map(layerName)).toEqual([
       'Collaborator edit',
-      'Rectangle',
-      'Circle',
+      'Rechteck',
+      'Kreis',
     ])
     await undo()
     expect(current().querySelectorAll('[data-doop-drawing]')).toHaveLength(1)
@@ -169,7 +188,7 @@ describe('saving and targeting drawings', () => {
     await saveDrawing(box, { ...target, frameId: 'f' })
     expect(api.updateFrame).not.toHaveBeenCalled()
     expect(api.createFrame).not.toHaveBeenCalled()
-    expect(useStore.getState().notice?.text).toContain('deleted, locked, or hidden')
+    expect(useStore.getState().notice?.text).toContain('gelöscht, gesperrt oder ausgeblendet')
   })
 
   it('keeps Bézier tangents unchanged when translating a path into a frame', async () => {
@@ -264,7 +283,7 @@ describe('saving and targeting drawings', () => {
   it('reports failures without adding a local frame or an undo entry', async () => {
     vi.mocked(api.createFrame).mockRejectedValueOnce(new Error('Offline'))
     await saveDrawing(box, target)
-    expect(useStore.getState().notice?.text).toContain('Couldn’t save')
+    expect(useStore.getState().notice?.text).toContain('Die Zeichnung konnte nicht gespeichert werden')
     expect(useStore.getState().canvas?.frames).toHaveLength(1)
     await undo()
     expect(api.deleteFrame).not.toHaveBeenCalled()

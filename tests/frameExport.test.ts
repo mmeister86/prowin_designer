@@ -44,7 +44,7 @@ it('shows a busy toast while rendering, then saves through a download link named
 
   const done = downloadFrameExport(frame, 'jpg')
   expect(fetch).toHaveBeenCalledWith('/i/export-frame.jpg?scale=2&download', expect.anything())
-  expect(useStore.getState().notice).toMatchObject({ text: 'Exporting JPG…', busy: true })
+  expect(useStore.getState().notice).toMatchObject({ text: 'JPG wird exportiert…', busy: true })
 
   respond(new Response('jpg-bytes', { headers: { 'Content-Disposition': 'attachment; filename="Poster.jpg"' } }))
   await done
@@ -52,7 +52,7 @@ it('shows a busy toast while rendering, then saves through a download link named
   expect(clicked).toHaveLength(1)
   expect(clicked[0]!.download).toBe('Poster.jpg')
   expect(clicked[0]!.href).toBe('blob:export')
-  expect(useStore.getState().notice).toMatchObject({ text: '“Poster.jpg” is ready', busy: false })
+  expect(useStore.getState().notice).toMatchObject({ text: '„Poster.jpg“ ist bereit', busy: false })
 })
 
 it('reports the server error instead of saving a failed render', async () => {
@@ -93,13 +93,13 @@ it('keeps the spinner up while another export is still rendering', async () => {
   pending[0]!(new Response('img', { headers: { 'Content-Disposition': 'attachment; filename="Poster.png"' } }))
   await png
   expect(useStore.getState().notice).toMatchObject({
-    text: '“Poster.png” is ready · Exporting 1 more…',
+    text: '„Poster.png“ ist bereit · Noch 1 Export in Arbeit…',
     busy: true,
   })
 
   pending[1]!(new Response('jpg', { headers: { 'Content-Disposition': 'attachment; filename="Poster.jpg"' } }))
   await jpg
-  expect(useStore.getState().notice).toMatchObject({ text: '“Poster.jpg” is ready', busy: false })
+  expect(useStore.getState().notice).toMatchObject({ text: '„Poster.jpg“ ist bereit', busy: false })
 })
 
 it('in the desktop shell leaves the outcome to the save panel, which may be cancelled', async () => {
@@ -142,27 +142,34 @@ it('copies the PNG, handing the clipboard the pending render so the click still 
   const done = copyFramePng(frame)
   expect(fetch).toHaveBeenCalledWith('/i/export-frame.png?scale=2&download', expect.anything())
   expect(write).toHaveBeenCalledTimes(1)
-  expect(useStore.getState().notice).toMatchObject({ text: 'Copying PNG…', busy: true })
+  expect(useStore.getState().notice).toMatchObject({ text: 'PNG wird kopiert…', busy: true })
 
   respond(new Response('png-bytes'))
   await done
 
   expect(await written[0]!.text()).toBe('png-bytes')
   expect(clicked).toHaveLength(0)
-  expect(useStore.getState().notice).toMatchObject({ text: 'PNG copied', busy: false })
+  expect(useStore.getState().notice).toMatchObject({ text: 'PNG kopiert', busy: false })
 })
 
 it('reports the server error when the PNG to copy fails to render', async () => {
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => Response.json({ error: 'render rate limit — cached URLs are unaffected' }, { status: 429 })),
+    vi.fn(async () =>
+      Response.json(
+        { error: 'Zu viele Vorschauanfragen. Bereits zwischengespeicherte URLs bleiben verfügbar.' },
+        { status: 429 },
+      ),
+    ),
   )
   const { written } = stubClipboard()
 
   await copyFramePng(frame)
 
   expect(written).toHaveLength(0)
-  expect(useStore.getState().notice?.text).toBe('render rate limit — cached URLs are unaffected')
+  expect(useStore.getState().notice?.text).toBe(
+    'Zu viele Vorschauanfragen. Bereits zwischengespeicherte URLs bleiben verfügbar.',
+  )
 })
 
 it('says so without rendering when the browser has no async clipboard', async () => {
@@ -172,7 +179,7 @@ it('says so without rendering when the browser has no async clipboard', async ()
   await copyFramePng(frame)
 
   expect(fetch).not.toHaveBeenCalled()
-  expect(useStore.getState().notice?.text).toBe('This browser can’t copy images')
+  expect(useStore.getState().notice?.text).toBe('Dieser Browser kann keine Bilder kopieren')
 })
 
 it('leaves no unhandled rejection when the clipboard refuses before reading the render', async () => {
@@ -180,7 +187,7 @@ it('leaves no unhandled rejection when the clipboard refuses before reading the 
   process.on('unhandledRejection', unhandled)
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () => Response.json({ error: 'render failed' }, { status: 500 })),
+    vi.fn(async () => Response.json({ error: 'Die Vorschau konnte nicht erstellt werden.' }, { status: 500 })),
   )
   stubClipboard().write.mockRejectedValue(new DOMException('denied', 'NotAllowedError'))
 
@@ -189,5 +196,5 @@ it('leaves no unhandled rejection when the clipboard refuses before reading the 
 
   process.off('unhandledRejection', unhandled)
   expect(unhandled).not.toHaveBeenCalled()
-  expect(useStore.getState().notice?.text).toBe('Couldn’t copy the PNG')
+  expect(useStore.getState().notice?.text).toBe('Das PNG konnte nicht kopiert werden')
 })

@@ -72,7 +72,7 @@ export function Community() {
       if (!openCanvasTab(canvas.id, canvas.name)) navigate(`/c/${canvas.id}`)
     } catch (error) {
       console.error(error)
-      showToast('Couldn’t copy this design')
+      showToast('Dieses Design konnte nicht kopiert werden')
     } finally {
       setCopyingId(null)
     }
@@ -123,8 +123,8 @@ export function Community() {
             size="header"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search the gallery"
-            aria-label="Search the gallery"
+            placeholder="Galerie durchsuchen"
+            aria-label="Galerie durchsuchen"
             trailing={<Kbd className="hidden md:inline-flex">⌘K</Kbd>}
           />
           <span className="flex-1" />
@@ -137,33 +137,33 @@ export function Community() {
               <DashSubtitle>
                 {items === null
                   ? '…'
-                  : `${items.length} ${items.length === 1 ? 'design' : 'designs'} people published to copy and remix`}
+                  : `${items.length.toLocaleString('de-DE')} ${items.length === 1 ? 'Design' : 'Designs'} zum Kopieren und Weitergestalten veröffentlicht`}
               </DashSubtitle>
             </div>
             <Segmented
               className="ml-auto flex-none"
-              aria-label="Sort"
+              aria-label="Sortierung"
               value={sort}
               onValueChange={(next) => setSort(next as Sort)}
             >
-              <SegmentedItem value="trending">Trending</SegmentedItem>
-              <SegmentedItem value="newest">Newest</SegmentedItem>
+              <SegmentedItem value="trending">Beliebt</SegmentedItem>
+              <SegmentedItem value="newest">Neueste</SegmentedItem>
             </Segmented>
           </div>
 
           {shelves.length > 0 && (
             <ToggleChipGroup
               className="mt-4 gap-1.5 md:hidden"
-              aria-label="Shelf"
+              aria-label="Kategorie"
               value={shelf}
               onValueChange={(next) => setShelf(next as Shelf)}
             >
               <ToggleChipItem value="all" size="sm">
-                All · {counts.get('all')}
+                Alle · {counts.get('all')?.toLocaleString('de-DE')}
               </ToggleChipItem>
               {shelves.map((c) => (
                 <ToggleChipItem key={c} value={c} size="sm">
-                  {COMMUNITY_CATEGORY_LABELS[c]} · {counts.get(c)}
+                  {COMMUNITY_CATEGORY_LABELS[c]} · {counts.get(c)?.toLocaleString('de-DE')}
                 </ToggleChipItem>
               ))}
             </ToggleChipGroup>
@@ -172,11 +172,11 @@ export function Community() {
           {empty ? (
             <EmptyState
               className="mt-7"
-              title="Nothing on the shelves yet"
-              description="Anyone can list a canvas here from its Share menu — people preview it and copy it into their own account, and the original stays private. Be the first."
+              title="Noch nichts in der Galerie"
+              description="Über das Freigabemenü kann jeder eine Arbeitsfläche hier veröffentlichen. Andere können sie ansehen und in ihr eigenes Konto kopieren. Das Original bleibt privat. Mach den Anfang."
               action={
                 <Button variant="primary" onClick={() => navigate('/')}>
-                  Pick a canvas to publish
+                  Arbeitsfläche zum Veröffentlichen auswählen
                 </Button>
               }
             />
@@ -184,11 +184,13 @@ export function Community() {
             <>
               {items !== null && (query.trim() || shelf !== 'all') && (
                 <div className="mt-[18px] text-caption text-ink-faint">
-                  {visible.length} of {items.length}
+                  {visible.length.toLocaleString('de-DE')} von {items.length.toLocaleString('de-DE')}
                 </div>
               )}
               {items !== null && visible.length === 0 ? (
-                <p className="mt-7 text-copy text-ink-soft">Nothing matches — try a different search or shelf.</p>
+                <p className="mt-7 text-copy text-ink-soft">
+                  Keine Treffer — versuche einen anderen Suchbegriff oder eine andere Kategorie.
+                </p>
               ) : (
                 <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3.5 xs:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] md:gap-4">
                   {items === null &&
@@ -239,18 +241,20 @@ function GalleryCard({
     <Tile>
       <Pressable onClick={onOpen}>
         <TileCover aspect="16/10">
-          <FramePreview frameId={cover?.id} empty="no preview" />
+          <FramePreview frameId={cover?.id} empty="keine Vorschau" />
           {item.frames.length > 1 && (
-            <Badge className="absolute left-2 top-2 bg-surface/90">{item.frames.length} frames</Badge>
+            <Badge className="absolute left-2 top-2 bg-surface/90">
+              {item.frames.length.toLocaleString('de-DE')} Zeichenflächen
+            </Badge>
           )}
         </TileCover>
         <TileBody>
           <div className="truncate font-display text-copy font-semibold">{item.name}</div>
           {item.description && <p className="mt-1 line-clamp-2 text-label text-ink-soft">{item.description}</p>}
           <MetaLine className="mt-[7px]">
-            <span className="truncate">by {item.authorName}</span>
+            <span className="truncate">von {item.authorName}</span>
             <span className="flex-none">
-              {item.copyCount} {item.copyCount === 1 ? 'copy' : 'copies'}
+              {item.copyCount.toLocaleString('de-DE')} {item.copyCount === 1 ? 'Kopie' : 'Kopien'}
             </span>
           </MetaLine>
         </TileBody>
@@ -262,7 +266,7 @@ function GalleryCard({
         onClick={onCopy}
         className="absolute right-2 top-2 opacity-100 shadow-pop md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
       >
-        <CopyIcon className="size-3.5" /> {copying ? 'Copying…' : 'Use this'}
+        <CopyIcon className="size-3.5" /> {copying ? 'Wird kopiert…' : 'Verwenden'}
       </Button>
     </Tile>
   )
@@ -287,8 +291,8 @@ function DesignModal({
         <ModalEyebrow>{COMMUNITY_CATEGORY_LABELS[item.category]}</ModalEyebrow>
         <ModalTitle className="mt-1.5 truncate">{item.name}</ModalTitle>
         <p className="mt-1 text-caption text-ink-faint">
-          by {item.authorName} · published {timeAgo(item.publishedAt)} · {item.copyCount}{' '}
-          {item.copyCount === 1 ? 'copy' : 'copies'}
+          von {item.authorName} · veröffentlicht {timeAgo(item.publishedAt)} · {item.copyCount.toLocaleString('de-DE')}{' '}
+          {item.copyCount === 1 ? 'Kopie' : 'Kopien'}
         </p>
       </div>
       {item.description && <p className="mt-3 text-copy text-ink-soft">{item.description}</p>}
@@ -308,17 +312,18 @@ function DesignModal({
               <FramePreview frameId={frame.id} />
             </div>
             <figcaption className="mt-1.5 truncate text-caption text-ink-faint">
-              {frame.name} · {Math.round(frame.width)}×{Math.round(frame.height)}
+              {frame.name} · {Math.round(frame.width).toLocaleString('de-DE')}×
+              {Math.round(frame.height).toLocaleString('de-DE')}
             </figcaption>
           </figure>
         ))}
       </div>
       <div className="mt-4 flex flex-col items-stretch gap-2.5 border-t border-line-soft pt-4 sm:flex-row sm:items-center sm:justify-between">
         <span className="text-caption text-ink-faint">
-          Copies land in your canvases as a private copy — edit freely, the original is untouched.
+          Kopien landen als private Arbeitsflächen bei Dir — bearbeite sie frei, das Original bleibt unverändert.
         </span>
         <Button variant="primary" className="justify-center" disabled={copying} onClick={onCopy}>
-          <CopyIcon className="size-4" /> {copying ? 'Copying…' : 'Copy to my canvases'}
+          <CopyIcon className="size-4" /> {copying ? 'Wird kopiert…' : 'Zu meinen Arbeitsflächen kopieren'}
         </Button>
       </div>
     </Modal>

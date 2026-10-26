@@ -40,7 +40,7 @@ export interface PullStep {
 export interface AgentStep {
   id: string
   type: 'agent'
-  /** short label shown on the node, e.g. "Weekly review"; the prompt is the brief */
+  /** short label shown on the node, e.g. "Wöchentliche Prüfung"; the prompt is the brief */
   title: string
   prompt: string
   /** the one agent role the card goes to (kept as a list for the card's pipeline shape) */
@@ -79,8 +79,9 @@ export interface Automation {
   updatedAt: number
 }
 
-export const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
-export const WEEKDAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+export const WEEKDAYS = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'] as const
+export const WEEKDAYS_SHORT = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'] as const
+const SCHEDULER_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
 
 export const MAX_STEPS = 6
 export const MAX_NAME = 80
@@ -146,7 +147,7 @@ export function wallClock(at: number, tz: string): WallClock {
     hour: Number(parts.hour),
     minute: Number(parts.minute),
     second: Number(parts.second),
-    weekday: WEEKDAYS_SHORT.indexOf(parts.weekday as (typeof WEEKDAYS_SHORT)[number]),
+    weekday: SCHEDULER_WEEKDAYS.indexOf(parts.weekday as (typeof SCHEDULER_WEEKDAYS)[number]),
   }
 }
 
@@ -199,7 +200,7 @@ export function nextRunAt(schedule: Schedule, after: number): number {
 /** The clock as the viewer's locale shows it; falls back to 24h where Intl is missing. */
 export function clockTime(hour: number, minute: number): string {
   try {
-    return new Date(2000, 0, 1, hour, minute).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    return new Date(2000, 0, 1, hour, minute).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
   } catch {
     return `${pad(hour)}:${pad(minute)}`
   }
@@ -207,17 +208,17 @@ export function clockTime(hour: number, minute: number): string {
 
 export function describeSchedule(s: Schedule): string {
   const time = clockTime(s.hour, s.minute)
-  if (s.kind === 'daily') return `Every day at ${time}`
-  if (s.kind === 'weekdays') return `Weekdays at ${time}`
-  return `Every ${WEEKDAYS[s.weekday] ?? 'Monday'} at ${time}`
+  if (s.kind === 'daily') return `Jeden Tag um ${time}`
+  if (s.kind === 'weekdays') return `Werktags um ${time}`
+  return `Jeden ${WEEKDAYS[s.weekday] ?? 'Montag'} um ${time}`
 }
 
 /** "Mon 09:00" — the short form for list rows */
 export function shortSchedule(s: Schedule): string {
   const time = clockTime(s.hour, s.minute)
-  if (s.kind === 'daily') return `Daily ${time}`
-  if (s.kind === 'weekdays') return `Weekdays ${time}`
-  return `${WEEKDAYS_SHORT[s.weekday] ?? 'Mon'} ${time}`
+  if (s.kind === 'daily') return `Täglich ${time}`
+  if (s.kind === 'weekdays') return `Werktags ${time}`
+  return `${WEEKDAYS_SHORT[s.weekday] ?? 'Mo'} ${time}`
 }
 
 /* ------------------------------------------------------------------ */
@@ -249,8 +250,8 @@ function stepId(raw: unknown, index: number): string {
 /** Shape-check the steps. Canvas ids are only validated for shape here — the
  *  server checks the owner can actually reach each one. */
 export function normalizeSteps(raw: unknown): Step[] | string {
-  if (!Array.isArray(raw)) return 'steps must be a list'
-  if (raw.length > MAX_STEPS) return `at most ${MAX_STEPS} steps`
+  if (!Array.isArray(raw)) return 'Die Schritte müssen als Liste angegeben werden.'
+  if (raw.length > MAX_STEPS) return `Höchstens ${MAX_STEPS} Schritte sind erlaubt.`
   const out: Step[] = []
   raw.forEach((item, i) => {
     const s = (item ?? {}) as Record<string, unknown>
@@ -276,18 +277,18 @@ export function normalizeSteps(raw: unknown): Step[] | string {
       })
     }
   })
-  if (out.length !== raw.length) return 'each step is a pull or an agent task'
+  if (out.length !== raw.length) return 'Jeder Schritt muss ein Import oder eine Agentenaufgabe sein.'
   return out
 }
 
 /** Why a saved automation cannot run yet — shown inline, and the reason the
  *  scheduler skips it. Undefined = ready. */
 export function incompleteReason(steps: Step[]): string | undefined {
-  if (steps.length === 0) return 'Add a step'
+  if (steps.length === 0) return 'Füge einen Schritt hinzu.'
   for (const s of steps) {
-    if (!s.canvasId) return 'Pick a canvas for every step'
-    if (s.type === 'pull' && !s.accountId) return 'Pick a Meta ad account'
-    if (s.type === 'agent' && !s.prompt) return 'Write what the agent should do'
+    if (!s.canvasId) return 'Wähle für jeden Schritt eine Arbeitsfläche.'
+    if (s.type === 'pull' && !s.accountId) return 'Wähle ein Meta-Werbekonto.'
+    if (s.type === 'agent' && !s.prompt) return 'Beschreibe, was der Agent tun soll.'
   }
   return undefined
 }
@@ -310,83 +311,83 @@ export interface AutomationExample {
 export const AUTOMATION_EXAMPLES: AutomationExample[] = [
   {
     id: 'weekly-creatives',
-    name: 'Weekly ad creatives',
-    blurb: 'Pull every active Meta ad onto a canvas each Monday.',
+    name: 'Wöchentliche Werbemotive',
+    blurb: 'Importiere jeden Montag alle aktiven Meta-Anzeigen auf eine Arbeitsfläche.',
     schedule: { kind: 'weekly', weekday: 1, hour: 9, minute: 0 },
     steps: [{ type: 'pull', provider: 'meta', accountId: '', filter: 'active' }],
   },
   {
     id: 'ad-variants',
-    name: 'Ad variants',
-    blurb: 'Pull this week’s creatives, then have Doop spin up five variants of each.',
+    name: 'Anzeigenvarianten',
+    blurb: 'Importiere die Werbemotive dieser Woche und lass Doop jeweils fünf Varianten erstellen.',
     schedule: { kind: 'weekly', weekday: 1, hour: 9, minute: 0 },
     steps: [
       { type: 'pull', provider: 'meta', accountId: '', filter: 'active' },
       {
         type: 'agent',
-        title: 'Make variants',
+        title: 'Varianten erstellen',
         prompt:
-          'For every ad creative pulled in today, make five variants as new frames next to it: a stronger headline, a different visual hierarchy, a bolder colour treatment, a shorter copy version, and one that leads with social proof. Keep the brand intact.',
+          'Erstelle für jedes heute importierte Werbemotiv fünf Varianten als neue Zeichenflächen daneben: eine stärkere Überschrift, eine andere visuelle Hierarchie, eine mutigere Farbgestaltung, eine kürzere Textversion und eine Variante, die mit Kundenstimmen beginnt. Behalte die Marke bei.',
         roles: ['doop'],
       },
     ],
   },
   {
     id: 'friday-ux',
-    name: 'Friday UX review',
-    blurb: 'The UX Lead reviews everything that changed this week.',
+    name: 'UX-Prüfung am Freitag',
+    blurb: 'Der UX-Agent prüft alles, was sich diese Woche geändert hat.',
     schedule: { kind: 'weekly', weekday: 5, hour: 16, minute: 0 },
     steps: [
       {
         type: 'agent',
-        title: 'Weekly review',
+        title: 'Wöchentliche Prüfung',
         prompt:
-          'Review every frame on this canvas as an interface someone has to use. Fix unclear primary actions, muddled hierarchy and missing states. Leave a short note of what you changed.',
+          'Prüfe jede Zeichenfläche auf dieser Arbeitsfläche aus Sicht der Bedienung. Korrigiere unklare Hauptaktionen, uneindeutige Hierarchien und fehlende Zustände. Hinterlasse eine kurze Notiz zu Deinen Änderungen.',
         roles: ['ux'],
       },
     ],
   },
   {
     id: 'brand-a11y',
-    name: 'Brand and accessibility check',
-    blurb: 'Bring every frame back on brand and up to WCAG AA.',
+    name: 'Marken- und Barrierefreiheitsprüfung',
+    blurb: 'Bringe jede Zeichenfläche mit der Marke und WCAG AA in Einklang.',
     schedule: { kind: 'weekly', weekday: 3, hour: 10, minute: 0 },
     steps: [
       {
         type: 'agent',
-        title: 'Brand pass',
+        title: 'Markenprüfung',
         prompt:
-          'Check every frame on this canvas against the brand as established here — palette, type, radii, tone — and against WCAG AA contrast and semantics. Fix what fails without redesigning.',
+          'Prüfe jede Zeichenfläche auf dieser Arbeitsfläche anhand der vorhandenen Marke: Farbpalette, Schrift, Radien und Tonalität sowie Kontrast und Semantik nach WCAG AA. Behebe Abweichungen, ohne das Design neu zu gestalten.',
         roles: ['brand'],
       },
     ],
   },
   {
     id: 'copy-pass',
-    name: 'Weekly copy pass',
-    blurb: 'The Copywriter tightens every headline and label.',
+    name: 'Wöchentliche Textprüfung',
+    blurb: 'Der Text-Agent verbessert jede Überschrift und Beschriftung.',
     schedule: { kind: 'weekly', weekday: 2, hour: 9, minute: 30 },
     steps: [
       {
         type: 'agent',
-        title: 'Copy pass',
+        title: 'Textprüfung',
         prompt:
-          'Go through every frame on this canvas and tighten the copy: specific headlines, short labels, concrete CTAs, no filler. Keep every line inside its existing box.',
+          'Gehe alle Zeichenflächen auf dieser Arbeitsfläche durch und straffe die Texte: konkrete Überschriften, kurze Beschriftungen, klare Handlungsaufrufe, keine Füllwörter. Halte jede Zeile innerhalb ihres vorhandenen Bereichs.',
         roles: ['copy'],
       },
     ],
   },
   {
     id: 'nightly-polish',
-    name: 'Nightly polish',
-    blurb: 'Visual Polish tidies spacing and alignment every evening.',
+    name: 'Abendlicher Feinschliff',
+    blurb: 'Der Feinschliff-Agent verbessert jeden Abend Abstände und Ausrichtung.',
     schedule: { kind: 'weekdays', weekday: 1, hour: 22, minute: 0 },
     steps: [
       {
         type: 'agent',
-        title: 'Polish',
+        title: 'Feinschliff',
         prompt:
-          'Polish every frame on this canvas: optical alignment, one spacing scale, even type ramp, nothing overflowing at the frame size. Small surgical changes only.',
+          'Verfeinere jede Zeichenfläche auf dieser Arbeitsfläche: optische Ausrichtung, einheitliche Abstände, abgestufte Schriftgrößen und keine überstehenden Inhalte. Nimm nur kleine, gezielte Änderungen vor.',
         roles: ['polish'],
       },
     ],

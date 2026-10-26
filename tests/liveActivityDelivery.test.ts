@@ -74,7 +74,7 @@ it('ends revoked subscriptions without leaking private content', async () => {
   await deliverLiveActivities(send)
   expect(JSON.stringify(send.mock.calls)).not.toContain('Confidential')
   expect(send.mock.calls[0]?.[2]).toMatchObject({
-    aps: { event: 'end', 'content-state': { status: 'Activity ended' } },
+    aps: { event: 'end', 'content-state': { status: 'Aktivität beendet' } },
   })
   expect(await rig.db.select().from(schema.liveActivities)).toHaveLength(0)
 })

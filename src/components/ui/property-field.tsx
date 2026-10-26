@@ -14,7 +14,7 @@ const fieldCls =
 const unitCls = 'ml-auto flex-none font-sans text-[10.5px] text-ink-ghost'
 const scrubUnitCls =
   'self-stretch content-center -mr-2 pr-2 pl-1 cursor-ew-resize touch-none select-none hover:text-ink'
-const scrubTitle = 'Drag to adjust · Shift: ×10 · Alt/Option: ×0.1 · Esc: cancel'
+const scrubTitle = 'Zum Anpassen ziehen · Shift: ×10 · Alt/Option: ×0,1 · Esc: abbrechen'
 
 /** The panel owns CSS snapshots and persistence; fields only own the gesture. */
 export const PropertyScrubContext = createContext<{
@@ -339,7 +339,7 @@ export function ColorField({
         <span className="absolute inset-0" style={{ background: value ?? 'transparent' }} />
         <input
           type="color"
-          aria-label={label ? `Pick ${label.toLowerCase()}` : 'Pick colour'}
+          aria-label={label ? `Auswählen: ${label.toLowerCase()}` : 'Farbe auswählen'}
           className="absolute -inset-1 cursor-pointer opacity-0"
           value={value ?? '#ffffff'}
           onChange={(e) => onCommit(e.target.value)}

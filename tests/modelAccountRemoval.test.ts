@@ -44,7 +44,7 @@ it.each([
     })
     expect(response.status).toBe(410)
     expect(response.headers.get('content-type')).toContain('application/json')
-    expect(await response.json()).toEqual({ error: 'Private model accounts have been removed' })
+    expect(await response.json()).toEqual({ error: 'Private Modellkonten wurden entfernt.' })
   }
 })
 

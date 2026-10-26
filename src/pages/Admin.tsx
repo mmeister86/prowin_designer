@@ -78,12 +78,12 @@ export function Admin() {
     return (
       <div className="h-full overflow-y-auto [background:radial-gradient(circle,var(--dot)_1px,transparent_1px)_0_0/26px_26px,var(--paper)]">
         <div className="mx-auto max-w-[1060px] px-10 pt-[72px] pb-[120px]">
-          <DashTitle className="mt-16">Not found</DashTitle>
+          <DashTitle className="mt-16">Nicht gefunden</DashTitle>
           <p className="mt-3.5 max-w-[44em] text-lead leading-[1.6] text-ink-soft">
-            This page does not exist for this account.
+            Diese Seite ist für dieses Konto nicht verfügbar.
           </p>
           <Button variant="ghost" className="mt-5" onClick={() => navigate('/')}>
-            Back
+            Zurück
           </Button>
         </div>
       </div>
@@ -106,49 +106,49 @@ export function Admin() {
     <DashLayout className={railLayout}>
       {/* the app rail, with the two indexes as the page's group */}
       <AppRail active={null}>
-        <DashSectionLabel density="rail">Instance</DashSectionLabel>
+        <DashSectionLabel density="rail">Instanz</DashSectionLabel>
         <nav className="flex flex-col gap-0.5">
           <DashNavItem
             density="rail"
             icon={<GridIcon size="rail" />}
-            count={stats?.canvases ?? ''}
+            count={stats?.canvases.toLocaleString('de-DE') ?? ''}
             active={tab === 'canvases'}
             onClick={() => setTab('canvases')}
           >
-            Canvases
+            Arbeitsflächen
           </DashNavItem>
           <DashNavItem
             density="rail"
             icon={<UsersIcon size="rail" />}
-            count={stats?.users ?? ''}
+            count={stats?.users.toLocaleString('de-DE') ?? ''}
             active={tab === 'users'}
             onClick={() => setTab('users')}
           >
-            Accounts
+            Konten
           </DashNavItem>
         </nav>
       </AppRail>
 
       <DashMain className="[background:var(--paper)]">
         <DashHeader variant="bare" className="max-md:min-h-[104px]">
-          <nav className="flex items-center gap-2 text-body text-ink-faint" aria-label="Breadcrumb">
+          <nav className="flex items-center gap-2 text-body text-ink-faint" aria-label="Navigationspfad">
             <Button
               variant="link"
               size="sm"
               className="px-0 py-0 text-body font-normal text-ink-faint hover:text-ink"
               onClick={() => navigate('/')}
             >
-              Home
+              Startseite
             </Button>
             <ChevronRightIcon size={12} />
-            <b className="font-semibold text-ink">Admin</b>
+            <b className="font-semibold text-ink">Administration</b>
           </nav>
           <SearchField
             size="header"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={tab === 'canvases' ? 'Search canvases or owners…' : 'Search accounts…'}
-            aria-label={tab === 'canvases' ? 'Search canvases or owners' : 'Search accounts'}
+            placeholder={tab === 'canvases' ? 'Arbeitsflächen oder Eigentümer suchen…' : 'Konten suchen…'}
+            aria-label={tab === 'canvases' ? 'Arbeitsflächen oder Eigentümer suchen' : 'Konten suchen'}
           />
         </DashHeader>
 
@@ -156,13 +156,13 @@ export function Admin() {
           <div className="flex items-start gap-4 md:items-end">
             <div>
               <DashTitle>
-                Everything on this instance<em className="not-italic text-brand">.</em>
+                Alles auf dieser Instanz<em className="not-italic text-brand">.</em>
               </DashTitle>
               <DashSubtitle>
                 {stats
-                  ? `${stats.users} ${stats.users === 1 ? 'account' : 'accounts'} · ${stats.canvases} ${
-                      stats.canvases === 1 ? 'canvas' : 'canvases'
-                    } · ${stats.frames} ${stats.frames === 1 ? 'frame' : 'frames'}`
+                  ? `${stats.users.toLocaleString('de-DE')} ${stats.users === 1 ? 'Konto' : 'Konten'} · ${stats.canvases.toLocaleString('de-DE')} ${
+                      stats.canvases === 1 ? 'Arbeitsfläche' : 'Arbeitsflächen'
+                    } · ${stats.frames.toLocaleString('de-DE')} ${stats.frames === 1 ? 'Zeichenfläche' : 'Zeichenflächen'}`
                   : '…'}
               </DashSubtitle>
             </div>
@@ -175,10 +175,10 @@ export function Admin() {
           >
             <TabsList variant="card">
               <TabsTrigger value="canvases">
-                <GridIcon size="rail" /> Canvases · {stats?.canvases ?? '…'}
+                <GridIcon size="rail" /> Arbeitsflächen · {stats?.canvases.toLocaleString('de-DE') ?? '…'}
               </TabsTrigger>
               <TabsTrigger value="users">
-                <UsersIcon size="rail" /> Accounts · {stats?.users ?? '…'}
+                <UsersIcon size="rail" /> Konten · {stats?.users.toLocaleString('de-DE') ?? '…'}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -188,7 +188,8 @@ export function Admin() {
               {data && data.total > data.canvases.length && (
                 <div className="mt-[18px] flex flex-wrap items-center gap-2.5 text-xs text-ink-faint">
                   <span>
-                    Showing the {data.canvases.length} most recently updated of {data.total}
+                    Angezeigt werden die {data.canvases.length.toLocaleString('de-DE')} zuletzt aktualisierten von{' '}
+                    {data.total.toLocaleString('de-DE')}
                   </span>
                 </div>
               )}
@@ -207,19 +208,19 @@ export function Admin() {
                           c.linkAccess === 'edit' && (
                             <Badge
                               className="px-[5px] py-px text-micro"
-                              title="Anyone with the link can edit this canvas"
+                              title="Alle mit dem Link können diese Arbeitsfläche bearbeiten"
                             >
-                              link on
+                              Link aktiv
                             </Badge>
                           )
                         }
                       >
-                        <span>{c.owner ? c.owner.name : 'unclaimed'}</span>
+                        <span>{c.owner ? c.owner.name : 'ohne Eigentümer'}</span>
                         <span>
-                          {c.frameCount} frame{c.frameCount === 1 ? '' : 's'}
+                          {c.frameCount.toLocaleString('de-DE')} Zeichenfläche{c.frameCount === 1 ? '' : 'n'}
                         </span>
                         <span>{timeAgo(c.updatedAt)}</span>
-                        {c.memberCount > 0 && <span>{c.memberCount} invited</span>}
+                        {c.memberCount > 0 && <span>{c.memberCount.toLocaleString('de-DE')} eingeladen</span>}
                       </MetaLine>
                       {c.owner && (
                         <Button
@@ -228,7 +229,7 @@ export function Admin() {
                           className="mt-auto self-start"
                           onClick={() => viewAs(c.owner!.id)}
                         >
-                          View as {c.owner.name.split(' ')[0]}
+                          Ansicht als {c.owner.name.split(' ')[0]}
                         </Button>
                       )}
                     </TileBody>
@@ -247,24 +248,25 @@ export function Admin() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2 font-display text-copy font-semibold">
                       {u.name}
-                      {u.role === 'admin' && <Badge tone="admin">admin</Badge>}
-                      {u.banned && <Badge tone="banned">banned</Badge>}
+                      {u.role === 'admin' && <Badge tone="admin">Administration</Badge>}
+                      {u.banned && <Badge tone="banned">gesperrt</Badge>}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5 text-body text-ink-faint">
                       <span>{u.email}</span>
                       <span>·</span>
                       <span>
-                        {u.canvasCount} {u.canvasCount === 1 ? 'canvas' : 'canvases'}
+                        {u.canvasCount.toLocaleString('de-DE')}{' '}
+                        {u.canvasCount === 1 ? 'Arbeitsfläche' : 'Arbeitsflächen'}
                       </span>
                       <span>·</span>
-                      <span>joined {timeAgo(u.createdAt)}</span>
+                      <span>beigetreten {timeAgo(u.createdAt)}</span>
                     </div>
                   </div>
                   {u.role !== 'admin' && (
                     <div className="flex flex-wrap items-center gap-2">
                       {!u.banned && (
                         <Button variant="ghost" size="sm" onClick={() => viewAs(u.id)}>
-                          View as
+                          Ansicht als
                         </Button>
                       )}
                       <Button
@@ -272,7 +274,7 @@ export function Admin() {
                         size="sm"
                         onClick={() => setConfirmBan({ user: u, banned: !u.banned })}
                       >
-                        {u.banned ? 'Unban' : 'Ban'}
+                        {u.banned ? 'Entsperren' : 'Sperren'}
                       </Button>
                     </div>
                   )}
@@ -285,13 +287,13 @@ export function Admin() {
       <ConfirmDialog
         open={!!confirmBan}
         onOpenChange={(open) => !open && setConfirmBan(null)}
-        title={`${confirmBan?.banned ? 'Ban' : 'Unban'} ${confirmBan?.user.name ?? ''} (${confirmBan?.user.email ?? ''})?`}
+        title={`${confirmBan?.banned ? 'Sperren' : 'Entsperren'} ${confirmBan?.user.name ?? ''} (${confirmBan?.user.email ?? ''})?`}
         description={
           confirmBan?.banned
-            ? 'They are signed out everywhere and cannot sign in or use MCP until unbanned.'
+            ? 'Die Person wird überall abgemeldet und kann sich bis zur Entsperrung weder anmelden noch MCP nutzen.'
             : undefined
         }
-        confirmLabel={confirmBan?.banned ? 'Ban' : 'Unban'}
+        confirmLabel={confirmBan?.banned ? 'Sperren' : 'Entsperren'}
         destructive={confirmBan?.banned}
         onConfirm={() => {
           const target = confirmBan

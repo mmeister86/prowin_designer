@@ -8,16 +8,17 @@ export function CursorInstall({ mcpUrl }: { mcpUrl: string }) {
     <InstallBlock
       action={
         <Button asChild variant="solid">
-          <a href={cursorMcpInstallUrl(mcpUrl)}>Add to Cursor</a>
+          <a href={cursorMcpInstallUrl(mcpUrl)}>Zu Cursor hinzufügen</a>
         </Button>
       }
-      manualLabel="Connection help"
+      manualLabel="Verbindungshilfe"
       manual={
         <>
           <p>
-            If Cursor does not open, open its <strong>Customize</strong> panel and add a custom MCP server. Merge this{' '}
-            <code>doop</code> entry into your MCP configuration, keeping any existing servers. If Doop is already
-            connected through a plugin, use that connection.
+            Falls Cursor sich nicht öffnet, öffne den Bereich <strong>Anpassen</strong> und füge einen
+            benutzerdefinierten MCP-Server hinzu. Füge diesen Eintrag <code>doop</code> zu Deiner MCP-Konfiguration
+            hinzu und behalte bestehende Server bei. Falls Doop bereits über ein Plugin verbunden ist, nutze diese
+            Verbindung.
           </p>
           <CodeBlock text={JSON.stringify({ mcpServers: { doop: { url: mcpUrl } } }, null, 2)} className="mt-2.5" />
         </>

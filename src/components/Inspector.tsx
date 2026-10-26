@@ -129,10 +129,10 @@ export function Inspector({
         <div className="flex items-center justify-between gap-2 border-b border-line-soft bg-sub py-1.5 pr-2 pl-3">
           <span
             className="flex min-w-0 items-center gap-1.5 text-[12px] text-ink-soft"
-            title="Locked — can’t be moved, resized or deleted on the canvas"
+            title="Gesperrt – kann auf der Arbeitsfläche weder verschoben, skaliert noch gelöscht werden"
           >
             <LockIcon className="size-3 flex-none" />
-            Locked
+            Gesperrt
           </span>
           <Button
             variant="bare"
@@ -140,7 +140,7 @@ export function Inspector({
             disabled={!canManageLocks}
             onClick={() => setFramesLocked([frame], false)}
           >
-            Unlock
+            Entsperren
           </Button>
         </div>
       )}
@@ -162,7 +162,7 @@ export function Inspector({
             <Button
               variant="bare"
               className={fillBtn}
-              title="Download as PNG (2×)"
+              title="Als PNG herunterladen (2×)"
               onClick={() => void downloadFrameExport(frame, 'png')}
             >
               PNG
@@ -170,7 +170,7 @@ export function Inspector({
             <Button
               variant="bare"
               className={fillBtn}
-              title="Download as JPG (2×)"
+              title="Als JPG herunterladen (2×)"
               onClick={() => void downloadFrameExport(frame, 'jpg')}
             >
               JPG
@@ -178,15 +178,15 @@ export function Inspector({
             <Button
               variant="bare"
               className={cn(fillBtn, 'col-span-2')}
-              title="Copy the image (2×) to paste anywhere"
+              title="Bild kopieren (2×), um es überall einzufügen"
               onClick={() => void copyFramePng(frame)}
             >
-              Copy as PNG
+              Als PNG kopieren
             </Button>
             <Button
               variant="bare"
               className={cn(fillBtn, 'col-span-2')}
-              title="Public image URL — always renders the current design; paste it as og:image or a blog featured image"
+              title="Öffentliche Bild-URL – zeigt immer das aktuelle Design; nutze sie als og:image oder Blog-Beitragsbild"
               onClick={() => {
                 navigator.clipboard.writeText(`${location.origin}/i/${frame.id}.png?scale=2`).then(() => {
                   setCopiedUrl(true)
@@ -194,18 +194,18 @@ export function Inspector({
                 }, console.error)
               }}
             >
-              {copiedUrl ? 'Copied' : 'Copy image URL'}
+              {copiedUrl ? 'Kopiert' : 'Bild-URL kopieren'}
             </Button>
           </div>
         </InspectorGroup>
-        <InspectorGroup title="Memory">
+        <InspectorGroup title="Designwissen">
           <Button
             variant="bare"
             className={cn(fillBtn, 'w-full')}
-            title="Add to design memory — will be used as reference"
+            title="Zum Designwissen hinzufügen – wird als Referenz verwendet"
             onClick={() => api.pinReference(frame.canvasId, frame.id).catch(console.error)}
           >
-            Pin as reference
+            Als Referenz anheften
           </Button>
         </InspectorGroup>
         <Collapsible className="flex min-h-0 flex-col" open={showHtml} onOpenChange={toggleHtml}>
@@ -214,7 +214,7 @@ export function Inspector({
             <button
               type="button"
               aria-expanded={showHtml}
-              title={showHtml ? 'Hide the HTML editor' : 'Edit the HTML'}
+              title={showHtml ? 'HTML-Editor ausblenden' : 'HTML bearbeiten'}
               onClick={() => toggleHtml(!showHtml)}
               className="mb-1.5 -ml-1 flex h-5 items-center gap-1 rounded-[5px] px-1 text-[12px] text-ink-soft hover:text-ink"
             >
@@ -224,16 +224,16 @@ export function Inspector({
               <Button
                 variant="bare"
                 className={cn(fillBtn, 'gap-1.5')}
-                title="Copy the frame's HTML"
+                title="HTML der Zeichenfläche kopieren"
                 onClick={copyHtml}
               >
                 <CopyIcon className="size-3.5" />
-                {htmlCopy === 'copied' ? 'Copied' : 'Copy'}
+                {htmlCopy === 'copied' ? 'Kopiert' : 'Kopieren'}
               </Button>
               <Button
                 variant="bare"
                 className={cn(fillBtn, 'gap-1.5')}
-                title="Save the frame's HTML as a file"
+                title="HTML der Zeichenfläche als Datei speichern"
                 onClick={() => downloadFrameHtml(frame, draft)}
               >
                 <DownloadIcon className="size-3.5" />
@@ -242,7 +242,7 @@ export function Inspector({
             </div>
             {htmlCopy === 'failed' && (
               <p className="pt-2 text-[11px] text-accent-ink">
-                Couldn’t copy the HTML. Select it in the editor and copy it by hand.
+                Das HTML konnte nicht kopiert werden. Wähle es im Editor aus und kopiere es manuell.
               </p>
             )}
           </div>
@@ -261,7 +261,11 @@ export function Inspector({
       </div>
       <footer className="flex flex-none items-center justify-between gap-2 border-t border-line-soft py-2 pr-2 pl-3">
         <span className="min-w-0 truncate text-[11px] text-ink-faint">
-          {saveState === 'dirty' ? 'saving…' : saveState === 'saved' ? 'saved' : `last edit by ${frame.updatedBy}`}
+          {saveState === 'dirty'
+            ? 'Wird gespeichert…'
+            : saveState === 'saved'
+              ? 'Gespeichert'
+              : `zuletzt bearbeitet von ${frame.updatedBy}`}
         </span>
         <span className="flex flex-none items-center gap-0.5">
           <Button
@@ -270,17 +274,17 @@ export function Inspector({
             className="h-7 rounded-[7px] px-2 text-[12px] font-normal"
             onClick={() => setHistoryOpen(true)}
           >
-            History
+            Verlauf
           </Button>
           <Button
             variant="bare-danger"
             size="sm"
             className="h-7 rounded-[7px] px-2 text-[12px] font-normal"
             disabled={!!frame.locked}
-            title={frame.locked ? 'Unlock the frame to delete it' : undefined}
+            title={frame.locked ? 'Entsperre die Zeichenfläche, um sie zu löschen' : undefined}
             onClick={() => deleteFrameTracked(frame)}
           >
-            Delete
+            Löschen
           </Button>
         </span>
       </footer>
@@ -312,7 +316,7 @@ function NameInput({ value, onCommit }: { value: string; onCommit: (v: string) =
     <Input
       variant="bare"
       inputSize="auto"
-      aria-label="Frame name"
+      aria-label="Name der Zeichenfläche"
       className="h-7 min-w-0 flex-1 truncate rounded-[6px] px-1 text-[12.5px] font-medium hover:bg-sub focus:bg-surface focus:shadow-elevation-1-focus md:text-[12.5px] max-md:min-h-10"
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
@@ -333,7 +337,7 @@ function NumInput({ label, value, onCommit }: { label: string; value: number; on
     <label className="flex h-7 min-w-0 items-center gap-[7px] rounded-[7px] bg-sub px-2 focus-within:bg-surface focus-within:shadow-elevation-1-focus max-md:h-10">
       <span className="flex-none text-[10.5px] text-ink-ghost">{label}</span>
       <input
-        aria-label={{ X: 'X position', Y: 'Y position', W: 'Width', H: 'Height' }[label] ?? label}
+        aria-label={{ X: 'X-Position', Y: 'Y-Position', W: 'Breite', H: 'Höhe' }[label] ?? label}
         className="w-full min-w-0 bg-transparent font-mono text-[11px] text-ink outline-none"
         inputMode="numeric"
         value={draft}

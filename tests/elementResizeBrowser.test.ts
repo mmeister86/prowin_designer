@@ -503,13 +503,13 @@ describe.skipIf(!findBrowserPath())('element resize handles', () => {
   it('keeps a later panel edit when an earlier save echoes back', async () => {
     await reset()
     await select('#text')
-    await page.waitForSelector('[aria-label="Align center"]')
+    await page.waitForSelector('[aria-label="Zentriert"]')
     /* three edits faster than the settle delay: the first two are filed
        early, and their echo must not morph the live document backwards */
     const frame = (await frameDoc())!
-    await page.click('[aria-label="Align right"]')
-    await page.click('[aria-label="Align center"]')
-    await page.click('[aria-label="Justify"]')
+    await page.click('[aria-label="Rechtsbündig"]')
+    await page.click('[aria-label="Zentriert"]')
+    await page.click('[aria-label="Blocksatz"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#text')!).textAlign === 'justify')
     await expect.poll(() => saved.html).toContain('text-align: justify')
     await new Promise((r) => setTimeout(r, 400))

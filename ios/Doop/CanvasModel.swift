@@ -182,14 +182,14 @@ final class CanvasModel: ObservableObject {
         do {
             let right = canvas?.frames.map { $0.x + $0.width }.max() ?? -80
             let data = try await client.data("/api/canvases/\(id)/frames", method: "POST", body: [
-                "name": "Untitled frame", "x": right + 80, "y": 0, "width": 390, "height": 844,
-                "html": "<!doctype html><html><body style='margin:0;background:#fff;display:grid;place-items:center;height:100vh;font-family:system-ui;color:#777'><p>What will you make?</p></body></html>"
+                "name": "Unbenannte Zeichenfläche", "x": right + 80, "y": 0, "width": 390, "height": 844,
+                "html": "<!doctype html><html lang='de'><body style='margin:0;background:#fff;display:grid;place-items:center;height:100vh;font-family:system-ui;color:#777'><p>Was möchtest Du gestalten?</p></body></html>"
             ])
             let frame = try JSONDecoder().decode(DesignFrame.self, from: data)
             if canvas != nil { upsert(frame, into: &canvas!.frames) }
             select(frame.id)
             viewportCommand += 1
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = NativeMessages.error(error) }
     }
 
     func patchFrame(_ frameID: String, patch: [String: Any]) async throws {
@@ -216,7 +216,7 @@ final class CanvasModel: ObservableObject {
             if canvas?.frames.contains(where: { $0.id == frameID }) == true { upsert(frame, into: &canvas!.frames) }
         } catch {
             guard pendingMoves.finish(frameID: frameID, token: token) else { return }
-            self.error = error.localizedDescription
+            self.error = NativeMessages.error(error)
             canvas = try? await client.get("/api/canvases/\(id)")
         }
     }

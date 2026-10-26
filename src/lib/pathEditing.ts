@@ -1,5 +1,5 @@
 import type { Frame } from '../../shared/types'
-import { api, ApiError } from './api'
+import { api, ApiError, UserFacingError } from './api'
 import { isCanvasElement, pathData, pathDrawing, queueDrawingSave, type PathPoint, type Point } from './drawing'
 import { recordUpdates } from './history'
 import { requestFrame } from './frameBridge'
@@ -156,9 +156,13 @@ export async function savePathEdit(frame: Frame, source: PathEditSource, path: E
     const state = useStore.getState()
     const canvas = state.canvas?.id === frame.canvasId ? state.canvas : await api.getCanvas(frame.canvasId)
     const latest = canvas.frames.find((f) => f.id === frame.id)
-    if (!latest || latest.locked || latest.hidden) throw new Error('The path is no longer editable.')
+    if (!latest || latest.locked || latest.hidden)
+      throw new UserFacingError('Der Pfad kann nicht mehr bearbeitet werden.')
     const patch = updatePathFrame(latest, source, path)
-    if (!patch) throw new Error('The path changed while you were editing. Reopen it to continue.')
+    if (!patch)
+      throw new UserFacingError(
+        'Der Pfad wurde während Deiner Bearbeitung geändert. Öffne ihn erneut, um fortzufahren.',
+      )
     try {
       saved = await api.updateFrame(latest.id, patch, latest.updatedAt)
     } catch (error) {
@@ -183,6 +187,6 @@ export async function savePathEdit(frame: Frame, source: PathEditSource, path: E
       if (current && current.updatedAt <= saved.updatedAt) useStore.getState().upsertFrame(saved)
       recordUpdates([{ frameId: latest.id, before: latest, after: patch }])
     }
-  }, 'Couldn’t save the path. Please try again.')
+  }, 'Der Pfad konnte nicht gespeichert werden. Versuche es erneut.')
   return saved
 }

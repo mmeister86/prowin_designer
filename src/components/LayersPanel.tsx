@@ -355,17 +355,17 @@ export function LayersPanel({
       <PanelHeader className="h-10 pl-3.5">
         <span className="flex items-center gap-2">
           <LayersIcon className="size-3.5" />
-          Layers
+          Ebenen
         </span>
         {surface === 'inline' ? (
-          <PanelClose label="Close" onClick={onClose} />
+          <PanelClose label="Schließen" onClick={onClose} />
         ) : (
-          <Tooltip label="Collapse panel" side="bottom" align="end">
+          <Tooltip label="Bereich einklappen" side="bottom" align="end">
             <Button
               variant="bare"
               size="icon-sm"
               className="size-7 shrink-0 rounded-[7px] text-ink-faint hover:bg-paper-deep hover:text-ink"
-              aria-label="Collapse panel"
+              aria-label="Bereich einklappen"
               onClick={() => setLayersOpen(false)}
             >
               <PanelCollapseIcon className="size-3.5" />
@@ -378,22 +378,28 @@ export function LayersPanel({
       <PagesPanel />
       <div className={cn('mt-1.5 flex h-6 flex-none items-center justify-between pr-2.5 pl-3.5', sectionHeading)}>
         <span data-slot="frame-section-heading" className={sectionHeading}>
-          Layers
+          Ebenen
         </span>
         <span className="flex gap-1">
-          <Tooltip label="Collapse all" side="bottom">
+          <Tooltip label="Alle einklappen" side="bottom">
             <Button
               variant="bare"
               size="icon-sm"
               className={sectionBtn}
-              aria-label="Collapse all"
+              aria-label="Alle einklappen"
               onClick={() => setExpanded(new Set())}
             >
               <CollapseAllIcon className="size-3.5" />
             </Button>
           </Tooltip>
-          <Tooltip label="New frame" side="bottom" align="end">
-            <Button variant="bare" size="icon-sm" className={sectionBtn} aria-label="New frame" onClick={onAddFrame}>
+          <Tooltip label="Neue Zeichenfläche" side="bottom" align="end">
+            <Button
+              variant="bare"
+              size="icon-sm"
+              className={sectionBtn}
+              aria-label="Neue Zeichenfläche"
+              onClick={onAddFrame}
+            >
               <PlusIcon className="size-3.5" />
             </Button>
           </Tooltip>
@@ -412,11 +418,11 @@ export function LayersPanel({
       >
         {frames.length === 0 && (
           <div className="px-3 py-6 text-center text-[12px] text-ink-faint">
-            No frames yet. Press + to add one, or ask the agent for a design.
+            Noch keine Zeichenflächen. Drücke +, um eine hinzuzufügen, oder bitte den Agenten um ein Design.
           </div>
         )}
         {frames.length > 0 && rows.length === 0 && (
-          <div className="px-3 py-6 text-center text-[12px] text-ink-faint">Nothing matches “{query.trim()}”.</div>
+          <div className="px-3 py-6 text-center text-[12px] text-ink-faint">Keine Treffer für „{query.trim()}“.</div>
         )}
         {rows.map((row) =>
           row.kind === 'frame' ? (
@@ -450,7 +456,7 @@ export function LayersPanel({
             variant="bare"
             inputSize="auto"
             className="h-full text-[12px] placeholder:text-ink-ghost md:text-[12px]"
-            placeholder="Search layers"
+            placeholder="Ebenen durchsuchen"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -467,26 +473,29 @@ export function LayersRailToggle() {
   const count = usePageCanvas()?.frames.length ?? 0
   return (
     <nav
-      aria-label="Layers panel"
+      aria-label="Ebenenbereich"
       className="pointer-events-auto absolute top-2.5 left-3.5 z-[35] flex w-10 flex-col items-center gap-0.5 rounded-[12px] bg-surface p-[5px] shadow-float"
     >
-      <Tooltip label="Expand panel" side="right">
+      <Tooltip label="Bereich ausklappen" side="right">
         <Button
           variant="bare"
           size="icon-sm"
           className="size-7 rounded-[7px] text-ink-soft hover:bg-paper-deep hover:text-ink"
-          aria-label="Expand panel"
+          aria-label="Bereich ausklappen"
           onClick={() => setLayersOpen(true)}
         >
           <PanelExpandIcon className="size-3.5" />
         </Button>
       </Tooltip>
-      <Tooltip label={`Layers · ${count} ${count === 1 ? 'frame' : 'frames'}`} side="right">
+      <Tooltip
+        label={`Ebenen · ${count.toLocaleString('de-DE')} ${count === 1 ? 'Zeichenfläche' : 'Zeichenflächen'}`}
+        side="right"
+      >
         <Button
           variant="bare"
           size="icon-sm"
           className="size-7 rounded-[7px] text-ink hover:bg-paper-deep"
-          aria-label={`Layers — ${count} frames`}
+          aria-label={`Ebenen – ${count.toLocaleString('de-DE')} ${count === 1 ? 'Zeichenfläche' : 'Zeichenflächen'}`}
           onClick={() => setLayersOpen(true)}
         >
           <LayersIcon className="size-3.5" />
@@ -552,7 +561,7 @@ function FrameRow({
                 {stream && (
                   <span className={editorChip} style={{ background: stream.color }}>
                     <AgentIcon name={stream.name} size={8} color="#fff" />
-                    designing…
+                    gestaltet…
                   </span>
                 )}
                 {/* who else is in the frame right now: a colour dot each, no
@@ -571,7 +580,7 @@ function FrameRow({
         </ContextMenuTrigger>
         <FrameContextMenu frame={frame} at={pasteAt} />
       </ContextMenu>
-      {row.empty && <div className="py-1 pl-[46px] text-[11px] text-ink-faint">empty frame</div>}
+      {row.empty && <div className="py-1 pl-[46px] text-[11px] text-ink-faint">Leere Zeichenfläche</div>}
     </>
   )
 }
@@ -629,7 +638,7 @@ function NodeRow({
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onSelect={() => setLayerHidden(frame, node.selector, !node.hidden)}>
-          {node.hidden ? 'Show' : 'Hide'}
+          {node.hidden ? 'Einblenden' : 'Ausblenden'}
           <MenuHint>{MOD_KEY}⇧H</MenuHint>
         </ContextMenuItem>
         <ContextMenuSeparator />
@@ -639,32 +648,32 @@ function NodeRow({
             if (html) navigator.clipboard.writeText(html).catch(console.error)
           }}
         >
-          Copy HTML
+          HTML kopieren
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => navigator.clipboard.writeText(node.selector).catch(console.error)}>
-          Copy selector
+          Selektor kopieren
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => void copyElementLink(frame, node.selector)}>
-          Copy link to element
+          Link zum Element kopieren
         </ContextMenuItem>
-        <ContextMenuItem onSelect={() => duplicateLayer(frame, node.selector)}>Duplicate</ContextMenuItem>
+        <ContextMenuItem onSelect={() => duplicateLayer(frame, node.selector)}>Duplizieren</ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => shiftLayer(frame, node.selector, -1)}>
-          Move up
+          Nach oben verschieben
           <MenuHint>⌥↑</MenuHint>
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => shiftLayer(frame, node.selector, 1)}>
-          Move down
+          Nach unten verschieben
           <MenuHint>⌥↓</MenuHint>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => setLayerLocked(frame, node.selector, !node.locked)}>
-          {node.locked ? 'Unlock' : 'Lock'}
+          {node.locked ? 'Entsperren' : 'Sperren'}
           <MenuHint>⌘⇧L</MenuHint>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem tone="danger" disabled={node.locked} onSelect={() => deleteLayer(frame, node.selector)}>
-          Delete element
+          Element löschen
           <MenuHint>⌫</MenuHint>
         </ContextMenuItem>
       </ContextMenuContent>
@@ -787,7 +796,7 @@ function Row({
         >
           {onToggleHidden && (
             <RowToggle
-              label={hidden ? 'Show' : 'Hide'}
+              label={hidden ? 'Einblenden' : 'Ausblenden'}
               on={!!hidden}
               selected={selected}
               onToggle={onToggleHidden}
@@ -796,7 +805,7 @@ function Row({
           )}
           {onToggleLocked && (
             <RowToggle
-              label={locked ? 'Unlock' : 'Lock'}
+              label={locked ? 'Entsperren' : 'Sperren'}
               on={!!locked}
               selected={selected}
               onToggle={onToggleLocked}

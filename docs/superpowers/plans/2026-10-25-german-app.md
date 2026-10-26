@@ -33,7 +33,7 @@ Vor Implementierung Planfreigabe einholen und `using-git-worktrees` zur Isolatio
 
 TASK-68.3 zuerst für gemeinsame Definitionen/Fehlererkennung beginnen. Danach können klar getrennte Web-, Editor- und native Bereiche parallel bearbeitet werden. Bestehende Tests mit mehreren Besitzern erst bei der Integration gemeinsam aktualisieren; Tests nicht blind per globaler Textersetzung verändern.
 
-### TASK-68.1: Web-Seiten, Navigation und UI-Standards
+### Task 1: TASK-68.1 — Web-Seiten, Navigation und UI-Standards
 
 **Files:** `src/App.tsx`, `src/pages/**`, `src/prowin/CreatorRegistration.tsx`, `src/integrations/**`, `index.html`, `claude-extension/manifest.json`, `src/components/ui/**` sowie `AccountSettings`, `AgentExecutionPanel`, `AgentKeys`, `AppearanceSettings`, `AppRail`, `AutomateShell`, `CanvasSearchModal`, `ClaudeDesktopInstall`, `CodexInstall`, `ConnectModal`, `CursorInstall`, `DashShell`, `DesktopTabs`, `HomeHero`, `ImageModelCard`, `LocalClaude`, `Onboarding`, `ShareModal`, `TeamAllowance`, `ThemePicker`, `Webhooks`, `WorkspaceModals` in `src/components/`.
 
@@ -46,7 +46,7 @@ TASK-68.3 zuerst für gemeinsame Definitionen/Fehlererkennung beginnen. Danach k
 - [ ] Optionale Seiten, Admin, mobile Varianten, KI-Hinweis und Accessibility ausdrücklich abgleichen; das neue `lang="de"` und deutsche Metadaten testen.
 - [ ] `bun run test -- tests/germanUi.test.tsx tests/confirmDialogs.test.tsx tests/connectModal.test.tsx tests/homeHero.test.tsx tests/optionalNavigation.test.tsx tests/prowinCreatorUi.test.tsx` ausführen; auch weitere durch Textänderungen betroffene Tests aktualisieren, ohne Verhaltensprüfungen zu entfernen.
 
-### TASK-68.2: Editor, Zusammenarbeit und Clientmeldungen
+### Task 2: TASK-68.2 — Editor, Zusammenarbeit und Clientmeldungen
 
 **Files:** Alle übrigen eigenen `src/components/**` außerhalb TASK-68.1; `src/lib/**` außer `api.ts`, `auth.ts` und `time.ts` (TASK-68.3). Besonders `tools.ts`, `drawing.ts`, `pages.ts`, `homePrompt.ts`, `frameClipboard.ts`, `frameExport.ts`, `pathEditing.ts`, `elementResize.ts`, `desktop.ts` sowie Inspector, Ebenen, Kommentare, Board, Memory und Export.
 
@@ -59,9 +59,9 @@ TASK-68.3 zuerst für gemeinsame Definitionen/Fehlererkennung beginnen. Danach k
 - [ ] Betroffene Tests mit ihren konkreten Dateien ausführen und auf Grün bringen; Schnittstellen-/Persistenzassertionen unverändert lassen.
 - [ ] `bun run test -- tests/tools.test.ts tests/homePrompt.test.ts tests/drawing.test.ts tests/frameClipboard.test.ts tests/frameExport.test.ts tests/elementLink.test.tsx tests/frameExportModal.test.tsx tests/commentsPanel.test.tsx` sowie relevante Editor-Browsertests ausführen.
 
-### TASK-68.3: Server, gemeinsame Definitionen, Fehler und Formate
+### Task 3: TASK-68.3 — Server, gemeinsame Definitionen, Fehler und Formate
 
-**Files:** Eigene nutzersichtbare Texte in `server/**`, insbesondere `auth.ts`, `workspaces.ts`, `commentNotifications.ts`, `demo.ts`, `index.ts`, `notifications.ts`, `access.ts`, `admin.ts`, `liveActivities.ts`; Anzeige-/Vorlagentexte in `shared/**`; `src/lib/api.ts`, `src/lib/auth.ts`, `src/lib/time.ts`. `server/guide.ts` und `server/resident.ts` nur für die Standard-Ausgabesprache neuer Agentenantworten anpassen, nicht technische Tool-/Prompt-Schemas übersetzen.
+**Files:** Eigene nutzersichtbare Texte in `server/**`, insbesondere `auth.ts`, `workspaces.ts`, `commentNotifications.ts`, `demo.ts`, `index.ts`, `notifications.ts`, `access.ts`, `admin.ts`, `liveActivities.ts`; Anzeige-/Vorlagentexte in `shared/**`; `src/lib/api.ts`, `src/lib/auth.ts`, `src/lib/time.ts`. In `server/guide.ts` und `server/resident.ts` die Standard-Ausgabesprache neuer Agentenantworten und feste menschliche Status-/Fehlermeldungen übersetzen, nicht technische Tool-/Prompt-Schemas. Planpräzisierung gemäß Spec: Auch feste Resident-Statusmeldungen sind eigene Nutzertexte.
 
 **Tests:** `tests/commentNotifications.test.ts`, `tests/signupRestrictions.test.ts`, `tests/loginProviders.test.ts`, `tests/workspaces.test.ts`, `tests/billing.test.ts`, `tests/automations.test.ts` und betroffene API-Tests. Neu `tests/germanFormatting.test.ts` und `tests/germanErrors.test.ts`.
 
@@ -72,7 +72,7 @@ TASK-68.3 zuerst für gemeinsame Definitionen/Fehlererkennung beginnen. Danach k
 - [ ] Bestehende Formatierer für Nutzeranzeigen auf deutsche Locale umstellen. Technische Datumsteile für Scheduler, CSS-Zahlen und numerische Eingaben nicht lokalisieren. Gespeicherte Demo-/Nutzerdaten nicht migrieren.
 - [ ] `bun run test -- tests/germanFormatting.test.ts tests/germanErrors.test.ts tests/commentNotifications.test.ts tests/signupRestrictions.test.ts tests/loginProviders.test.ts tests/workspaces.test.ts tests/billing.test.ts tests/automations.test.ts` und betroffene API-/Live-Activity-Tests ausführen.
 
-### TASK-68.4: Native Desktop-App und Installer
+### Task 4: TASK-68.4 — Native Desktop-App und Installer
 
 **Files:** `desktop/src-tauri/src/**`, `desktop/src-tauri/tauri.conf.json`, `desktop/src-tauri/dmg/background.html`, `desktop/src-tauri/dmg/background.png` und tatsächlich verwendete native Installer-Ressourcen.
 
@@ -85,7 +85,7 @@ TASK-68.3 zuerst für gemeinsame Definitionen/Fehlererkennung beginnen. Danach k
 - [ ] `cargo fmt --manifest-path desktop/src-tauri/Cargo.toml --check` und vorhandene ausführbare native Prüfungen ausführen; nicht verfügbare Rust-/GTK-/Apple-Buildumgebung konkret dokumentieren.
 - [ ] Ohne macOS keinen erfolgreichen DMG-Build oder Installation behaupten; bestehende Remote-URL als Deployment-Grenze dokumentieren.
 
-### TASK-68.5: iOS und Live Activities
+### Task 5: TASK-68.5 — iOS und Live Activities
 
 **Files:** `ios/Doop/**`, `ios/DoopActivity/**`, `ios/Shared/**`, `ios/Doop.xcodeproj/project.pbxproj`; nur erforderliche eigene Sprachressourcen hinzufügen. Drittanbieter-Renderer in `ios/BlitzKit/**` nicht übersetzen.
 
@@ -98,7 +98,7 @@ TASK-68.3 zuerst für gemeinsame Definitionen/Fehlererkennung beginnen. Danach k
 - [ ] Auf einer verfügbaren Apple-Umgebung Kernprüfungen und Simulator-Build ausführen; ohne macOS nur belegbare Struktur-/Ressourcenprüfungen durchführen und die native Abnahme offen lassen.
 - [ ] Kontolöschung, Verbindungsabbruch, schmale Anzeigen, VoiceOver und Live Activities in die manuelle Abnahmeliste aufnehmen.
 
-### TASK-68.6: Integration, unabhängiges Review und Abnahme
+### Task 6: TASK-68.6 — Integration, unabhängiges Review und Abnahme
 
 **Files:** Betroffene `tests/**`, neue `tests/germanNativeResources.test.ts`, `docs/prowin/deutsche-uebersetzung.md`, dieser Plan; Backlog ausschließlich per CLI.
 

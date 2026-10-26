@@ -90,7 +90,7 @@ export function ensureTab(id: string, name?: string) {
   if (!isDesktopShell()) return
   const { tabs } = useTabs.getState()
   const tab = tabs.find((t) => t.id === id)
-  if (!tab) setTabs([...tabs, { id, name: name || 'Untitled canvas' }])
+  if (!tab) setTabs([...tabs, { id, name: name || 'Unbenannte Arbeitsfläche' }])
   else if (name && tab.name !== name) setTabs(tabs.map((t) => (t.id === id ? { ...t, name } : t)))
 }
 

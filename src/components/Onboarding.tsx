@@ -92,30 +92,35 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
   /* the same one-line prompt the Connect AI modal hands out: the MCP server
      ships its own instructions on connect, so the prompt only needs to name
      the canvas */
-  const prompt = `Work on Doop canvas ${canvasId}. Start with get_guide({ topic: "doop-instructions" }) and follow it.`
+  const prompt = `Arbeite auf der Doop-Arbeitsfläche ${canvasId}. Beginne mit get_guide({ topic: "doop-instructions" }) und befolge die Anleitung.`
 
   const checklist = (
     <>
       {showChecklist && (
         <>
-          <Step done={!!progress.connected} label="Connect your own agent">
+          <Step done={!!progress.connected} label="Verbinde Deinen eigenen Agenten">
             {!progress.connected && (
               <>
-                <p className={obHint}>Claude Code, Codex, Cursor or any MCP client can design on this canvas as you.</p>
+                <p className={obHint}>
+                  Claude Code, Codex, Cursor oder jeder andere MCP-Client kann auf dieser Arbeitsfläche in Deinem Namen
+                  gestalten.
+                </p>
                 <Button size="sm" className="self-start" onClick={() => setShowConnect(true)}>
-                  Connect AI
+                  KI verbinden
                 </Button>
               </>
             )}
           </Step>
 
-          <Step done={!!progress.tasked} label="Give it a task">
+          <Step done={!!progress.tasked} label="Gib ihm eine Aufgabe">
             {progress.connected && !progress.tasked && (
               <>
                 <Button size="sm" className={obCopy} onClick={() => copy(prompt)}>
-                  {copied ? '✓ copied' : 'copy a starter prompt'}
+                  {copied ? '✓ kopiert' : 'Einstiegseingabe kopieren'}
                 </Button>
-                <p className={obHint}>Paste it into your agent's chat and watch the frame stream in.</p>
+                <p className={obHint}>
+                  Füge sie in den Chat Deines Agenten ein und sieh zu, wie die Zeichenfläche live entsteht.
+                </p>
               </>
             )}
           </Step>
@@ -123,11 +128,11 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
           {allDone && (
             <div className="flex flex-col gap-2.5 border-t border-line-soft pt-2.5">
               <p className="text-[12.5px] leading-[1.5] text-ink-soft">
-                That's the loop. One more trick: hover a task in the panel and reply with ↩ — your note becomes an open
-                request any agent picks up mid-flight.
+                So funktioniert es. Noch ein Tipp: Fahre im Bereich über eine Aufgabe und antworte mit ↩ — Deine Notiz
+                wird zu einer offenen Anfrage, die jeder Agent während der Arbeit aufnehmen kann.
               </p>
               <Button className="self-start" onClick={dismiss}>
-                Got it
+                Verstanden
               </Button>
             </div>
           )}
@@ -137,10 +142,11 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
       {!progress.notice && (
         <div className="flex flex-col gap-2 border-t border-line-soft pt-2.5">
           <p className="text-[11.5px] leading-[1.5] text-ink-faint">
-            AI notice: your design HTML, the screenshots the agent takes to check its work, and your text prompts go to
-            Requesty (EU). E-mail addresses, phone numbers and IBANs are replaced with placeholders before a request
-            leaves our server. Names and postal addresses are not detected. Image generation via Magnific (planned) will
-            only run when you click it, without contact details in the prompt.
+            KI-Hinweis: Dein Design-HTML, die Screenshots, mit denen der Agent seine Arbeit prüft, und Deine
+            Texteingaben werden an Requesty (EU) gesendet. E-Mail-Adressen, Telefonnummern und IBANs werden durch
+            Platzhalter ersetzt, bevor eine Anfrage unseren Server verlässt. Namen und Postanschriften werden nicht
+            erkannt. Die Bilderzeugung über Magnific (geplant) wird nur durch Deinen Klick ausgeführt, ohne Kontaktdaten
+            in der Eingabe.
           </p>
           <Button
             variant="link"
@@ -148,7 +154,7 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
             className="self-start px-0 text-[11.5px] text-ink-faint"
             onClick={() => setProgress((p) => ({ ...p, notice: true }))}
           >
-            Dismiss
+            Ausblenden
           </Button>
         </div>
       )}
@@ -168,7 +174,7 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
               variant="ghost"
               className="pointer-events-auto absolute left-3 top-3 z-30 h-10 gap-2 rounded-full bg-surface px-3 text-xs font-semibold shadow-card"
             >
-              <span className="text-brand">✦</span> {showChecklist ? 'Getting started' : 'AI notice'}
+              <span className="text-brand">✦</span> {showChecklist ? 'Erste Schritte' : 'KI-Hinweis'}
               {showChecklist && <span className="font-mono text-[10px] text-ink-faint">{done}/2</span>}
             </Button>
           </SheetTrigger>
@@ -178,12 +184,12 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
           >
             <div className="border-b border-line-soft px-5 py-4 pr-14">
               <SheetTitle className="font-display text-lg font-extrabold">
-                {showChecklist ? 'Getting started' : 'AI notice'}
+                {showChecklist ? 'Erste Schritte' : 'KI-Hinweis'}
               </SheetTitle>
               <SheetDescription className="mt-1 text-xs text-ink-soft">
                 {showChecklist
-                  ? 'Two steps to bring your own agent onto the canvas.'
-                  : 'How your designs and prompts reach the AI.'}
+                  ? 'In zwei Schritten bringst Du Deinen eigenen Agenten auf die Arbeitsfläche.'
+                  : 'So gelangen Deine Designs und Eingaben zur KI.'}
               </SheetDescription>
             </div>
             <div className="flex flex-col gap-4 px-5 py-5">{checklist}</div>
@@ -194,7 +200,7 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
                 className="mx-5 mb-5 self-start px-0 text-xs text-ink-faint"
                 onClick={dismiss}
               >
-                Dismiss checklist
+                Checkliste ausblenden
               </Button>
             )}
           </SheetContent>
@@ -208,9 +214,9 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
        (--chrome-left) — clear of the zoom control on the right */
     <div className="pointer-events-auto absolute bottom-3.5 left-[var(--chrome-left,14px)] z-40 flex w-[300px] flex-col gap-2.5 rounded-[14px] bg-surface px-4 pt-3.5 pb-4 shadow-pop transition-[left] duration-150 max-md:right-4 max-md:bottom-4 max-md:left-auto">
       <header className="flex items-center justify-between">
-        <span className="text-[13px] font-medium">{showChecklist ? 'Getting started' : 'AI notice'}</span>
+        <span className="text-[13px] font-medium">{showChecklist ? 'Erste Schritte' : 'KI-Hinweis'}</span>
         {showChecklist && (
-          <Button variant="bare" size="icon-sm" className="text-xs" onClick={dismiss} title="Dismiss">
+          <Button variant="bare" size="icon-sm" className="text-xs" onClick={dismiss} title="Ausblenden">
             ✕
           </Button>
         )}

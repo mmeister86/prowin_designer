@@ -129,7 +129,7 @@ const MAX_PASTE_DIM = 900
 
 function imageFrameHtml(url: string, alt: string): string {
   return `<!doctype html>
-<html>
+<html lang="de">
 <head>
 <style>
   * { margin: 0; }
@@ -168,7 +168,7 @@ const IMAGE_ROW_GAP = 40
 export async function uploadImageFrames(
   canvasId: string,
   files: File[],
-  fallbackName = 'Pasted image',
+  fallbackName = 'Eingefügtes Bild',
 ): Promise<Frame[]> {
   const dims = await Promise.all(files.map((f) => imageSize(f)))
   const scaled = dims.map((d) => {
@@ -218,7 +218,7 @@ export function duplicateFrames(frames: Frame[]) {
     frames.map((frame) => ({
       canvasId: frame.canvasId,
       frame: {
-        name: `${frame.name} copy`,
+        name: `${frame.name} Kopie`,
         html: frame.html,
         x: frame.x + 40,
         y: frame.y + 40,

@@ -147,7 +147,7 @@ export async function fetchIdentity(token: string): Promise<{ name: string; acco
     after = res.paging?.next ? res.paging.cursors?.after : undefined
     if (!after) break
   }
-  return { name: me.name ?? 'Meta account', accounts }
+  return { name: me.name ?? 'Meta-Konto', accounts }
 }
 
 /* ------------------------------------------------------------------ */
@@ -452,9 +452,9 @@ export function creativeHtml(ad: AdCreative, imageSrc: string | null): string {
   const artH = imageHeight(ad)
   const image = imageSrc
     ? `<img class="art" src="${escapeHtml(imageSrc)}" alt="">`
-    : `<div class="art blank">No image on this creative</div>`
+    : `<div class="art blank">Dieses Werbemotiv enthält kein Bild.</div>`
   return `<!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="de"><head><meta charset="utf-8">
 <meta name="${MARKER}" content="${escapeHtml(ad.adId)}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
@@ -487,7 +487,7 @@ async function keepImage(url: string | null, canvasId: string, ownerId: string):
   try {
     /* the asset layer's guarded fetch: SSRF-checked hops, 5 MB cap while streaming */
     const buf = await fetchRemote(url)
-    const asset = await createAsset(buf, { canvasId, ownerId, uploadedBy: 'Automation' })
+    const asset = await createAsset(buf, { canvasId, ownerId, uploadedBy: 'Automatisierung' })
     return `/a/${asset.id}.${asset.ext}`
   } catch {
     return url
@@ -513,9 +513,9 @@ export async function pullCreatives(input: {
   actor: Actor
 }): Promise<PullResult> {
   const canvas = store.getCanvas(input.canvasId)
-  if (!canvas) throw new Error('canvas not found')
+  if (!canvas) throw new Error('Arbeitsfläche nicht gefunden')
   if (!input.connection.accounts.some((a) => a.id === input.accountId))
-    throw new Error('that ad account is not part of the Meta connection')
+    throw new Error('Dieses Werbekonto gehört nicht zur Meta-Verbindung.')
   const ads = await fetchAds(input.connection.accessToken, input.accountId, input.filter)
   const present = new Set<string>()
   for (const f of canvas.frames) {

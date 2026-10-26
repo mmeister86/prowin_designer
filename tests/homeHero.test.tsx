@@ -12,9 +12,12 @@ it('keeps the composer and agent connection without offering removed import sour
       actions={{ onPrompt: vi.fn(), onConnectAgents: vi.fn(), onAutomations: vi.fn() }}
     />,
   )
-  expect(html).toContain('Connect your agents')
+  expect(html).toContain('Verbinde Deine Agenten')
   expect(html).toContain('<textarea')
   expect(html).not.toContain('Import a design')
+  expect(html).not.toContain('Design importieren')
   expect(html).not.toContain('>Files<')
+  expect(html).not.toContain('>Dateien<')
   expect(html).not.toContain('Run an automation')
+  expect(html).not.toContain('Automatisierung ausführen')
 })

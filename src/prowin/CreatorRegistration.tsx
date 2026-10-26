@@ -27,8 +27,8 @@ export function CreatorRegistration({ onRegistered = () => location.reload() }: 
       <CardHeader>
         <CardTitle>{me?.creator ? 'Creator aktiv' : 'Creator werden'}</CardTitle>
         <CardDescription>
-          Als Creator kannst du eigene Workspaces gründen und Vorlagen erstellen. In anderen Workspaces bestimmt deren
-          Owner deine Rechte. Auch Beraterinnen können dort mitarbeiten.
+          Als Creator kannst Du eigene Arbeitsbereiche gründen und Vorlagen erstellen. In anderen Arbeitsbereichen
+          bestimmt deren Eigentümer Deine Rechte. Auch Beraterinnen können dort mitarbeiten.
         </CardDescription>
       </CardHeader>
       {!me?.creator && (

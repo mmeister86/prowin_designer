@@ -22,7 +22,7 @@ export function maybePlay(canvasId: string) {
 }
 
 const WELCOME_HTML = `<!doctype html>
-<html>
+<html lang="de">
 <head>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
@@ -100,20 +100,20 @@ const WELCOME_HTML = `<!doctype html>
 </style>
 </head>
 <body>
-  <div class="eyebrow">Designed live · by an agent</div>
-  <h1>You just watched an <em>agent</em> design this frame.</h1>
+  <div class="eyebrow">Live gestaltet · von einem Agenten</div>
+  <h1>Ein <em>Agent</em> hat diese Zeichenfläche gerade live gestaltet.</h1>
   <p class="lede">
-    Every character streamed in through the same door your own AI will use: an MCP tool call,
-    revealed live to everyone on the canvas — with its status in the strip below, a task in the
-    panel on the right, and a line in the activity feed.
+    Jedes Zeichen kam über denselben Weg, den auch Deine KI nutzen wird: einen MCP-Toolaufruf.
+    Alle auf der Arbeitsfläche sehen die Änderungen live – mit Status unten,
+    einer Aufgabe rechts und einem Eintrag im Aktivitätsverlauf.
   </p>
   <div class="steps">
-    <div class="step"><span class="n">1</span><p>Hit <span class="btn-chip">✦ Connect AI</span> in the top bar and copy the command for your agent.</p></div>
-    <div class="step"><span class="n">2</span><p>Approve the connection in the browser popup — your agent then works <em>as you</em>.</p></div>
-    <div class="step"><span class="n">3</span><p>Ask it to design something. Watch this canvas while it works.</p></div>
+    <div class="step"><span class="n">1</span><p>Klicke oben auf <span class="btn-chip">✦ KI verbinden</span> und kopiere den Befehl für Deinen Agenten.</p></div>
+    <div class="step"><span class="n">2</span><p>Bestätige die Verbindung im Browser – Dein Agent arbeitet dann <em>in Deinem Namen</em>.</p></div>
+    <div class="step"><span class="n">3</span><p>Gib ihm einen Designauftrag und beobachte diese Arbeitsfläche.</p></div>
   </div>
   <div class="foot">
-    <span>Reply to any task with ↩ — agents pick your feedback up mid-flight.</span>
+    <span>Antworte mit ↩ auf eine Aufgabe – Agenten greifen Deine Rückmeldung direkt auf.</span>
     <span class="sig">— Doop</span>
   </div>
 </body>
@@ -127,12 +127,12 @@ async function play(canvasId: string) {
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
   await sleep(1500) // let the room render before the show starts
-  actions.setAgentStatus(canvasId, actor, 'Sketching you a welcome…')
+  actions.setAgentStatus(canvasId, actor, 'Ich gestalte Deinen Willkommensgruß …')
 
   await sleep(700)
   const frame = actions.createFrame(
     canvasId,
-    { name: 'Welcome to Doop', x: 120, y: 120, width: 760, height: 560, html: '', demo: true },
+    { name: 'Willkommen bei Doop', x: 120, y: 120, width: 760, height: 560, html: '', demo: true },
     actor,
   )
   if (!frame) return
@@ -145,7 +145,7 @@ async function play(canvasId: string) {
 
   /* wait for the reveal to catch up (~500 chars/s) before signing off */
   await sleep(Math.min(20_000, WELCOME_HTML.length * 2 + 3000))
-  actions.setAgentStatus(canvasId, actor, 'Done — connect your own agent next')
+  actions.setAgentStatus(canvasId, actor, 'Fertig – verbinde jetzt Deinen eigenen Agenten')
   await sleep(6000)
   actions.setAgentStatus(canvasId, actor, '') // clear: completes the task, presence expires on its own
 }

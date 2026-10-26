@@ -12,7 +12,7 @@ export async function getImagePref(userId: string): Promise<string | undefined> 
 }
 
 export async function setImagePref(userId: string, model: string): Promise<void> {
-  if (!IMAGE_MODELS.some((option) => option.id === model)) throw new Error('unknown image model')
+  if (!IMAGE_MODELS.some((option) => option.id === model)) throw new Error('Unbekanntes Bildmodell')
   const row = { userId, model, updatedAt: Date.now() }
   await db.insert(imagePrefs).values(row).onConflictDoUpdate({ target: imagePrefs.userId, set: row })
 }

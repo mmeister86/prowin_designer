@@ -51,7 +51,7 @@ export function CommentPin({
       style={{ left, top, background: colorFor(root.from) }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={onToggle}
-      title={`${root.from}: ${root.text}${thread.length > 1 ? ` (${thread.length - 1} replies)` : ''}`}
+      title={`${root.from}: ${root.text}${thread.length > 1 ? ` (${(thread.length - 1).toLocaleString('de-DE')} ${thread.length === 2 ? 'Antwort' : 'Antworten'})` : ''}`}
     >
       {agentItem?.failedAt ? '!' : working ? '✦' : '💬'}
       {open && children}
@@ -63,7 +63,7 @@ export function CommentComposer({
   onSubmit,
   onCancel,
   initialText = '',
-  placeholder = 'Leave a comment on this element…',
+  placeholder = 'Kommentiere dieses Element…',
 }: {
   onSubmit: (text: string) => void
   onCancel: () => void
@@ -111,11 +111,11 @@ export function CommentComposer({
         {mentioned && (
           <span className="mr-auto inline-flex items-center gap-1 text-[11px] font-semibold text-brand">
             <RoleMark role={mentioned} size={13} />
-            {mentioned.name} will pick this up
+            {mentioned.name} übernimmt das
           </span>
         )}
         <Button variant="solid" size="pill" className="px-3.5 py-[5px] text-xs" disabled={!text.trim()} onClick={send}>
-          Post
+          Senden
         </Button>
       </div>
     </div>
@@ -125,10 +125,10 @@ export function CommentComposer({
 /** Where an @agent request in the thread stands, or null for a human note. */
 function agentStatus(c: ElementComment): string | null {
   const target = c.targetAgent ?? roleName(DEFAULT_ROLE_ID)
-  if (c.failedAt) return `${target} stopped`
+  if (c.failedAt) return `${target} hat abgebrochen`
   if (c.resolvedAt) return c.forAgent ? `✓ ${c.resolvedBy ?? target}` : null
-  if (c.claimedBy) return `✦ ${c.claimedBy} is on it`
-  return c.forAgent ? `✦ waiting for ${target}` : null
+  if (c.claimedBy) return `✦ ${c.claimedBy} arbeitet daran`
+  return c.forAgent ? `✦ wartet auf ${target}` : null
 }
 
 export function CommentThread({
@@ -181,14 +181,14 @@ export function CommentThread({
               <div className="mt-1 break-words text-[13px] leading-[1.45] text-ink">{c.text}</div>
               {c.failedAt ? (
                 <div className="mt-1 flex items-center gap-2 text-[11px] leading-[1.4] text-accent-ink">
-                  <span>{c.failureReason ?? 'The agent did not finish.'}</span>
+                  <span>{c.failureReason ?? 'Der Agent hat die Aufgabe nicht abgeschlossen.'}</span>
                   <Button
                     variant="danger-solid"
                     size="pill"
                     className="shrink-0 px-[9px] py-[3px] text-[11px]"
                     onClick={() => onRetry(c.id)}
                   >
-                    ↻ Retry
+                    ↻ Erneut versuchen
                   </Button>
                 </div>
               ) : null}
@@ -200,7 +200,7 @@ export function CommentThread({
         variant="bare"
         className="mt-2 min-h-[38px] md:text-[13px]"
         value={reply}
-        placeholder="Reply… (@doop to ask the agent)"
+        placeholder="Antworten… (@doop, um den Agenten zu fragen)"
         onChange={(e) => setReply(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send()
@@ -208,7 +208,8 @@ export function CommentThread({
       />
       {failed && (
         <div className="mt-1 text-[11px] leading-[1.4] text-accent-ink">
-          That reply did not go through — it may be resolved already. Try again.
+          Deine Antwort konnte nicht gesendet werden. Die Unterhaltung wurde möglicherweise bereits erledigt. Versuche
+          es erneut.
         </div>
       )}
       <div className="mt-1.5 flex items-center gap-1.5">
@@ -218,12 +219,12 @@ export function CommentThread({
           className="px-2.5 text-ink-soft hover:border-ink-soft hover:bg-transparent hover:text-ink"
           onClick={onResolve}
         >
-          ✓ Resolve
+          ✓ Erledigen
         </Button>
         {mentioned && (
           <span
             className="ml-auto inline-flex min-w-0 items-center gap-1 truncate text-[11px] font-semibold text-brand"
-            title={`${mentioned.name} will pick this up`}
+            title={`${mentioned.name} übernimmt das`}
           >
             <RoleMark role={mentioned} size={13} />
             <span className="truncate">{mentioned.name}</span>
@@ -236,7 +237,7 @@ export function CommentThread({
           disabled={!reply.trim() || sending}
           onClick={send}
         >
-          {sending ? 'Posting…' : 'Reply'}
+          {sending ? 'Wird gesendet…' : 'Antworten'}
         </Button>
       </div>
     </div>

@@ -108,6 +108,19 @@ describe('agent keys', () => {
     expect(listed).toHaveLength(25)
   })
 
+  it('names only new unnamed keys in German and preserves supplied names', async () => {
+    const client = await new Client(server).signUp('keys-default@test.dev', 'Key Tester')
+    const unnamed = await (await client.post('/api/agent-keys', { name: '  ' })).json()
+    const named = await (await client.post('/api/agent-keys', { name: 'English deployment key' })).json()
+    expect(unnamed.name).toBe('Agentenschlüssel')
+    expect(named.name).toBe('English deployment key')
+    const listed = await (await client.get('/api/agent-keys')).json()
+    expect(listed.map((key: { name: string }) => key.name).sort()).toEqual([
+      'Agentenschlüssel',
+      'English deployment key',
+    ])
+  })
+
   it('revokes: the next MCP request with the secret gets a 401', async () => {
     const res = await owner.delete(`/api/agent-keys/${keyId}`)
     expect(res.status).toBe(200)

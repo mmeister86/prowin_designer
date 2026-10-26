@@ -31,16 +31,22 @@ type Pane = 'agent' | 'keys' | 'webhooks' | 'account' | 'appearance'
 
 /* the heading over each pane, and the line under it */
 const panes: Record<Pane, { title: string; blurb: string }> = {
-  agent: { title: 'Doop Agent', blurb: 'Design assistance and local execution for your canvases.' },
-  keys: { title: 'Agent keys', blurb: 'Bearer credentials that let headless agents design as you.' },
+  agent: { title: 'Doop Agent', blurb: 'Designunterstützung und lokale Ausführung für Deine Arbeitsflächen.' },
+  keys: {
+    title: 'Agentenschlüssel',
+    blurb: 'Bearer-Zugangsdaten, mit denen Agenten ohne Browser in Deinem Namen gestalten.',
+  },
   webhooks: {
     title: 'Webhooks',
-    blurb: 'HTTP calls to your systems when something happens on a canvas you can open.',
+    blurb: 'HTTP-Aufrufe an Deine Systeme, wenn auf einer für Dich zugänglichen Arbeitsfläche etwas passiert.',
   },
-  account: { title: 'Your account', blurb: 'Who you are on every canvas — and how you get back into this one.' },
+  account: {
+    title: 'Dein Konto',
+    blurb: 'Deine Identität auf jeder Arbeitsfläche — und wie Du Dich wieder anmeldest.',
+  },
   appearance: {
-    title: 'Appearance',
-    blurb: 'How Doop looks in this browser: light, dark, or whatever your system is.',
+    title: 'Darstellung',
+    blurb: 'So sieht Doop in diesem Browser aus: hell, dunkel oder wie Dein System.',
   },
 }
 
@@ -60,7 +66,7 @@ export function Settings() {
      this short an anchor jump looks like nothing happened */
   const [pane, setPane] = useState<Pane>(initialPane)
   const { allowance, refresh } = useAllowance()
-  const left = allowance ? Math.max(0, allowance.limit - allowance.used) : null
+  const left = allowance ? Math.max(0, allowance.limit - allowance.used) : 0
   /* arriving from a canvas (the free-tier wall) should not cost you your
      place — only same-origin canvas paths are honoured */
   const from = new URLSearchParams(location.search).get('from')
@@ -68,12 +74,12 @@ export function Settings() {
 
   const meter = allowance
     ? allowance.localAgent
-      ? 'Local Agent selected — runs on your connected desktop.'
+      ? 'Lokaler Agent ausgewählt — läuft auf Deinem verbundenen Desktop.'
       : allowance.limit <= 0
-        ? 'Server agent is not enabled. Contact the administrator.'
+        ? 'Der Server-Agent ist nicht aktiviert. Wende Dich an die Administration.'
         : left === 0
-          ? 'Task allowance used up. Contact the administrator.'
-          : `${left} of ${allowance.limit} agent tasks left.`
+          ? 'Das Aufgabenkontingent ist aufgebraucht. Wende Dich an die Administration.'
+          : `${left.toLocaleString('de-DE')} von ${allowance.limit.toLocaleString('de-DE')} Agentenaufgaben übrig.`
     : null
 
   return (
@@ -83,10 +89,10 @@ export function Settings() {
         <DashSidebarBrand />
         <nav className="flex flex-col gap-0.5">
           <DashNavItem density="rail" icon={<ChevronLeftIcon size="rail" />} onClick={() => navigate(back)}>
-            {back === '/' ? 'Back to canvases' : 'Back to canvas'}
+            {back === '/' ? 'Zurück zu den Arbeitsflächen' : 'Zurück zur Arbeitsfläche'}
           </DashNavItem>
         </nav>
-        <DashSectionLabel density="rail">Settings</DashSectionLabel>
+        <DashSectionLabel density="rail">Einstellungen</DashSectionLabel>
         <nav className="flex flex-col gap-0.5">
           <DashNavItem
             density="rail"
@@ -102,7 +108,7 @@ export function Settings() {
             active={pane === 'keys'}
             onClick={() => setPane('keys')}
           >
-            Agent keys
+            Agentenschlüssel
           </DashNavItem>
           <DashNavItem
             density="rail"
@@ -118,7 +124,7 @@ export function Settings() {
             active={pane === 'account'}
             onClick={() => setPane('account')}
           >
-            Your account
+            Dein Konto
           </DashNavItem>
           <DashNavItem
             density="rail"
@@ -126,7 +132,7 @@ export function Settings() {
             active={pane === 'appearance'}
             onClick={() => setPane('appearance')}
           >
-            Appearance
+            Darstellung
           </DashNavItem>
         </nav>
         <div className="mt-auto flex items-center gap-2.5 px-1 pt-4">
@@ -137,7 +143,7 @@ export function Settings() {
       <DashMain className="[background:var(--paper)]">
         <DashHeader variant="bare" className="md:hidden">
           <Button variant="ghost" size="bar" onClick={() => navigate(back)}>
-            <ChevronLeftIcon size="rail" /> {back === '/' ? 'Canvases' : 'Canvas'}
+            <ChevronLeftIcon size="rail" /> {back === '/' ? 'Arbeitsflächen' : 'Arbeitsfläche'}
           </Button>
           <span className="flex-1" />
           <AccountMenu />
@@ -157,16 +163,16 @@ export function Settings() {
                 <SparkIcon size="rail" /> Doop Agent
               </TabsTrigger>
               <TabsTrigger value="keys">
-                <KeyIcon size="rail" /> Agent keys
+                <KeyIcon size="rail" /> Agentenschlüssel
               </TabsTrigger>
               <TabsTrigger value="webhooks">
                 <BellIcon size="rail" /> Webhooks
               </TabsTrigger>
               <TabsTrigger value="account">
-                <UserIcon size="rail" /> Account
+                <UserIcon size="rail" /> Konto
               </TabsTrigger>
               <TabsTrigger value="appearance">
-                <MoonIcon size="rail" /> Appearance
+                <MoonIcon size="rail" /> Darstellung
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -177,8 +183,8 @@ export function Settings() {
                 <CardHeader>
                   <CardTitle>Doop Agent</CardTitle>
                   <CardDescription>
-                    Use the centrally managed design agent. Creators and administrators can also select local desktop
-                    execution.
+                    Nutze den zentral verwalteten Designagenten. Creator und Administratoren können auch die lokale
+                    Desktop-Ausführung auswählen.
                   </CardDescription>
                   {meter && (
                     <div className="mt-[11px] flex flex-col items-start gap-[7px] text-caption text-ink-faint sm:flex-row sm:items-center sm:gap-2.5">
@@ -187,7 +193,7 @@ export function Settings() {
                           className="w-[min(100%,240px)] sm:w-[180px]"
                           value={left ?? 0}
                           max={allowance.limit}
-                          aria-label="Free Doop Agent tasks left"
+                          aria-label="Kostenlose Doop-Agentenaufgaben übrig"
                         />
                       )}
                       <span>{meter}</span>

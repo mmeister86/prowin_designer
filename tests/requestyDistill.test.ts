@@ -81,8 +81,56 @@ describe('Requesty memory distiller', () => {
     const request = JSON.parse(fetcher.mock.calls[1]![1]!.body as string)
     expect(request.tool_choice).toEqual({ type: 'function', function: { name: 'distill_result' } })
     expect(request.tools[0].function.name).toBe('distill_result')
-    expect(request.messages[0].role).toBe('user')
-    expect(request.messages[0].content).toContain('Prefer blue accents')
+    for (const [, init] of fetcher.mock.calls) {
+      const messages = JSON.parse(init!.body as string).messages
+      expect(messages[0]).toMatchObject({ role: 'system' })
+      expect(messages[0].content).toContain('Deutsch')
+      expect(messages[0].content).toContain('ausdrücklich eine andere Sprache')
+      expect(messages[0].content).toContain('technische Bezeichner')
+    }
+    expect(request.messages[1].content).toContain('Prefer blue accents')
+    expect(actions.getProposals(canvas)[0]!.rationale).toBe('Aus dem letzten Feedback abgeleitet.')
+  })
+
+  it('preserves explicit language requests, technical identifiers and existing memory through both requests', async () => {
+    decision.text = 'Please answer in English. Always use border-radius: 8px for .brand-card'
+    const stored = { ...decision, id: 'stored', text: 'Keep my words', summary: 'Stored English preference' }
+    actions.hydrateLogs({
+      tasks: new Map(),
+      feedback: new Map(),
+      comments: new Map(),
+      activity: new Map(),
+      decisions: new Map([[canvas, [decision, stored]]]),
+      proposals: new Map([[canvas, []]]),
+    })
+    const fetcher = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(
+        Response.json({ choices: [{ message: { content: 'Use border-radius: 8px for .brand-card' } }] }),
+      )
+      .mockResolvedValueOnce(
+        toolResponse({
+          has_rule: true,
+          guide_name: 'brand-notes',
+          guide_title: 'Brand Notes',
+          rule: '- Use border-radius: 8px',
+          rationale: 'Explicit English request.',
+        }),
+      )
+    onDecision(canvas, decision.id)
+    await settle()
+    expect(decision.text).toBe('Please answer in English. Always use border-radius: 8px for .brand-card')
+    expect(decision.summary).toBe('Use border-radius: 8px for .brand-card')
+    expect(stored.summary).toBe('Stored English preference')
+    for (const [, init] of fetcher.mock.calls) {
+      expect(JSON.parse(init!.body as string).messages.at(-1).content).toContain(decision.text)
+    }
+    expect(actions.getProposals(canvas)[0]).toMatchObject({
+      guideName: 'brand-notes',
+      guideTitle: 'Brand Notes',
+      rule: '- Use border-radius: 8px',
+      rationale: 'Explicit English request.',
+    })
   })
 
   it('honors the text policy override', async () => {

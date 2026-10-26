@@ -17,6 +17,6 @@ it.each(['wide', 'narrow'])('hides optional navigation in the %s sidebar', (mode
     </TooltipProvider>,
   )
   expect(html).toContain('Community')
-  expect(html).toContain('Connect an agent')
-  expect(html).not.toMatch(/Automations|Integrations|Resources/)
+  expect(html).toContain('Agenten verbinden')
+  expect(html).not.toMatch(/Automations|Integrations|Resources|Automatisierungen|Integrationen|Ressourcen/)
 })

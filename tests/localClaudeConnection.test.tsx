@@ -37,24 +37,24 @@ afterEach(() => {
   container.remove()
 })
 it('hides Refresh on a healthy disconnected row and rechecks status before selecting Claude', async () => {
-  expect(button('Refresh')).toBeUndefined()
+  expect(button('Aktualisieren')).toBeUndefined()
   mocks.refresh.mockImplementation(async () => {
     expect(mocks.select).not.toHaveBeenCalled()
     return { native: { installed: true, connected: true } }
   })
-  await act(async () => button('Use instead')!.click())
+  await act(async () => button('Stattdessen verwenden')!.click())
   expect(mocks.refresh).toHaveBeenCalledExactlyOnceWith('alice')
   expect(mocks.select).toHaveBeenCalledExactlyOnceWith('alice', { enabled: true, model: 'claude-opus-5' })
 })
 it.each([
-  [{ installed: false, connected: false }, 'Install Claude Code to connect.'],
-  [{ installed: true, connected: false }, 'Sign in to Claude Code to connect.'],
+  [{ installed: false, connected: false }, 'Installiere Claude Code, um Dich zu verbinden.'],
+  [{ installed: true, connected: false }, 'Melde Dich bei Claude Code an, um Dich zu verbinden.'],
 ])('does not activate stale CLI credentials and offers recovery', async (native, message) => {
   mocks.refresh.mockResolvedValueOnce({ native })
-  await act(async () => button('Use instead')!.click())
+  await act(async () => button('Stattdessen verwenden')!.click())
   expect(mocks.select).not.toHaveBeenCalled()
   expect(container.textContent).toContain(message)
-  expect(button('Refresh')).toBeDefined()
-  await act(async () => button('Refresh')!.click())
-  expect(button('Refresh')).toBeUndefined()
+  expect(button('Aktualisieren')).toBeDefined()
+  await act(async () => button('Aktualisieren')!.click())
+  expect(button('Aktualisieren')).toBeUndefined()
 })

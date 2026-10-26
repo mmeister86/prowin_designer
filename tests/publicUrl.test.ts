@@ -51,7 +51,7 @@ describe('public webpage URL validation', () => {
       .mockResolvedValueOnce([{ address: '127.0.0.1', family: 4 }])
 
     await expect(assertPublicNetworkUrl('https://rebind.example/')).resolves.toEqual(new URL('https://rebind.example/'))
-    await expect(assertPublicNetworkUrl('https://rebind.example/')).rejects.toThrow('not reachable')
+    await expect(assertPublicNetworkUrl('https://rebind.example/')).rejects.toThrow('nicht erreichbar')
   })
 
   it('gives the network connector only the exact approved address', async () => {

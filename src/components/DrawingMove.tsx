@@ -197,7 +197,7 @@ export function useDrawingMove(frame: Frame, layoutZoom: number) {
                 density in Chromium, undone elsewhere), so the drawing lays out
                 at the width it has in its frame and stays as sharp */}
             <iframe
-              title="Moving drawing"
+              title="Zeichnung wird verschoben"
               sandbox=""
               srcDoc={preview.html}
               className="block border-0 bg-transparent"

@@ -98,16 +98,19 @@ export function StepChain({
 
 /** The status dot a run row leads with: the shared Dot, toned by the run's outcome. */
 const RUN_TONE = { running: 'running', ok: 'done', failed: 'failed' } as const
+const RUN_LABELS = { running: 'Wird ausgeführt', ok: 'Abgeschlossen', failed: 'Fehlgeschlagen' } as const
 
 export function RunDot({ status, className }: { status: keyof typeof RUN_TONE; className?: string }) {
-  return <Dot tone={RUN_TONE[status]} className={className} role="img" aria-hidden={false} aria-label={status} />
+  return (
+    <Dot tone={RUN_TONE[status]} className={className} role="img" aria-hidden={false} aria-label={RUN_LABELS[status]} />
+  )
 }
 
 /** "Mon, Sep 8 · 9:00 AM" — in the viewer's locale, so the clock reads the
  *  way their system shows it. */
 export function formatRunTime(at: number): string {
   const d = new Date(at)
-  const day = d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
-  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  const day = d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
+  const time = d.toLocaleTimeString('de-DE', { hour: 'numeric', minute: '2-digit' })
   return `${day} · ${time}`
 }

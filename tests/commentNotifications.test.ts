@@ -164,7 +164,7 @@ describe('coalescing', () => {
     await deliver()
     expect(mocks.sendMail).toHaveBeenCalledTimes(2)
     const toBob = mocks.sendMail.mock.calls.map(([m]) => m).find((m) => m.to === 'bob@example.com')!
-    expect(toBob.subject).toBe('alice left 3 comments on “Landing”')
+    expect(toBob.subject).toBe('alice hat 3 Kommentare zu “Landing” hinterlassen')
     expect(toBob.text).toContain('“One”')
     expect(toBob.text).toContain('“Three”')
     expect(notify.pendingBatches()).toBe(0)
@@ -175,7 +175,7 @@ describe('coalescing', () => {
     comment('Two', 'dave')
     await deliver()
     const toBob = mocks.sendMail.mock.calls.map(([m]) => m).find((m) => m.to === 'bob@example.com')!
-    expect(toBob.subject).toBe('2 new comments on “Landing”')
+    expect(toBob.subject).toBe('2 neue Kommentare zu “Landing”')
   })
 
   it('waits the full window before sending', async () => {
@@ -199,8 +199,8 @@ describe('the email itself', () => {
     )!
     await deliver()
     const toBob = mocks.sendMail.mock.calls.map(([m]) => m).find((m) => m.to === 'bob@example.com')!
-    expect(toBob.subject).toBe('alice commented on “Landing”')
-    expect(toBob.text).toContain('alice commented on the canvas:')
+    expect(toBob.subject).toBe('alice hat “Landing” kommentiert')
+    expect(toBob.text).toContain('alice hat die Arbeitsfläche kommentiert:')
     expect(toBob.text).toContain(`/c/c1?page=p1&comment=${root.id}`)
     expect(toBob.text).not.toContain('frame=')
   })
@@ -209,9 +209,9 @@ describe('the email itself', () => {
     const root = comment('Too small', 'alice')
     const mail = notify.digest(person, CANVAS, [{ comment: root, frameName: FRAME.name, actorKind: 'user' }])
     expect(mail.to).toBe('bob@example.com')
-    expect(mail.subject).toBe('alice commented on “Landing”')
-    expect(mail.text).toContain('Hi Bob,')
-    expect(mail.text).toContain('alice commented on “Hero”:')
+    expect(mail.subject).toBe('alice hat “Landing” kommentiert')
+    expect(mail.text).toContain('Hallo Bob,')
+    expect(mail.text).toContain('alice hat “Hero” kommentiert:')
     expect(mail.text).toContain('“Too small”')
     expect(mail.text).toContain(`/c/c1?frame=f1&comment=${root.id}`)
     expect(mail.text).toContain('/settings?pane=account')
@@ -221,8 +221,8 @@ describe('the email itself', () => {
     const root = comment('Too small', 'dave')
     const reply = actions.replyToComment(root.id, 'Agreed', 'alice', 'alice')!
     const mail = notify.digest(person, CANVAS, [{ comment: reply, frameName: FRAME.name, actorKind: 'user' }])
-    expect(mail.subject).toBe('alice replied on “Landing”')
-    expect(mail.text).toContain('alice replied in “Hero”:')
+    expect(mail.subject).toBe('alice hat auf “Landing” geantwortet')
+    expect(mail.text).toContain('alice hat in “Hero” geantwortet:')
     expect(mail.text).toContain(`&comment=${root.id}`)
     expect(mail.text).not.toContain(`&comment=${reply.id}`)
   })

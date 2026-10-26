@@ -9,13 +9,13 @@ export function DesktopCodexSetup() {
   if (!request) {
     return (
       <AuthScreen>
-        <AuthCard title="Open the matching Doop server">
+        <AuthCard title="Öffne den passenden Doop-Server">
           <AuthCardText>
-            This setup link is for a different Doop server or is incomplete. Open Connect AI in the desktop app for that
-            server, or use the manual Codex setup in your browser.
+            Dieser Einrichtungslink gehört zu einem anderen Doop-Server oder ist unvollständig. Öffne „KI verbinden“ in
+            der Desktop-App für diesen Server oder nutze die manuelle Codex-Einrichtung im Browser.
           </AuthCardText>
           <Button className="self-start" onClick={() => navigate('/')}>
-            Back to Doop
+            Zurück zu Doop
           </Button>
         </AuthCard>
       </AuthScreen>

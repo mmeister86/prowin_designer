@@ -4,7 +4,7 @@ import { useStore } from '../lib/store'
 import { MOD_KEY, isHideUiShortcut } from '../lib/keys'
 import { canHideUi, hideUiHinted } from '../lib/hideUi'
 import { connect, disconnect, sendWs } from '../lib/ws'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import { navigate } from '../App'
 import { DoopMark } from '../components/Logo'
 import {
@@ -95,7 +95,7 @@ function chromeLayout({
 }
 
 const STARTER_HTML = `<!doctype html>
-<html>
+<html lang="de">
 <head>
 <style>
   * { margin: 0; box-sizing: border-box; }
@@ -110,7 +110,7 @@ const STARTER_HTML = `<!doctype html>
 </style>
 </head>
 <body>
-  <p>Design me — edit the HTML, or ask an agent.</p>
+  <p>Gestalte mich – bearbeite das HTML oder frage einen Agenten.</p>
 </body>
 </html>`
 
@@ -203,7 +203,8 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
       if (isHideUiShortcut(e) && hideUiActive) {
         e.preventDefault()
         useStore.getState().toggleUiHidden()
-        if (useStore.getState().uiHidden && !hideUiHinted()) showToast(`UI hidden · ${MOD_KEY}. to show`)
+        if (useStore.getState().uiHidden && !hideUiHinted())
+          showToast(`Oberfläche ausgeblendet · ${MOD_KEY}. zum Einblenden`)
         return
       }
       if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'z') {
@@ -255,7 +256,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
       if (images.length) {
         e.preventDefault()
         pasteImagesCentered(canvasId, images).catch((err: Error) => {
-          setToast(`Couldn’t paste image — ${err.message}`)
+          setToast(errorMessage(err, 'Das Bild konnte nicht eingefügt werden. Versuche es erneut.'))
           window.setTimeout(() => setToast(null), 4000)
         })
       } else if (hasFrameClip()) {
@@ -299,7 +300,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
 
   async function addFrame() {
     const n = (canvas?.frames.length ?? 0) + 1
-    const frame = await createCenteredFrame(canvasId, `Frame ${n}`, STARTER_HTML)
+    const frame = await createCenteredFrame(canvasId, `Zeichenfläche ${n}`, STARTER_HTML)
     select(frame.id)
   }
 
@@ -345,13 +346,13 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
   if (canvasNotFound) {
     return (
       <AuthScreen>
-        <AuthCard title="Canvas not found" align="center">
+        <AuthCard title="Arbeitsfläche nicht gefunden" align="center">
           <AuthCardText>
-            &ldquo;{canvasId}&rdquo; doesn&rsquo;t match a canvas we know about. It may have been deleted, or the link
-            may be wrong.
+            „{canvasId}“ gehört zu keiner bekannten Arbeitsfläche. Sie wurde möglicherweise gelöscht oder der Link ist
+            falsch.
           </AuthCardText>
           <Button className="self-center" onClick={() => navigate('/')}>
-            Back to your canvases
+            Zurück zu Deinen Arbeitsflächen
           </Button>
         </AuthCard>
       </AuthScreen>
@@ -373,25 +374,25 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
       <TopBar variant="canvas" className={cn(uiHidden && 'hidden')}>
         <div className="flex min-w-0 items-center gap-2 max-xs:basis-full">
           <BarPill className="min-w-0 gap-1 pr-3 pl-1">
-            <Tooltip label="All canvases" side="bottom" align="start">
+            <Tooltip label="Alle Arbeitsflächen" side="bottom" align="start">
               <Button
                 variant="bare"
                 size="icon-sm"
                 className={barPillIconBtn}
-                aria-label="All canvases"
+                aria-label="Alle Arbeitsflächen"
                 onClick={() => navigate('/')}
               >
                 <FolderIcon className="size-3.5" />
               </Button>
             </Tooltip>
             <CanvasName />
-            <Badge className="max-md:hidden" title="Canvas id — agents use this with the MCP tools">
+            <Badge className="max-md:hidden" title="Arbeitsflächen-ID — Agenten verwenden sie mit den MCP-Tools">
               {canvasId}
             </Badge>
             {connected ? (
-              <span className="ml-1 whitespace-nowrap text-ink-faint max-lg:hidden">— Auto-saved</span>
+              <span className="ml-1 whitespace-nowrap text-ink-faint max-lg:hidden">— Automatisch gespeichert</span>
             ) : (
-              <span className="ml-1 whitespace-nowrap text-accent-ink">— Reconnecting…</span>
+              <span className="ml-1 whitespace-nowrap text-accent-ink">— Verbindung wird wiederhergestellt…</span>
             )}
           </BarPill>
         </div>
@@ -403,7 +404,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
               the plain avatar stack (and its follow buttons) over here */}
           <div
             className="mr-1 flex items-center min-[1181px]:hidden"
-            title={others.map((p) => p.name).join(', ') || 'Just you here'}
+            title={others.map((p) => p.name).join(', ') || 'Nur Du bist hier'}
           >
             <PresenceFace name={meFace.name} color={meFace.color} kind="user" />
             <span className="-ml-[7px] flex items-center">
@@ -413,15 +414,18 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
           <BarPill>
             <Button variant="bare" className={barPillBtn} onClick={() => setShowShare(true)}>
               <ShareUpIcon className="size-3.5" />
-              Share
+              Teilen
             </Button>
-            <Tooltip label={selectedId ? 'Present this frame' : 'Select a frame to present'} side="bottom">
+            <Tooltip
+              label={selectedId ? 'Diese Zeichenfläche präsentieren' : 'Wähle eine Zeichenfläche zum Präsentieren aus'}
+              side="bottom"
+            >
               <span className="inline-flex">
                 <Button
                   variant="bare"
                   size="icon-sm"
                   className={barPillIconBtn}
-                  aria-label="Present selected frame"
+                  aria-label="Ausgewählte Zeichenfläche präsentieren"
                   disabled={!selectedId}
                   onClick={() => setPresenting(true)}
                 >
@@ -433,13 +437,13 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
           {/* the bar's one black action — it opens the MCP connection modal */}
           <Button variant="primary" className={barPrimaryBtn} onClick={openConnect}>
             <PlusIcon className="size-3.5" strokeWidth={1.4} />
-            Connect AI
+            KI verbinden
           </Button>
         </div>
         <div className="ml-auto hidden items-center gap-1.5 max-md:flex max-xs:order-3">
           <div
             className="mr-1 flex items-center max-sm:hidden"
-            title={others.map((p) => p.name).join(', ') || 'Just you here'}
+            title={others.map((p) => p.name).join(', ') || 'Nur Du bist hier'}
           >
             <PresenceFace name={meFace.name} color={meFace.color} kind="user" />
             <span className="-ml-[7px] flex items-center">
@@ -448,15 +452,15 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
           </div>
           <Button variant="primary" className={barPrimaryBtn} onClick={openConnect}>
             <PlusIcon className="size-3.5" strokeWidth={1.4} />
-            <span className="max-sm:hidden">Connect AI</span>
-            <span className="sm:hidden">AI</span>
+            <span className="max-sm:hidden">KI verbinden</span>
+            <span className="sm:hidden">KI</span>
           </Button>
-          <Tooltip label="Canvas actions" side="bottom" align="end">
+          <Tooltip label="Aktionen für die Arbeitsfläche" side="bottom" align="end">
             <Button
               variant="ghost"
               size="icon"
               className={barIconBtn}
-              aria-label="Canvas actions"
+              aria-label="Aktionen für die Arbeitsfläche"
               onClick={() => setShowMobileActions(true)}
             >
               <MoreHorizontalIcon className="size-4" />
@@ -487,14 +491,14 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
                     setShowActivity(true)
                   }}
                 >
-                  <DoopMark size={12} /> Memory suggestion — review
+                  <DoopMark size={12} /> Vorschlag für Designwissen — prüfen
                 </Button>
                 <Button
                   variant="bare"
                   size="icon-sm"
                   className="mr-1 size-6 rounded-[6px] text-ink-faint"
-                  title="Hide for now"
-                  aria-label="Hide for now"
+                  title="Vorerst ausblenden"
+                  aria-label="Vorerst ausblenden"
                   onClick={() => setMutedProposal(pendingProposal.id)}
                 >
                   <XIcon className="size-3" />
@@ -505,7 +509,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
               <Button
                 variant="bare"
                 className="max-w-full items-center gap-2.5 whitespace-normal rounded-[12px] bg-surface px-3.5 py-2.5 text-left font-normal shadow-pop transition-shadow hover:bg-surface hover:shadow-ring-hover sm:max-w-[320px] [&_svg]:text-ink-soft"
-                title="Open Memory"
+                title="Designwissen öffnen"
                 onClick={() => {
                   useStore.getState().setPanelTab('memory')
                   setShowActivity(true)
@@ -514,7 +518,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
               >
                 <BrainIcon className="size-4" />
                 <span>
-                  <b className="block text-[12.5px] font-medium text-ink">Saved to Memory</b>
+                  <b className="block text-[12.5px] font-medium text-ink">Im Designwissen gespeichert</b>
                   <span className="mt-[1px] block text-[12px] leading-[1.4] text-ink-soft">{decisionToast}</span>
                 </span>
               </Button>
@@ -580,9 +584,9 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
               className="gap-0 rounded-t-2xl border-line bg-surface p-0 pb-[env(safe-area-inset-bottom)] shadow-pop"
             >
               <div className="border-b border-line-soft px-5 py-4 pr-14">
-                <SheetTitle className="font-display text-lg font-extrabold">Canvas actions</SheetTitle>
+                <SheetTitle className="font-display text-lg font-extrabold">Aktionen für die Arbeitsfläche</SheetTitle>
                 <SheetDescription className="mt-1 text-xs text-ink-soft">
-                  Layers, import, export, share, or your account settings.
+                  Ebenen, Import, Export, Freigabe oder Deine Kontoeinstellungen.
                 </SheetDescription>
               </div>
               {/* the same glyphs as the desktop bar and islands; pages live
@@ -596,7 +600,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
                     setShowMobileLayers(true)
                   }}
                 >
-                  <LayersIcon /> Layers
+                  <LayersIcon /> Ebenen
                 </Button>
                 <Button
                   variant="ghost"
@@ -606,14 +610,14 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
                     setShowShare(true)
                   }}
                 >
-                  <ShareIcon /> Share canvas
+                  <ShareIcon /> Arbeitsfläche teilen
                 </Button>
                 <Button
                   variant="ghost"
                   className="h-11 justify-start gap-2.5 px-4 text-ink-soft"
                   onClick={() => navigate('/settings')}
                 >
-                  <GearIcon /> Settings
+                  <GearIcon /> Einstellungen
                 </Button>
               </div>
             </SheetContent>
@@ -628,7 +632,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
               onOpenAutoFocus={(e) => e.preventDefault()}
               className="max-h-[calc(100svh-56px)] gap-0 rounded-t-2xl border-line bg-surface p-0 shadow-pop data-[side=bottom]:h-[min(78svh,680px)]"
             >
-              <SheetTitle className="sr-only">Layers</SheetTitle>
+              <SheetTitle className="sr-only">Ebenen</SheetTitle>
               <LayersPanel onAddFrame={addFrame} surface="inline" onClose={() => setShowMobileLayers(false)} />
             </SheetContent>
           </Sheet>
@@ -646,7 +650,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
               showCloseButton={false}
               className="max-h-[calc(100svh-56px)] gap-0 rounded-t-2xl border-line bg-surface p-0 shadow-pop data-[side=bottom]:h-[min(78svh,680px)]"
             >
-              <SheetTitle className="sr-only">Frame inspector</SheetTitle>
+              <SheetTitle className="sr-only">Zeichenflächen-Inspektor</SheetTitle>
               {selectedFrame && <Inspector frame={selectedFrame} surface="inline" />}
             </SheetContent>
           </Sheet>
@@ -656,7 +660,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
               showCloseButton={false}
               className="max-h-[calc(100svh-56px)] gap-0 rounded-t-2xl border-line bg-surface p-0 shadow-pop data-[side=bottom]:h-[min(78svh,680px)]"
             >
-              <SheetTitle className="sr-only">Canvas activity</SheetTitle>
+              <SheetTitle className="sr-only">Aktivität der Arbeitsfläche</SheetTitle>
               <ActivityPanel canvasId={canvasId} onClose={() => setShowActivity(false)} surface="inline" />
             </SheetContent>
           </Sheet>
@@ -677,7 +681,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
           onClose={() => setShowShare(false)}
           onCopied={() => {
             setShowShare(false)
-            showToast('Canvas link copied')
+            showToast('Link zur Arbeitsfläche kopiert')
           }}
         />
       )}
@@ -693,8 +697,8 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
       )}
       {updateReady ? (
         <Toast>
-          doop was updated
-          <ToastAction onClick={() => location.reload()}>Reload</ToastAction>
+          doop wurde aktualisiert
+          <ToastAction onClick={() => location.reload()}>Neu laden</ToastAction>
         </Toast>
       ) : toast ? (
         <Toast>{toast}</Toast>
@@ -735,8 +739,10 @@ function RenameSelfModal({ current, onClose }: { current: string; onClose: () =>
   return (
     <Modal size="sm" onClose={onClose}>
       <>
-        <ModalTitle>Your display name</ModalTitle>
-        <ModalLede>Shown on your cursor, in the activity feed, and on everything you leave for an agent.</ModalLede>
+        <ModalTitle>Dein Anzeigename</ModalTitle>
+        <ModalLede>
+          Wird an Deinem Cursor, im Aktivitätsverlauf und bei allem angezeigt, was Du für einen Agenten hinterlässt.
+        </ModalLede>
         <Field className="mt-5" label="Name" labelVariant="form" htmlFor="display-name">
           <Input
             id="display-name"
@@ -750,10 +756,10 @@ function RenameSelfModal({ current, onClose }: { current: string; onClose: () =>
         </Field>
         <ModalActions>
           <Button variant="ghost" disabled={busy} onClick={onClose}>
-            Cancel
+            Abbrechen
           </Button>
           <Button variant="primary" disabled={busy || !clean || clean === current} onClick={save}>
-            {busy ? 'Saving…' : 'Save name'}
+            {busy ? 'Wird gespeichert…' : 'Namen speichern'}
           </Button>
         </ModalActions>
       </>

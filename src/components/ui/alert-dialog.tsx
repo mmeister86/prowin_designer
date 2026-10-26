@@ -15,8 +15,8 @@ function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel = 'Bestätigen',
+  cancelLabel = 'Abbrechen',
   destructive = false,
   onConfirm,
 }: {

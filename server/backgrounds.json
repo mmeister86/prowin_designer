@@ -11,7 +11,7 @@
     "tags": ["teal", "mint", "calm", "premium", "tech", "cool"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Soft mint glow sweeping diagonally across near-black"
+    "description": "Sanfter mintgrüner Schimmer diagonal auf fast schwarzem Grund"
   },
   {
     "id": "hlJ2mFLsUF",
@@ -25,7 +25,7 @@
     "tags": ["mint", "white", "clean", "calm", "arc", "minimal", "saas", "wellness"],
     "slots": ["hero", "section"],
     "text_zone": "bottom",
-    "description": "Layered mint arcs fading into white, quiet and clinical"
+    "description": "Geschichtete mintgrüne Bögen auf Weiß, ruhig und klar"
   },
   {
     "id": "0SuCjZsm9U",
@@ -39,7 +39,7 @@
     "tags": ["mint", "green", "hills", "soft", "calm", "wellness", "fresh"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Airy mint hills dissolving into a white sky"
+    "description": "Luftige mintgrüne Hügel unter weißem Himmel"
   },
   {
     "id": "yFnQNIyQ9-",
@@ -53,7 +53,7 @@
     "tags": ["teal", "mint", "ribbon", "calm", "premium", "tech"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Mint light ribbon curving down through a dark green field"
+    "description": "Mintgrünes Lichtband auf dunkelgrünem Grund"
   },
   {
     "id": "aRvyyvuYVq",
@@ -67,7 +67,7 @@
     "tags": ["sky", "clouds", "pines", "muted", "calm", "nature", "outdoor"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painterly pine meadow under a pale cloudy sky"
+    "description": "Gemalte Kiefernwiese unter hellem Wolkenhimmel"
   },
   {
     "id": "ZRrBro2Izo",
@@ -81,7 +81,7 @@
     "tags": ["thermal", "orange", "violet", "energetic", "bold", "gaming", "grain"],
     "slots": ["hero", "card"],
     "text_zone": "left",
-    "description": "Thermal fire ribbon in orange and violet along the right edge of black"
+    "description": "Feuriges orange-violettes Band am rechten Rand auf Schwarz"
   },
   {
     "id": "AuT5fOI7XE",
@@ -95,7 +95,7 @@
     "tags": ["pink", "coral", "hills", "soft", "dreamy", "warm", "beauty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Soft coral pink hill under a pale lavender sky"
+    "description": "Sanfter korallrosa Hügel unter hellem Lavendelhimmel"
   },
   {
     "id": "X6v8R-D3J_",
@@ -109,7 +109,7 @@
     "tags": ["pink", "gold", "brush", "bold", "luxury", "beauty", "fashion"],
     "slots": ["section", "card"],
     "text_zone": "none",
-    "description": "Magenta oil brushstrokes with gold flecks"
+    "description": "Magentafarbene Ölpinselstriche mit goldenen Sprenkeln"
   },
   {
     "id": "U10H28degT",
@@ -123,7 +123,7 @@
     "tags": ["orange", "blue", "blur", "bold", "energetic", "media", "creative"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Blurred orange and blue light bands on the right over black"
+    "description": "Unscharfe orange-blaue Lichtbänder rechts auf Schwarz"
   },
   {
     "id": "fJ7nxnsgD2",
@@ -137,7 +137,7 @@
     "tags": ["thermal", "orange", "violet", "energetic", "bold", "gaming", "grain"],
     "slots": ["hero", "card"],
     "text_zone": "center",
-    "description": "Thermal fire ribbons framing black on both sides"
+    "description": "Feurige Lichtbänder beidseits auf Schwarz"
   },
   {
     "id": "vBGFIxsW0Y",
@@ -151,7 +151,7 @@
     "tags": ["green", "hills", "valley", "bright", "fresh", "nature", "optimistic"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Green valley path under a blown-out white sun"
+    "description": "Grüner Talweg unter strahlend weißer Sonne"
   },
   {
     "id": "zvD3FCbYQ3",
@@ -165,7 +165,7 @@
     "tags": ["blue", "sky", "clouds", "bright", "bold", "playful", "summer"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Deep saturated blue sky with white clouds along the bottom"
+    "description": "Sattblauer Himmel mit weißen Wolken am unteren Rand"
   },
   {
     "id": "O-HkGau3gC",
@@ -179,7 +179,7 @@
     "tags": ["holographic", "pastel", "white", "iridescent", "soft", "premium", "beauty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Pearlescent white with pastel iridescent arcs"
+    "description": "Perlmuttweiß mit pastellfarben schillernden Bögen"
   },
   {
     "id": "k8xRtDncxL",
@@ -193,7 +193,7 @@
     "tags": ["peach", "orange", "warm", "soft", "hills", "sunset", "wellness"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Warm peach hill fading into a pale apricot sky"
+    "description": "Warmer pfirsichfarbener Hügel unter hellem Aprikosenhimmel"
   },
   {
     "id": "Lj_-WKR7k2",
@@ -207,7 +207,7 @@
     "tags": ["purple", "pink", "teal", "vivid", "bold", "saturated", "gaming", "creative"],
     "slots": ["hero", "section", "card"],
     "text_zone": "none",
-    "description": "Vivid magenta and teal blob on electric purple"
+    "description": "Leuchtende magenta-türkise Formen auf kräftigem Violett"
   },
   {
     "id": "NwPsyyTO8u",
@@ -221,7 +221,7 @@
     "tags": ["ascii", "mint", "code", "tech", "developer", "matrix", "glow"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Mint ASCII ribbon glowing across dark green, code-like"
+    "description": "Mintgrünes ASCII-Lichtband auf Dunkelgrün"
   },
   {
     "id": "wJPvIGHnOL",
@@ -235,7 +235,7 @@
     "tags": ["lavender", "pink", "purple", "hills", "soft", "dreamy", "beauty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Violet hills fading into a pale pink sky"
+    "description": "Violette Hügel unter blassrosa Himmel"
   },
   {
     "id": "jN9OS9o-a2",
@@ -249,7 +249,7 @@
     "tags": ["holographic", "rainbow", "swirl", "vivid", "playful", "creative", "iridescent"],
     "slots": ["section", "card"],
     "text_zone": "none",
-    "description": "Swirling holographic rainbow marble"
+    "description": "Wirbelnder holografischer Regenbogenmarmor"
   },
   {
     "id": "Ue8dCswwLY",
@@ -263,7 +263,7 @@
     "tags": ["purple", "pink", "orange", "warm", "vivid", "bold", "energetic"],
     "slots": ["hero", "section", "card"],
     "text_zone": "bottom",
-    "description": "Hot pink and orange blob glowing on deep violet"
+    "description": "Leuchtende pink-orange Form auf tiefem Violett"
   },
   {
     "id": "GM-5-J64EH",
@@ -277,7 +277,7 @@
     "tags": ["green", "blue", "meadow", "clouds", "bright", "playful", "fresh"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Bright green meadow under a cloud-dotted blue sky"
+    "description": "Hellgrüne Wiese unter blauem Himmel mit kleinen Wolken"
   },
   {
     "id": "x3o8ymR9cN",
@@ -291,7 +291,7 @@
     "tags": ["night", "blue", "moon", "stars", "calm", "serene", "dreamy"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Moonlit night meadow with a river and starry sky"
+    "description": "Mondbeschienene Nachtwiese mit Fluss und Sternenhimmel"
   },
   {
     "id": "87pzt-jueV",
@@ -305,7 +305,7 @@
     "tags": ["dunes", "blue", "halftone", "monochrome", "editorial", "minimal", "cool"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Halftone blue dunes, editorial and cool"
+    "description": "Blaue Rasterdünen mit kühler redaktioneller Anmutung"
   },
   {
     "id": "97PEFeuIur",
@@ -319,7 +319,7 @@
     "tags": ["wildflowers", "meadow", "black", "poppies", "botanical", "organic", "wellness"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Wildflower meadow lit against pure black, empty sky above"
+    "description": "Beleuchtete Wildblumenwiese auf Schwarz mit freiem Himmel"
   },
   {
     "id": "pcATtTECuz",
@@ -333,7 +333,7 @@
     "tags": ["coral", "pink", "waves", "dusk", "warm", "calm", "premium"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Coral-lit wave ridges glowing under a black sky"
+    "description": "Korallfarbene Wellenrücken unter schwarzem Himmel"
   },
   {
     "id": "RxVU5ibsJr",
@@ -347,7 +347,7 @@
     "tags": ["lavender", "violet", "hills", "soft", "dreamy", "calm", "beauty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Violet hill under a hazy lavender-white sky"
+    "description": "Violetter Hügel unter dunstigem lavendelweißem Himmel"
   },
   {
     "id": "DKgIWgqpDv",
@@ -361,7 +361,7 @@
     "tags": ["mountains", "river", "meadow", "bright", "fresh", "outdoor", "optimistic"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Alpine meadow with a river and snowy peaks under blue sky"
+    "description": "Alpenwiese mit Fluss und schneebedeckten Gipfeln unter blauem Himmel"
   },
   {
     "id": "B-_lghzLBh",
@@ -375,7 +375,7 @@
     "tags": ["particles", "purple", "waves", "grid", "tech", "data", "ai"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Purple particle wave terrain under a black sky"
+    "description": "Violette Partikelwellen unter schwarzem Himmel"
   },
   {
     "id": "1ylGF8lB0l",
@@ -389,7 +389,7 @@
     "tags": ["night", "blue", "moon", "clouds", "meadow", "calm", "serene"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Night meadow with moon and clouds over dark hills"
+    "description": "Nachtwiese mit Mond und Wolken über dunklen Hügeln"
   },
   {
     "id": "PH7P0cRZ11",
@@ -403,7 +403,7 @@
     "tags": ["purple", "violet", "arc", "sweep", "premium", "tech", "ai"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Violet light arc sweeping up from the bottom of black"
+    "description": "Violetter Lichtbogen vom unteren Rand auf Schwarz"
   },
   {
     "id": "njVhzaJzVK",
@@ -417,7 +417,7 @@
     "tags": ["orange", "lime", "brush", "warm", "bright", "playful", "creative"],
     "slots": ["section", "card"],
     "text_zone": "none",
-    "description": "Orange and lime brushed blur on cream"
+    "description": "Orange-limettengrüne Pinselunschärfe auf Creme"
   },
   {
     "id": "w8rZoqw0UT",
@@ -431,7 +431,7 @@
     "tags": ["ascii", "purple", "code", "tech", "developer", "glow", "ai"],
     "slots": ["hero", "section", "card"],
     "text_zone": "center",
-    "description": "Purple ASCII glow band across black, code-like"
+    "description": "Violettes ASCII-Leuchtband auf Schwarz"
   },
   {
     "id": "JocI3PWmNp",
@@ -445,7 +445,7 @@
     "tags": ["coral", "peach", "hills", "warm", "soft", "wellness", "beauty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Coral hills under a pale blush sky"
+    "description": "Korallfarbene Hügel unter blassrosa Himmel"
   },
   {
     "id": "1BL6mm4NZu",
@@ -459,7 +459,7 @@
     "tags": ["silver", "curve", "edge", "metallic", "minimal", "premium", "hardware"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Thin silver-lit curved edge on black, hardware-like"
+    "description": "Dünne silberne Rundkante auf Schwarz mit technischer Anmutung"
   },
   {
     "id": "rvDs8BabaB",
@@ -473,7 +473,7 @@
     "tags": ["purple", "magenta", "horizon", "arc", "bold", "ai", "tech"],
     "slots": ["hero", "section", "card"],
     "text_zone": "bottom",
-    "description": "Magenta glow arc rising from a black horizon"
+    "description": "Magentafarbener Leuchtbogen über schwarzem Horizont"
   },
   {
     "id": "OHzm64m1xP",
@@ -487,7 +487,7 @@
     "tags": ["dusk", "mountains", "mist", "moody", "muted", "cinematic", "premium"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Misty mountain valley at dusk, muted and cinematic"
+    "description": "Nebliges Bergtal in der Dämmerung mit gedämpfter Kinoanmutung"
   },
   {
     "id": "8Wdc1hiI0c",
@@ -501,7 +501,7 @@
     "tags": ["ascii", "purple", "pink", "code", "tech", "developer", "ai"],
     "slots": ["hero", "section", "card"],
     "text_zone": "bottom",
-    "description": "Pink-purple ASCII arc glowing over black"
+    "description": "Pink-violetter ASCII-Leuchtbogen auf Schwarz"
   },
   {
     "id": "ckL0qiX_qy",
@@ -515,7 +515,7 @@
     "tags": ["coral", "red", "ribbon", "warm", "bold", "fashion", "beauty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "center",
-    "description": "Coral light ribbons crossing a black field"
+    "description": "Korallfarbene Lichtbänder auf Schwarz"
   },
   {
     "id": "szCDJseXoW",
@@ -529,7 +529,7 @@
     "tags": ["ascii", "rainbow", "warm", "code", "tech", "developer", "bright"],
     "slots": ["hero", "section", "card"],
     "text_zone": "bottom",
-    "description": "Rainbow ASCII arc fading into white"
+    "description": "Regenbogenfarbener ASCII-Bogen auf Weiß"
   },
   {
     "id": "RehlTJCkzv",
@@ -543,7 +543,7 @@
     "tags": ["terrain", "green", "mesh", "wireframe", "tech", "data", "3d"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Green wireframe terrain glowing on black"
+    "description": "Grünes leuchtendes Drahtgittergelände auf Schwarz"
   },
   {
     "id": "S_tPn5SccH",
@@ -557,7 +557,7 @@
     "tags": ["coast", "beach", "sunset", "orange", "summer", "travel", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painted coastal beach at golden sunset"
+    "description": "Gemalter Küstenstrand im goldenen Sonnenuntergang"
   },
   {
     "id": "xBJq1HgPkh",
@@ -571,7 +571,7 @@
     "tags": ["ascii", "gold", "amber", "code", "tech", "developer", "warm"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Amber ASCII glow rising from the bottom of black"
+    "description": "Bernsteinfarbener ASCII-Schimmer am unteren Rand auf Schwarz"
   },
   {
     "id": "yJIS52wEE4",
@@ -585,7 +585,7 @@
     "tags": ["navy", "blue", "arc", "horizon", "calm", "tech", "premium"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Cool blue glow arc rising from a navy horizon"
+    "description": "Kühlblauer Leuchtbogen über marineblauem Horizont"
   },
   {
     "id": "RkMBZRvQpm",
@@ -599,7 +599,7 @@
     "tags": ["purple", "curve", "edge", "light", "premium", "hardware", "tech"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Violet-lit curved edge sweeping across black"
+    "description": "Violett beleuchtete Rundkante auf Schwarz"
   },
   {
     "id": "K0AXwwehWb",
@@ -613,7 +613,7 @@
     "tags": ["gold", "amber", "warm", "luxury", "premium", "finance", "dusty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Golden dusty light sweep across black"
+    "description": "Goldener staubiger Lichtschein auf Schwarz"
   },
   {
     "id": "rloFSmO6Wt",
@@ -627,7 +627,7 @@
     "tags": ["island", "garden", "floating", "3d", "playful", "black", "magical"],
     "slots": ["card", "section"],
     "text_zone": "top",
-    "description": "Floating garden island on black, small and centered"
+    "description": "Kleine schwebende Garteninsel mittig auf Schwarz"
   },
   {
     "id": "WtHVZU2Ayp",
@@ -641,7 +641,7 @@
     "tags": ["mountain", "fabric", "grey", "dark", "editorial", "minimal", "fashion"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Dark fabric mountain ridge with red highlight on grey"
+    "description": "Dunkler Stoffgebirgszug mit rotem Licht auf Grau"
   },
   {
     "id": "ouRki1KYOq",
@@ -655,7 +655,7 @@
     "tags": ["meadow", "clouds", "river", "bright", "playful", "fresh", "summer"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Bright green hills and clouds under a blue sky"
+    "description": "Hellgrüne Hügel und Wolken unter blauem Himmel"
   },
   {
     "id": "J1sUHSFVCm",
@@ -669,7 +669,7 @@
     "tags": ["blue", "cyan", "funnel", "bold", "tech", "saas", "electric"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Electric blue glow rising to black at the top"
+    "description": "Kräftigblauer Schimmer mit schwarzem oberen Rand"
   },
   {
     "id": "D05QiJ0H87",
@@ -683,7 +683,7 @@
     "tags": ["sunset", "clouds", "mountains", "golden", "epic", "adventure", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "center",
-    "description": "Golden sunset over jagged peaks and towering clouds"
+    "description": "Goldener Sonnenuntergang über schroffen Gipfeln und hohen Wolken"
   },
   {
     "id": "4-Uvo-LWxw",
@@ -697,7 +697,7 @@
     "tags": ["hills", "green", "haze", "calm", "minimal", "soft", "wellness"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Soft green hills under a pale hazy sky"
+    "description": "Sanfte grüne Hügel unter hellem Dunsthimmel"
   },
   {
     "id": "fbjT_DYAD5",
@@ -711,7 +711,7 @@
     "tags": ["grass", "rock", "clouds", "3d", "bright", "playful", "fresh"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Bright 3D grass with a rock and clouds, blue sky"
+    "description": "Leuchtendes 3D-Gras mit Felsen und Wolken unter blauem Himmel"
   },
   {
     "id": "Rgjg7s4Q2H",
@@ -725,7 +725,7 @@
     "tags": ["gold", "curve", "edge", "luxury", "premium", "finance", "hardware"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Gold-lit curved edge on black, luxurious"
+    "description": "Goldbeleuchtete Rundkante auf Schwarz mit edler Anmutung"
   },
   {
     "id": "_4Ap95xwvn",
@@ -739,7 +739,7 @@
     "tags": ["ascii", "rainbow", "code", "tech", "developer", "bold"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Rainbow ASCII flame on the right of black"
+    "description": "Regenbogenfarbene ASCII-Flamme rechts auf Schwarz"
   },
   {
     "id": "lX0ZbSRtC4",
@@ -753,7 +753,7 @@
     "tags": ["blue", "orange", "ribbon", "stripes", "tech", "motion", "bold"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Blue-to-orange light ribbon across black"
+    "description": "Blau-oranges Lichtband auf Schwarz"
   },
   {
     "id": "VmbkKkdOak",
@@ -767,7 +767,7 @@
     "tags": ["blue", "curve", "edge", "glass", "premium", "hardware", "tech"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Ice-blue lit curved edge on black"
+    "description": "Eisblau beleuchtete Rundkante auf Schwarz"
   },
   {
     "id": "oJvTU4k-37",
@@ -781,7 +781,7 @@
     "tags": ["grass", "field", "dusk", "black", "muted", "organic", "calm"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Wind-brushed grass field lit against black"
+    "description": "Windbewegtes beleuchtetes Grasfeld auf Schwarz"
   },
   {
     "id": "9_Zr_5x1Zt",
@@ -795,7 +795,7 @@
     "tags": ["thermal", "orange", "violet", "energetic", "bold", "gaming", "grain"],
     "slots": ["hero", "card"],
     "text_zone": "left",
-    "description": "Thermal fire ribbon along the right side of black"
+    "description": "Feuriges Lichtband am rechten Rand auf Schwarz"
   },
   {
     "id": "YxsWZUiDnU",
@@ -809,7 +809,7 @@
     "tags": ["dunes", "pink", "magenta", "halftone", "bold", "editorial", "fashion"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Halftone magenta dunes under a pink sky"
+    "description": "Magentafarbene Rasterdünen unter rosa Himmel"
   },
   {
     "id": "IDsVkbd1qo",
@@ -823,7 +823,7 @@
     "tags": ["dusk", "peach", "waves", "warm", "calm", "cinematic", "premium"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Peach-lit dune waves under a muted dusk sky"
+    "description": "Pfirsichfarbene Dünenwellen unter gedämpftem Abendhimmel"
   },
   {
     "id": "ZCv_pvQc4i",
@@ -837,7 +837,7 @@
     "tags": ["purple", "ring", "neon", "circle", "bold", "tech", "ai"],
     "slots": ["hero", "card"],
     "text_zone": "left",
-    "description": "Purple neon ring glowing on black"
+    "description": "Violetter Neonring auf Schwarz"
   },
   {
     "id": "F5ZQgIWHZk",
@@ -851,7 +851,7 @@
     "tags": ["ascii", "purple", "pink", "gradient", "tech", "developer", "ai"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Purple-pink ASCII gradient sweep on dark"
+    "description": "Violett-rosa ASCII-Farbverlauf auf dunklem Grund"
   },
   {
     "id": "DlbqRPkb48",
@@ -865,7 +865,7 @@
     "tags": ["sunrise", "meadow", "golden", "warm", "calm", "fresh", "optimistic"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Golden sunrise over a green meadow with a river"
+    "description": "Goldener Sonnenaufgang über grüner Wiese mit Fluss"
   },
   {
     "id": "BFwmU-V62q",
@@ -879,7 +879,7 @@
     "tags": ["teal", "curves", "layers", "dark", "premium", "tech", "finance"],
     "slots": ["hero", "section", "card"],
     "text_zone": "right",
-    "description": "Layered teal curves on deep navy"
+    "description": "Geschichtete türkise Kurven auf tiefem Marineblau"
   },
   {
     "id": "clBUj3Zs-w",
@@ -893,7 +893,7 @@
     "tags": ["lake", "mountains", "pines", "bright", "outdoor", "travel", "fresh"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painted mountain lake with pines under blue sky"
+    "description": "Gemalter Bergsee mit Kiefern unter blauem Himmel"
   },
   {
     "id": "i2I9adBxQa",
@@ -907,7 +907,7 @@
     "tags": ["purple", "line", "neon", "streak", "bold", "tech", "gaming"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Purple neon streak on smoky black"
+    "description": "Violetter Neonstreifen auf rauchigem Schwarz"
   },
   {
     "id": "Cyph5LnaHu",
@@ -921,7 +921,7 @@
     "tags": ["grass", "clouds", "3d", "bright", "playful", "fresh", "summer"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "3D green hills and clouds under a bright blue sky"
+    "description": "Grüne 3D-Hügel und Wolken unter leuchtend blauem Himmel"
   },
   {
     "id": "__gO0zkHiN",
@@ -935,7 +935,7 @@
     "tags": ["flowers", "yellow", "meadow", "dark", "botanical", "warm", "organic"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Yellow wildflower meadow under a dark olive sky"
+    "description": "Gelbe Wildblumenwiese unter dunklem olivgrünem Himmel"
   },
   {
     "id": "ZniLcelMT0",
@@ -949,7 +949,7 @@
     "tags": ["blue", "horizon", "spark", "dark", "tech", "space", "minimal"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Small blue glow on a black horizon, lots of empty space"
+    "description": "Kleiner blauer Schimmer über schwarzem Horizont mit viel Freiraum"
   },
   {
     "id": "A_1imftJ8x",
@@ -963,7 +963,7 @@
     "tags": ["terrain", "green", "mesh", "wireframe", "tech", "data", "3d"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Green wireframe hills glowing on black"
+    "description": "Grüne leuchtende Drahtgitterhügel auf Schwarz"
   },
   {
     "id": "objoTv_z8m",
@@ -977,7 +977,7 @@
     "tags": ["lake", "mountains", "sunset", "golden", "calm", "travel", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Mountain lake at golden hour, painterly"
+    "description": "Malerischer Bergsee in goldenem Abendlicht"
   },
   {
     "id": "KRWgUcQG9E",
@@ -991,7 +991,7 @@
     "tags": ["ascii", "purple", "pink", "arc", "tech", "developer", "ai"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Purple ASCII arc rising from the bottom of dark"
+    "description": "Violetter ASCII-Bogen vom unteren Rand auf dunklem Grund"
   },
   {
     "id": "2wCIZiPpez",
@@ -1005,7 +1005,7 @@
     "tags": ["dunes", "red", "teal", "halftone", "bold", "editorial", "fashion"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Halftone red dunes under a teal-white sky"
+    "description": "Rote Rasterdünen unter türkisweißem Himmel"
   },
   {
     "id": "6uFKrdH53S",
@@ -1019,7 +1019,7 @@
     "tags": ["twilight", "purple", "pink", "stars", "calm", "dreamy", "serene"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Twilight sky over dark hills, purple to pink"
+    "description": "Violett-rosa Dämmerungshimmel über dunklen Hügeln"
   },
   {
     "id": "TZH1xXhxOB",
@@ -1033,7 +1033,7 @@
     "tags": ["terrain", "green", "mesh", "wireframe", "tech", "data", "3d"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Green wireframe ridges glowing on black"
+    "description": "Grüne leuchtende Drahtgitterkämme auf Schwarz"
   },
   {
     "id": "T1eVbzUurh",
@@ -1047,7 +1047,7 @@
     "tags": ["ascii", "purple", "wave", "code", "tech", "developer", "ai"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Purple ASCII wave across dark violet"
+    "description": "Violette ASCII-Welle auf dunklem Violett"
   },
   {
     "id": "6EmSRS7IfE",
@@ -1061,7 +1061,7 @@
     "tags": ["orange", "amber", "horizon", "sunrise", "warm", "bold", "energy"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Warm orange glow rising from a black horizon"
+    "description": "Warmer orangefarbener Schimmer über schwarzem Horizont"
   },
   {
     "id": "T8jvjSL8Dt",
@@ -1075,7 +1075,7 @@
     "tags": ["meadow", "flowers", "river", "deer", "purple", "fresh", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painted meadow with a river, iris flowers and deer"
+    "description": "Gemalte Wiese mit Fluss, Schwertlilien und Rehen"
   },
   {
     "id": "H6ty_f-RwJ",
@@ -1089,7 +1089,7 @@
     "tags": ["grass", "clouds", "3d", "bright", "playful", "fresh", "summer"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "3D grassy hills and clouds under blue sky"
+    "description": "Grasbewachsene 3D-Hügel und Wolken unter blauem Himmel"
   },
   {
     "id": "QnbnRRITen",
@@ -1103,7 +1103,7 @@
     "tags": ["night", "stars", "blue", "silhouette", "calm", "minimal", "serene"],
     "slots": ["hero", "section"],
     "text_zone": "left",
-    "description": "Lone figure under a deep blue starry night"
+    "description": "Einsame Gestalt unter tiefblauem Sternenhimmel"
   },
   {
     "id": "XNp3BA8rk9",
@@ -1117,7 +1117,7 @@
     "tags": ["terrain", "rainbow", "mesh", "particles", "tech", "data", "colorful"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Rainbow particle terrain on black"
+    "description": "Regenbogenfarbenes Partikelgelände auf Schwarz"
   },
   {
     "id": "cCepxF9w4N",
@@ -1131,7 +1131,7 @@
     "tags": ["canyon", "sandstone", "orange", "bright", "adventure", "travel", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "center",
-    "description": "Sandstone canyon opening onto a white sky"
+    "description": "Sandsteinschlucht mit Blick auf weißen Himmel"
   },
   {
     "id": "XGnKjgjY58",
@@ -1145,7 +1145,7 @@
     "tags": ["mars", "desert", "domes", "orange", "scifi", "adventure", "warm"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Mars colony domes under an amber desert sky"
+    "description": "Marskolonie-Kuppeln unter bernsteinfarbenem Wüstenhimmel"
   },
   {
     "id": "vMMPQIWM1D",
@@ -1159,7 +1159,7 @@
     "tags": ["red", "gold", "waves", "dark", "bold", "premium", "energy"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Red and gold wave ridges under a black sky"
+    "description": "Rot-goldene Wellenrücken unter schwarzem Himmel"
   },
   {
     "id": "SJQYwhAOXW",
@@ -1173,7 +1173,7 @@
     "tags": ["park", "city", "skyline", "illustration", "urban", "bright", "playful"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Illustrated city park with skyline under blue sky"
+    "description": "Illustrierter Stadtpark mit Stadtsilhouette unter blauem Himmel"
   },
   {
     "id": "pEEIZ8XALd",
@@ -1187,7 +1187,7 @@
     "tags": ["blue", "purple", "waves", "dark", "tech", "calm", "premium"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Blue-violet light waves on deep navy"
+    "description": "Blau-violette Lichtwellen auf tiefem Marineblau"
   },
   {
     "id": "q_KvO1wYEm",
@@ -1201,7 +1201,7 @@
     "tags": ["green", "pink", "blur", "dark", "bold", "creative", "vivid"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Blurred green and pink light blobs on black"
+    "description": "Unscharfe grüne und rosa Lichtformen auf Schwarz"
   },
   {
     "id": "DGwhfKTKf2",
@@ -1215,7 +1215,7 @@
     "tags": ["mountains", "clouds", "dusk", "epic", "moody", "cinematic", "adventure"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Cinematic mountain pass with towering clouds at dusk"
+    "description": "Bergpass mit hohen Wolken in der Dämmerung"
   },
   {
     "id": "RJJJLcUQsw",
@@ -1229,7 +1229,7 @@
     "tags": ["red", "teal", "grain", "bold", "energetic", "creative", "media"],
     "slots": ["hero", "section", "card"],
     "text_zone": "none",
-    "description": "Grainy red-to-teal blend with a dark frame"
+    "description": "Körniger Rot-Türkis-Verlauf mit dunklem Rand"
   },
   {
     "id": "vpvDq-qyz6",
@@ -1243,7 +1243,7 @@
     "tags": ["cyan", "blue", "hills", "soft", "cool", "calm", "tech"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Cyan hill glowing under a pale lavender sky"
+    "description": "Leuchtender cyanfarbener Hügel unter hellem Lavendelhimmel"
   },
   {
     "id": "E7_0xG6RbS",
@@ -1257,7 +1257,7 @@
     "tags": ["coast", "beach", "sunset", "golden", "summer", "travel", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painted coastal cove at golden hour"
+    "description": "Gemalte Küstenbucht im goldenen Abendlicht"
   },
   {
     "id": "tsr6gMq2Fs",
@@ -1271,7 +1271,7 @@
     "tags": ["thermal", "green", "blue", "energetic", "bold", "gaming", "grain"],
     "slots": ["hero", "card"],
     "text_zone": "right",
-    "description": "Thermal green-blue ribbon along the left of black"
+    "description": "Grün-blaues Lichtband am linken Rand auf Schwarz"
   },
   {
     "id": "--CgkETSrI",
@@ -1285,7 +1285,7 @@
     "tags": ["ascii", "blue", "navy", "code", "tech", "developer", "subtle"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Subtle blue ASCII glow at the bottom of black"
+    "description": "Dezenter blauer ASCII-Schimmer am unteren Rand auf Schwarz"
   },
   {
     "id": "zFBEx5cyXa",
@@ -1299,7 +1299,7 @@
     "tags": ["purple", "white", "beam", "horizontal", "bold", "tech", "ai"],
     "slots": ["hero", "section", "card"],
     "text_zone": "center",
-    "description": "White-purple beam across the middle of black"
+    "description": "Weiß-violetter Lichtstrahl mittig auf Schwarz"
   },
   {
     "id": "G4KsZGVLE_",
@@ -1313,7 +1313,7 @@
     "tags": ["peach", "pink", "pastel", "soft", "warm", "beauty", "wellness"],
     "slots": ["hero", "section", "card"],
     "text_zone": "anywhere",
-    "description": "Soft peach and blue pastel blur"
+    "description": "Sanfte pfirsich-blaue Pastellunschärfe"
   },
   {
     "id": "4lphMX2zN7",
@@ -1327,7 +1327,7 @@
     "tags": ["teal", "cyan", "curve", "edge", "premium", "hardware", "tech"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Cyan-lit curved edge on black"
+    "description": "Cyanfarben beleuchtete Rundkante auf Schwarz"
   },
   {
     "id": "xCNpkmwcB2",
@@ -1341,7 +1341,7 @@
     "tags": ["mountain", "fabric", "grey", "minimal", "editorial", "fashion", "dark"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Dark fabric ridge with red glow on light grey"
+    "description": "Dunkler Stoffkamm mit rotem Schimmer auf Hellgrau"
   },
   {
     "id": "J2-VZPqMMq",
@@ -1355,7 +1355,7 @@
     "tags": ["pink", "magenta", "lines", "neon", "bold", "tech", "gaming"],
     "slots": ["hero", "section", "card"],
     "text_zone": "center",
-    "description": "Two hot-pink neon lines framing black"
+    "description": "Zwei leuchtend pinke Neonlinien als Rahmen auf Schwarz"
   },
   {
     "id": "Cvx94mb1t6",
@@ -1369,7 +1369,7 @@
     "tags": ["podium", "stone", "grass", "3d", "product", "bright", "playful"],
     "slots": ["card", "section"],
     "text_zone": "top",
-    "description": "3D stone podium on grass under blue sky"
+    "description": "3D-Steinsockel auf Gras unter blauem Himmel"
   },
   {
     "id": "fFEb3rSnbN",
@@ -1383,7 +1383,7 @@
     "tags": ["peach", "coral", "hills", "warm", "soft", "wellness", "beauty"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Coral hills fading into a cream sky"
+    "description": "Korallfarbene Hügel unter cremefarbenem Himmel"
   },
   {
     "id": "On-QmOXXZy",
@@ -1397,7 +1397,7 @@
     "tags": ["coral", "blue", "blur", "pastel", "soft", "creative", "warm"],
     "slots": ["hero", "section", "card"],
     "text_zone": "anywhere",
-    "description": "Blurred coral and blue mesh blobs"
+    "description": "Unscharfe korall-blaue Netzformen"
   },
   {
     "id": "EayAw51oID",
@@ -1411,7 +1411,7 @@
     "tags": ["wildflowers", "meadow", "black", "poppies", "botanical", "organic", "wellness"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Wildflower slope against pure black"
+    "description": "Wildblumenhang auf reinem Schwarz"
   },
   {
     "id": "xkj2HMphS8",
@@ -1425,7 +1425,7 @@
     "tags": ["sky", "clouds", "grass", "bright", "minimal", "fresh", "calm"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Big blue sky with clouds over a low green strip"
+    "description": "Großer blauer Wolkenhimmel über schmalem Grünstreifen"
   },
   {
     "id": "q5tSCk139-",
@@ -1439,7 +1439,7 @@
     "tags": ["green", "blue", "aurora", "vivid", "bold", "tech", "gaming"],
     "slots": ["hero", "section", "card"],
     "text_zone": "right",
-    "description": "Green aurora burst on electric blue"
+    "description": "Grünes Polarlicht auf kräftigem Blau"
   },
   {
     "id": "T-yAaY86F4",
@@ -1453,7 +1453,7 @@
     "tags": ["space", "earth", "satellite", "orbit", "scifi", "tech", "dark"],
     "slots": ["hero", "section"],
     "text_zone": "left",
-    "description": "Satellite in orbit above Earth, dark space on the left"
+    "description": "Satellit im Erdorbit mit dunklem Weltraum links"
   },
   {
     "id": "8fR97h198f",
@@ -1467,7 +1467,7 @@
     "tags": ["ascii", "pastel", "rainbow", "code", "tech", "developer", "light"],
     "slots": ["hero", "section", "card"],
     "text_zone": "center",
-    "description": "Pastel ASCII rainbow bowl on white"
+    "description": "Pastellfarbene ASCII-Regenbogenschale auf Weiß"
   },
   {
     "id": "Egn2ETg56s",
@@ -1481,7 +1481,7 @@
     "tags": ["meadow", "river", "clouds", "bright", "playful", "fresh", "summer"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Bright green meadow with river under blue sky"
+    "description": "Hellgrüne Wiese mit Fluss unter blauem Himmel"
   },
   {
     "id": "idkldfYx--",
@@ -1495,7 +1495,7 @@
     "tags": ["stripes", "rainbow", "pink", "blue", "bold", "creative", "retro"],
     "slots": ["section", "card"],
     "text_zone": "bottom",
-    "description": "Vertical rainbow stripes fading into white"
+    "description": "Senkrechte Regenbogenstreifen auf Weiß"
   },
   {
     "id": "6VziYxCGbL",
@@ -1509,7 +1509,7 @@
     "tags": ["lake", "mountains", "meadow", "bright", "travel", "fresh", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painted lakeside meadow with snowy mountains"
+    "description": "Gemalte Seeuferwiese mit schneebedeckten Bergen"
   },
   {
     "id": "DpEh9agy4Z",
@@ -1523,7 +1523,7 @@
     "tags": ["cyan", "lavender", "hills", "soft", "cool", "calm", "tech"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Cyan hills under a pale lavender sky"
+    "description": "Cyanfarbene Hügel unter hellem Lavendelhimmel"
   },
   {
     "id": "44qb9E_lPe",
@@ -1537,7 +1537,7 @@
     "tags": ["ascii", "gold", "amber", "code", "tech", "developer", "warm"],
     "slots": ["hero", "section", "card"],
     "text_zone": "left",
-    "description": "Gold ASCII arc sweeping across dark"
+    "description": "Goldener ASCII-Bogen auf dunklem Grund"
   },
   {
     "id": "tsuxvmkx1U",
@@ -1551,7 +1551,7 @@
     "tags": ["mint", "green", "hills", "soft", "fresh", "wellness", "calm"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Green hill dissolving into a pale mint sky"
+    "description": "Grüner Hügel unter hellem mintgrünem Himmel"
   },
   {
     "id": "8p-qCLnANF",
@@ -1565,7 +1565,7 @@
     "tags": ["orange", "smoke", "warm", "moody", "cinematic", "premium", "energy"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Orange smoke glow rising into dark grey"
+    "description": "Orangefarbener Rauchschimmer auf Dunkelgrau"
   },
   {
     "id": "7w2yXUZiBZ",
@@ -1579,7 +1579,7 @@
     "tags": ["pink", "cyan", "arc", "rainbow", "bold", "tech", "gaming"],
     "slots": ["hero", "section", "card"],
     "text_zone": "bottom",
-    "description": "Pink-cyan light arc across the top of black"
+    "description": "Pink-cyanfarbener Lichtbogen am oberen Rand auf Schwarz"
   },
   {
     "id": "jISYbE2BN0",
@@ -1593,7 +1593,7 @@
     "tags": ["purple", "violet", "swirl", "vivid", "bold", "ai", "creative"],
     "slots": ["hero", "section", "card"],
     "text_zone": "none",
-    "description": "Swirling violet light on electric purple"
+    "description": "Wirbelndes violettes Licht auf kräftigem Violett"
   },
   {
     "id": "-G2lRmwEb-",
@@ -1607,7 +1607,7 @@
     "tags": ["blue", "cyan", "funnel", "bold", "tech", "saas", "electric"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Electric blue glow widening toward the bottom of black"
+    "description": "Kräftigblauer Schimmer zum unteren Rand auf Schwarz"
   },
   {
     "id": "tj1XM9Qcv1",
@@ -1621,7 +1621,7 @@
     "tags": ["mountains", "clouds", "path", "epic", "moody", "cinematic", "adventure"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Stone path through misty peaks above the clouds"
+    "description": "Steinweg durch neblige Gipfel über den Wolken"
   },
   {
     "id": "Z4yjyYPkdl",
@@ -1635,7 +1635,7 @@
     "tags": ["garden", "lanterns", "night", "zen", "black", "calm", "japanese"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Lantern-lit garden path against black"
+    "description": "Laternenbeleuchteter Gartenweg auf Schwarz"
   },
   {
     "id": "gWAYRyzwZ4",
@@ -1649,7 +1649,7 @@
     "tags": ["clouds", "storm", "hills", "grey", "moody", "muted", "nature"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Stormy grey clouds over misty green hills"
+    "description": "Stürmische graue Wolken über nebligen grünen Hügeln"
   },
   {
     "id": "so4hNtyVqb",
@@ -1663,7 +1663,7 @@
     "tags": ["sunset", "purple", "orange", "clouds", "dramatic", "dreamy", "warm"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Dramatic purple-orange sunset over a meadow river"
+    "description": "Dramatischer violett-oranger Sonnenuntergang über einem Wiesenfluss"
   },
   {
     "id": "NezmSNDpIg",
@@ -1677,7 +1677,7 @@
     "tags": ["lake", "mountains", "meadow", "bright", "travel", "fresh", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painted lakeside meadow with mountains and a tree"
+    "description": "Gemalte Seeuferwiese mit Bergen und Baum"
   },
   {
     "id": "KcgIayDhbZ",
@@ -1691,7 +1691,7 @@
     "tags": ["canyon", "sandstone", "white", "bright", "adventure", "travel", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "center",
-    "description": "Canyon walls opening onto a bright white sky"
+    "description": "Schluchtwände mit Blick auf strahlend weißen Himmel"
   },
   {
     "id": "UOX7UcIBkK",
@@ -1705,7 +1705,7 @@
     "tags": ["dunes", "sand", "beige", "halftone", "warm", "minimal", "editorial"],
     "slots": ["hero", "section", "card"],
     "text_zone": "top",
-    "description": "Halftone sand dunes in warm beige"
+    "description": "Sanddünen in warmem beigem Raster"
   },
   {
     "id": "6a0niGqtGY",
@@ -1719,7 +1719,7 @@
     "tags": ["sunset", "purple", "orange", "clouds", "dreamy", "warm", "serene"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Purple-orange sunset clouds over a meadow"
+    "description": "Violett-orange Sonnenuntergangswolken über einer Wiese"
   },
   {
     "id": "8-ttGE7V6O",
@@ -1733,7 +1733,7 @@
     "tags": ["cabin", "mountains", "meadow", "bright", "travel", "outdoor", "painterly"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Painted mountain cabin by a stream, white sky"
+    "description": "Gemalte Berghütte am Bach unter weißem Himmel"
   },
   {
     "id": "fTrxRGKlwf",
@@ -1747,7 +1747,7 @@
     "tags": ["mountain", "fabric", "grey", "monochrome", "minimal", "editorial", "fashion"],
     "slots": ["hero", "section"],
     "text_zone": "top",
-    "description": "Black fabric peak on light grey, monochrome"
+    "description": "Schwarzer Stoffgipfel auf Hellgrau"
   },
   {
     "id": "nHsn7ROBM5",
@@ -1761,6 +1761,6 @@
     "tags": ["ascii", "pink", "red", "code", "tech", "developer", "bold"],
     "slots": ["hero", "section", "card"],
     "text_zone": "center",
-    "description": "Pink ASCII stripes on dark violet"
+    "description": "Rosa ASCII-Streifen auf dunklem Violett"
   }
 ]

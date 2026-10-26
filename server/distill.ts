@@ -20,6 +20,9 @@ import * as actions from './actions.ts'
 /** most recent unconsumed decisions the judge sees per run */
 const MAX_WINDOW = 15
 
+const OUTPUT_LANGUAGE =
+  'Verfasse menschlich lesbare Zusammenfassungen, Regeltitel, Regeln und Begründungen standardmäßig auf Deutsch. Wenn die Person ausdrücklich eine andere Sprache wünscht, hat dieser Wunsch Vorrang. Bewahre technische Bezeichner, IDs, CSS-Werte und Tool-/JSON-Schlüssel unverändert. Bereits gespeicherte Texte sind Kontext und werden nicht nachträglich übersetzt.'
+
 function config() {
   return requestyConfig(env.DOOP_DISTILL_MODEL, false)
 }
@@ -41,7 +44,7 @@ async function summarizeDecision(canvasId: string, decisionId: string) {
   const decision = actions.getDecisions(canvasId).find((d) => d.id === decisionId)
   if (!cfg || !decision || decision.summary) return
   const res = await runChatCompletionsTurn(cfg, {
-    system: '',
+    system: OUTPUT_LANGUAGE,
     tools: [],
     maxTokens: 100,
     messages: [
@@ -161,7 +164,7 @@ Do not restate anything a guide already covers. Prefer an existing guide's slug;
 
   console.log(`[distill] run canvas=${canvasId} decisions=${decisions.length}`)
   const res = await runChatCompletionsTurn(cfg, {
-    system: '',
+    system: OUTPUT_LANGUAGE,
     maxTokens: 1000,
     tools: [DISTILL_TOOL],
     toolChoice: { type: 'function', function: { name: 'distill_result' } },
@@ -191,7 +194,7 @@ Do not restate anything a guide already covers. Prefer an existing guide's slug;
     rationale:
       typeof input.rationale === 'string' && input.rationale.trim()
         ? input.rationale.trim()
-        : 'Distilled from recent feedback.',
+        : 'Aus dem letzten Feedback abgeleitet.',
     basedOn: decisions.map((d) => d.id),
   })
   /* evidence is consumed only when it turns into a proposal — a "no rule yet"

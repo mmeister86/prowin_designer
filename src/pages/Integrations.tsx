@@ -22,8 +22,8 @@ function readNotice(): { tone: 'error' | 'success'; text: string } | null {
   const providers = [{ id: 'meta', name: 'Meta' }, ...clientIntegrations]
   for (const p of providers) {
     const error = q.get(`${p.id}Error`)
-    if (error) return { tone: 'error', text: error }
-    if (q.get(p.id) === 'connected') return { tone: 'success', text: `${p.name} connected.` }
+    if (error) return { tone: 'error', text: `Die Verbindung mit ${p.name} ist fehlgeschlagen. Versuche es erneut.` }
+    if (q.get(p.id) === 'connected') return { tone: 'success', text: `${p.name} verbunden.` }
   }
   return null
 }
@@ -67,7 +67,7 @@ export function Integrations() {
       location.assign(url)
     } catch (error) {
       console.error(error)
-      showToast('Couldn’t start the Meta connection')
+      showToast('Die Meta-Verbindung konnte nicht gestartet werden')
       setBusy(false)
     }
   }
@@ -78,7 +78,7 @@ export function Integrations() {
       setStatus(await target.disconnect())
     } catch (error) {
       console.error(error)
-      showToast('Couldn’t disconnect')
+      showToast('Trennen fehlgeschlagen')
     } finally {
       setBusy(false)
     }
@@ -96,7 +96,7 @@ export function Integrations() {
         </DashHeader>
 
         <DashContent className="pt-2 md:pt-3">
-          <DashTitle className="mb-5">Integrations</DashTitle>
+          <DashTitle className="mb-5">Integrationen</DashTitle>
 
           {notice && (
             <Callout tone={notice.tone} className="mb-4 max-w-[720px]">
@@ -135,17 +135,17 @@ export function Integrations() {
                   name="Meta Ads"
                   detail={
                     meta.connected
-                      ? `${meta.accountName ?? 'Meta'} · ${meta.accounts?.length ?? 0} ad ${
-                          meta.accounts?.length === 1 ? 'account' : 'accounts'
+                      ? `${meta.accountName ?? 'Meta'} · ${(meta.accounts?.length ?? 0).toLocaleString('de-DE')} ${
+                          meta.accounts?.length === 1 ? 'Werbekonto' : 'Werbekonten'
                         }`
-                      : 'Pull ad creatives onto a canvas'
+                      : 'Werbemittel auf einer Arbeitsfläche abrufen'
                   }
                   connected={meta.connected}
                   footnote={
                     meta.connected
                       ? usedBy > 0
-                        ? `Used by ${usedBy} ${usedBy === 1 ? 'automation' : 'automations'}`
-                        : 'Not used by an automation yet'
+                        ? `Verwendet von ${usedBy.toLocaleString('de-DE')} ${usedBy === 1 ? 'Automatisierung' : 'Automatisierungen'}`
+                        : 'Noch von keiner Automatisierung verwendet'
                       : ''
                   }
                   actions={
@@ -157,14 +157,14 @@ export function Integrations() {
                           disabled={busy || !meta.enabled}
                           onClick={() => void connectMeta()}
                         >
-                          Reconnect
+                          Erneut verbinden
                         </Button>
                         <DisconnectButton
                           disabled={busy}
                           onClick={() =>
                             setConfirmDisconnect({
                               name: 'Meta',
-                              copy: 'Automations that pull from Meta will fail until you connect again. Frames already on your canvases stay.',
+                              copy: 'Automatisierungen, die Daten von Meta abrufen, schlagen bis zur erneuten Verbindung fehl. Vorhandene Zeichenflächen bleiben erhalten.',
                               disconnect: api.disconnectMeta,
                             })
                           }
@@ -177,19 +177,19 @@ export function Integrations() {
                         disabled={busy || !meta.enabled}
                         onClick={() => void connectMeta()}
                       >
-                        Connect
+                        Verbinden
                       </Button>
                     )
                   }
                 >
                   {meta.connected && meta.expiresAt && meta.expiresAt < soon && (
                     <p className="text-caption text-accent-ink">
-                      Meta’s access expires soon — reconnect to keep pulls running.
+                      Der Meta-Zugang läuft bald ab — verbinde Dich erneut, um Daten weiterhin abzurufen.
                     </p>
                   )}
                   {!meta.enabled && (
                     <p className="text-caption text-ink-faint">
-                      Not configured on this server — set META_APP_ID and META_APP_SECRET.
+                      Auf diesem Server nicht eingerichtet — setze META_APP_ID und META_APP_SECRET.
                     </p>
                   )}
                 </IntegrationCard>
@@ -201,9 +201,9 @@ export function Integrations() {
       <ConfirmDialog
         open={!!confirmDisconnect}
         onOpenChange={(open) => !open && setConfirmDisconnect(null)}
-        title={`Disconnect ${confirmDisconnect?.name ?? ''}?`}
+        title={`Trennen: ${confirmDisconnect?.name ?? ''}?`}
         description={confirmDisconnect?.copy ?? ''}
-        confirmLabel="Disconnect"
+        confirmLabel="Trennen"
         destructive
         onConfirm={() => {
           const target = confirmDisconnect

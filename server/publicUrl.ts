@@ -66,10 +66,10 @@ export function parsePublicHttpUrl(raw: string): URL {
   try {
     url = new URL(raw)
   } catch {
-    throw new Error('not a valid URL')
+    throw new Error('Ungültige URL')
   }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('only http(s) URLs are allowed')
-  if (url.username || url.password) throw new Error('URLs containing credentials are not allowed')
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Nur HTTP- und HTTPS-URLs sind erlaubt.')
+  if (url.username || url.password) throw new Error('URLs mit Zugangsdaten sind nicht erlaubt.')
   const host = url.hostname.toLowerCase().replace(/\.$/, '')
   const ipHost = host.replace(/^\[|\]$/g, '')
   const isIp = net.isIP(ipHost) !== 0
@@ -81,7 +81,7 @@ export function parsePublicHttpUrl(raw: string): URL {
     (!isIp && !host.includes('.')) ||
     (isIp && isPrivateIp(ipHost))
   ) {
-    throw new Error('that host is not reachable from here')
+    throw new Error('Dieser Host ist von hier aus nicht erreichbar.')
   }
   return url
 }
@@ -108,7 +108,7 @@ async function resolvePublicNetworkUrl(raw: string | URL): Promise<ResolvedPubli
     ? [{ address: host, family: literalFamily as 4 | 6 }]
     : ((await dns.lookup(host, { all: true, verbatim: true })) as PublicAddress[])
   if (addresses.length === 0 || addresses.some(({ address }) => isPrivateIp(address))) {
-    throw new Error('that host is not reachable from here')
+    throw new Error('Dieser Host ist von hier aus nicht erreichbar.')
   }
   return { url, addresses }
 }
@@ -177,7 +177,7 @@ async function readBodyBounded(
 ): Promise<Buffer> {
   if (!response.body) return Buffer.alloc(0)
   const declared = Number(response.headers.get('content-length') || 0)
-  if (declared > maxBytes) throw new Error('remote resource is too large')
+  if (declared > maxBytes) throw new Error('Die entfernte Datei ist zu groß.')
   const reader = response.body.getReader()
   const chunks: Uint8Array[] = []
   let total = 0
@@ -187,7 +187,7 @@ async function readBodyBounded(
     total += value.byteLength
     if (total > maxBytes) {
       await reader.cancel().catch(() => {})
-      throw new Error('remote resource is too large')
+      throw new Error('Die entfernte Datei ist zu groß.')
     }
     try {
       accountChunk?.(value.byteLength)

@@ -17,6 +17,14 @@ const mocks = vi.hoisted(() => ({
   inspectFrame: vi.fn(),
   rendered: [] as string[],
   inspected: [] as string[],
+  residentLimit: 1,
+}))
+
+vi.mock('../server/allowance.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../server/allowance.ts')>()),
+  get RESIDENT_TASK_LIMIT() {
+    return mocks.residentLimit
+  },
 }))
 
 vi.mock('../server/db/persist.ts', () => ({
@@ -125,6 +133,7 @@ beforeEach(() => {
   mocks.rendered.length = 0
   mocks.inspected.length = 0
   mocks.pickModel.mockReset()
+  mocks.residentLimit = 1
   mocks.renderFrame.mockReset()
   mocks.renderFrame.mockImplementation(async (f: Frame) => {
     mocks.rendered.push(f.html)
@@ -155,6 +164,129 @@ afterEach(async () => {
   await settle()
   vi.restoreAllMocks()
   unstubAllEnvs()
+})
+
+describe('German resident status and retry messages', () => {
+  it.each([
+    [
+      'refusal',
+      'Die Rückmeldung konnte nicht bearbeitet werden',
+      'Doop konnte diese Anfrage nicht übernehmen. Versuche es erneut, wenn Du bereit bist.',
+    ],
+    [
+      'crash',
+      'Ein Problem ist aufgetreten – wartet auf einen neuen Versuch',
+      'Doop konnte die Aufgabe wegen eines Problems nicht abschließen. Versuche es erneut, wenn Du bereit bist.',
+    ],
+    [
+      'no-mutation',
+      'Keine Zeichenfläche geändert – wartet auf einen neuen Versuch',
+      'Doop hat keine Zeichenfläche geändert. Versuche es erneut, wenn Du bereit bist.',
+    ],
+    [
+      'exhausted',
+      'Maximale Anzahl an Schritten erreicht – wartet auf einen neuen Versuch',
+      'Doop hat die maximale Anzahl an Schritten erreicht. Versuche es erneut, wenn Du bereit bist.',
+    ],
+    [
+      'unverified',
+      'Änderung nicht überprüft – wartet auf einen neuen Versuch',
+      'Doop hat eine Zeichenfläche geändert, konnte sie aber nicht überprüfen. Versuche es erneut, wenn Du bereit bist.',
+    ],
+  ])('keeps %s retryable with a German explanation', async (mode, status, reason) => {
+    const canvas = freshCanvas()
+    let calls = 0
+    const model = scriptedModel([], [])
+    model.run = async () => {
+      calls++
+      if (mode === 'crash') throw new Error('private provider diagnostic')
+      if (mode === 'refusal') return { content: [], stop_reason: 'refusal' }
+      if (mode === 'exhausted') return tool(`s${calls}`, 'set_status', { status: 'User status stays English' })
+      if (mode === 'unverified' && calls === 1)
+        return tool('create', 'create_frame', {
+          name: 'English Hero',
+          html: '<!doctype html><html><head><title>English Hero</title></head><body><h1>Hello there</h1></body></html>',
+          width: 300,
+          height: 200,
+        })
+      return done()
+    }
+    mocks.pickModel.mockResolvedValue(model)
+    const card = actions.addQueuedCard(canvas.id, 'Create English Hero', 'alice')!
+    await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+    expect(card.endedAt).toBeUndefined()
+    expect(card.failureReason).toBe(reason)
+    const statuses = actions.getTasks(canvas.id).map((task) => task.status)
+    expect(statuses).toContain('Übernimmt eine Aufgabe …')
+    expect(statuses).toContain(status)
+    expect(card.status).toBe('Create English Hero')
+    if (mode === 'exhausted') expect(statuses).toContain('User status stays English')
+  })
+
+  it('explains the disabled allowance without claiming successful work', async () => {
+    const canvas = freshCanvas()
+    mocks.residentLimit = 0
+    mocks.pickModel.mockResolvedValue({ ...scriptedModel([], []), userId: undefined })
+    const card = actions.addQueuedCard(canvas.id, 'English request', 'alice')!
+    await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+    expect(card.failureReason).toBe(
+      'Der Server-Agent ist durch sein Aufgabenkontingent deaktiviert. Wende Dich an die Administration und versuche es danach erneut.',
+    )
+    expect(card.endedAt).toBeUndefined()
+  })
+
+  it('reads feedback with a German status while preserving the original comment', async () => {
+    const canvas = freshCanvas()
+    mocks.pickModel.mockResolvedValue(scriptedModel([() => ({ content: [], stop_reason: 'refusal' })], []))
+    const comment = actions.addCanvasComment(
+      canvas.id,
+      { pageId: canvas.pages![0]!.id, x: 10, y: 10, text: '@Doop Please keep this English text' },
+      'English Author',
+      'alice',
+    )!
+    await vi.waitFor(() => expect(comment.failedAt).toBeTypeOf('number'))
+    expect(actions.getTasks(canvas.id).map((task) => task.status)).toContain('Liest Rückmeldungen …')
+    expect(comment.text).toBe('@Doop Please keep this English text')
+    expect(comment.from).toBe('English Author')
+  })
+
+  it.each(['ModelAuthError', 'ModelUnavailableError'] as const)(
+    'directs %s to the administration in German',
+    async (kind) => {
+      const canvas = freshCanvas()
+      const errors = await import('../server/agentModel.ts')
+      const model = scriptedModel([], [])
+      model.run = async () => {
+        throw new errors[kind]()
+      }
+      mocks.pickModel.mockResolvedValue(model)
+      const card = actions.addQueuedCard(canvas.id, 'English request', 'alice')!
+      await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+      expect(card.failureReason).toBe(
+        'Der Server-Agent benötigt Unterstützung durch die Administration, bevor Du es erneut versuchen kannst.',
+      )
+      expect(actions.getTasks(canvas.id).map((task) => task.status)).toContain(card.failureReason)
+    },
+  )
+
+  it('shows a German reconnect status and restores the previous status', async () => {
+    const canvas = freshCanvas()
+    let calls = 0
+    const model = scriptedModel([], [])
+    model.run = async () => {
+      if (++calls === 1)
+        throw new TypeError('terminated', {
+          cause: Object.assign(new Error('socket closed'), { code: 'UND_ERR_SOCKET' }),
+        })
+      return { content: [], stop_reason: 'refusal' }
+    }
+    mocks.pickModel.mockResolvedValue(model)
+    const card = actions.addQueuedCard(canvas.id, 'English reconnect request', 'alice')!
+    await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'), { timeout: 5000 })
+    const statuses = actions.getTasks(canvas.id).map((task) => task.status)
+    expect(statuses).toContain('Modellverbindung unterbrochen – verbindet erneut (1/2) …')
+    expect(statuses.filter((s) => s === 'Übernimmt eine Aufgabe …')).toHaveLength(2)
+  })
 })
 
 describe('resident redaction wiring', () => {

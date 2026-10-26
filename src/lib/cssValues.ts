@@ -63,6 +63,42 @@ export function compactBox(values: [number | null, number | null, number | null,
 
 /** Preserve auto as distinct from explicitly hugging the content. */
 export type SizeMode = 'fixed' | 'fill' | 'hug' | 'auto'
+
+/** Human labels only; CSS values sent to the editor remain unchanged. */
+export function cssValueLabel(value: string): string {
+  const labels: Record<string, string> = {
+    block: 'Block',
+    flex: 'Flex-Layout',
+    grid: 'Raster',
+    'inline-block': 'Inline-Block',
+    'inline-flex': 'Inline-Flex',
+    'inline-grid': 'Inline-Raster',
+    inline: 'In Textzeile',
+    none: 'Ausgeblendet',
+    row: 'Zeile',
+    column: 'Spalte',
+    'row-reverse': 'Zeile rückwärts',
+    'column-reverse': 'Spalte rückwärts',
+    'flex-start': 'Anfang',
+    start: 'Anfang',
+    'flex-end': 'Ende',
+    end: 'Ende',
+    center: 'Mitte',
+    stretch: 'Strecken',
+    baseline: 'Grundlinie',
+    normal: 'Normal',
+    'self-start': 'Eigener Anfang',
+    'self-end': 'Eigenes Ende',
+    'space-between': 'Abstand dazwischen',
+    'space-around': 'Abstand ringsum',
+    'space-evenly': 'Gleichmäßig verteilen',
+    top: 'oben',
+    right: 'rechts',
+    bottom: 'unten',
+    left: 'links',
+  }
+  return Object.hasOwn(labels, value) ? labels[value]! : value
+}
 export function sizeMode(value: string | undefined): SizeMode {
   if (!value || value === 'auto') return 'auto'
   if (value === 'fit-content' || value === 'max-content' || value === 'min-content') return 'hug'

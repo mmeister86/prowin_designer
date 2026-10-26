@@ -57,6 +57,6 @@ it('charges local-queued work on server switch and pauses excess cards, comments
   )
   expect(await (await owner.get('/api/agent-allowance')).json()).toMatchObject({ used: 1, limit: 1, localAgent: false })
   expect(
-    [card, comment, feedback].filter((item) => /allowance/i.test(states.get(item.id)?.failureReason ?? '')),
+    [card, comment, feedback].filter((item) => /Aufgabenkontingent/i.test(states.get(item.id)?.failureReason ?? '')),
   ).toHaveLength(2)
 }, 20_000)

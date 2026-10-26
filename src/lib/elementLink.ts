@@ -13,8 +13,8 @@ export function elementLink(frame: Pick<Frame, 'id' | 'canvasId'>, selector: str
 export async function copyElementLink(frame: Pick<Frame, 'id' | 'canvasId'>, selector: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(elementLink(frame, selector))
-    useStore.getState().pushNotice('Element link copied')
+    useStore.getState().pushNotice('Link zum Element kopiert')
   } catch {
-    useStore.getState().pushNotice('Couldn’t copy the element link. Please try again.')
+    useStore.getState().pushNotice('Der Link zum Element konnte nicht kopiert werden. Versuche es erneut.')
   }
 }

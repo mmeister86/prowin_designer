@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { GuidelineDoc, MemoryReference } from '../../shared/types'
 import { useStore } from '../lib/store'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import { timeAgo } from '../lib/time'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -65,19 +65,20 @@ export function MemoryPanel() {
       {empty && (
         <div className="border-b border-line-soft px-4 py-3.5">
           <p className="text-[12.5px] leading-[1.5] font-semibold text-ink">
-            Memory is how this canvas remembers your taste — and how every agent designs with it.
+            Im Designwissen merkt sich diese Arbeitsfläche Deinen Geschmack, damit jeder Agent danach gestalten kann.
           </p>
           <ul className="mt-2.5 flex flex-col gap-2 pl-4">
             <li className="text-[12px] leading-[1.5] text-ink-soft">
-              <b>References</b> — pin a frame you love (the 🧠 on its corner). Agents copy its colors, type and layout
-              when they design something new.
+              <b>Referenzen</b> – hefte eine Zeichenfläche an, die Dir gefällt (mit dem 🧠 in der Ecke). Agenten
+              übernehmen ihre Farben, Schriften und ihr Layout für neue Designs.
             </li>
             <li className="text-[12px] leading-[1.5] text-ink-soft">
-              <b>Rules</b> — style guides agents read before designing. Write them, or let them grow.
+              <b>Regeln</b> – Gestaltungsrichtlinien, die Agenten vor dem Gestalten lesen. Schreibe sie selbst oder lass
+              sie wachsen.
             </li>
             <li className="text-[12px] leading-[1.5] text-ink-soft">
-              <b>Decisions</b> — feedback you give agents is captured here automatically once it’s addressed. When a
-              preference keeps recurring, Doop suggests adding it to your rules.
+              <b>Entscheidungen</b> – Dein Feedback an Agenten wird hier automatisch festgehalten, sobald es umgesetzt
+              wurde. Wiederholt sich eine Vorliebe, schlägt Doop vor, sie als Regel aufzunehmen.
             </li>
           </ul>
         </div>
@@ -86,11 +87,12 @@ export function MemoryPanel() {
       {pending.map((p) => (
         <div key={p.id} className="mx-4 mt-3 rounded-[12px] border border-brand bg-surface px-3.5 py-3 shadow-card">
           <div className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-accent-ink">
-            <DoopMark size={11} /> Memory suggestion
+            <DoopMark size={11} /> Vorschlag fürs Designwissen
           </div>
           <div className="mt-1.5 text-[13px] font-semibold leading-[1.45] text-ink">{p.rule.replace(/^-\s*/, '')}</div>
           <div className="mt-1.5 text-[11.5px] leading-[1.45] text-ink-faint">
-            {p.rationale} · from {p.basedOn.length} decision{p.basedOn.length === 1 ? '' : 's'} → “
+            {p.rationale} · aus {p.basedOn.length.toLocaleString('de-DE')}{' '}
+            {p.basedOn.length === 1 ? 'Entscheidung' : 'Entscheidungen'} → “
             {p.guideTitle ?? guideTitle({ name: p.guideName })}”
           </div>
           <div className="mt-2.5 flex justify-end gap-2">
@@ -100,7 +102,7 @@ export function MemoryPanel() {
               className="text-[11.5px]"
               onClick={() => api.resolveProposal(canvasId, p.id, false).catch(console.error)}
             >
-              Dismiss
+              Verwerfen
             </Button>
             <Button
               variant="primary"
@@ -108,19 +110,19 @@ export function MemoryPanel() {
               className="text-[11.5px]"
               onClick={() => api.resolveProposal(canvasId, p.id, true).catch(console.error)}
             >
-              Add to rules
+              Zu den Regeln hinzufügen
             </Button>
           </div>
         </div>
       ))}
 
       <ListSection>
-        <span>References</span>
+        <span>Referenzen</span>
       </ListSection>
       {references.length === 0 ? (
         <ListHint>
-          No references yet. Pin a frame you like (the 🧠 on its corner) and agents will copy its colors, type and
-          layout in new designs.
+          Noch keine Referenzen. Hefte eine Zeichenfläche an, die Dir gefällt (mit dem 🧠 in der Ecke). Agenten
+          übernehmen ihre Farben, Schriften und ihr Layout für neue Designs.
         </ListHint>
       ) : (
         references.map((r) => (
@@ -135,17 +137,17 @@ export function MemoryPanel() {
       )}
 
       <ListSection>
-        <span>Rules</span>
+        <span>Regeln</span>
         <Button
           variant="solid"
           size="sm"
           className="flex-none text-[11.5px] font-bold"
           onClick={() => setOpenGuide('')}
         >
-          + New
+          + Neu
         </Button>
       </ListSection>
-      {docs.length === 0 && <ListHint>Style guides every agent reads before designing here.</ListHint>}
+      {docs.length === 0 && <ListHint>Gestaltungsrichtlinien, die jeder Agent vor dem Gestalten hier liest.</ListHint>}
       {docs.map((d) => (
         <ListRow key={d.name} onClick={() => setOpenGuide(d.name)}>
           <ListTitle>{guideTitle(d)}</ListTitle>
@@ -159,7 +161,7 @@ export function MemoryPanel() {
       {decisions.length > 0 && (
         <>
           <ListSection>
-            <span>Decisions</span>
+            <span>Entscheidungen</span>
           </ListSection>
           {decisions.slice(0, 20).map((d) => (
             <ListItem key={d.id} title={d.summary ? `${d.from}: “${d.text}”` : undefined}>
@@ -167,7 +169,7 @@ export function MemoryPanel() {
               <ListMeta>
                 {d.from}
                 {d.agentName ? ` → ${d.agentName}` : ''} · {timeAgo(d.at)}
-                {d.distilledAt ? ' · distilled' : ''}
+                {d.distilledAt ? ' · in Regeln übernommen' : ''}
               </ListMeta>
             </ListItem>
           ))}
@@ -222,11 +224,11 @@ function RefModal({
   if (!reference) {
     return (
       <Modal size="xl" onClose={onClose}>
-        <ModalTitle className="sr-only">Reference</ModalTitle>
-        <ModalLede>This reference is no longer pinned.</ModalLede>
+        <ModalTitle className="sr-only">Referenz</ModalTitle>
+        <ModalLede>Diese Referenz ist nicht mehr angeheftet.</ModalLede>
         <ModalActions>
           <Button variant="ghost" onClick={onClose}>
-            Close
+            Schließen
           </Button>
         </ModalActions>
       </Modal>
@@ -240,12 +242,12 @@ function RefModal({
         <div className={modalHead}>
           <ModalTitle>{reference.title}</ModalTitle>
           <Badge tone="outline" className="rounded-full px-2 py-px">
-            {Math.round(reference.width)}×{Math.round(reference.height)}
+            {Math.round(reference.width).toLocaleString('de-DE')}×{Math.round(reference.height).toLocaleString('de-DE')}
           </Badge>
         </div>
         <div className={meta}>
-          pinned by {reference.pinnedBy} · {new Date(reference.pinnedAt).toLocaleString()} — agents copy this design’s
-          colors, type and layout in new work
+          angeheftet von {reference.pinnedBy} · {new Date(reference.pinnedAt).toLocaleString('de-DE')} – Agenten
+          übernehmen die Farben, Schriften und das Layout dieses Designs für neue Arbeiten
         </div>
         <div
           className="mt-3.5 overflow-auto rounded-[12px] border border-line bg-surface"
@@ -268,11 +270,11 @@ function RefModal({
               onClose()
             }}
           >
-            Unpin
+            Loslösen
           </Button>
           <ModalSpacer />
           <Button variant="ghost" onClick={onClose}>
-            Close
+            Schließen
           </Button>
         </ModalActions>
       </>
@@ -303,7 +305,7 @@ function GuideModal({ canvasId, name, onClose }: { canvasId: string; name: strin
       if (markdown.trim() && !creating) setMode('read')
       else onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message.replace(/^\d+\s*/, '') : 'save failed')
+      setError(errorMessage(e, 'Die Regel konnte nicht gespeichert werden. Versuche es erneut.'))
     } finally {
       setBusy(false)
     }
@@ -316,13 +318,13 @@ function GuideModal({ canvasId, name, onClose }: { canvasId: string; name: strin
       <>
         {editing ? (
           <>
-            <ModalTitle className="sr-only">{creating ? 'New rule' : 'Edit rule'}</ModalTitle>
+            <ModalTitle className="sr-only">{creating ? 'Neue Regel' : 'Regel bearbeiten'}</ModalTitle>
             <Input
               variant="well"
               inputSize="lg"
               className="font-display font-extrabold md:text-[19px]"
               autoFocus={creating}
-              placeholder="Name, e.g. “Featured Images”"
+              placeholder="Name, z. B. „Beitragsbilder“"
               value={titleDraft}
               maxLength={MAX_TITLE_CHARS}
               disabled={busy}
@@ -332,7 +334,7 @@ function GuideModal({ canvasId, name, onClose }: { canvasId: string; name: strin
             <Textarea
               className="mt-3 min-h-[38dvh] resize-y rounded-[12px] bg-surface px-4 py-3.5 font-mono leading-[1.65] focus:ring-0 sm:min-h-[46vh] md:text-[12.5px]"
               autoFocus={!creating}
-              placeholder={'# Rules\n\nPalette, fonts, layout recipes, asset URLs…'}
+              placeholder={'# Regeln\n\nFarbpalette, Schriften, Layoutvorlagen, Asset-URLs…'}
               value={draft}
               maxLength={MAX_GUIDELINE_CHARS}
               disabled={busy}
@@ -341,11 +343,11 @@ function GuideModal({ canvasId, name, onClose }: { canvasId: string; name: strin
             {error && <p className={errorText}>{error}</p>}
             <ModalActions className="items-center">
               <span className={meta}>
-                {draft.length.toLocaleString()} / {MAX_GUIDELINE_CHARS.toLocaleString()}
+                {draft.length.toLocaleString('de-DE')} / {MAX_GUIDELINE_CHARS.toLocaleString('de-DE')}
               </span>
               <ModalSpacer />
               <Button variant="ghost" disabled={busy} onClick={() => (creating ? onClose() : setMode('read'))}>
-                Cancel
+                Abbrechen
               </Button>
               <Button
                 variant="primary"
@@ -356,18 +358,18 @@ function GuideModal({ canvasId, name, onClose }: { canvasId: string; name: strin
                     : save(doc!.name, draft, titleDraft.trim() || undefined)
                 }
               >
-                {busy ? 'Saving…' : 'Save'}
+                {busy ? 'Wird gespeichert…' : 'Speichern'}
               </Button>
             </ModalActions>
           </>
         ) : !doc ? (
           /* deleted while open (possibly by someone else) */
           <>
-            <ModalTitle className="sr-only">Rule</ModalTitle>
-            <ModalLede>This design guide no longer exists.</ModalLede>
+            <ModalTitle className="sr-only">Regel</ModalTitle>
+            <ModalLede>Diese Gestaltungsrichtlinie existiert nicht mehr.</ModalLede>
             <ModalActions>
               <Button variant="ghost" onClick={onClose}>
-                Close
+                Schließen
               </Button>
             </ModalActions>
           </>
@@ -388,29 +390,29 @@ function GuideModal({ canvasId, name, onClose }: { canvasId: string; name: strin
               </Badge>
             </div>
             <div className={meta}>
-              edited by {doc.updatedBy} · {new Date(doc.updatedAt).toLocaleString()}
+              bearbeitet von {doc.updatedBy} · {new Date(doc.updatedAt).toLocaleString('de-DE')}
             </div>
             <MarkdownBlock>{doc.markdown}</MarkdownBlock>
             {error && <p className={errorText}>{error}</p>}
             <ModalActions>
               <Button variant="ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>
-                Delete
+                Löschen
               </Button>
               <ConfirmDialog
                 open={confirmDelete}
                 onOpenChange={setConfirmDelete}
-                title={`Delete “${guideTitle(doc)}”?`}
-                description="Agents stop designing with this rule from their next task. Its version history is kept, so you can restore it later."
-                confirmLabel="Delete guide"
+                title={`„${guideTitle(doc)}“ löschen?`}
+                description="Agenten verwenden diese Regel ab ihrer nächsten Aufgabe nicht mehr. Der Versionsverlauf bleibt erhalten, damit Du sie später wiederherstellen kannst."
+                confirmLabel="Richtlinie löschen"
                 destructive
                 onConfirm={() => save(doc.name, '')}
               />
               <ModalSpacer />
               <Button variant="ghost" disabled={busy} onClick={onClose}>
-                Close
+                Schließen
               </Button>
               <Button variant="ghost" disabled={busy} onClick={() => setMode('history')}>
-                History
+                Verlauf
               </Button>
               <Button
                 variant="primary"
@@ -422,7 +424,7 @@ function GuideModal({ canvasId, name, onClose }: { canvasId: string; name: strin
                   setMode('edit')
                 }}
               >
-                Edit
+                Bearbeiten
               </Button>
             </ModalActions>
           </>
@@ -454,7 +456,7 @@ function GuideHistory({
     api
       .guidelineHistory(canvasId, doc.name)
       .then((h) => alive && setVersions(h))
-      .catch((e) => alive && setError(e instanceof Error ? e.message.replace(/^\d+\s*/, '') : 'could not load history'))
+      .catch((e) => alive && setError(errorMessage(e, 'Der Verlauf konnte nicht geladen werden. Versuche es erneut.')))
     return () => {
       alive = false
     }
@@ -465,22 +467,23 @@ function GuideHistory({
   return (
     <>
       <div className={modalHead}>
-        <ModalTitle>{guideTitle(doc)} — history</ModalTitle>
+        <ModalTitle>{guideTitle(doc)} – Verlauf</ModalTitle>
       </div>
       {error && <p className={errorText}>{error}</p>}
       {preview ? (
         <>
           <div className={meta}>
-            {preview.markdown ? 'saved' : 'deleted'} by {preview.savedBy} · {new Date(preview.savedAt).toLocaleString()}
+            {preview.markdown ? 'gespeichert' : 'gelöscht'} von {preview.savedBy} ·{' '}
+            {new Date(preview.savedAt).toLocaleString('de-DE')}
           </div>
           {preview.markdown ? (
             <MarkdownBlock>{preview.markdown}</MarkdownBlock>
           ) : (
-            <ModalLede>This version marks a deletion — there is nothing to show.</ModalLede>
+            <ModalLede>Diese Version markiert eine Löschung. Es gibt nichts anzuzeigen.</ModalLede>
           )}
           <ModalActions>
             <Button variant="ghost" disabled={busy} onClick={() => setPreviewIdx(null)}>
-              Back
+              Zurück
             </Button>
             <ModalSpacer />
             <Button
@@ -488,14 +491,14 @@ function GuideHistory({
               disabled={busy || !preview.markdown || preview.markdown === doc.markdown}
               onClick={() => onRestore(preview.markdown)}
             >
-              {busy ? 'Restoring…' : 'Restore this version'}
+              {busy ? 'Wird wiederhergestellt…' : 'Diese Version wiederherstellen'}
             </Button>
           </ModalActions>
         </>
       ) : (
         <>
           <div className="mt-3.5 overflow-hidden rounded-[12px] border border-line bg-surface">
-            {versions?.length === 0 && <ModalLede>No versions recorded yet.</ModalLede>}
+            {versions?.length === 0 && <ModalLede>Noch keine Versionen gespeichert.</ModalLede>}
             {(versions ?? []).map((v, i) => (
               <ListRow
                 key={v.savedAt + v.savedBy}
@@ -504,21 +507,21 @@ function GuideHistory({
               >
                 <ListTitle>
                   {v.markdown === ''
-                    ? 'deleted'
+                    ? 'gelöscht'
                     : v.markdown === doc.markdown
-                      ? 'current'
+                      ? 'aktuell'
                       : `v${(versions?.length ?? 0) - i}`}
                 </ListTitle>
                 <ListSummary>{v.markdown ? summarize(v.markdown) : '—'}</ListSummary>
                 <ListMeta>
-                  {v.savedBy} · {new Date(v.savedAt).toLocaleString()}
+                  {v.savedBy} · {new Date(v.savedAt).toLocaleString('de-DE')}
                 </ListMeta>
               </ListRow>
             ))}
           </div>
           <ModalActions>
             <Button variant="ghost" disabled={busy} onClick={onBack}>
-              Back
+              Zurück
             </Button>
           </ModalActions>
         </>

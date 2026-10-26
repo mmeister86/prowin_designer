@@ -82,11 +82,11 @@ export function isCommunityCategory(value: unknown): value is CommunityCategory 
 
 export const COMMUNITY_CATEGORY_LABELS: Record<CommunityCategory, string> = {
   website: 'Websites',
-  app: 'Web apps',
+  app: 'Web-Apps',
   dashboard: 'Dashboards',
-  mobile: 'Mobile',
+  mobile: 'Mobil',
   marketing: 'Marketing',
-  other: 'Other',
+  other: 'Sonstiges',
 }
 
 /** One gallery card: what the community sees of a published canvas.

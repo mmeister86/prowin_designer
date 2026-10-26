@@ -44,6 +44,7 @@ import {
   endTicketUpload,
   createAsset,
   MAX_ASSET_BYTES,
+  AssetInputError,
 } from './assets.ts'
 import * as agentKeys from './agentKeys.ts'
 import * as backgrounds from './backgrounds.ts'
@@ -283,12 +284,14 @@ app.get('/i/:id.:ext', async (req, res) => {
       isAuthenticated: async () =>
         !!(await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null)),
     })
-  } catch (e) {
-    return res.status(500).json({ error: e instanceof Error ? e.message : 'render failed' })
+  } catch {
+    return res.status(500).json({ error: 'Die Vorschau konnte nicht erstellt werden.' })
   }
   if (result.status === 'rate-limited') {
     res.set('Retry-After', '60')
-    return res.status(429).json({ error: 'render rate limit — cached URLs are unaffected' })
+    return res
+      .status(429)
+      .json({ error: 'Zu viele Vorschauanfragen. Bereits zwischengespeicherte URLs bleiben verfügbar.' })
   }
   const { buf } = result
 
@@ -322,8 +325,8 @@ app.get('/a/:id.:ext', async (req, res) => {
       res.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'")
     if (req.query.download !== undefined) res.set('Content-Disposition', `attachment; filename="${id}.${ext}"`)
     res.send(found.buf)
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'asset fetch failed' })
+  } catch {
+    res.status(500).json({ error: 'Die Datei konnte nicht geladen werden.' })
   }
 })
 
@@ -341,8 +344,8 @@ app.get('/bg/:file', async (req, res) => {
     res.set('Cache-Control', 'public, max-age=31536000, immutable')
     res.set('X-Content-Type-Options', 'nosniff')
     res.send(buf)
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'background fetch failed' })
+  } catch {
+    res.status(500).json({ error: 'Der Hintergrund konnte nicht geladen werden.' })
   }
 })
 
@@ -358,15 +361,16 @@ app.put('/u/:token', async (req, res) => {
   const { token } = req.params
   const ticket = beginTicketUpload(token)
   if (!ticket)
-    return res
-      .status(410)
-      .json({ error: 'invalid, expired or already-used upload ticket — request a new one via the upload_asset tool' })
+    return res.status(410).json({
+      error:
+        'Die Upload-Freigabe ist ungültig, abgelaufen oder bereits verwendet. Fordere über upload_asset eine neue an.',
+    })
   let success = false
   try {
     /* on any early rejection, destroy the request stream — otherwise curl
        keeps sending a body nobody reads and the connection deadlocks */
     if (Number(req.headers['content-length'] || 0) > MAX_ASSET_BYTES) {
-      res.status(413).json({ error: 'file exceeds the 5 MB limit' })
+      res.status(413).json({ error: 'Die Datei überschreitet die Grenze von 5 MB.' })
       req.destroy()
       return
     }
@@ -375,7 +379,7 @@ app.put('/u/:token', async (req, res) => {
     for await (const chunk of req) {
       total += (chunk as Buffer).length
       if (total > MAX_ASSET_BYTES) {
-        res.status(413).json({ error: 'file exceeds the 5 MB limit' })
+        res.status(413).json({ error: 'Die Datei überschreitet die Grenze von 5 MB.' })
         req.destroy()
         return
       }
@@ -397,7 +401,9 @@ app.put('/u/:token', async (req, res) => {
       note: 'Permanent public URL — reference it in frame HTML.',
     })
   } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'upload failed' })
+    res
+      .status(400)
+      .json({ error: e instanceof AssetInputError ? e.message : 'Die Datei konnte nicht hochgeladen werden.' })
   } finally {
     endTicketUpload(token, success)
   }
@@ -422,7 +428,7 @@ app.all('/api/auth/*', async (req, res, next) => {
   if (restricted) {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null)
     if (session && (session.session as { impersonatedBy?: string | null }).impersonatedBy) {
-      return res.status(403).json({ error: 'viewing as another user — read only' })
+      return res.status(403).json({ error: 'Du siehst das Konto einer anderen Person und kannst nur lesen.' })
     }
   }
   toNodeHandler(auth)(req, res).catch(next)
@@ -434,7 +440,7 @@ app.all('/api/auth/*', async (req, res, next) => {
 app.post('/stripe/webhook', express.raw({ type: '*/*', limit: '1mb' }), (req, res) => {
   workspaces.handleStripeWebhook(req, res).catch((err) => {
     console.error('[billing] webhook crashed', err)
-    if (!res.headersSent) res.status(500).json({ error: 'webhook handling failed' })
+    if (!res.headersSent) res.status(500).json({ error: 'Der Webhook konnte nicht verarbeitet werden.' })
   })
 })
 
@@ -466,7 +472,7 @@ app.get(FIRST_CANVAS_PATH, async (req, res) => {
    endpoint reveals nothing new. */
 app.post('/api/account-exists', async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
-  if (!email) return res.status(400).json({ error: 'email required' })
+  if (!email) return res.status(400).json({ error: 'Bitte gib eine E-Mail-Adresse ein.' })
   const [row] = await db
     .select({ id: authSchema.user.id })
     .from(authSchema.user)
@@ -503,7 +509,7 @@ app.use('/api/live-activities', logLiveActivityRequests)
 app.use('/api', async (req, res, next) => {
   try {
     const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) })
-    if (!session) return res.status(401).json({ error: 'unauthorized' })
+    if (!session) return res.status(401).json({ error: 'Bitte melde Dich an.' })
     req.user = session.user
     req.impersonatedBy = (session.session as { impersonatedBy?: string | null }).impersonatedBy ?? undefined
     /* Viewing as someone else is read-only, full stop. Every doop mutation is
@@ -512,7 +518,7 @@ app.use('/api', async (req, res, next) => {
        better-auth's own routes are mounted earlier (/api/auth/*), so signing
        out and stop-impersonating are unaffected. */
     if (req.impersonatedBy && req.method !== 'GET') {
-      return res.status(403).json({ error: 'viewing as another user — read only' })
+      return res.status(403).json({ error: 'Du siehst das Konto einer anderen Person und kannst nur lesen.' })
     }
     next()
   } catch (err) {
@@ -570,7 +576,9 @@ app.get('/api/mcp-consent/:code', async (req, res, next) => {
     res.set('Cache-Control', 'no-store')
     const client = await mcpConsent(req.params.code!, req.user!.id)
     if (!client)
-      return res.status(404).json({ error: 'This connection request has expired. Start again from your agent.' })
+      return res
+        .status(404)
+        .json({ error: 'Diese Verbindungsanfrage ist abgelaufen. Starte sie erneut über Deinen Agenten.' })
     res.json(client)
   } catch (error) {
     next(error)
@@ -580,9 +588,12 @@ app.get('/api/mcp-consent/:code', async (req, res, next) => {
 app.post('/api/mcp-consent/:code', async (req, res, next) => {
   try {
     res.set('Cache-Control', 'no-store')
-    if (typeof req.body?.accept !== 'boolean') return res.status(400).json({ error: 'Choose whether to connect.' })
+    if (typeof req.body?.accept !== 'boolean')
+      return res.status(400).json({ error: 'Wähle aus, ob Du die Verbindung erlauben möchtest.' })
     if (!(await mcpConsent(req.params.code!, req.user!.id)))
-      return res.status(404).json({ error: 'This connection request has expired. Start again from your agent.' })
+      return res
+        .status(404)
+        .json({ error: 'Diese Verbindungsanfrage ist abgelaufen. Starte sie erneut über Deinen Agenten.' })
     const result = await auth.api.oAuthConsent({
       headers: fromNodeHeaders(req.headers),
       body: { accept: req.body.accept, consent_code: req.params.code! },
@@ -599,11 +610,11 @@ app.post('/api/mcp-consent/:code', async (req, res, next) => {
 function requireCanvas(req: express.Request, res: express.Response, canvasId: string) {
   const c = store.getCanvas(canvasId)
   if (!c) {
-    res.status(404).json({ error: 'not found' })
+    res.status(404).json({ error: 'Nicht gefunden' })
     return null
   }
   if (!canAccessCanvas(req.user!.id, c)) {
-    res.status(403).json({ error: 'this canvas is private — ask the owner for access' })
+    res.status(403).json({ error: 'Diese Arbeitsfläche ist privat. Bitte den Eigentümer um Zugriff.' })
     return null
   }
   return c
@@ -612,22 +623,24 @@ function requireCanvas(req: express.Request, res: express.Response, canvasId: st
 function requireFrame(req: express.Request, res: express.Response, frameId: string, expectedUpdatedAt?: unknown) {
   const frame = store.getFrame(frameId)
   if (!frame) {
-    res.status(404).json({ error: 'frame not found' })
+    res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
     return null
   }
   const c = store.getCanvas(frame.canvasId)
   if (!c || !canAccessCanvas(req.user!.id, c)) {
-    res.status(403).json({ error: 'this canvas is private — ask the owner for access' })
+    res.status(403).json({ error: 'Diese Arbeitsfläche ist privat. Bitte den Eigentümer um Zugriff.' })
     return null
   }
   if (expectedUpdatedAt !== undefined) {
     if (typeof expectedUpdatedAt !== 'number' || !Number.isSafeInteger(expectedUpdatedAt) || expectedUpdatedAt < 0) {
-      res.status(400).json({ error: 'expectedUpdatedAt must be a nonnegative integer' })
+      res.status(400).json({ error: 'expectedUpdatedAt muss eine nicht negative ganze Zahl sein.' })
       return null
     }
     // PATCH and DELETE mutate the store synchronously after this check.
     if (frame.updatedAt !== expectedUpdatedAt) {
-      res.status(409).json({ error: 'The frame changed while you were editing. Please try again.', frame })
+      res
+        .status(409)
+        .json({ error: 'Die Zeichenfläche wurde während Deiner Bearbeitung geändert. Versuche es erneut.', frame })
       return null
     }
   }
@@ -651,12 +664,12 @@ app.get('/api/agent-allowance', (req, res) => {
   allowance
     .getAllowance(req.user!.id)
     .then((a) => res.json(a))
-    .catch(() => res.status(500).json({ error: 'allowance unavailable' }))
+    .catch(() => res.status(500).json({ error: 'Das Aufgabenkontingent ist derzeit nicht verfügbar.' }))
 })
 
 /* Retired account API: never accept credentials or fall through to the SPA. */
 app.use('/api/model-account', (_req, res) => {
-  res.status(410).json({ error: 'Private model accounts have been removed' })
+  res.status(410).json({ error: 'Private Modellkonten wurden entfernt.' })
 })
 
 /* ---- which image model generate_image draws with (the shared registry;
@@ -665,7 +678,7 @@ app.use('/api/model-account', (_req, res) => {
 app.get('/api/image-model', (req, res) => {
   imageModelAvailability(req.user!.id)
     .then((models) => res.json({ models }))
-    .catch(() => res.status(500).json({ error: 'image models unavailable' }))
+    .catch(() => res.status(500).json({ error: 'Bildmodelle sind derzeit nicht verfügbar.' }))
 })
 
 app.put('/api/image-model', async (req, res) => {
@@ -673,12 +686,13 @@ app.put('/api/image-model', async (req, res) => {
     const model = String(req.body?.model ?? '')
     const models = await imageModelAvailability(req.user!.id)
     const entry = models.find((m) => m.id === model)
-    if (!entry) throw new Error('unknown image model')
-    if (!entry.available) throw new Error('that image model is not available on your account or this server')
+    if (!entry) return res.status(400).json({ error: 'Unbekanntes Bildmodell' })
+    if (!entry.available)
+      return res.status(400).json({ error: 'Dieses Bildmodell ist für Dein Konto oder diesen Server nicht verfügbar.' })
     await setImagePref(req.user!.id, model)
     res.json({ models: await imageModelAvailability(req.user!.id) })
-  } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'could not change the image model' })
+  } catch {
+    res.status(400).json({ error: 'Das Bildmodell konnte nicht geändert werden.' })
   }
 })
 
@@ -693,13 +707,16 @@ app.get('/api/agent-keys', async (req, res) => {
 
 app.post('/api/agent-keys', async (req, res) => {
   const key = await agentKeys.createAgentKey(req.user!.id, String(req.body?.name ?? ''))
-  if (!key) return res.status(400).json({ error: 'agent key limit reached — revoke one you no longer use' })
+  if (!key)
+    return res.status(400).json({
+      error: 'Die maximale Anzahl an Agentenschlüsseln ist erreicht. Widerrufe einen nicht mehr benötigten Schlüssel.',
+    })
   res.json(key)
 })
 
 app.delete('/api/agent-keys/:id', async (req, res) => {
   if (!(await agentKeys.deleteAgentKey(req.user!.id, req.params.id)))
-    return res.status(404).json({ error: 'agent key not found' })
+    return res.status(404).json({ error: 'Agentenschlüssel nicht gefunden' })
   res.json({ ok: true })
 })
 
@@ -728,7 +745,7 @@ app.get('/api/canvases', async (req, res) => {
       }
       return {
         ...c,
-        people: canvasPeopleIds(c.id).map((id) => ({ id, name: names.get(id) ?? 'Unknown' })),
+        people: canvasPeopleIds(c.id).map((id) => ({ id, name: names.get(id) ?? 'Unbekannt' })),
         agents: [...seen].slice(0, 8).map(([name, v]) => ({ name, owner: v.owner, lastAt: v.lastAt })),
         activeTasks: activeAgentTasks(actions.getTasks(c.id)),
       }
@@ -748,7 +765,7 @@ function canvasPeopleIds(canvasId: string): string[] {
 function requireGrowableWorkspace(req: express.Request, res: express.Response, workspaceId: string) {
   const ws = workspaces.getWorkspace(workspaceId)
   if (!ws || !workspaces.isWorkspaceMember(ws.id, req.user!.id)) {
-    res.status(404).json({ error: 'workspace not found' })
+    res.status(404).json({ error: 'Arbeitsbereich nicht gefunden' })
     return null
   }
   if (!workspaces.isActive(ws)) {
@@ -759,7 +776,7 @@ function requireGrowableWorkspace(req: express.Request, res: express.Response, w
 }
 
 app.post('/api/canvases', (req, res) => {
-  const name = String(req.body?.name || 'Untitled canvas')
+  const name = String(req.body?.name || 'Unbenannte Arbeitsfläche')
   const workspaceId = typeof req.body?.workspaceId === 'string' ? req.body.workspaceId : undefined
   if (workspaceId && !requireGrowableWorkspace(req, res, workspaceId)) return
   res.json(store.createCanvas(name, req.user!.id, workspaceId))
@@ -767,8 +784,8 @@ app.post('/api/canvases', (req, res) => {
 
 app.post('/api/canvases/:id/duplicate', async (req, res) => {
   const source = store.getCanvas(req.params.id)
-  if (!source) return res.status(404).json({ error: 'not found' })
-  if (!hasDurableCanvasAccess(req.user!.id, source)) return res.status(403).json({ error: 'access denied' })
+  if (!source) return res.status(404).json({ error: 'Nicht gefunden' })
+  if (!hasDurableCanvasAccess(req.user!.id, source)) return res.status(403).json({ error: 'Zugriff verweigert' })
   /* a copy stays in the workspace when the copier is a member of it and the
      workspace may still take canvases; otherwise it lands in their personal space */
   const sourceWs = source.workspaceId ? workspaces.getWorkspace(source.workspaceId) : undefined
@@ -781,7 +798,7 @@ app.post('/api/canvases/:id/duplicate', async (req, res) => {
     res.json(copy)
   } catch (error) {
     console.error('[canvas] duplicate failed', error)
-    res.status(500).json({ error: 'could not duplicate canvas' })
+    res.status(500).json({ error: 'Die Arbeitsfläche konnte nicht dupliziert werden.' })
   }
 })
 
@@ -801,8 +818,11 @@ app.put('/api/canvases/:id/publish', (req, res) => {
   const c = requireCanvas(req, res, req.params.id)
   if (!c) return
   if (!canvasCapabilities(c).publish)
-    return res.status(403).json({ error: 'only a Creator owner can publish a canvas' })
-  if (!publishableFrames(c).length) return res.status(400).json({ error: 'add a frame before publishing' })
+    return res
+      .status(403)
+      .json({ error: 'Nur ein Eigentümer mit Creator-Rolle kann eine Arbeitsfläche veröffentlichen.' })
+  if (!publishableFrames(c).length)
+    return res.status(400).json({ error: 'Füge vor dem Veröffentlichen eine Zeichenfläche hinzu.' })
   const listing = parseListing(req.body)
   if (typeof listing === 'string') return res.status(400).json({ error: listing })
   const published = store.publishCanvas(c.id, listing)!
@@ -813,7 +833,9 @@ app.delete('/api/canvases/:id/publish', (req, res) => {
   const c = requireCanvas(req, res, req.params.id)
   if (!c) return
   if (!canvasCapabilities(c).publish)
-    return res.status(403).json({ error: 'only a Creator owner can unpublish a canvas' })
+    return res
+      .status(403)
+      .json({ error: 'Nur ein Eigentümer mit Creator-Rolle kann die Veröffentlichung zurücknehmen.' })
   store.unpublishCanvas(c.id)
   res.json({ ok: true })
 })
@@ -827,16 +849,20 @@ app.put('/api/canvases/:id/workspace', (req, res) => {
   if (!c) return
   const target = req.body?.workspaceId
   if (target !== null && typeof target !== 'string')
-    return res.status(400).json({ error: 'workspaceId must be a workspace id or null' })
+    return res.status(400).json({ error: 'workspaceId muss die ID eines Arbeitsbereichs oder null sein.' })
   if (!canManageCanvas(req.user!.id, c))
-    return res.status(403).json({ error: 'only the canvas owner or a workspace admin can move it' })
+    return res.status(403).json({
+      error: 'Nur der Eigentümer der Arbeitsfläche oder die Administration des Arbeitsbereichs kann sie verschieben.',
+    })
   if (target !== null) {
     if (target === c.workspaceId) return res.json({ ok: true })
     /* an admin's say over a workspace canvas ends at moving it out: re-homing
        it into another workspace — one the owner may not even belong to — is
        the owner's call alone */
     if (c.ownerId !== req.user!.id)
-      return res.status(403).json({ error: 'only the canvas owner can move it into a workspace' })
+      return res
+        .status(403)
+        .json({ error: 'Nur der Eigentümer kann die Arbeitsfläche in einen Arbeitsbereich verschieben.' })
     if (!requireGrowableWorkspace(req, res, target)) return
   }
   store.setWorkspace(c.id, target ?? undefined)
@@ -845,7 +871,7 @@ app.put('/api/canvases/:id/workspace', (req, res) => {
 
 app.post('/api/canvases/:id/claim', (req, res) => {
   const c = store.claimCanvas(req.params.id, req.user!.id)
-  if (!c) return res.status(409).json({ error: 'not found or already owned' })
+  if (!c) return res.status(409).json({ error: 'Nicht gefunden oder bereits einem Eigentümer zugeordnet' })
   res.json({ ok: true })
 })
 
@@ -864,12 +890,12 @@ app.get('/api/home/activity', (req, res) => {
 
 app.delete('/api/canvases/:id', (req, res) => {
   const c = store.getCanvas(req.params.id)
-  if (!c) return res.status(404).json({ error: 'not found' })
+  if (!c) return res.status(404).json({ error: 'Nicht gefunden' })
   /* only the owner (or an admin of its workspace) may delete; unclaimed
      (legacy) canvases are reachable only by direct link and must be claimed
      before they can be destroyed */
-  if (!c.ownerId) return res.status(403).json({ error: 'claim it first' })
-  if (!canManageCanvas(req.user!.id, c)) return res.status(403).json({ error: 'not yours' })
+  if (!c.ownerId) return res.status(403).json({ error: 'Übernimm zuerst die Arbeitsfläche.' })
+  if (!canManageCanvas(req.user!.id, c)) return res.status(403).json({ error: 'Diese Arbeitsfläche gehört Dir nicht.' })
   actions.deleteCanvas(c.id)
   res.json({ ok: true })
 })
@@ -880,9 +906,10 @@ app.patch('/api/canvases/:id', (req, res) => {
   const { name, linkAccess } = req.body ?? {}
   /* the link policy is the owner's alone — collaborators can rename, not lock */
   if (linkAccess !== undefined) {
-    if (c.ownerId !== req.user!.id) return res.status(403).json({ error: 'only the owner can change link access' })
+    if (c.ownerId !== req.user!.id)
+      return res.status(403).json({ error: 'Nur der Eigentümer kann den Linkzugriff ändern.' })
     if (linkAccess !== 'edit' && linkAccess !== 'none')
-      return res.status(400).json({ error: 'linkAccess must be "edit" or "none"' })
+      return res.status(400).json({ error: 'linkAccess muss "edit" oder "none" sein.' })
     store.setLinkAccess(c.id, linkAccess)
   }
   if (typeof name === 'string' && name.trim()) {
@@ -913,7 +940,7 @@ app.get('/api/canvases/:id/members', async (req, res) => {
   res.json(
     ids.map((id) => ({
       userId: id,
-      name: byId.get(id)?.name ?? 'Unknown',
+      name: byId.get(id)?.name ?? 'Unbekannt',
       email: byId.get(id)?.email ?? '',
       owner: id === c.ownerId,
     })),
@@ -923,15 +950,18 @@ app.get('/api/canvases/:id/members', async (req, res) => {
 app.post('/api/canvases/:id/members', async (req, res) => {
   const c = requireCanvas(req, res, req.params.id)
   if (!c) return
-  if (c.ownerId !== req.user!.id) return res.status(403).json({ error: 'only the owner can invite people' })
+  if (c.ownerId !== req.user!.id) return res.status(403).json({ error: 'Nur der Eigentümer kann Personen einladen.' })
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
-  if (!email) return res.status(400).json({ error: 'email required' })
+  if (!email) return res.status(400).json({ error: 'Bitte gib eine E-Mail-Adresse ein.' })
   const [row] = await db
     .select({ id: authSchema.user.id, name: authSchema.user.name, email: authSchema.user.email })
     .from(authSchema.user)
     .where(eq(authSchema.user.email, email))
-  if (!row) return res.status(404).json({ error: 'no doop account with that email — ask them to sign up first' })
-  if (row.id === c.ownerId) return res.status(400).json({ error: 'the owner already has access' })
+  if (!row)
+    return res.status(404).json({
+      error: 'Für diese E-Mail-Adresse gibt es kein doop-Konto. Bitte die Person, sich zuerst zu registrieren.',
+    })
+  if (row.id === c.ownerId) return res.status(400).json({ error: 'Der Eigentümer hat bereits Zugriff.' })
   store.addMember(c.id, row.id, req.user!.id)
   res.json({ userId: row.id, name: row.name, email: row.email, owner: false })
 })
@@ -940,8 +970,9 @@ app.delete('/api/canvases/:id/members/:userId', (req, res) => {
   const c = requireCanvas(req, res, req.params.id)
   if (!c) return
   if (c.ownerId !== req.user!.id && req.params.userId !== req.user!.id)
-    return res.status(403).json({ error: 'only the owner can remove collaborators' })
-  if (!store.removeMember(c.id, req.params.userId)) return res.status(404).json({ error: 'not a collaborator' })
+    return res.status(403).json({ error: 'Nur der Eigentümer kann Mitarbeitende entfernen.' })
+  if (!store.removeMember(c.id, req.params.userId))
+    return res.status(404).json({ error: 'Diese Person arbeitet hier nicht mit.' })
   res.json({ ok: true })
 })
 
@@ -965,7 +996,7 @@ app.put('/api/canvases/:id/guidelines/:name', (req, res) => {
       ...(typeof title === 'string' ? { title } : {}),
     }
     if (!actions.patchGuideline(req.params.id, req.params.name, patch, actor))
-      return res.status(404).json({ error: 'not found' })
+      return res.status(404).json({ error: 'Nicht gefunden' })
     return res.json({ ok: true })
   }
   try {
@@ -978,10 +1009,10 @@ app.put('/api/canvases/:id/guidelines/:name', (req, res) => {
       pos,
       typeof title === 'string' ? title : undefined,
     )
-    if (doc === undefined) return res.status(404).json({ error: 'not found' })
+    if (doc === undefined) return res.status(404).json({ error: 'Nicht gefunden' })
     res.json(doc ? { ok: true, doc } : { ok: true, deleted: true })
   } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'invalid doc' })
+    res.status(400).json({ error: e instanceof Error ? e.message : 'Ungültiges Dokument' })
   }
 })
 
@@ -991,10 +1022,10 @@ app.post('/api/canvases/:id/references', (req, res) => {
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   try {
     const ref = actions.pinReference(req.params.id, String(req.body?.frameId ?? ''), actor)
-    if (!ref) return res.status(404).json({ error: 'canvas or frame not found' })
+    if (!ref) return res.status(404).json({ error: 'Arbeitsfläche oder Zeichenfläche nicht gefunden' })
     res.json(ref)
   } catch (e) {
-    res.status(400).json({ error: e instanceof Error ? e.message : 'pin failed' })
+    res.status(400).json({ error: e instanceof Error ? e.message : 'Die Referenz konnte nicht angeheftet werden.' })
   }
 })
 
@@ -1002,7 +1033,7 @@ app.delete('/api/canvases/:id/references/:refId', (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   if (!actions.unpinReference(req.params.id, req.params.refId, actor))
-    return res.status(404).json({ error: 'reference not found' })
+    return res.status(404).json({ error: 'Referenz nicht gefunden' })
   res.json({ ok: true })
 })
 
@@ -1010,7 +1041,7 @@ app.post('/api/canvases/:id/proposals/:pid', (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   const proposal = actions.resolveProposal(req.params.id, req.params.pid, !!req.body?.accept, actor)
-  if (!proposal) return res.status(404).json({ error: 'proposal not found' })
+  if (!proposal) return res.status(404).json({ error: 'Vorschlag nicht gefunden' })
   res.json(proposal)
 })
 
@@ -1034,7 +1065,9 @@ app.post(
          srcdoc iframes where root-relative URLs don't resolve */
       res.json({ url: `${env.BETTER_AUTH_URL}/a/${asset.id}.${asset.ext}`, mime: asset.mime, size: asset.size })
     } catch (e) {
-      res.status(400).json({ error: e instanceof Error ? e.message : 'upload failed' })
+      res
+        .status(400)
+        .json({ error: e instanceof AssetInputError ? e.message : 'Die Datei konnte nicht hochgeladen werden.' })
     }
   },
 )
@@ -1059,15 +1092,19 @@ app.put('/api/canvases/:id/pages', (req, res) => {
     ) ||
     new Set(pages.map((p) => p.id)).size !== pages.length
   ) {
-    return res.status(400).json({ error: 'Provide 1–100 pages with unique IDs and names of up to 100 characters.' })
+    return res
+      .status(400)
+      .json({ error: 'Gib 1–100 Seiten mit eindeutigen IDs und Namen mit höchstens 100 Zeichen an.' })
   }
   if (!samePages(req.body?.expectedPages, canvasPages(canvas)))
     return res
       .status(409)
-      .json({ error: 'Pages changed since you opened them. Please try again.', pages: canvasPages(canvas) })
+      .json({ error: 'Die Seiten wurden seit dem Öffnen geändert. Versuche es erneut.', pages: canvasPages(canvas) })
   const firstId = canvas.pages?.[0]?.id ?? `${canvas.id}:page1`
   if (canvas.frames.some((f) => !pages.some((p) => p.id === (f.pageId ?? firstId)))) {
-    return res.status(400).json({ error: 'Move the frames to another page before deleting this page.' })
+    return res
+      .status(400)
+      .json({ error: 'Verschiebe die Zeichenflächen auf eine andere Seite, bevor Du diese Seite löschst.' })
   }
   const clean = pages.map((p) => ({ id: p.id, name: p.name.trim() }))
   store.setPages(canvas.id, clean)
@@ -1080,16 +1117,16 @@ app.post('/api/canvases/:id/pages/:pageId/duplicate', async (req, res) => {
   const canvas = requireCanvas(req, res, req.params.id)
   if (!canvas) return
   if (!canvasPages(canvas).some((page) => page.id === req.params.pageId))
-    return res.status(404).json({ error: 'page not found' })
+    return res.status(404).json({ error: 'Seite nicht gefunden' })
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   try {
     const copy = await actions.duplicatePage(canvas.id, req.params.pageId, actor)
-    if (!copy) return res.status(404).json({ error: 'page not found' })
+    if (!copy) return res.status(404).json({ error: 'Seite nicht gefunden' })
     res.json({ page: copy.page, pages: copy.pages, frames: copy.frames })
   } catch (e) {
     if (e instanceof PageLimitError) return res.status(400).json({ error: e.message })
     console.error('[pages] duplicate failed', e)
-    res.status(500).json({ error: 'Could not duplicate the page. Please try again.' })
+    res.status(500).json({ error: 'Die Seite konnte nicht dupliziert werden. Versuche es erneut.' })
   }
 })
 
@@ -1097,13 +1134,13 @@ app.post('/api/canvases/:id/frames', (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
   const { name, pageId, x, y, width, height, html, hidden, locked } = req.body ?? {}
   if (pageId !== undefined && !store.getCanvas(req.params.id)?.pages?.some((p) => p.id === pageId))
-    return res.status(400).json({ error: 'page not found' })
+    return res.status(400).json({ error: 'Seite nicht gefunden' })
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   /* `hidden` and `locked` let undo bring a deleted frame back as it was */
   const frame = actions.createFrame(
     req.params.id,
     {
-      name: String(name || 'Frame'),
+      name: String(name || 'Zeichenfläche'),
       pageId,
       x,
       y,
@@ -1115,7 +1152,7 @@ app.post('/api/canvases/:id/frames', (req, res) => {
     },
     actor,
   )
-  if (!frame) return res.status(404).json({ error: 'canvas not found' })
+  if (!frame) return res.status(404).json({ error: 'Arbeitsfläche nicht gefunden' })
   res.json(frame)
 })
 
@@ -1128,7 +1165,7 @@ app.patch('/api/frames/:id', (req, res) => {
     patch.pageId !== undefined &&
     !store.getCanvas(store.getFrame(req.params.id)!.canvasId)?.pages?.some((p) => p.id === patch.pageId)
   )
-    return res.status(400).json({ error: 'page not found' })
+    return res.status(400).json({ error: 'Seite nicht gefunden' })
   const allowed = ['name', 'pageId', 'x', 'y', 'width', 'height', 'html'] as const
   const clean: Record<string, unknown> = {}
   for (const k of allowed) if (patch[k] !== undefined) clean[k] = patch[k]
@@ -1136,7 +1173,7 @@ app.patch('/api/frames/:id', (req, res) => {
   if (patch.hidden !== undefined) clean.hidden = patch.hidden === true
   if (patch.locked !== undefined) clean.locked = !!patch.locked
   const frame = actions.updateFrame(req.params.id, clean, actor)
-  if (!frame) return res.status(404).json({ error: 'frame not found' })
+  if (!frame) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
   res.json(frame)
 })
 
@@ -1148,7 +1185,7 @@ app.post('/api/frames/:id/append', (req, res) => {
     start: !!start,
     done: !!done,
   })
-  if (!frame) return res.status(404).json({ error: 'frame not found' })
+  if (!frame) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
   res.json({ ok: true, htmlBytes: frame.html.length })
 })
 
@@ -1156,7 +1193,7 @@ app.delete('/api/frames/:id', (req, res) => {
   if (!requireFrame(req, res, req.params.id, req.body?.expectedUpdatedAt)) return
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   const frame = actions.deleteFrame(req.params.id, actor)
-  if (!frame) return res.status(404).json({ error: 'frame not found' })
+  if (!frame) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
   res.json({ ok: true })
 })
 
@@ -1171,7 +1208,7 @@ app.get('/api/frames/:id/versions', async (req, res) => {
 app.get('/api/frames/:id/versions/:versionId', async (req, res) => {
   if (!requireFrame(req, res, req.params.id)) return
   const version = await persist.getFrameVersion(req.params.id, req.params.versionId)
-  if (!version) return res.status(404).json({ error: 'version not found' })
+  if (!version) return res.status(404).json({ error: 'Version nicht gefunden' })
   res.json(version)
 })
 
@@ -1179,8 +1216,8 @@ app.post('/api/frames/:id/versions/:versionId/restore', async (req, res) => {
   if (!requireFrame(req, res, req.params.id)) return
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   const restored = await actions.restoreFrameVersion(req.params.id, req.params.versionId, actor)
-  if (restored === null) return res.status(404).json({ error: 'version not found' })
-  if (!restored) return res.status(404).json({ error: 'frame not found' })
+  if (restored === null) return res.status(404).json({ error: 'Version nicht gefunden' })
+  if (!restored) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
   res.json(restored)
 })
 
@@ -1203,7 +1240,7 @@ app.post('/api/frames/:id/comments', async (req, res) => {
     req.user!.id,
     gate ? !gate.localAgent : undefined,
   )
-  if (!comment) return res.status(404).json({ error: 'frame not found or empty text' })
+  if (!comment) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden oder Text leer' })
   res.json(comment)
 })
 
@@ -1214,11 +1251,11 @@ app.post('/api/canvases/:id/comments', async (req, res) => {
   if (!canvas) return
   const { pageId, x, y, text } = req.body ?? {}
   if (typeof pageId !== 'string' || !canvasPages(canvas).some((page) => page.id === pageId)) {
-    return res.status(400).json({ error: 'page not found' })
+    return res.status(400).json({ error: 'Seite nicht gefunden' })
   }
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return res.status(400).json({ error: 'x and y must be numbers' })
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return res.status(400).json({ error: 'x und y müssen Zahlen sein.' })
   const body = String(text ?? '')
-  if (!body.trim()) return res.status(400).json({ error: 'empty text' })
+  if (!body.trim()) return res.status(400).json({ error: 'Bitte gib einen Text ein.' })
   let gate: Awaited<ReturnType<typeof allowance.consumeResidentTask>> | undefined
   if (mentionedRole(body)) {
     gate = await allowance.consumeResidentTask(req.user!.id)
@@ -1241,18 +1278,18 @@ app.post('/api/canvases/:id/comments', async (req, res) => {
         console.error(`[comments] could not refund a resident task for ${req.user!.id}:`, err)
       })
     }
-    return res.status(409).json({ error: 'page removed meanwhile' })
+    return res.status(409).json({ error: 'Die Seite wurde inzwischen entfernt.' })
   }
   res.json(comment)
 })
 
 app.post('/api/comments/:id/replies', async (req, res) => {
   const found = actions.findComment(req.params.id)
-  if (!found) return res.status(404).json({ error: 'comment not found' })
+  if (!found) return res.status(404).json({ error: 'Kommentar nicht gefunden' })
   if (!requireCanvas(req, res, found.canvasId)) return
   const text = String(req.body?.text ?? '')
   if (!text.trim() || !actions.openThread(req.params.id)) {
-    return res.status(404).json({ error: 'thread resolved or empty text' })
+    return res.status(404).json({ error: 'Die Diskussion ist erledigt oder der Text ist leer.' })
   }
   /* same rule as a fresh comment: only an @mention costs a resident task */
   let gate: Awaited<ReturnType<typeof allowance.consumeResidentTask>> | undefined
@@ -1278,21 +1315,21 @@ app.post('/api/comments/:id/replies', async (req, res) => {
         console.error(`[comments] could not refund a resident task for ${req.user!.id}:`, err)
       })
     }
-    return res.status(409).json({ error: 'thread resolved meanwhile' })
+    return res.status(409).json({ error: 'Die Diskussion wurde inzwischen erledigt.' })
   }
   res.json(reply)
 })
 
 app.post('/api/comments/:id/resolve', (req, res) => {
   const found = actions.findComment(req.params.id)
-  if (!found) return res.status(404).json({ error: 'comment not found' })
+  if (!found) return res.status(404).json({ error: 'Kommentar nicht gefunden' })
   if (!requireCanvas(req, res, found.canvasId)) return
   res.json(actions.resolveComment(req.params.id, req.user!.name))
 })
 
 app.post('/api/comments/:id/retry', async (req, res) => {
   const found = actions.findComment(req.params.id)
-  if (!found) return res.status(404).json({ error: 'comment not found' })
+  if (!found) return res.status(404).json({ error: 'Kommentar nicht gefunden' })
   if (!requireCanvas(req, res, found.canvasId)) return
   const gate = await allowance.consumeResidentTask(req.user!.id)
   if (!gate.ok) {
@@ -1304,7 +1341,7 @@ app.post('/api/comments/:id/retry', async (req, res) => {
 app.post('/api/canvases/:id/cards', async (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
   const title = String(req.body?.title ?? '').trim()
-  if (!title) return res.status(400).json({ error: 'empty title' })
+  if (!title) return res.status(400).json({ error: 'Bitte gib einen Titel ein.' })
   const gate = await allowance.consumeResidentTask(req.user!.id)
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
@@ -1319,14 +1356,14 @@ app.post('/api/canvases/:id/cards', async (req, res) => {
     req.body?.scope,
     !gate.localAgent,
   )
-  if (!card) return res.status(404).json({ error: 'canvas not found or empty title' })
+  if (!card) return res.status(404).json({ error: 'Arbeitsfläche nicht gefunden oder Titel leer' })
   res.json(card)
 })
 
 app.post('/api/canvases/:canvasId/cards/:id/done', (req, res) => {
   if (!requireCanvas(req, res, req.params.canvasId)) return
   const card = actions.completeCard(req.params.canvasId, req.params.id)
-  if (!card) return res.status(404).json({ error: 'card not found' })
+  if (!card) return res.status(404).json({ error: 'Aufgabenkarte nicht gefunden' })
   res.json(card)
 })
 
@@ -1337,28 +1374,28 @@ app.post('/api/canvases/:canvasId/cards/:id/retry', async (req, res) => {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
   }
   const card = actions.retryCard(req.params.canvasId, req.params.id, req.user!.name, !gate.localAgent)
-  if (!card) return res.status(404).json({ error: 'card not found' })
+  if (!card) return res.status(404).json({ error: 'Aufgabenkarte nicht gefunden' })
   res.json(card)
 })
 
 app.post('/api/tasks/:id/feedback', async (req, res) => {
   const canvasId = actions.taskCanvasId(req.params.id)
-  if (!canvasId) return res.status(404).json({ error: 'task not found' })
+  if (!canvasId) return res.status(404).json({ error: 'Aufgabe nicht gefunden' })
   if (!requireCanvas(req, res, canvasId)) return
   const text = String(req.body?.text ?? '').trim()
-  if (!text) return res.status(400).json({ error: 'empty text' })
+  if (!text) return res.status(400).json({ error: 'Bitte gib einen Text ein.' })
   const gate = await allowance.consumeResidentTask(req.user!.id)
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
   }
   const fb = actions.addTaskFeedback(req.params.id, req.user!.name, text, req.user!.id, !gate.localAgent)
-  if (!fb) return res.status(404).json({ error: 'task not found or empty text' })
+  if (!fb) return res.status(404).json({ error: 'Aufgabe nicht gefunden oder Text leer' })
   res.json(fb)
 })
 
 app.post('/api/feedback/:id/retry', async (req, res) => {
   const found = actions.findFeedback(req.params.id)
-  if (!found) return res.status(404).json({ error: 'feedback not found' })
+  if (!found) return res.status(404).json({ error: 'Rückmeldung nicht gefunden' })
   if (!requireCanvas(req, res, found.canvasId)) return
   const gate = await allowance.consumeResidentTask(req.user!.id)
   if (!gate.ok) {
@@ -1374,8 +1411,8 @@ app.get('/api/frames/:id/screenshot.png', async (req, res) => {
     const { renderFrame } = await import('./screenshot.ts')
     const png = await renderFrame(frame, req.query.scale === '2' ? 2 : 1)
     res.type('png').send(png)
-  } catch (e) {
-    res.status(500).json({ error: e instanceof Error ? e.message : 'render failed' })
+  } catch {
+    res.status(500).json({ error: 'Die Vorschau konnte nicht erstellt werden.' })
   }
 })
 
@@ -1437,7 +1474,23 @@ app.get('/sitemap.xml', (_req, res) => {
 
 app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (error instanceof CreatorPermissionError) return res.status(403).json({ error: error.message })
-  next(error)
+  if (res.headersSent) return next(error)
+  console.error('[api] request failed', error)
+  const status =
+    error &&
+    typeof error === 'object' &&
+    'status' in error &&
+    typeof error.status === 'number' &&
+    error.status >= 400 &&
+    error.status <= 599
+      ? error.status
+      : 500
+  res.status(status).json({
+    error:
+      status < 500
+        ? 'Die Anfrage enthält ungültige Daten. Prüfe Deine Eingabe.'
+        : 'Die Anfrage konnte nicht verarbeitet werden. Versuche es erneut.',
+  })
 })
 
 /* production: serve the built client */
@@ -1468,7 +1521,7 @@ wss.on('connection', (ws, upgradeReq) => {
     if (msg.type === 'join') {
       const session = await sessionPromise
       if (!session) {
-        ws.close(4401, 'unauthorized')
+        ws.close(4401, 'Bitte melde Dich an.')
         return
       }
       const canvas = store.getCanvas(msg.canvasId)
@@ -1477,7 +1530,7 @@ wss.on('connection', (ws, upgradeReq) => {
            instead of leaving the socket open with nothing ever coming back.
            The client used to sit on a blank, unusable canvas UI forever
            waiting for an 'init' that would never arrive. */
-        ws.close(4404, 'not found')
+        ws.close(4404, 'Nicht gefunden')
         return
       }
       if (!canAccessCanvas(session.user.id, canvas)) {

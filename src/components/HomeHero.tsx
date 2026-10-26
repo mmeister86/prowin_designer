@@ -56,34 +56,34 @@ const chipIcon = { width: 13, height: 13 } as const
 const ALL_CHIPS: Chip[] = [
   {
     id: 'landing',
-    label: 'Draft a landing page',
+    label: 'Landingpage entwerfen',
     icon: <LayoutTemplateIcon {...chipIcon} />,
-    prompt: 'Draft a landing page for ',
+    prompt: 'Entwirf eine Landingpage für ',
   },
   {
     id: 'recap',
-    label: 'Recap a session',
+    label: 'Sitzung zusammenfassen',
     icon: <CalendarIcon {...chipIcon} />,
-    prompt: 'Recap what happened on my canvases this week, as one summary frame.',
+    prompt: 'Fasse die Ereignisse dieser Woche auf meinen Arbeitsflächen in einer Zeichenfläche zusammen.',
   },
   {
     id: 'changed',
-    label: 'What changed',
+    label: 'Was hat sich geändert',
     icon: <HistoryIcon {...chipIcon} />,
-    prompt: 'What changed across my canvases this week?',
+    prompt: 'Was hat sich diese Woche auf meinen Arbeitsflächen geändert?',
   },
   {
     id: 'automation',
-    label: 'Run an automation',
+    label: 'Automatisierung ausführen',
     icon: <span className="font-mono text-caption">/</span>,
     action: 'onAutomations',
   },
-  { id: 'agents', label: 'Connect your agents', icon: <CirclePlusIcon {...chipIcon} />, action: 'onConnectAgents' },
+  { id: 'agents', label: 'Verbinde Deine Agenten', icon: <CirclePlusIcon {...chipIcon} />, action: 'onConnectAgents' },
   {
     id: 'comments',
-    label: 'Review comments',
+    label: 'Kommentare prüfen',
     icon: <MessageSquareIcon {...chipIcon} />,
-    prompt: 'Go through the open comments on my canvases and address each one.',
+    prompt: 'Gehe die offenen Kommentare auf meinen Arbeitsflächen durch und bearbeite jeden einzelnen.',
   },
 ]
 
@@ -190,7 +190,7 @@ export function HomeHero({
           <DoopMark animated size="fill" className="block" />
         </span>
         <h1 className="font-hero text-title font-light leading-none md:text-display">
-          Ask me what to design{firstName ? ', ' : ''}
+          Frag mich, was ich gestalten soll{firstName ? ', ' : ''}
           {firstName && <span className="text-ink-faint">{firstName}</span>}
         </h1>
       </div>
@@ -247,8 +247,8 @@ export function HomeHero({
             rows={1}
             value={text}
             disabled={busy}
-            placeholder="What changed across my canvases this week?"
-            aria-label="Ask Doop what to design"
+            placeholder="Was hat sich diese Woche auf meinen Arbeitsflächen geändert?"
+            aria-label="Sag Doop, was gestaltet werden soll"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}
             className="min-h-[52px] text-lead placeholder:text-ink-ghost md:text-lead"
@@ -259,15 +259,15 @@ export function HomeHero({
               <DropdownMenuTrigger asChild>
                 <MenuButton
                   variant="quiet"
-                  aria-label={`Drafts per prompt: ${drafts}`}
+                  aria-label={`Entwürfe pro Eingabe: ${drafts.toLocaleString('de-DE')}`}
                   className="whitespace-nowrap"
                   icon={<CopyIcon width={14} height={14} />}
                 >
-                  {drafts} {drafts === 1 ? 'draft' : 'drafts'}
+                  {drafts.toLocaleString('de-DE')} {drafts === 1 ? 'Entwurf' : 'Entwürfe'}
                 </MenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="end" width="md">
-                <DropdownMenuCaption>Drafts per prompt</DropdownMenuCaption>
+                <DropdownMenuCaption>Entwürfe pro Eingabe</DropdownMenuCaption>
                 <DropdownMenuRadioGroup
                   value={String(drafts)}
                   onValueChange={(next) => {
@@ -279,9 +279,13 @@ export function HomeHero({
                     <DropdownMenuRadioItem
                       key={n}
                       value={String(n)}
-                      description={n === 1 ? 'One take on the brief' : `${n} takes, side by side, to pick from`}
+                      description={
+                        n === 1
+                          ? 'Ein Entwurf zum Auftrag'
+                          : `${n.toLocaleString('de-DE')} Entwürfe nebeneinander zur Auswahl`
+                      }
                     >
-                      {n} {n === 1 ? 'draft' : 'drafts'}
+                      {n.toLocaleString('de-DE')} {n === 1 ? 'Entwurf' : 'Entwürfe'}
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
@@ -291,7 +295,7 @@ export function HomeHero({
               variant="primary"
               size="lg"
               shape="round"
-              aria-label="Send"
+              aria-label="Senden"
               disabled={busy || !text.trim()}
               onClick={submit}
             >

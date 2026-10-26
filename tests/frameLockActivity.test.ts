@@ -46,27 +46,27 @@ describe('frame lock activity', () => {
   it('logs a lock and an unlock', () => {
     const frame = actions.createFrame(canvasId, { name: 'Hero' }, user)!
     actions.updateFrame(frame.id, { locked: true }, user)
-    expect(messages()).toContain('locked “Hero”')
+    expect(messages()).toContain('hat “Hero” gesperrt')
     actions.updateFrame(frame.id, { locked: false }, user)
-    expect(messages()).toContain('unlocked “Hero”')
+    expect(messages()).toContain('hat “Hero” entsperrt')
   })
 
   it('keeps the lock line when the same update also renames or redesigns the frame', () => {
     const frame = actions.createFrame(canvasId, { name: 'Hero' }, user)!
     /* an agent's update_frame may carry name and locked together */
     actions.updateFrame(frame.id, { name: 'Hero v2', locked: true }, agent)
-    expect(messages()).toContain('renamed “Hero” to “Hero v2”')
-    expect(messages()).toContain('locked “Hero v2”')
+    expect(messages()).toContain('hat “Hero” in “Hero v2” umbenannt')
+    expect(messages()).toContain('hat “Hero v2” gesperrt')
 
     actions.updateFrame(frame.id, { html: '<h1>Hi</h1>', locked: false }, user)
-    expect(messages()).toContain('updated the design of “Hero v2”')
-    expect(messages()).toContain('unlocked “Hero v2”')
+    expect(messages()).toContain('hat das Design von “Hero v2” aktualisiert')
+    expect(messages()).toContain('hat “Hero v2” entsperrt')
   })
 
   it('stays quiet when the lock does not change', () => {
     const frame = actions.createFrame(canvasId, { name: 'Hero' }, user)!
     actions.updateFrame(frame.id, { locked: false }, user)
     actions.updateFrame(frame.id, { x: 10, locked: false }, user)
-    expect(messages().filter((m) => m.includes('locked'))).toEqual([])
+    expect(messages().filter((m) => /gesperrt|entsperrt/.test(m))).toEqual([])
   })
 })

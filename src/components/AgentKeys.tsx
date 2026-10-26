@@ -48,7 +48,7 @@ export function AgentKeys() {
     api.listAgentKeys().then(setKeys, (e: unknown) => {
       console.error(e)
       setKeys([])
-      setError(errorMessage(e, 'Your keys could not be loaded'))
+      setError(errorMessage(e, 'Deine Schlüssel konnten nicht geladen werden'))
     })
   }, [])
 
@@ -61,7 +61,7 @@ export function AgentKeys() {
       setMinted({ id: info.id, secret })
       setKeys((current) => [info, ...(current ?? [])])
     } catch (e) {
-      setError(errorMessage(e, 'That key could not be created'))
+      setError(errorMessage(e, 'Der Schlüssel konnte nicht erstellt werden'))
     } finally {
       setMinting(false)
     }
@@ -73,26 +73,26 @@ export function AgentKeys() {
       setKeys((current) => current?.filter((k) => k.id !== key.id) ?? null)
       if (minted?.id === key.id) setMinted(null)
     } catch (e) {
-      setError(errorMessage(e, 'That key could not be revoked'))
+      setError(errorMessage(e, 'Der Schlüssel konnte nicht widerrufen werden'))
     }
   }
 
   return (
     <SettingsCard>
       <CardHeader>
-        <CardTitle>Agent keys</CardTitle>
+        <CardTitle>Agentenschlüssel</CardTitle>
         <CardDescription>
-          Bearer credentials for the MCP endpoint, for agents that cannot open a browser to sign in — a Mastra workflow,
-          n8n, CI. A key acts as you: everything it designs is attributed to you, and it reaches exactly the canvases
-          you can. Revoking cuts it off immediately.
+          Bearer-Zugangsdaten für den MCP-Endpunkt für Agenten, die zur Anmeldung keinen Browser öffnen können — etwa
+          Mastra-Workflows, n8n oder CI. Ein Schlüssel handelt in Deinem Namen: Alle Designs werden Dir zugeordnet und
+          er erreicht genau die Arbeitsflächen, auf die Du Zugriff hast. Ein Widerruf sperrt den Zugriff sofort.
         </CardDescription>
       </CardHeader>
 
       <CardRow
-        label="New key"
+        label="Neuer Schlüssel"
         action={
           <Button size="sm" disabled={minting || keys === null} onClick={mint}>
-            {minting ? 'Creating…' : 'Create key'}
+            {minting ? 'Wird erstellt…' : 'Schlüssel erstellen'}
           </Button>
         }
         control={
@@ -102,9 +102,9 @@ export function AgentKeys() {
               setName(e.target.value)
               setError('')
             }}
-            placeholder="What will use it, e.g. mastra-prod"
+            placeholder="Wofür wird er verwendet, z. B. mastra-prod"
             maxLength={60}
-            aria-label="Agent key name"
+            aria-label="Name des Agentenschlüssels"
           />
         }
       >
@@ -112,11 +112,13 @@ export function AgentKeys() {
       </CardRow>
 
       {minted && (
-        <CardRow label="Your new key">
+        <CardRow label="Dein neuer Schlüssel">
           <div className="min-w-0 flex-1">
-            <Note tone="success">Copy it now — it is shown once and stored hashed.</Note>
+            <Note tone="success">Kopiere ihn jetzt — er wird nur einmal angezeigt und als Hash gespeichert.</Note>
             <CodeBlock className="mt-2" text={minted.secret} />
-            <p className="mb-1.5 mt-3 text-caption font-medium text-ink-faint">MCP config for a headless client</p>
+            <p className="mb-1.5 mt-3 text-caption font-medium text-ink-faint">
+              MCP-Konfiguration für einen Client ohne Browser
+            </p>
             <CodeBlock text={headlessConfig(minted.secret)} />
           </div>
         </CardRow>
@@ -127,29 +129,36 @@ export function AgentKeys() {
           key={key.id}
           label={key.name}
           action={
-            <Button size="sm" variant="ghost" aria-label={`Revoke ${key.name}`} onClick={() => setConfirmRevoke(key)}>
-              <TrashIcon /> Revoke
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`Widerrufen: ${key.name}`}
+              onClick={() => setConfirmRevoke(key)}
+            >
+              <TrashIcon /> Widerrufen
             </Button>
           }
         >
           <span className="font-mono text-body text-ink-soft">{key.start}…</span>
           <Note>
-            created {timeAgo(key.createdAt)}
-            {key.lastUsedAt ? ` · last used ${timeAgo(key.lastUsedAt)}` : ' · never used'}
+            erstellt {timeAgo(key.createdAt)}
+            {key.lastUsedAt ? ` · zuletzt verwendet ${timeAgo(key.lastUsedAt)}` : ' · noch nie verwendet'}
           </Note>
         </CardRow>
       ))}
       {keys && keys.length === 0 && !minted && (
-        <CardRow label="No keys yet">
-          <Note>Interactive clients (Claude Code, Codex) don’t need one — they sign in with OAuth.</Note>
+        <CardRow label="Noch keine Schlüssel">
+          <Note>
+            Interaktive Clients (Claude Code, Codex) brauchen keinen Schlüssel — sie melden sich über OAuth an.
+          </Note>
         </CardRow>
       )}
       <ConfirmDialog
         open={!!confirmRevoke}
         onOpenChange={(open) => !open && setConfirmRevoke(null)}
-        title={`Revoke “${confirmRevoke?.name ?? ''}”?`}
-        description="Agents using it lose access immediately."
-        confirmLabel="Revoke key"
+        title={`„${confirmRevoke?.name ?? ''}“ widerrufen?`}
+        description="Agenten, die ihn verwenden, verlieren sofort ihren Zugriff."
+        confirmLabel="Schlüssel widerrufen"
         destructive
         onConfirm={() => {
           const target = confirmRevoke

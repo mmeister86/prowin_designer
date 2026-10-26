@@ -97,7 +97,9 @@ describe('addCanvasComment', () => {
   it('reaches the room and the activity feed, and the event bus without a frame', () => {
     const c = place()!
     expect(broadcast).toHaveBeenCalledWith('c1', { type: 'comment', comment: c })
-    expect(actions.getActivity(CANVAS.id)[0]?.message).toBe('commented on the canvas: “Move the pricing closer”')
+    expect(actions.getActivity(CANVAS.id)[0]?.message).toBe(
+      'hat die Arbeitsfläche kommentiert: “Move the pricing closer”',
+    )
     expect(seen).toEqual([{ type: 'comment.created', comment: c, frame: undefined, actorKind: 'user' }])
   })
 
@@ -128,7 +130,9 @@ describe('threads on a canvas comment', () => {
     expect(reply).toMatchObject({ parentId: root.id, pageId: 'p1', x: 820, y: 240, selector: '', snippet: '' })
     expect(reply.frameId).toBeUndefined()
     expect(actions.commentThread(reply).map((c) => c.text)).toEqual(['Move the pricing closer', 'Agreed'])
-    expect(actions.getActivity(CANVAS.id)[0]?.message).toBe('replied to a comment on the canvas: “Agreed”')
+    expect(actions.getActivity(CANVAS.id)[0]?.message).toBe(
+      'hat auf einen Kommentar auf der Arbeitsfläche geantwortet: “Agreed”',
+    )
   })
 
   it('resolves like any thread and reports the resolution without a frame', () => {
@@ -207,7 +211,7 @@ describe('where a canvas comment leads', () => {
     expect(chosen).toMatchObject({ pageId: 'p2', x: 5, y: 6 })
     /* a card run (no comment) keeps the store's own placement */
     expect(createFrameInput({ html: '<html></html>' }, undefined, CANVAS)).toEqual({
-      name: 'Frame',
+      name: 'Unbenannte Zeichenfläche',
       width: 800,
       height: 500,
       html: '<html></html>',

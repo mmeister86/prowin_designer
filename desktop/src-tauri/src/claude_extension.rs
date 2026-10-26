@@ -7,7 +7,7 @@ use tauri_plugin_opener::OpenerExt;
 
 fn validate_bundle(bundle: &[u8]) -> Result<(), String> {
     if bundle.len() < 4 || bundle.len() > 20 * 1024 * 1024 || !bundle.starts_with(b"PK\x03\x04") {
-        return Err("The Claude extension could not be prepared. Please try again.".into());
+        return Err("Die Claude-Erweiterung konnte nicht vorbereitet werden. Versuche es erneut.".into());
     }
     Ok(())
 }
@@ -33,13 +33,13 @@ pub async fn claude_add_extension(app: AppHandle, bundle: Vec<u8>) -> Result<(),
                 .status()
                 .map_err(|e| e.to_string())?;
             if !status.success() {
-                return Err("Install Claude Desktop, then try Add to Claude again.".into());
+                return Err("Installiere Claude Desktop und versuche es dann erneut mit „Zu Claude hinzufügen“.".into());
             }
         }
         #[cfg(not(target_os = "macos"))]
         app.opener()
             .open_path(path.to_string_lossy().into_owned(), None::<String>)
-            .map_err(|_| "Install Claude Desktop, then try Add to Claude again.".to_string())?;
+            .map_err(|_| "Installiere Claude Desktop und versuche es dann erneut mit „Zu Claude hinzufügen“.".to_string())?;
 
         Ok(())
     })

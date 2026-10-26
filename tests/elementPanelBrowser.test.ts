@@ -78,7 +78,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     const iframe = (await (await page.waitForSelector('iframe'))!.contentFrame())!
     await iframe.waitForSelector('#text')
     await page.evaluate(() => window.elementPanelHarness.select('#text'))
-    await page.waitForSelector('select[aria-label="Font family"]')
+    await page.waitForSelector('select[aria-label="Schriftfamilie"]')
   }, 60_000)
 
   afterAll(async () => {
@@ -90,7 +90,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   })
 
   it('edits fonts and alignment through the sandbox, persists them, and supports undo and RTL', async () => {
-    const selector = 'select[aria-label="Font family"]'
+    const selector = 'select[aria-label="Schriftfamilie"]'
     const frame = (await (await page.$('iframe'))!.contentFrame())!
     const initial = await page.$eval(selector, (el) => (el as HTMLSelectElement).value)
     expect(initial).toBe('"Editorial Face", serif')
@@ -100,7 +100,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
         (options) => options.filter((o) => o.textContent === 'Editorial Face').length,
       ),
     ).toBe(1)
-    expect(await page.$eval('[aria-label="Align left"]', (el) => el.getAttribute('data-state'))).toBe('on')
+    expect(await page.$eval('[aria-label="Linksbündig"]', (el) => el.getAttribute('data-state'))).toBe('on')
 
     await page.select(selector, 'Georgia, serif')
     await frame.waitForFunction(
@@ -109,7 +109,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await expect.poll(() => saved.html).toContain('font-family: Georgia, serif')
     await page.evaluate(() => window.elementPanelHarness.undo())
     await page.waitForFunction(
-      (value) => document.querySelector<HTMLSelectElement>('select[aria-label="Font family"]')?.value === value,
+      (value) => document.querySelector<HTMLSelectElement>('select[aria-label="Schriftfamilie"]')?.value === value,
       {},
       initial,
     )
@@ -125,25 +125,25 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       getComputedStyle(document.querySelector('#text')!).fontFamily.includes('Display Face'),
     )
     await page.select(selector, 'Georgia, serif')
-    await page.click('[aria-label="Align center"]')
+    await page.click('[aria-label="Zentriert"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#text')!).textAlign === 'center')
     await page.keyboard.press('ArrowRight')
-    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Align right')
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'Rechtsbündig')
     await page.keyboard.press('Space')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#text')!).textAlign === 'right')
-    await page.click('[aria-label="Justify"]')
+    await page.click('[aria-label="Blocksatz"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#text')!).textAlign === 'justify')
     await expect.poll(() => saved.html).toContain('text-align: justify')
     await page.screenshot({ path: '/tmp/narwhal-element-panel.png' })
 
     await page.evaluate(() => window.elementPanelHarness.select('#rtl'))
-    await page.waitForSelector('[aria-label="Align right"][data-state="on"]')
+    await page.waitForSelector('[aria-label="Rechtsbündig"][data-state="on"]')
     await page.waitForFunction(() => !document.querySelector('[aria-busy]'))
     expect(await page.$eval(selector, (el) => (el as HTMLSelectElement).value)).toBe(initial)
     await page.evaluate(() => window.elementPanelHarness.select('#rtl-end'))
-    await page.waitForSelector('[aria-label="Align left"][data-state="on"]')
+    await page.waitForSelector('[aria-label="Linksbündig"][data-state="on"]')
     await page.waitForFunction(() => !document.querySelector('[aria-busy]'))
-    await page.click('[aria-label="Align center"]')
+    await page.click('[aria-label="Zentriert"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#rtl-end')!).textAlign === 'center')
     expect(await frame.$eval('#text', (el) => getComputedStyle(el).textAlign)).toBe('justify')
   }, 30_000)
@@ -166,9 +166,9 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.evaluate(() => window.elementPanelHarness.select('#late-text'))
     await page.waitForFunction(
       () =>
-        document.querySelector<HTMLSelectElement>('select[aria-label="Font family"]')?.value === 'Arial, sans-serif',
+        document.querySelector<HTMLSelectElement>('select[aria-label="Schriftfamilie"]')?.value === 'Arial, sans-serif',
     )
-    const options = 'select[aria-label="Font family"] option'
+    const options = 'select[aria-label="Schriftfamilie"] option'
     expect(await page.$$eval(options, (options) => options.map((o) => o.textContent))).not.toContain('Late Arrival')
 
     await (
@@ -179,7 +179,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       body: '@font-face { font-family: "Late Arrival"; src: local("Arial") }',
     })
     await page.waitForFunction(() =>
-      Array.from(document.querySelectorAll('select[aria-label="Font family"] option')).some(
+      Array.from(document.querySelectorAll('select[aria-label="Schriftfamilie"] option')).some(
         (option) => option.textContent === 'Late Arrival',
       ),
     )
@@ -207,7 +207,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await frame.waitForSelector(selector)
     await selectLayer(selector)
     // Selection may initially show the previous read while the new one is debounced.
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '120')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '120')
     return frame
   }
 
@@ -227,45 +227,47 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       </style></head><body><div id="flex"><div>A</div><div>B</div></div></body></html>`,
       '#flex',
     )
-    await page.waitForSelector('[aria-label="Align children middle center"][aria-pressed="true"]')
-    expect(await page.$eval('[aria-label="Horizontal padding"]', (el) => (el as HTMLInputElement).placeholder)).toBe(
-      'Mixed',
+    await page.waitForSelector('[aria-label="Unterelemente mittig zentriert ausrichten"][aria-pressed="true"]')
+    expect(
+      await page.$eval('[aria-label="Horizontaler Innenabstand"]', (el) => (el as HTMLInputElement).placeholder),
+    ).toBe('Gemischt')
+    expect(await page.$eval('[aria-label="Horizontaler Innenabstand"]', (el) => (el as HTMLInputElement).value)).toBe(
+      '',
     )
-    expect(await page.$eval('[aria-label="Horizontal padding"]', (el) => (el as HTMLInputElement).value)).toBe('')
-    await page.click('[aria-label="Space between"]')
+    await page.click('[aria-label="Abstand dazwischen"]')
     await frame.waitForFunction(
       () => getComputedStyle(document.querySelector('#flex')!).justifyContent === 'space-between',
     )
-    await page.click('[aria-label="Align children bottom right"]')
+    await page.click('[aria-label="Unterelemente unten rechts ausrichten"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).alignItems === 'flex-end')
     expect(await frame.$eval('#flex', (el) => getComputedStyle(el).justifyContent)).toBe('space-between')
-    await number('Gap', 14)
+    await number('Abstand', 14)
     expect(await frame.$eval('#flex', (el) => getComputedStyle(el).rowGap)).toBe('7px')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).columnGap === '14px')
-    await page.click('[aria-label="Column direction"]')
+    await page.click('[aria-label="Spaltenrichtung"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).flexDirection === 'column')
     expect(await frame.$eval('#flex', (el) => getComputedStyle(el).display)).toBe('inline-flex')
-    await page.click('[aria-label="Reverse direction"]')
+    await page.click('[aria-label="Richtung umkehren"]')
     await frame.waitForFunction(
       () => getComputedStyle(document.querySelector('#flex')!).flexDirection === 'column-reverse',
     )
-    await page.click('[aria-label="Wrap children"]')
-    await page.waitForSelector('[aria-label="Line gap"]')
-    await number('Line gap', 18)
+    await page.click('[aria-label="Unterelemente umbrechen"]')
+    await page.waitForSelector('[aria-label="Zeilenabstand"]')
+    await number('Zeilenabstand', 18)
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).columnGap === '18px')
     expect(await frame.$eval('#flex', (el) => getComputedStyle(el).rowGap)).toBe('7px')
-    await number('Horizontal padding', 24)
+    await number('Horizontaler Innenabstand', 24)
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).padding === '8px 24px 16px')
     await expect.poll(() => saved.html).toContain('padding-right: 24px')
     // Reopen the saved result, starting a fresh undo history outside the edit burst.
     await seedPanel(saved.html, '#flex')
-    await page.click('[aria-label="Individual padding"]')
-    await number('Padding top', 30)
+    await page.click('[aria-label="Einzelne Innenabstände"]')
+    await number('Innenabstand oben', 30)
     await expect.poll(() => saved.html).toContain('padding-top: 30px')
     await page.evaluate(() => window.elementPanelHarness.undo())
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).padding === '8px 24px 16px')
     await page.waitForFunction(
-      () => document.querySelector<HTMLInputElement>('[aria-label="Padding top"]')?.value === '8',
+      () => document.querySelector<HTMLInputElement>('[aria-label="Innenabstand oben"]')?.value === '8',
     )
   }, 20_000)
 
@@ -287,7 +289,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       </style></head><body><div id="flex"><div></div><div></div></div></body></html>`,
       '#flex',
     )
-    await page.click('[aria-label="Align children bottom right"]')
+    await page.click('[aria-label="Unterelemente unten rechts ausrichten"]')
     await frame.waitForFunction(() => {
       const parent = document.querySelector('#flex')!
       const bounds = parent.getBoundingClientRect()
@@ -299,7 +301,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
         Math.min(...children.map((r) => r.top)) > bounds.top + 60
       )
     })
-    await page.waitForSelector('[aria-label="Align children bottom right"][aria-pressed="true"]')
+    await page.waitForSelector('[aria-label="Unterelemente unten rechts ausrichten"][aria-pressed="true"]')
   })
 
   it('positions and aligns transformed layers without disturbing siblings; saves and undoes geometry', async () => {
@@ -315,7 +317,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     const sibling = await frame.$eval('#sibling', (el) => el.getBoundingClientRect().toJSON())
     const originalTransform = await frame.$eval('#box', (el) => getComputedStyle(el).transform)
     const before = await frame.$eval('#box', (el) => (el as HTMLElement).style.translate)
-    await number('X position', 40)
+    await number('X-Position', 40)
     await frame.waitForFunction(
       () =>
         Math.abs(
@@ -324,7 +326,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
             40,
         ) < 0.1,
     )
-    await number('Y position', 30)
+    await number('Y-Position', 30)
     await frame.waitForFunction(
       () =>
         Math.abs(
@@ -335,12 +337,12 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     )
 
     for (const [label, axis, fraction] of [
-      ['Align layer left', 'x', 0],
-      ['Center layer horizontally', 'x', 0.5],
-      ['Align layer right', 'x', 1],
-      ['Align layer top', 'y', 0],
-      ['Center layer vertically', 'y', 0.5],
-      ['Align layer bottom', 'y', 1],
+      ['Ebene links ausrichten', 'x', 0],
+      ['Ebene horizontal zentrieren', 'x', 0.5],
+      ['Ebene rechts ausrichten', 'x', 1],
+      ['Ebene oben ausrichten', 'y', 0],
+      ['Ebene vertikal zentrieren', 'y', 0.5],
+      ['Ebene unten ausrichten', 'y', 1],
     ] as const) {
       await page.click(`[aria-label="${label}"]`)
       await frame.waitForFunction(
@@ -357,18 +359,18 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     }
     expect(await frame.$eval('#sibling', (el) => el.getBoundingClientRect().toJSON())).toEqual(sibling)
     expect(await frame.$eval('#box', (el) => getComputedStyle(el).position)).toBe('static')
-    await number('Rotation', 45)
+    await number('Drehung', 45)
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).rotate === '25deg')
-    await page.click('[aria-label="Flip horizontally"]')
+    await page.click('[aria-label="Horizontal spiegeln"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).scale === '-1.2 0.8')
-    await page.click('[aria-label="Flip horizontally"]')
+    await page.click('[aria-label="Horizontal spiegeln"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).scale === '1.2 0.8')
-    await page.click('[aria-label="Flip vertically"]')
+    await page.click('[aria-label="Vertikal spiegeln"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#box')!).scale === '1.2 -0.8')
     expect(await frame.$eval('#box', (el) => getComputedStyle(el).transform)).toBe(originalTransform)
     await expect.poll(() => saved.html).toContain('scale: 1.2 -0.8')
     const previousSave = saved.html
-    await number('X position', 80)
+    await number('X-Position', 80)
     await expect.poll(() => saved.html).not.toBe(previousSave)
     await page.evaluate(() => window.elementPanelHarness.undo())
     await frame.waitForFunction(
@@ -376,20 +378,18 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       {},
       before,
     )
-    await page.waitForFunction(
-      () => document.querySelector<HTMLInputElement>('[aria-label="Rotation"]')?.value === '20',
-    )
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Drehung"]')?.value === '20')
     await page.screenshot({ path: '/tmp/narwhal-panel-controls.png' })
     await selectLayer('#sibling')
-    await page.waitForSelector('[aria-label="X position"][disabled]')
+    await page.waitForSelector('[aria-label="X-Position"][disabled]')
     expect(await frame.$eval('#sibling', (el) => el.getAttribute('style'))).toBeNull()
     await selectLayer('#inline')
     await page.waitForFunction(
-      () => document.querySelector<HTMLSelectElement>('[aria-label="Display"]')?.value === 'inline',
+      () => document.querySelector<HTMLSelectElement>('[aria-label="Darstellung"]')?.value === 'inline',
     )
-    expect(await page.$eval('[aria-label="Rotation"]', (el) => (el as HTMLInputElement).disabled)).toBe(true)
+    expect(await page.$eval('[aria-label="Drehung"]', (el) => (el as HTMLInputElement).disabled)).toBe(true)
     await selectLayer('#canvas')
-    await page.waitForSelector('[aria-label="Rotation"]:not([disabled])')
+    await page.waitForSelector('[aria-label="Drehung"]:not([disabled])')
   }, 30_000)
 
   it('preserves fill RGB/alpha independently of element opacity, clips content, and reads nonstandard weights', async () => {
@@ -401,40 +401,40 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       '#paint',
     )
     await page.waitForFunction(
-      () => document.querySelector<HTMLInputElement>('[aria-label="Fill opacity"]')?.value === '35',
+      () => document.querySelector<HTMLInputElement>('[aria-label="Deckkraft der Füllung"]')?.value === '35',
     )
-    expect(await page.$eval('[aria-label="Font weight"]', (el) => (el as HTMLSelectElement).value)).toBe('450')
-    await number('Fill opacity', 80)
+    expect(await page.$eval('[aria-label="Schriftstärke"]', (el) => (el as HTMLSelectElement).value)).toBe('450')
+    await number('Deckkraft der Füllung', 80)
     await frame.waitForFunction(
       () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(10, 20, 30, 0.8)',
     )
-    await number('Fill color', '#e5533c')
+    await number('Füllfarbe', '#e5533c')
     await frame.waitForFunction(
       () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(229, 83, 60, 0.8)',
     )
-    await number('Fill opacity', 0)
+    await number('Deckkraft der Füllung', 0)
     await frame.waitForFunction(
       () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(229, 83, 60, 0)',
     )
-    await number('Fill opacity', 60)
+    await number('Deckkraft der Füllung', 60)
     await frame.waitForFunction(
       () => getComputedStyle(document.querySelector('#paint')!).backgroundColor === 'rgba(229, 83, 60, 0.6)',
     )
     expect(await frame.$eval('#paint', (el) => getComputedStyle(el).opacity)).toBe('0.5')
-    await page.click('[aria-label="Clip content"]')
+    await page.click('[aria-label="Inhalt beschneiden"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).overflow === 'visible')
-    await number('Corner radius', 12)
+    await number('Eckenradius', 12)
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).borderRadius === '12px')
     await expect.poll(() => saved.html).toContain('overflow: visible')
-    await page.click('[aria-label="Hide element"]')
+    await page.click('[aria-label="Element ausblenden"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).visibility === 'hidden')
-    await page.click('[aria-label="Show element"]')
+    await page.click('[aria-label="Element einblenden"]')
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#paint')!).visibility === 'visible')
     await selectLayer('#modern')
     await page.waitForFunction(
-      () => document.querySelector<HTMLInputElement>('[aria-label="Fill opacity"]')?.value === '40',
+      () => document.querySelector<HTMLInputElement>('[aria-label="Deckkraft der Füllung"]')?.value === '40',
     )
-    await number('Fill opacity', 25)
+    await number('Deckkraft der Füllung', 25)
     await frame.waitForFunction(() =>
       getComputedStyle(document.querySelector('#modern')!).backgroundColor.endsWith('/ 0.25)'),
     )
@@ -450,21 +450,21 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     </style></head><body><div id="row"><div id="sized">Size</div><div id="other">Other</div></div></body></html>`,
       '#sized',
     )
-    expect(await page.$eval('[aria-label="Width sizing"]', (el) => (el as HTMLSelectElement).value)).toBe('fixed')
-    await page.select('[aria-label="Width sizing"]', 'fill')
+    expect(await page.$eval('[aria-label="Breitenanpassung"]', (el) => (el as HTMLSelectElement).value)).toBe('fixed')
+    await page.select('[aria-label="Breitenanpassung"]', 'fill')
     await frame.waitForFunction(() => document.querySelector('#sized')!.getBoundingClientRect().width === 324)
-    await page.select('[aria-label="Height sizing"]', 'fill')
+    await page.select('[aria-label="Höhenanpassung"]', 'fill')
     await frame.waitForFunction(() => document.querySelector('#sized')!.getBoundingClientRect().height === 240)
     await page.waitForFunction(
-      () => document.querySelector<HTMLSelectElement>('[aria-label="Height sizing"]')?.value === 'fill',
+      () => document.querySelector<HTMLSelectElement>('[aria-label="Höhenanpassung"]')?.value === 'fill',
     )
-    await number('Width', 140)
+    await number('Breite', 140)
     await frame.waitForFunction(() => getComputedStyle(document.querySelector('#sized')!).width === '140px')
     expect(await frame.$eval('#sized', (el) => getComputedStyle(el).flexGrow)).toBe('0')
-    await page.select('[aria-label="Width sizing"]', 'hug')
+    await page.select('[aria-label="Breitenanpassung"]', 'hug')
     await frame.waitForFunction(() => document.querySelector<HTMLElement>('#sized')!.style.width === 'fit-content')
     expect(await frame.$eval('#sized', (el) => el.getBoundingClientRect().width)).toBeLessThan(120)
-    await page.select('[aria-label="Width sizing"]', 'auto')
+    await page.select('[aria-label="Breitenanpassung"]', 'auto')
     await frame.waitForFunction(() => document.querySelector<HTMLElement>('#sized')!.style.width === 'auto')
     await expect.poll(() => saved.html).toContain('width: auto')
   }, 20_000)
@@ -538,9 +538,9 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     </style></head><body><div id="vertical"><div id="vertical-child">Size</div><div id="vertical-sibling">Other</div></div></body></html>`,
         '#vertical-child',
       )
-      const main = direction === 'row' ? 'Height' : 'Width'
-      const cross = direction === 'row' ? 'Width' : 'Height'
-      await page.select(`[aria-label="${cross} sizing"]`, 'fill')
+      const main = direction === 'row' ? 'Höhe' : 'Breite'
+      const cross = direction === 'row' ? 'Breite' : 'Höhe'
+      await page.select(`[aria-label="${cross === 'Breite' ? 'Breitenanpassung' : 'Höhenanpassung'}"]`, 'fill')
       await frame.waitForFunction(
         (direction) => {
           const r = document.querySelector('#vertical-child')!.getBoundingClientRect()
@@ -550,7 +550,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
         direction,
       )
       expect(await frame.$eval('#vertical-child', (el) => getComputedStyle(el).flexGrow)).toBe('0')
-      await page.select(`[aria-label="${main} sizing"]`, 'fill')
+      await page.select(`[aria-label="${main === 'Breite' ? 'Breitenanpassung' : 'Höhenanpassung'}"]`, 'fill')
       await frame.waitForFunction(
         (direction) => {
           const r = document.querySelector('#vertical-child')!.getBoundingClientRect()
@@ -568,7 +568,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
         direction,
       )
       expect(await frame.$eval('#vertical-child', (el) => getComputedStyle(el).flexGrow)).toBe('0')
-      await expect.poll(() => saved.html).toContain(`${main.toLowerCase()}: 100px`)
+      await expect.poll(() => saved.html).toContain(`${main === 'Breite' ? 'width' : 'height'}: 100px`)
     },
     15_000,
   )
@@ -582,13 +582,13 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       '#fractional-child',
     )
     expect(await frame.$eval('#fractional-child', (el) => getComputedStyle(el).borderLeftWidth)).toBe('1.5px')
-    for (const axis of ['Width', 'Height']) {
-      await page.select(`[aria-label="${axis} sizing"]`, 'fill')
+    for (const axis of ['Breite', 'Höhe']) {
+      await page.select(`[aria-label="${axis === 'Breite' ? 'Breitenanpassung' : 'Höhenanpassung'}"]`, 'fill')
       await frame.waitForFunction(
         (axis) => {
           const parent = document.querySelector('#fractional')!.getBoundingClientRect()
           const child = document.querySelector('#fractional-child')!.getBoundingClientRect()
-          return Math.abs(axis === 'Width' ? parent.right - child.right : parent.bottom - child.bottom) < 0.01
+          return Math.abs(axis === 'Breite' ? parent.right - child.right : parent.bottom - child.bottom) < 0.01
         },
         {},
         axis,
@@ -616,11 +616,11 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.evaluate(() => window.elementPanelHarness.select('#scrub'))
     const width = await frame.$eval('#scrub', (el) => String(parseFloat(getComputedStyle(el).width)))
     await page.waitForFunction(
-      (width) => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === width,
+      (width) => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === width,
       {},
       width,
     )
-    await page.click('[aria-label="Individual padding"]')
+    await page.click('[aria-label="Einzelne Innenabstände"]')
     return frame
   }
 
@@ -655,7 +655,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       ;(el as HTMLElement).style.transition = 'all 1s'
     })
     const original = saved.html
-    const point = await startScrub('X position')
+    const point = await startScrub('X-Position')
     await page.mouse.move(point.x - 30, point.y)
     await frame.waitForFunction(() => (document.querySelector('#box') as HTMLElement).style.translate === '-20px 5px')
     expect(await frame.$eval('#box', (el) => el.getBoundingClientRect().x)).toBe(-20)
@@ -666,9 +666,9 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     expect(saved.html).toBe(original)
     await frame.$eval('#box', (el) => el.getAnimations().forEach((animation) => animation.finish()))
     await page.waitForFunction(
-      () => document.querySelector<HTMLInputElement>('[aria-label="X position"]')?.value === '10',
+      () => document.querySelector<HTMLInputElement>('[aria-label="X-Position"]')?.value === '10',
     )
-    await drag('X position', -30)
+    await drag('X-Position', -30)
     await expect.poll(() => saved.html).toContain('translate: -20px 5px')
     await page.evaluate(() => window.elementPanelHarness.undo())
     await frame.waitForFunction(() => (document.querySelector('#box') as HTMLElement).style.translate === '10px 5px')
@@ -677,20 +677,20 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   it('scrubs live in both directions, saves, and undoes/redoes the edit', async () => {
     const frame = await seedScrubTarget()
     const original = saved.html
-    const { x, y } = await startScrub('Width')
+    const { x, y } = await startScrub('Breite')
     await page.mouse.move(x + 2, y)
     await page.mouse.up()
     expect(saved.html).toBe(original)
-    expect(await page.$eval('[aria-label="Width"]', (el) => (el as HTMLInputElement).value)).toBe('120')
+    expect(await page.$eval('[aria-label="Breite"]', (el) => (el as HTMLInputElement).value)).toBe('120')
 
-    await startScrub('Width')
+    await startScrub('Breite')
     // Capture keeps the drag alive even when the pointer crosses the iframe.
     await page.mouse.move(200, y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '0px')
     await page.keyboard.press('Escape')
     await page.mouse.up()
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
-    await startScrub('Width')
+    await startScrub('Breite')
     await page.mouse.move(x + 24, y, { steps: 6 })
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '144px')
     // The live canvas changes before release; reversing is relative to the same drag.
@@ -708,15 +708,15 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   it('covers numeric units, padding shorthand, CSS lengths, modifiers, and bounds', async () => {
     const frame = await seedScrubTarget()
     for (const [label, dx, property, expected, modifier] of [
-      ['Height', 4, 'height', '120px', 'Shift'],
-      ['Gap', 8, 'column-gap', '18px'],
-      ['Padding top', 5, 'padding-top', '9px'],
-      ['Element opacity', 40, 'opacity', '1'],
-      ['Element opacity', -150, 'opacity', '0'],
-      ['Border width', 4, 'border-width', '6px'],
-      ['Corner radius', -10, 'border-radius', '0px'],
-      ['Font size', 4, 'font-size', '18.4px', 'Alt'],
-      ['Minimum width', 5, 'min-width', '2rem', 'Alt'],
+      ['Höhe', 4, 'height', '120px', 'Shift'],
+      ['Abstand', 8, 'column-gap', '18px'],
+      ['Innenabstand oben', 5, 'padding-top', '9px'],
+      ['Deckkraft des Elements', 40, 'opacity', '1'],
+      ['Deckkraft des Elements', -150, 'opacity', '0'],
+      ['Rahmenbreite', 4, 'border-width', '6px'],
+      ['Eckenradius', -10, 'border-radius', '0px'],
+      ['Schriftgröße', 4, 'font-size', '18.4px', 'Alt'],
+      ['Mindestbreite', 5, 'min-width', '2rem', 'Alt'],
     ] as const) {
       await drag(label, dx, modifier)
       await frame.waitForFunction(
@@ -728,7 +728,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       )
     }
     // Reversing after hitting a bound responds immediately, without a dead zone.
-    const { x, y } = await startScrub('Element opacity')
+    const { x, y } = await startScrub('Deckkraft des Elements')
     await page.mouse.move(x - 20, y)
     await page.mouse.move(x - 15, y)
     await page.mouse.up()
@@ -739,7 +739,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
 
   it('cancels with Escape and cleans up capture when interrupted or selection changes', async () => {
     const frame = await seedScrubTarget()
-    let point = await startScrub('Width')
+    let point = await startScrub('Breite')
     await page.mouse.move(point.x + 20, point.y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
     await page.keyboard.press('Escape')
@@ -747,7 +747,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.mouse.up()
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
 
-    point = await startScrub('Height')
+    point = await startScrub('Höhe')
     await page.mouse.move(point.x + 10, point.y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.height === '90px')
     await page.evaluate(() => window.dispatchEvent(new Event('blur')))
@@ -755,9 +755,9 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.mouse.up()
     expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.height)).toBe('90px')
 
-    point = await startScrub('Width')
+    point = await startScrub('Breite')
     await page.evaluate(() => window.elementPanelHarness.select('#other'))
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '200')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '200')
     await page.mouse.move(point.x + 30, point.y)
     await page.mouse.up()
     expect(await frame.$eval('#other', (el) => (el as HTMLElement).style.width)).toBe('200px')
@@ -766,39 +766,41 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
 
   it('preserves typing and keyboard adjustment and leaves nonnumeric lengths alone', async () => {
     const frame = await seedScrubTarget()
-    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.click('[aria-label="Breite"]', { count: 3 })
     await page.keyboard.type('123')
     await page.keyboard.press('Enter')
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '123px')
-    await page.click('[aria-label="Width"]')
+    await page.click('[aria-label="Breite"]')
     await page.keyboard.press('ArrowUp')
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '124px')
-    await page.click('[aria-label="Minimum width"]', { count: 3 })
+    await page.click('[aria-label="Mindestbreite"]', { count: 3 })
     await page.keyboard.type('auto')
     await page.keyboard.press('Enter')
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.minWidth === 'auto')
-    const unit = (await page.$('label:has(input[aria-label="Minimum width"]) > span'))!
+    const unit = (await page.$('label:has(input[aria-label="Mindestbreite"]) > span'))!
     expect(await unit.evaluate((el) => getComputedStyle(el).cursor)).not.toBe('ew-resize')
     await expect.poll(() => saved.html).toContain('min-width: auto')
   }, 15_000)
 
   it('reconciles the displayed value with computed CSS after a drag finishes', async () => {
     const frame = await seedScrubTarget()
-    const { x, y } = await startScrub('Width')
+    const { x, y } = await startScrub('Breite')
     await page.mouse.move(x - 150, y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '0px')
     // CSS min-width prevents the rendered width from reaching zero. The live
     // draft stays under pointer control until release, then reflects that limit.
-    expect(await page.$eval('[aria-label="Width"]', (el) => (el as HTMLInputElement).value)).toBe('0')
+    expect(await page.$eval('[aria-label="Breite"]', (el) => (el as HTMLInputElement).value)).toBe('0')
     const computed = await frame.$eval('#scrub', (el) => String(parseFloat(getComputedStyle(el).width)))
     await page.mouse.up()
-    await expect.poll(() => page.$eval('[aria-label="Width"]', (el) => (el as HTMLInputElement).value)).toBe(computed)
+    await expect.poll(() => page.$eval('[aria-label="Breite"]', (el) => (el as HTMLInputElement).value)).toBe(computed)
 
-    const padding = await startScrub('Padding top')
+    const padding = await startScrub('Innenabstand oben')
     await page.mouse.move(padding.x - 30, padding.y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.paddingTop === '0px')
     await page.mouse.up()
-    await expect.poll(() => page.$eval('[aria-label="Padding top"]', (el) => (el as HTMLInputElement).value)).toBe('0')
+    await expect
+      .poll(() => page.$eval('[aria-label="Innenabstand oben"]', (el) => (el as HTMLInputElement).value))
+      .toBe('0')
     await expect.poll(() => saved.html).toContain('padding: 0px 8px 12px 16px')
   }, 15_000)
 
@@ -815,7 +817,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
         )
       })
     const original = await inline()
-    for (const label of ['Width', 'Height', 'Padding top', 'Gap', 'Border width']) {
+    for (const label of ['Breite', 'Höhe', 'Innenabstand oben', 'Abstand', 'Rahmenbreite']) {
       const point = await startScrub(label)
       await page.mouse.move(point.x + 10, point.y)
       await expect.poll(inline).not.toEqual(original)
@@ -832,7 +834,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   it('saves a paused drag as one undo step and drops a paused cancellation', async () => {
     const frame = await seedScrubTarget()
     const original = saved.html
-    let point = await startScrub('Width')
+    let point = await startScrub('Breite')
     await page.mouse.move(point.x + 20, point.y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
     // Longer than both the runtime's save debounce and history's merge window.
@@ -845,16 +847,16 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
     await page.evaluate(() => window.elementPanelHarness.redo())
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '160px')
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '160')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '160')
 
     // A second completed drag remains a separate undo step, even immediately afterward.
-    await drag('Width', 10)
+    await drag('Breite', 10)
     await expect.poll(() => saved.html).toContain('width: 170px')
     await page.evaluate(() => window.elementPanelHarness.undo())
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '160px')
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '160')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '160')
     const beforeCancel = saved.html
-    point = await startScrub('Width')
+    point = await startScrub('Breite')
     await page.mouse.move(point.x + 30, point.y)
     await new Promise((resolve) => setTimeout(resolve, 2100))
     await page.keyboard.press('Escape')
@@ -870,17 +872,17 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     const frame = await seedScrubTarget('width:120px;height:80px')
     const box = (await (await frame.$('#scrub'))!.boundingBox())!
     await page.mouse.click(box.x + 20, box.y + 10, { count: 2, delay: 60 })
-    await page.waitForSelector('[title="Save and finish editing (Esc)"]')
+    await page.waitForSelector('[title="Speichern und Bearbeitung beenden (Esc)"]')
     await selectLayer('#scrub')
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '120')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '120')
     writes = []
     await frame.click('#scrub')
     await frame.waitForSelector('#scrub[contenteditable]')
     await page.keyboard.press('End')
     await page.keyboard.type(' typed')
     // Like picking the layer in Layers, move keyboard focus back to the panel.
-    await page.click('[aria-label="Width"]')
-    const point = await startScrub('Width')
+    await page.click('[aria-label="Breite"]')
+    const point = await startScrub('Breite')
     await page.mouse.move(point.x + 20, point.y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
     await new Promise((resolve) => setTimeout(resolve, 500))
@@ -900,13 +902,13 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       ),
     ).toBe('120px')
     expect(writes).toHaveLength(1)
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '120')
-    await drag('Width', 30)
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '120')
+    await drag('Breite', 30)
     await expect.poll(() => saved.html).toContain('width: 150px')
     expect(saved.html).toContain('typed')
     expect(writes).toHaveLength(2)
-    await page.click('[title="Save and finish editing (Esc)"]')
-    await page.waitForFunction(() => !document.querySelector('[title="Save and finish editing (Esc)"]'))
+    await page.click('[title="Speichern und Bearbeitung beenden (Esc)"]')
+    await page.waitForFunction(() => !document.querySelector('[title="Speichern und Bearbeitung beenden (Esc)"]'))
     await page.evaluate(() => window.elementPanelHarness.undo())
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
     expect(saved.html).toContain('typed')
@@ -918,7 +920,7 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
 
   it('keeps remote edits when a preview is cancelled', async () => {
     const frame = await seedScrubTarget('width:50%;height:80px')
-    const point = await startScrub('Width')
+    const point = await startScrub('Breite')
     await page.mouse.move(point.x + 20, point.y)
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width.endsWith('px'))
     const preview = await frame.$eval('#scrub', (el) => (el as HTMLElement).style.width)
@@ -936,13 +938,13 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
 
   it('links dimensions for typing and dragging, persists the ratio, and restores both dimensions on cancel/undo', async () => {
     const frame = await seedScrubTarget()
-    const toggle = '[aria-label="Link width and height"]'
+    const toggle = '[aria-label="Breite und Höhe koppeln"]'
     expect(await page.$eval(toggle, (el) => el.getAttribute('aria-pressed'))).toBe('false')
     await page.click(toggle)
     await page.waitForSelector(`${toggle}[aria-pressed="true"]`)
     await expect.poll(() => saved.html).toContain('aspect-ratio: 120 / 80')
 
-    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.click('[aria-label="Breite"]', { count: 3 })
     await page.keyboard.type('240')
     await page.keyboard.press('Enter')
     await frame.waitForFunction(() => {
@@ -955,11 +957,11 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await page.evaluate(() => window.elementPanelHarness.select('#scrub'))
     await page.waitForSelector(`${toggle}[aria-pressed="true"]`)
 
-    await page.click('[aria-label="Height"]', { count: 3 })
+    await page.click('[aria-label="Höhe"]', { count: 3 })
     await page.keyboard.type('100')
     await page.keyboard.press('Enter')
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '150')
-    const point = await startScrub('Width')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '150')
+    const point = await startScrub('Breite')
     await page.mouse.move(point.x + 30, point.y)
     await frame.waitForFunction(() => {
       const style = (document.querySelector('#scrub') as HTMLElement).style
@@ -967,10 +969,10 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     })
     await page.keyboard.press('Escape')
     await page.mouse.up()
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '150')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '150')
     expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.height)).toBe('100px')
 
-    await drag('Width', 30)
+    await drag('Breite', 30)
     await expect.poll(() => saved.html).toContain('width: 180px')
     await page.screenshot({ path: '/tmp/doop-linked-dimensions.png' })
     await page.evaluate(() => window.elementPanelHarness.undo())
@@ -980,11 +982,11 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     })
     await page.evaluate(() => window.elementPanelHarness.redo())
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '180px')
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '180')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '180')
     await page.click(toggle)
     await page.waitForSelector(`${toggle}[aria-pressed="false"]`)
     await expect.poll(() => saved.html).toContain('aspect-ratio: auto')
-    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.click('[aria-label="Breite"]', { count: 3 })
     await page.keyboard.type('200')
     await page.keyboard.press('Enter')
     await expect.poll(() => saved.html).toContain('width: 200px')
@@ -995,8 +997,8 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     const frame = await seedScrubTarget('width:160px;height:90px;aspect-ratio:16 / 9', {
       css: '#scrub { height: 90px }',
     })
-    await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
-    await page.select('[aria-label="Width sizing"]', 'fill')
+    await page.waitForSelector('[aria-label="Breite und Höhe koppeln"][aria-pressed="true"]')
+    await page.select('[aria-label="Breitenanpassung"]', 'fill')
     await frame.waitForFunction(() => {
       const el = document.querySelector('#scrub') as HTMLElement
       const style = getComputedStyle(el)
@@ -1010,12 +1012,11 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     expect(saved.html).toContain('aspect-ratio: 16 / 9')
     const height = await frame.$eval('#scrub', (el) => getComputedStyle(el).height)
     await page.waitForFunction(
-      (height) =>
-        document.querySelector<HTMLInputElement>('[aria-label="Height"]')?.value === String(parseFloat(height)),
+      (height) => document.querySelector<HTMLInputElement>('[aria-label="Höhe"]')?.value === String(parseFloat(height)),
       {},
       height,
     )
-    await page.click('[aria-label="Link width and height"]')
+    await page.click('[aria-label="Breite und Höhe koppeln"]')
     await expect.poll(() => saved.html).toContain('aspect-ratio: auto')
     expect(await frame.$eval('#scrub', (el) => getComputedStyle(el).height)).toBe(height)
     expect(await frame.$eval('#scrub', (el) => (el as HTMLElement).style.width)).toBe('100%')
@@ -1028,8 +1029,8 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       const frame = await seedScrubTarget(`${axis}:100%;${other}:80px`, {
         css: 'body { width: 240px; height: 240px } #scrub { width: 80px; height: 80px }',
       })
-      await page.click('[aria-label="Link width and height"]')
-      await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
+      await page.click('[aria-label="Breite und Höhe koppeln"]')
+      await page.waitForSelector('[aria-label="Breite und Höhe koppeln"][aria-pressed="true"]')
       await frame.waitForFunction(
         (other) => (document.querySelector('#scrub') as HTMLElement).style.getPropertyValue(other) === 'auto',
         {},
@@ -1054,9 +1055,9 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       css: '#scrub { height:100px; width:auto; aspect-ratio:2 / 1 }',
       target: `<img id="scrub" src="${src}">`,
     })
-    await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
+    await page.waitForSelector('[aria-label="Breite und Höhe koppeln"][aria-pressed="true"]')
     expect(await frame.$eval('#scrub', (el) => getComputedStyle(el).width)).toBe('200px')
-    await page.click('[aria-label="Link width and height"]')
+    await page.click('[aria-label="Breite und Höhe koppeln"]')
     await expect.poll(() => saved.html).toContain('aspect-ratio: auto')
     expect(await frame.$eval('#scrub', (el) => [getComputedStyle(el).width, getComputedStyle(el).height])).toEqual([
       '200px',
@@ -1069,8 +1070,8 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     const frame = await seedScrubTarget('', {
       target: `<img id="scrub" src="${src}" style="width:200px;height:auto;aspect-ratio:auto 1 / 1">`,
     })
-    await page.waitForSelector('[aria-label="Link width and height"][aria-pressed="true"]')
-    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.waitForSelector('[aria-label="Breite und Höhe koppeln"][aria-pressed="true"]')
+    await page.click('[aria-label="Breite"]', { count: 3 })
     await page.keyboard.type('400')
     await page.keyboard.press('Enter')
     await expect.poll(() => saved.html).toContain('height: 200px')
@@ -1079,11 +1080,11 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
 
   it('requires positive dimensions before linking and supports the keyboard toggle', async () => {
     const frame = await seedScrubTarget('width:0px;height:0px')
-    const toggle = '[aria-label="Link width and height"]'
+    const toggle = '[aria-label="Breite und Höhe koppeln"]'
     expect(await page.$eval(toggle, (el) => (el as HTMLButtonElement).disabled)).toBe(true)
     for (const [label, value] of [
-      ['Width', '80'],
-      ['Height', '40'],
+      ['Breite', '80'],
+      ['Höhe', '40'],
     ]) {
       await page.click(`[aria-label="${label}"]`, { count: 3 })
       await page.keyboard.type(value!)

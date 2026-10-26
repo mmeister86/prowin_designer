@@ -67,7 +67,7 @@ export function PresentMode({ frameId, onClose }: { frameId: string; onClose: ()
     <div
       className="fixed inset-0 z-[80] grid place-items-center bg-ink"
       role="dialog"
-      aria-label={`Presenting ${frame.name}`}
+      aria-label={`Präsentation: ${frame.name}`}
     >
       <div
         className="relative overflow-hidden bg-white"
@@ -87,8 +87,8 @@ export function PresentMode({ frameId, onClose }: { frameId: string; onClose: ()
         variant="inverse"
         size="icon"
         className="absolute top-3 right-3 rounded-full opacity-60 hover:opacity-100"
-        aria-label="Exit presentation"
-        title="Exit presentation (Esc)"
+        aria-label="Präsentation beenden"
+        title="Präsentation beenden (Esc)"
         onClick={onClose}
       >
         <XIcon />

@@ -23,7 +23,7 @@ notificationsRouter.get('/', (req, res, next) => {
 notificationsRouter.put('/', (req, res, next) => {
   const parsed = prefsSchema.safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid notification preference' })
+    res.status(400).json({ error: 'Ungültige Benachrichtigungseinstellung' })
     return
   }
   saveNotificationPrefs(req.user!.id, parsed.data)

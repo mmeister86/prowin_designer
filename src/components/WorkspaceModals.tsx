@@ -50,7 +50,7 @@ export function CreateWorkspaceModal({
       const ws = await api.createWorkspace(clean)
       onCreated(ws)
     } catch (caught) {
-      setError(errorMessage(caught, 'Couldn’t create the workspace'))
+      setError(errorMessage(caught, 'Der Arbeitsbereich konnte nicht erstellt werden'))
       setBusy(false)
     }
   }
@@ -58,11 +58,11 @@ export function CreateWorkspaceModal({
   return (
     <Modal size="sm" onClose={onClose}>
       <>
-        <ModalEyebrow>Workspaces</ModalEyebrow>
-        <ModalTitle className="mt-2">Name your workspace</ModalTitle>
+        <ModalEyebrow>Arbeitsbereiche</ModalEyebrow>
+        <ModalTitle className="mt-2">Benenne Deinen Arbeitsbereich</ModalTitle>
         <ModalLede>
-          A workspace is your team’s shared home: everyone in it can open every canvas inside. You can move existing
-          canvases in afterwards.
+          Ein Arbeitsbereich ist der gemeinsame Bereich Deines Teams: Alle darin können jede enthaltene Arbeitsfläche
+          öffnen. Bestehende Arbeitsflächen kannst Du später hineinverschieben.
         </ModalLede>
         <Input
           variant="well"
@@ -74,15 +74,15 @@ export function CreateWorkspaceModal({
           disabled={busy}
           onChange={(event) => setName(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && create()}
-          aria-label="Workspace name"
+          aria-label="Name des Arbeitsbereichs"
         />
         {error && <p className="mt-2 text-label text-accent-ink">{error}</p>}
         <ModalActions>
           <Button onClick={onClose} disabled={busy}>
-            Cancel
+            Abbrechen
           </Button>
           <Button variant="primary" onClick={create} disabled={busy || !name.trim()}>
-            {busy ? 'Creating…' : 'Create workspace'}
+            {busy ? 'Wird erstellt…' : 'Arbeitsbereich erstellen'}
           </Button>
         </ModalActions>
       </>
@@ -139,42 +139,48 @@ export function UpgradeModal({
       const { url } = await api.workspaceCheckout(workspaceId, chosen)
       location.assign(url)
     } catch (caught) {
-      setError(errorMessage(caught, 'Couldn’t start checkout'))
+      setError(errorMessage(caught, 'Die Zahlung konnte nicht gestartet werden'))
       setBusy(false)
     }
   }
 
-  const title = workspace ? (workspace.active ? `Plans for ${workspace.name}` : `Unlock ${workspace.name}`) : 'Plans'
+  const title = workspace
+    ? workspace.active
+      ? `Tarife für ${workspace.name}`
+      : `Freischalten: ${workspace.name}`
+    : 'Tarife'
 
   return (
     <Modal size="xl" onClose={onClose}>
       <>
-        <ModalEyebrow>Team plan · {formatUsd(TEAM_SEAT_PRICE.month)} per seat per month</ModalEyebrow>
+        <ModalEyebrow>Team-Tarif · {formatUsd(TEAM_SEAT_PRICE.month)} pro Platz und Monat</ModalEyebrow>
         <ModalTitle className="mt-2">{title}</ModalTitle>
         <ModalLede>
-          {reason ?? 'Shared workspaces are the paid part of doop.'} Everyone in a workspace opens every canvas in it —
-          no per-canvas invites, no links to pass around. Seats are billed as people join and refunded as they leave.
+          {reason ?? 'Geteilte Arbeitsbereiche sind der kostenpflichtige Teil von doop.'} Alle in einem Arbeitsbereich
+          können jede enthaltene Arbeitsfläche öffnen — ohne einzelne Einladungen oder Links. Plätze werden beim
+          Beitritt von Personen berechnet und beim Verlassen erstattet.
         </ModalLede>
 
         {plans && !plans.enabled ? (
           <Callout tone="success" className="mt-5">
-            Billing isn’t set up on this server, so workspaces are included. Nothing to buy — go make one.
+            Auf diesem Server ist keine Abrechnung eingerichtet, daher sind Arbeitsbereiche inklusive. Du musst nichts
+            kaufen — erstelle einfach einen.
           </Callout>
         ) : (
           <>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <Segmented value={chosen} onValueChange={(next) => next && setInterval(next as BillingInterval)}>
                 <SegmentedItem value="month" disabled={!!plans && !plans.intervals.includes('month')}>
-                  Monthly
+                  Monatlich
                 </SegmentedItem>
                 <SegmentedItem value="year" disabled={!!plans && !plans.intervals.includes('year')}>
-                  Yearly <span className="ml-1 text-accent-ink">−20%</span>
+                  Jährlich <span className="ml-1 text-accent-ink">−20%</span>
                 </SegmentedItem>
               </Segmented>
               <span className="text-label text-ink-faint">
                 {chosen === 'year'
-                  ? `${formatUsd(seatPerMonth('year'))} a seat a month, billed ${formatUsd(TEAM_SEAT_PRICE.year)} a year`
-                  : `${formatUsd(TEAM_SEAT_PRICE.month)} a seat, billed monthly`}
+                  ? `${formatUsd(seatPerMonth('year'))} pro Platz und Monat, abgerechnet mit ${formatUsd(TEAM_SEAT_PRICE.year)} im Jahr`
+                  : `${formatUsd(TEAM_SEAT_PRICE.month)} pro Platz, monatlich abgerechnet`}
               </span>
             </div>
 
@@ -196,22 +202,26 @@ export function UpgradeModal({
                 {workspace ? (
                   <>
                     <b className="text-ink">
-                      {seats} seat{seats === 1 ? '' : 's'} × {formatUsd(TEAM_SEAT_PRICE[chosen])}
+                      {seats.toLocaleString('de-DE')} {seats === 1 ? 'Platz' : 'Plätze'} ×{' '}
+                      {formatUsd(TEAM_SEAT_PRICE[chosen])}
                     </b>{' '}
-                    = {formatUsd(seats * TEAM_SEAT_PRICE[chosen])} per {chosen}
-                    {workspace.active && workspace.plan ? ' — already on Team; manage it from Billing.' : ''}
+                    = {formatUsd(seats * TEAM_SEAT_PRICE[chosen])} pro {chosen === 'year' ? 'Jahr' : 'Monat'}
+                    {workspace.active && workspace.plan
+                      ? ' — bereits im Team-Tarif; unter „Abrechnung“ verwalten.'
+                      : ''}
                   </>
                 ) : (
-                  'Counting seats…'
+                  'Plätze werden gezählt…'
                 )}
                 <span className="mt-0.5 block text-caption text-ink-faint">
-                  You’ll set up payment on Stripe’s secure checkout. Cancel any time from the billing portal.
+                  Du richtest die Zahlung über den sicheren Stripe-Checkout ein. Im Abrechnungsportal kannst Du
+                  jederzeit kündigen.
                 </span>
               </div>
               {workspace && !canBuy ? (
                 <span className="text-body text-ink-soft">
-                  Ask <b className="text-ink">{owner?.name ?? 'the workspace owner'}</b> to choose a plan — the owner
-                  holds the billing.
+                  Bitte <b className="text-ink">{owner?.name ?? 'den Eigentümer des Arbeitsbereichs'}</b> um die Auswahl
+                  eines Tarifs — der Eigentümer ist für die Abrechnung verantwortlich.
                 </span>
               ) : (
                 <Button
@@ -221,16 +231,16 @@ export function UpgradeModal({
                   disabled={busy || !workspace || !plans || (workspace.active && !!workspace.plan)}
                   onClick={checkout}
                 >
-                  {busy ? 'Opening Stripe…' : 'Continue to checkout'}
+                  {busy ? 'Stripe wird geöffnet…' : 'Weiter zur Zahlung'}
                 </Button>
               )}
             </div>
             {error && <p className="mt-2 text-label text-accent-ink">{error}</p>}
             {session?.user.email && (
               <p className="mt-3 text-caption text-ink-faint">
-                Receipts go to {session.user.email}. Need invoicing or a bigger team?{' '}
+                Belege gehen an {session.user.email}. Brauchst Du Rechnungsstellung oder ein größeres Team?{' '}
                 <a className="font-semibold text-ink underline underline-offset-2" href={ENTERPRISE_CONTACT}>
-                  Talk to us
+                  Sprich mit uns
                 </a>
                 .
               </p>
@@ -254,8 +264,8 @@ function PlanCard({ plan, interval, current }: { plan: Plan; interval: BillingIn
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-lead font-medium">{plan.name}</span>
-        {team && <Badge tone="brand">Popular</Badge>}
-        {current && <span className="text-caption text-ink-faint">Current</span>}
+        {team && <Badge tone="brand">Beliebt</Badge>}
+        {current && <span className="text-caption text-ink-faint">Aktuell</span>}
       </div>
       <p className="mt-1 text-body text-ink-soft">{plan.tagline}</p>
       <div className="mt-3 text-title font-medium text-ink">
@@ -263,17 +273,17 @@ function PlanCard({ plan, interval, current }: { plan: Plan; interval: BillingIn
           plan.id === 'free' ? (
             '$0'
           ) : (
-            <span className="text-heading">Let’s talk</span>
+            <span className="text-heading">Lass uns sprechen</span>
           )
         ) : (
           <>
             {formatUsd(interval === 'year' ? seatPerMonth('year') : price)}
-            <span className="ml-1 font-sans text-label font-medium text-ink-faint">/ seat / month</span>
+            <span className="ml-1 font-sans text-label font-medium text-ink-faint">/ Platz / Monat</span>
           </>
         )}
       </div>
       {price !== null && interval === 'year' && (
-        <span className="text-caption text-ink-faint">billed {formatUsd(price)} a seat yearly</span>
+        <span className="text-caption text-ink-faint">abgerechnet mit {formatUsd(price)} pro Platz jährlich</span>
       )}
       <ul className="mt-3.5 flex flex-col gap-[7px] text-body text-ink-soft">
         {plan.features.map((f) => (
@@ -288,7 +298,7 @@ function PlanCard({ plan, interval, current }: { plan: Plan; interval: BillingIn
           className="mt-auto pt-4 text-body font-semibold text-ink underline underline-offset-2"
           href={ENTERPRISE_CONTACT}
         >
-          Contact us →
+          Kontaktiere uns →
         </a>
       )}
     </div>
@@ -327,7 +337,7 @@ export function MoveCanvasModal({
     } catch (caught) {
       const walled = paywalledWorkspace(caught)
       if (walled) onPaywall(walled)
-      else setError(errorMessage(caught, 'Couldn’t move the canvas'))
+      else setError(errorMessage(caught, 'Die Arbeitsfläche konnte nicht verschoben werden'))
       setBusy(false)
     }
   }
@@ -335,41 +345,41 @@ export function MoveCanvasModal({
   return (
     <Modal size="sm" onClose={onClose}>
       <>
-        <ModalTitle>Move “{canvas.name}”</ModalTitle>
+        <ModalTitle>„{canvas.name}“ verschieben</ModalTitle>
         <ModalLede>
-          A canvas in a workspace is open to everyone in it. Move it back to Personal and only you and the people you
-          invited keep access.
+          Eine Arbeitsfläche in einem Arbeitsbereich ist für alle darin zugänglich. Verschiebe sie zurück in den
+          persönlichen Bereich, damit nur Du und eingeladene Personen Zugriff behalten.
         </ModalLede>
         <Select
           value={target || PERSONAL_WORKSPACE}
           disabled={busy}
           onValueChange={(value) => setTarget(value === PERSONAL_WORKSPACE ? '' : value)}
         >
-          <SelectTrigger className="mt-5 w-full" aria-label="Destination">
+          <SelectTrigger className="mt-5 w-full" aria-label="Ziel">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={PERSONAL_WORKSPACE}>Personal — just you and invitees</SelectItem>
+            <SelectItem value={PERSONAL_WORKSPACE}>Persönlich — nur Du und eingeladene Personen</SelectItem>
             {workspaces.map((w) => (
               <SelectItem key={w.id} value={w.id}>
                 {w.name}
-                {w.active ? '' : ' (needs a plan)'}
+                {w.active ? '' : ' (Tarif erforderlich)'}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         {targetWs && !targetWs.active && (
           <p className="mt-2 text-label text-ink-faint">
-            {targetWs.name} has no plan yet — you’ll be asked to choose one.
+            {targetWs.name} hat noch keinen Tarif — Du wirst gebeten, einen auszuwählen.
           </p>
         )}
         {error && <p className="mt-2 text-label text-accent-ink">{error}</p>}
         <ModalActions>
           <Button onClick={onClose} disabled={busy}>
-            Cancel
+            Abbrechen
           </Button>
           <Button variant="primary" onClick={move} disabled={busy || (target || '') === (canvas.workspaceId ?? '')}>
-            {busy ? 'Moving…' : 'Move canvas'}
+            {busy ? 'Wird verschoben…' : 'Arbeitsfläche verschieben'}
           </Button>
         </ModalActions>
       </>

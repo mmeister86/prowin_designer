@@ -1,5 +1,6 @@
 import type { AccountCapabilities, CanvasCapabilities } from '../../shared/prowin/permissions'
 import { useStore } from './store'
+import { authErrorMessage } from './auth'
 import type { LocalAgentPreference, LocalAgentJob, LocalAgentResult } from '../../shared/localAgent'
 import type { NotificationPrefs, NotificationSettings } from '../../shared/notifications'
 import type { WebhookDeliveryResult, WebhookEventType, WebhookInfo } from '../../shared/webhooks'
@@ -108,7 +109,9 @@ export class ApiError extends Error {
     super(`${status} ${text}`)
     this.status = status
     try {
-      this.body = JSON.parse(text)
+      const body: unknown = JSON.parse(text)
+      this.body =
+        body !== null && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : {}
     } catch {
       this.body = {}
     }
@@ -122,8 +125,18 @@ export function paywalledWorkspace(err: unknown): string | null {
   return typeof err.body.workspaceId === 'string' ? err.body.workspaceId : null
 }
 
+/** Only app-authored recovery instructions may opt in to direct UI display. */
+export class UserFacingError extends Error {}
+
 export function errorMessage(err: unknown, fallback: string): string {
-  if (err instanceof ApiError) return String(err.body.error ?? err.body.message ?? fallback)
+  if (err instanceof UserFacingError) return err.message
+  if (err instanceof ApiError && typeof err.body.code === 'string')
+    return authErrorMessage(
+      { code: err.body.code, message: typeof err.body.message === 'string' ? err.body.message : undefined },
+      fallback,
+    )
+  if (err instanceof ApiError && typeof err.body.error === 'string' && !/^[a-z]+(?:_[a-z]+)+$/.test(err.body.error))
+    return err.body.error
   return fallback
 }
 
@@ -226,15 +239,13 @@ export const api = {
       body: blob,
     })
     if (!res.ok) {
-      if (res.status === 413) throw new Error('image exceeds the 5 MB limit')
-      const text = await res.text()
-      let msg = `${res.status} ${text}`
-      try {
-        msg = JSON.parse(text).error || msg
-      } catch {
-        /* non-JSON error body */
-      }
-      throw new Error(msg)
+      if (res.status === 413) throw new UserFacingError('Das Bild überschreitet die Grenze von 5 MB.')
+      throw new UserFacingError(
+        errorMessage(
+          new ApiError(res.status, await res.text()),
+          'Das Bild konnte nicht hochgeladen werden. Versuche es erneut.',
+        ),
+      )
     }
     return res.json() as Promise<{ url: string; mime: string; size: number }>
   },

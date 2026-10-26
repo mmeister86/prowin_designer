@@ -25,7 +25,7 @@ export function AgentExecutionPanel({ onChange }: { onChange?: () => void }) {
       await selectLocalAgent(userId, { enabled: false, model: preference?.model ?? 'default' })
       onChange?.()
     } catch {
-      setError('Could not select the server agent. Please try again.')
+      setError('Der Server-Agent konnte nicht ausgewählt werden. Versuche es erneut.')
     } finally {
       setBusy(false)
     }
@@ -33,13 +33,15 @@ export function AgentExecutionPanel({ onChange }: { onChange?: () => void }) {
 
   return (
     <div className="space-y-4 px-4 pb-5 pt-4 sm:px-[22px]">
-      <section className="rounded-card border border-line p-4" aria-label="Server agent">
+      <section className="rounded-card border border-line p-4" aria-label="Server-Agent">
         <h3 className="font-semibold">proWIN Agent</h3>
-        <p className="mt-1 text-body text-ink-soft">Centrally managed design assistance for your canvases.</p>
-        <p className="mt-2 text-caption text-ink-faint">{local ? 'Local Agent selected.' : 'Server agent selected.'}</p>
+        <p className="mt-1 text-body text-ink-soft">Zentral verwaltete Designunterstützung für Deine Arbeitsflächen.</p>
+        <p className="mt-2 text-caption text-ink-faint">
+          {local ? 'Lokaler Agent ausgewählt.' : 'Server-Agent ausgewählt.'}
+        </p>
         {local && (
           <Button className="mt-3" onClick={() => void selectServer()} disabled={busy}>
-            Use server agent
+            Server-Agent verwenden
           </Button>
         )}
         {error && (

@@ -62,7 +62,7 @@ export async function createAgentKey(
   const secret = PREFIX + nanoid(32)
   const info: AgentKeyInfo = {
     id: nanoid(8),
-    name: name.trim().slice(0, 60) || 'Agent key',
+    name: name.trim().slice(0, 60) || 'Agentenschlüssel',
     start: secret.slice(0, PREFIX.length + 4),
     createdAt: Date.now(),
     lastUsedAt: null,

@@ -256,8 +256,8 @@ async function linkVerifiedProviderEmail(profile: {
  * the thrown error as a plain 400; the social OAuth callbacks
  * (as of better-auth 1.6.26) catch it and redirect back
  * to /auth with the MESSAGE as the ?error= code, spaces turned into
- * underscores — see SIGNUP_RESTRICTED_PREFIX in AuthPage.tsx, which undoes
- * that. Keep the message's first words stable.
+ * underscores. src/lib/auth.ts accepts this German message and the legacy
+ * English redirect. AuthPage must use authErrorMessage for both paths.
  */
 function assertSignupDomainAllowed(email: string): void {
   if (!SIGNUP_EMAIL_DOMAINS.length) return
@@ -265,7 +265,7 @@ function assertSignupDomainAllowed(email: string): void {
   const domain = lowered.slice(lowered.lastIndexOf('@') + 1)
   if (SIGNUP_EMAIL_DOMAINS.includes(domain)) return
   throw new APIError('BAD_REQUEST', {
-    message: `Sign up is restricted to ${SIGNUP_EMAIL_DOMAINS.map((d) => `@${d}`).join(', ')} email addresses.`,
+    message: `Die Registrierung ist auf E-Mail-Adressen von ${SIGNUP_EMAIL_DOMAINS.map((d) => `@${d}`).join(', ')} beschränkt.`,
   })
 }
 
@@ -334,8 +334,8 @@ function buildAuth() {
       sendResetPassword: async ({ user, url }) => {
         await sendMail({
           to: user.email,
-          subject: 'Reset your doop password',
-          text: `Hi ${user.name || 'there'},\n\nSomeone asked to reset the password for this doop account. If that was you, open this link (valid for 1 hour):\n\n${url}\n\nIf it wasn't you, ignore this email — nothing changes.`,
+          subject: 'Setze Dein doop-Passwort zurück',
+          text: `Hallo${user.name ? ` ${user.name}` : ''},\n\nFür Dein doop-Konto wurde ein neues Passwort angefordert. Wenn Du das warst, öffne diesen Link (1 Stunde gültig):\n\n${url}\n\nWenn Du das nicht warst, ignoriere diese E-Mail. Dein Passwort bleibt unverändert.`,
         })
       },
     },
@@ -353,8 +353,8 @@ function buildAuth() {
       sendVerificationEmail: async ({ user, url }) => {
         await sendMail({
           to: user.email,
-          subject: 'Verify your doop email',
-          text: `Hi ${user.name || 'there'},\n\nConfirm this email address to activate your doop account:\n\n${url}\n\nIf you didn't sign up for doop, ignore this email.`,
+          subject: 'Bestätige Deine doop-E-Mail-Adresse',
+          text: `Hallo${user.name ? ` ${user.name}` : ''},\n\nBestätige diese E-Mail-Adresse, um Dein doop-Konto zu aktivieren:\n\n${url}\n\nWenn Du Dich nicht bei doop registriert hast, ignoriere diese E-Mail.`,
         })
       },
     },
@@ -378,8 +378,11 @@ function buildAuth() {
             assertSignupDomainAllowed(user.email)
           },
           after: async (user) => {
-            const first = (user.name || 'Your').split(/\s+/)[0]
-            const canvas = store.createCanvas(`${first}'s first canvas`, user.id)
+            const first = user.name?.split(/\s+/)[0]
+            const canvas = store.createCanvas(
+              first ? `${first}: erste Arbeitsfläche` : 'Deine erste Arbeitsfläche',
+              user.id,
+            )
             demo.markPending(canvas.id)
             /* the other half of the ADMIN_EMAILS reconcile: syncAdmins covers
                people who already existed at boot, this covers signups after.

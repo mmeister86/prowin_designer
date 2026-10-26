@@ -74,7 +74,9 @@ it.each(['Credential failure test', 'Policy failure test'])(
     await vi.waitFor(() => expect(tasks.get(card.id)?.failedAt).toBeTypeOf('number'))
     const failed = tasks.get(card.id)!
     expect(failed.endedAt).toBeUndefined()
-    expect(failed.failureReason).toMatch(/administrator/i)
+    expect(failed.failureReason).toBe(
+      'Der Server-Agent benötigt Unterstützung durch die Administration, bevor Du es erneut versuchen kannst.',
+    )
     expect(failed.failureReason).not.toMatch(/internal operator diagnostic|reconnect|Retry when you are ready/i)
   },
 )

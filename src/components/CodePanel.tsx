@@ -20,7 +20,7 @@ export function CodePanel({ code }: { code: string }) {
         className="absolute right-2 top-[7px] rounded-md bg-paper/[0.12] px-[9px] py-[3px] text-[11px] hover:bg-paper/[0.22]"
         onClick={copy}
       >
-        {copied ? 'Copied!' : 'Copy'}
+        {copied ? 'Kopiert!' : 'Kopieren'}
       </Button>
       <pre
         data-stage-scroll

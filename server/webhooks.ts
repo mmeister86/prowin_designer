@@ -80,7 +80,7 @@ export async function hydrateWebhooks(): Promise<void> {
 /* ------------------------------------------------------------------ */
 
 const PRIVATE_MSG =
-  'that address is private to the server’s own network — the operator can allow it with WEBHOOK_ALLOW_PRIVATE_URLS=true'
+  'Diese Adresse liegt im privaten Servernetz. Die Administration kann sie mit WEBHOOK_ALLOW_PRIVATE_URLS=true freigeben.'
 
 function privateV4(ip: string): boolean {
   const [a = 0, b = 0] = ip.split('.').map(Number)
@@ -125,15 +125,16 @@ function hostOf(url: URL): string {
 /** Why a URL may not be a webhook target, or null when its syntax is fine.
  *  `targetProblem` goes on to check where the name points. */
 export function urlProblem(raw: string): string | null {
-  if (raw.length > 2_000) return 'that URL is too long'
+  if (raw.length > 2_000) return 'Diese URL ist zu lang.'
   let url: URL
   try {
     url = new URL(raw)
   } catch {
-    return 'that is not a valid URL'
+    return 'Diese URL ist ungültig.'
   }
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') return 'the URL must start with https:// or http://'
-  if (url.username || url.password) return 'credentials in the URL are not supported — use a secret path or header'
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return 'Die URL muss mit https:// oder http:// beginnen.'
+  if (url.username || url.password)
+    return 'Zugangsdaten in der URL werden nicht unterstützt. Verwende einen geheimen Pfad oder Header.'
   if (allowPrivate()) return null
   const host = hostOf(url)
   if (host === 'localhost' || host.endsWith('.localhost')) return PRIVATE_MSG
@@ -150,9 +151,9 @@ export async function targetProblem(raw: string): Promise<string | null> {
   try {
     addresses = await lookup(host, { all: true })
   } catch {
-    return 'that host name does not resolve'
+    return 'Dieser Hostname konnte nicht aufgelöst werden.'
   }
-  if (!addresses.length) return 'that host name does not resolve'
+  if (!addresses.length) return 'Dieser Hostname konnte nicht aufgelöst werden.'
   return addresses.some((a) => isPrivateAddress(a.address)) ? PRIVATE_MSG : null
 }
 
@@ -179,7 +180,7 @@ async function checkedInput(input: { url?: string; events?: unknown }) {
     if (problem) throw new WebhookInputError(problem)
   }
   const events = input.events === undefined ? undefined : normalizeEvents(input.events)
-  if (events && !events.length) throw new WebhookInputError('pick at least one event')
+  if (events && !events.length) throw new WebhookInputError('Wähle mindestens ein Ereignis.')
   return { url, events }
 }
 
@@ -213,9 +214,11 @@ async function insertWebhook(
   input: { url: string; events: unknown },
 ): Promise<{ info: WebhookInfo; secret: string }> {
   if (listWebhooks(userId).length >= MAX_WEBHOOKS)
-    throw new WebhookInputError(`you can have ${MAX_WEBHOOKS} webhooks — remove one you no longer use`)
+    throw new WebhookInputError(
+      `Du kannst höchstens ${MAX_WEBHOOKS} Webhooks anlegen. Entferne einen nicht mehr benötigten Webhook.`,
+    )
   const { url, events } = await checkedInput(input)
-  if (!url || !events) throw new WebhookInputError('a URL and at least one event are required')
+  if (!url || !events) throw new WebhookInputError('Gib eine URL und mindestens ein Ereignis an.')
   const hook: WebhookRecord = {
     id: nanoid(10),
     userId,
@@ -399,14 +402,18 @@ async function post(
     await res.body?.cancel().catch(() => {})
     if (res.ok) return { ok: true, status: res.status }
     const redirected = res.status >= 300 && res.status < 400
-    return { ok: false, status: res.status, error: redirected ? 'redirects are not followed' : `HTTP ${res.status}` }
+    return {
+      ok: false,
+      status: res.status,
+      error: redirected ? 'Weiterleitungen werden nicht verfolgt.' : `HTTP ${res.status}`,
+    }
   } catch (err) {
     const message =
       err instanceof Error
         ? err.name === 'TimeoutError'
-          ? `no response within ${TIMEOUT_MS / 1000}s`
-          : err.message
-        : String(err)
+          ? `Keine Antwort innerhalb von ${TIMEOUT_MS / 1000} Sek.`
+          : 'Die Webhook-Anfrage ist fehlgeschlagen.'
+        : 'Die Webhook-Anfrage ist fehlgeschlagen.'
     return { ok: false, status: null, error: message }
   }
 }
@@ -421,11 +428,11 @@ function record(hook: WebhookRecord, ticket: number, result: WebhookDeliveryResu
   recorded.set(hook.id, ticket)
   hook.lastStatus = result.status
   hook.lastAt = Date.now()
-  hook.lastError = result.ok ? null : (result.error ?? 'failed')
+  hook.lastError = result.ok ? null : (result.error ?? 'Zustellung fehlgeschlagen')
   hook.failures = result.ok ? 0 : hook.failures + 1
   if (!result.ok && hook.failures >= DISABLE_AFTER_FAILURES && hook.enabled) {
     hook.enabled = false
-    hook.lastError = `paused after ${DISABLE_AFTER_FAILURES} failed deliveries in a row (last: ${hook.lastError})`
+    hook.lastError = `Pausiert nach ${DISABLE_AFTER_FAILURES} fehlgeschlagenen Zustellungen in Folge (zuletzt: ${hook.lastError})`
   }
   swallow(
     db
@@ -493,7 +500,7 @@ export async function testWebhook(userId: string, id: string): Promise<WebhookDe
     id: `evt_${nanoid(12)}`,
     type: 'ping',
     at: Date.now(),
-    message: 'Hello from doop — this webhook is wired up.',
+    message: 'Hallo von doop – dieser Webhook ist verbunden.',
   })
   if (!result) return undefined
   record(hook, ticket, result)

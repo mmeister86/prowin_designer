@@ -42,7 +42,7 @@ webhooksRouter.post(
   handle(async (req, res) => {
     const parsed = createSchema.safeParse(req.body)
     if (!parsed.success) {
-      res.status(400).json({ error: 'a URL and at least one event are required' })
+      res.status(400).json({ error: 'Gib eine URL und mindestens ein Ereignis an.' })
       return
     }
     const { info, secret } = await createWebhook(req.user!.id, parsed.data)
@@ -55,11 +55,11 @@ webhooksRouter.patch(
   handle(async (req, res) => {
     const parsed = patchSchema.safeParse(req.body)
     if (!parsed.success) {
-      res.status(400).json({ error: 'invalid webhook change' })
+      res.status(400).json({ error: 'Ungültige Webhook-Änderung' })
       return
     }
     const updated = await updateWebhook(req.user!.id, req.params.id, parsed.data)
-    if (!updated) res.status(404).json({ error: 'webhook not found' })
+    if (!updated) res.status(404).json({ error: 'Webhook nicht gefunden' })
     else res.json(updated)
   }),
 )
@@ -67,7 +67,7 @@ webhooksRouter.patch(
 webhooksRouter.delete(
   '/:id',
   handle(async (req, res) => {
-    if (!(await deleteWebhook(req.user!.id, req.params.id))) res.status(404).json({ error: 'webhook not found' })
+    if (!(await deleteWebhook(req.user!.id, req.params.id))) res.status(404).json({ error: 'Webhook nicht gefunden' })
     else res.json({ ok: true })
   }),
 )
@@ -76,7 +76,7 @@ webhooksRouter.post(
   '/:id/rotate',
   handle(async (req, res) => {
     const secret = await rotateWebhookSecret(req.user!.id, req.params.id)
-    if (!secret) res.status(404).json({ error: 'webhook not found' })
+    if (!secret) res.status(404).json({ error: 'Webhook nicht gefunden' })
     else res.json({ secret })
   }),
 )
@@ -85,7 +85,7 @@ webhooksRouter.post(
   '/:id/test',
   handle(async (req, res) => {
     const result = await testWebhook(req.user!.id, req.params.id)
-    if (!result) res.status(404).json({ error: 'webhook not found' })
+    if (!result) res.status(404).json({ error: 'Webhook nicht gefunden' })
     else res.json(result)
   }),
 )

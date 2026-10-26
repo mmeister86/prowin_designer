@@ -45,8 +45,6 @@ export function localTimeZone(): string {
 /** "every Monday 09:00" — the schedule as the list rows say it */
 function everyLine(a: Automation): string {
   return describeSchedule(a.schedule)
-    .replace(/^Every /, 'every ')
-    .replace(' at ', ' ')
 }
 
 /**
@@ -84,14 +82,14 @@ export function Automations() {
             steps: example.steps.map((s, i) => ({ ...s, id: `s${i + 1}`, canvasId: '' }) as Step),
           })
         : await api.createAutomation({
-            name: 'Untitled automation',
+            name: 'Unbenannte Automatisierung',
             schedule: { kind: 'weekly', weekday: 1, hour: 9, minute: 0, tz },
             steps: [],
           })
       navigate(`/automations/${created.id}`)
     } catch (error) {
       console.error(error)
-      showToast('Couldn’t create the automation')
+      showToast('Die Automatisierung konnte nicht erstellt werden')
     } finally {
       setBusy(false)
     }
@@ -105,7 +103,7 @@ export function Automations() {
     } catch (error) {
       console.error(error)
       setItems((list) => list?.map((x) => (x.id === a.id ? a : x)) ?? null)
-      showToast('Couldn’t save')
+      showToast('Speichern fehlgeschlagen')
     }
   }
 
@@ -115,7 +113,7 @@ export function Automations() {
       setItems((list) => list?.filter((x) => x.id !== a.id) ?? null)
     } catch (error) {
       console.error(error)
-      showToast('Couldn’t delete')
+      showToast('Löschen fehlgeschlagen')
     }
   }
 
@@ -129,12 +127,12 @@ export function Automations() {
         <DashHeader variant="bare">
           <span className="flex-1" />
           <Button variant="primary" size="bar" disabled={busy} onClick={() => create()}>
-            <PlusIcon width={15} height={15} strokeWidth={1.75} /> New automation
+            <PlusIcon width={15} height={15} strokeWidth={1.75} /> Neue Automatisierung
           </Button>
         </DashHeader>
 
         <DashContent className="pt-2 md:pt-3">
-          <DashTitle className="mb-5">Automations</DashTitle>
+          <DashTitle className="mb-5">Automatisierungen</DashTitle>
 
           {items === null ? (
             <div className="flex flex-col gap-2">
@@ -157,11 +155,11 @@ export function Automations() {
                     </span>
                   </>
                 }
-                title="Nothing runs on its own yet"
-                description="Pull designs in on a schedule, or hand a canvas to an agent every week."
+                title="Noch läuft nichts automatisch"
+                description="Rufe Designs nach Zeitplan ab oder übergib einem Agenten jede Woche eine Arbeitsfläche."
                 action={
                   <Button variant="primary" disabled={busy} onClick={() => create()}>
-                    + New automation
+                    + Neue Automatisierung
                   </Button>
                 }
               />
@@ -171,10 +169,10 @@ export function Automations() {
             <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-card">
               <div className="hidden grid-cols-[52px_minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_36px] items-center gap-3 border-b border-line-soft px-4 py-2.5 text-caption text-ink-faint md:grid">
                 <span />
-                <span>Automation</span>
-                <span>Canvas</span>
-                <span>Last run</span>
-                <span>Next run</span>
+                <span>Automatisierung</span>
+                <span>Arbeitsfläche</span>
+                <span>Letzte Ausführung</span>
+                <span>Nächste Ausführung</span>
                 <span />
               </div>
               {items.map((a) => {
@@ -192,7 +190,7 @@ export function Automations() {
                     <Switch
                       checked={a.enabled}
                       onCheckedChange={(on) => toggle(a, on)}
-                      aria-label={`${a.name} on or off`}
+                      aria-label={`${a.name} ein- oder ausschalten`}
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     />
@@ -227,12 +225,12 @@ export function Automations() {
                         <>
                           <FrameThumb size="xs" frameId={canvas?.previewFrameId} />
                           <span className="truncate">
-                            {canvas?.name ?? 'Canvas'}
+                            {canvas?.name ?? 'Arbeitsfläche'}
                             {canvasIds.length > 1 ? ` +${canvasIds.length - 1}` : ''}
                           </span>
                         </>
                       ) : (
-                        <em className="not-italic text-ink-faint">Pick a canvas</em>
+                        <em className="not-italic text-ink-faint">Arbeitsfläche auswählen</em>
                       )}
                     </span>
                     <span className="hidden min-w-0 items-center gap-2 text-body text-ink-soft md:flex">
@@ -241,9 +239,9 @@ export function Automations() {
                           <RunDot status={a.lastRun.status} />
                           <span className="truncate">
                             {a.lastRun.status === 'running'
-                              ? 'Running'
+                              ? 'Wird ausgeführt'
                               : a.lastRun.status === 'failed'
-                                ? 'Failed'
+                                ? 'Fehlgeschlagen'
                                 : formatRunTime(a.lastRun.startedAt)}
                             {a.lastRun.status === 'ok' && a.lastRun.summary ? ` · ${a.lastRun.summary}` : ''}
                           </span>
@@ -255,23 +253,23 @@ export function Automations() {
                                 navigate(a.lastRun?.failure === 'reconnect' ? '/integrations' : `/automations/${a.id}`)
                               }}
                             >
-                              {a.lastRun.failure === 'reconnect' ? 'Reconnect' : 'Fix'}
+                              {a.lastRun.failure === 'reconnect' ? 'Erneut verbinden' : 'Beheben'}
                             </b>
                           )}
                         </>
                       ) : (
-                        <span className="text-ink-faint">Never</span>
+                        <span className="text-ink-faint">Nie</span>
                       )}
                     </span>
                     <span
                       className={cn('hidden text-caption md:block', a.nextRunAt ? 'text-ink-soft' : 'text-ink-faint')}
                     >
-                      {a.nextRunAt ? formatRunTime(a.nextRunAt) : a.enabled ? 'finish setup' : 'paused'}
+                      {a.nextRunAt ? formatRunTime(a.nextRunAt) : a.enabled ? 'Einrichtung abschließen' : 'pausiert'}
                     </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <IconButton
-                          aria-label={`Actions for ${a.name}`}
+                          aria-label={`Aktionen für ${a.name}`}
                           shape="round"
                           className="text-ink-faint"
                           onClick={(e) => e.stopPropagation()}
@@ -281,7 +279,7 @@ export function Automations() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent width="sm" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenuItem tone="danger" onSelect={() => setRemove(a)}>
-                          <TrashIcon className="size-4" /> Delete
+                          <TrashIcon className="size-4" /> Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -295,9 +293,9 @@ export function Automations() {
       <ConfirmDialog
         open={!!remove}
         onOpenChange={(open) => !open && setRemove(null)}
-        title={`Delete “${remove?.name ?? 'automation'}”?`}
-        description="It stops running and its run history goes with it. Frames it already created stay on their canvases."
-        confirmLabel="Delete"
+        title={`„${remove?.name ?? 'Automatisierung'}“ löschen?`}
+        description="Die Automatisierung wird beendet und ihr Ausführungsverlauf gelöscht. Bereits erstellte Zeichenflächen bleiben erhalten."
+        confirmLabel="Löschen"
         destructive
         onConfirm={() => {
           if (remove) void destroy(remove)
@@ -314,7 +312,7 @@ export function Automations() {
 export function Examples({ onUse, busy }: { onUse: (example: AutomationExample) => void; busy?: boolean }) {
   return (
     <section className="mt-[30px]">
-      <h2 className="text-caption text-ink-faint">Start from an example</h2>
+      <h2 className="text-caption text-ink-faint">Mit einem Beispiel starten</h2>
       <div className="mt-3 grid grid-cols-1 gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
         {AUTOMATION_EXAMPLES.map((e) => (
           <Pressable
@@ -327,8 +325,10 @@ export function Examples({ onUse, busy }: { onUse: (example: AutomationExample) 
             <b className="mt-1 text-copy font-semibold">{e.name}</b>
             <span className="text-body text-ink-soft">{e.blurb}</span>
             <div className="mt-auto flex items-center pt-1.5 text-caption text-ink-faint">
-              {describeSchedule({ ...e.schedule, tz: 'UTC' }).replace(' at ', ' ')}
-              <b className="ml-auto font-sans text-body font-semibold text-ink group-hover:text-accent-ink">Use →</b>
+              {describeSchedule({ ...e.schedule, tz: 'UTC' }).replace(' um ', ' ')}
+              <b className="ml-auto font-sans text-body font-semibold text-ink group-hover:text-accent-ink">
+                Verwenden →
+              </b>
             </div>
           </Pressable>
         ))}

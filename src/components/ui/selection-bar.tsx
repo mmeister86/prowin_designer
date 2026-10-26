@@ -24,7 +24,7 @@ function SelectionBar({ count, total, note, tone = 'default', actions, className
       {...props}
     >
       <span className={cn('text-label font-medium', tone === 'error' ? 'text-accent-ink' : 'text-ink-soft')}>
-        {count} of {total} selected
+        {count.toLocaleString('de-DE')} von {total.toLocaleString('de-DE')} ausgewählt
         {note}
       </span>
       {actions ? <span className="flex gap-3">{actions}</span> : null}

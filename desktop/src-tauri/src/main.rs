@@ -152,55 +152,55 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         pkg.name.clone(),
         true,
         &[
-            &PredefinedMenuItem::about(app, None, Some(about))?,
+            &PredefinedMenuItem::about(app, Some("Über doop"), Some(about))?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::services(app, None)?,
+            &PredefinedMenuItem::services(app, Some("Dienste"))?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::hide(app, None)?,
-            &PredefinedMenuItem::hide_others(app, None)?,
+            &PredefinedMenuItem::hide(app, Some("Ausblenden"))?,
+            &PredefinedMenuItem::hide_others(app, Some("Andere ausblenden"))?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::quit(app, None)?,
+            &PredefinedMenuItem::quit(app, Some("Beenden"))?,
         ],
     )?;
     let file = Submenu::with_items(
         app,
-        "File",
+        "Datei",
         true,
         &[&MenuItem::with_id(
             app,
             CLOSE_TAB,
-            "Close Tab",
+            "Tab schließen",
             true,
             Some("Cmd+W"),
         )?],
     )?;
     let edit = Submenu::with_items(
         app,
-        "Edit",
+        "Bearbeiten",
         true,
         &[
-            &PredefinedMenuItem::undo(app, None)?,
-            &PredefinedMenuItem::redo(app, None)?,
+            &PredefinedMenuItem::undo(app, Some("Widerrufen"))?,
+            &PredefinedMenuItem::redo(app, Some("Wiederholen"))?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::cut(app, None)?,
-            &PredefinedMenuItem::copy(app, None)?,
-            &PredefinedMenuItem::paste(app, None)?,
-            &PredefinedMenuItem::select_all(app, None)?,
+            &PredefinedMenuItem::cut(app, Some("Ausschneiden"))?,
+            &PredefinedMenuItem::copy(app, Some("Kopieren"))?,
+            &PredefinedMenuItem::paste(app, Some("Einfügen"))?,
+            &PredefinedMenuItem::select_all(app, Some("Alles auswählen"))?,
         ],
     )?;
     let view = Submenu::with_items(
         app,
-        "View",
+        "Ansicht",
         true,
-        &[&PredefinedMenuItem::fullscreen(app, None)?],
+        &[&PredefinedMenuItem::fullscreen(app, Some("Vollbild"))?],
     )?;
     let window = Submenu::with_items(
         app,
-        "Window",
+        "Fenster",
         true,
         &[
-            &PredefinedMenuItem::minimize(app, None)?,
-            &PredefinedMenuItem::maximize(app, None)?,
+            &PredefinedMenuItem::minimize(app, Some("Minimieren"))?,
+            &PredefinedMenuItem::maximize(app, Some("Zoomen"))?,
         ],
     )?;
     Menu::with_items(app, &[&app_menu, &file, &edit, &view, &window])
@@ -300,7 +300,7 @@ fn main() {
                     .on_download(move |_webview, event| {
                         match event {
                             DownloadEvent::Requested { url, destination } => {
-                                let mut picker = rfd::FileDialog::new().set_title("Save export");
+                                let mut picker = rfd::FileDialog::new().set_title("Export speichern");
                                 if let Some(dir) = destination.parent() {
                                     picker = picker.set_directory(dir);
                                 }
@@ -366,7 +366,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("failed to start doop")
+        .expect("doop konnte nicht gestartet werden")
         .run(|app, event| {
             if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
                 claude::shutdown(&app.state::<claude::ClaudeState>());

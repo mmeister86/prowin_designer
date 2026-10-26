@@ -61,7 +61,7 @@ fn executable() -> Result<PathBuf, String> {
     candidates
         .into_iter()
         .find(|p| p.is_file())
-        .ok_or("Claude CLI not found. Install Claude Code, then refresh.".into())
+        .ok_or("Claude CLI wurde nicht gefunden. Installiere Claude Code und klicke dann auf Aktualisieren.".into())
 }
 
 fn command() -> Result<Command, String> {
@@ -116,7 +116,7 @@ const MAX_CLI_LINE_BYTES: usize = 2_000_000;
 fn read_cli_line(reader: &mut impl BufRead) -> Result<Option<String>, String> {
     let mut line = Vec::new();
     loop {
-        let buffer = reader.fill_buf().map_err(|e| format!("Could not read Claude output: {e}"))?;
+        let buffer = reader.fill_buf().map_err(|e| format!("Die Claude-Ausgabe konnte nicht gelesen werden: {e}"))?;
         if buffer.is_empty() {
             if line.is_empty() { return Ok(None); }
             break;
@@ -124,7 +124,7 @@ fn read_cli_line(reader: &mut impl BufRead) -> Result<Option<String>, String> {
         let newline = buffer.iter().position(|b| *b == b'\n');
         let count = newline.map_or(buffer.len(), |index| index);
         if line.len() + count > MAX_CLI_LINE_BYTES {
-            return Err("Claude output exceeded the 2 MB line limit. The run was stopped; retry with a smaller tool result.".into());
+            return Err("Die Claude-Ausgabe hat die Zeilengrenze von 2 MB überschritten. Der Lauf wurde gestoppt. Versuche es mit einem kleineren Tool-Ergebnis erneut.".into());
         }
         line.extend_from_slice(&buffer[..count]);
         reader.consume(count + usize::from(newline.is_some()));
@@ -133,7 +133,7 @@ fn read_cli_line(reader: &mut impl BufRead) -> Result<Option<String>, String> {
             break;
         }
     }
-    String::from_utf8(line).map(Some).map_err(|_| "Claude output was not valid UTF-8.".into())
+    String::from_utf8(line).map(Some).map_err(|_| "Die Claude-Ausgabe war kein gültiges UTF-8.".into())
 }
 
 fn collect(
@@ -142,7 +142,7 @@ fn collect(
     cancel: Arc<AtomicBool>,
     mut on_line: impl FnMut(&str),
 ) -> Result<bool, String> {
-    let stdout = child.stdout.take().ok_or("Missing CLI output")?;
+    let stdout = child.stdout.take().ok_or("Die CLI-Ausgabe fehlt")?;
     let (sender, receiver) = std::sync::mpsc::sync_channel(32);
     let reader = std::thread::spawn(move || {
         let mut reader = BufReader::new(stdout);
@@ -159,7 +159,7 @@ fn collect(
         if cancel.load(Ordering::SeqCst) || started.elapsed() > timeout {
             let _ = child.kill();
             let _ = child.wait();
-            break Err("Claude run stopped or timed out. Retry when ready.".into());
+            break Err("Der Claude-Lauf wurde gestoppt oder hat das Zeitlimit überschritten. Versuche es erneut, wenn Du bereit bist.".into());
         }
         match receiver.recv_timeout(Duration::from_millis(100)) {
             Ok(Ok(line)) => on_line(&line),
@@ -198,13 +198,13 @@ pub async fn claude_status(app: AppHandle, user_id: String) -> Result<Value, Str
 #[tauri::command]
 pub async fn claude_connect(app: AppHandle, user_id: String, enabled: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        if user_id.is_empty() || user_id.len() > 256 { return Err("Invalid account".into()); }
+        if user_id.is_empty() || user_id.len() > 256 { return Err("Ungültiges Konto".into()); }
         let mut users = enabled_users(&app)?;
         if enabled && !users.contains(&user_id) {
-            let accepted = rfd::MessageDialog::new().set_title("Use local Claude for Doop?")
-                .set_description("Doop will run your installed Claude CLI on this computer for this Doop account's canvas tasks, using your Claude login and usage limits. Only Doop canvas tools are enabled. Tasks run while this desktop app is open.")
+            let accepted = rfd::MessageDialog::new().set_title("Lokalen Claude für Doop verwenden?")
+                .set_description("Doop führt Deine installierte Claude CLI auf diesem Computer für die Aufgaben auf den Arbeitsflächen dieses Doop-Kontos aus. Dabei werden Deine Claude-Anmeldung und Deine Nutzungslimits verwendet. Nur Doop-Werkzeuge für Arbeitsflächen sind aktiviert. Aufgaben werden ausgeführt, solange diese Desktop-App geöffnet ist.")
                 .set_buttons(rfd::MessageButtons::OkCancel).show();
-            if accepted != rfd::MessageDialogResult::Ok { return Err("Connection cancelled".into()); }
+            if accepted != rfd::MessageDialogResult::Ok { return Err("Verbindung abgebrochen".into()); }
             users.insert(user_id);
         } else if !enabled { users.remove(&user_id); }
         std::fs::write(directory(&app)?.join("connections.json"), serde_json::to_vec(&users).map_err(|e| e.to_string())?).map_err(|e| e.to_string())
@@ -245,23 +245,23 @@ bash "$installer"
 #[tauri::command]
 pub async fn claude_install(app: AppHandle) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let _guard = INSTALLING.try_lock().map_err(|_| "Claude Code installation is already running.")?;
+        let _guard = INSTALLING.try_lock().map_err(|_| "Die Installation von Claude Code läuft bereits.")?;
         if executable().is_ok() { return Ok(()); }
-        let accepted = rfd::MessageDialog::new().set_title("Install Claude Code?")
-            .set_description("Download and run Anthropic's official installer on this computer? Claude Code installs for your user account and manages its own updates.")
+        let accepted = rfd::MessageDialog::new().set_title("Claude Code installieren?")
+            .set_description("Möchtest Du das offizielle Installationsprogramm von Anthropic auf diesem Computer herunterladen und ausführen? Claude Code wird für Dein Benutzerkonto installiert und verwaltet seine Updates selbst.")
             .set_buttons(rfd::MessageButtons::OkCancel).show();
-        if accepted != rfd::MessageDialogResult::Ok { return Err("Installation cancelled.".into()); }
+        if accepted != rfd::MessageDialogResult::Ok { return Err("Die Installation wurde abgebrochen.".into()); }
         let mut cmd = installer_command();
         cmd.current_dir(directory(&app)?);
-        let ok = collect(cmd.spawn().map_err(|e| format!("Could not start the installer: {e}"))?,
+        let ok = collect(cmd.spawn().map_err(|e| format!("Das Installationsprogramm konnte nicht gestartet werden: {e}"))?,
             Duration::from_secs(600), Arc::new(AtomicBool::new(false)), |_| {})
-            .map_err(|_| "Installation did not finish in time. Refresh to check, or use the installation guide.")?;
-        if !ok { return Err("Installation failed. Check your internet connection or use the installation guide.".into()); }
+            .map_err(|_| "Die Installation wurde nicht rechtzeitig abgeschlossen. Klicke zum Prüfen auf Aktualisieren oder nutze die Installationsanleitung.")?;
+        if !ok { return Err("Die Installation ist fehlgeschlagen. Prüfe Deine Internetverbindung oder nutze die Installationsanleitung.".into()); }
         let mut verify = command()?;
         verify.arg("--version");
         let ok = collect(verify.spawn().map_err(|e| e.to_string())?,
             Duration::from_secs(20), Arc::new(AtomicBool::new(false)), |_| {})?;
-        if !ok { return Err("Claude Code was installed but could not start. See the installation guide.".into()); }
+        if !ok { return Err("Claude Code wurde installiert, konnte aber nicht gestartet werden. Sieh in der Installationsanleitung nach.".into()); }
         Ok(())
     }).await.map_err(|e| e.to_string())?
 }
@@ -281,7 +281,7 @@ pub async fn claude_login(app: AppHandle) -> Result<(), String> {
             Ok(())
         } else {
             Err(
-                "Sign-in did not complete. Run claude auth login in your terminal, then Refresh."
+                "Die Anmeldung wurde nicht abgeschlossen. Führe claude auth login in Deinem Terminal aus und klicke dann auf Aktualisieren."
                     .into(),
             )
         }
@@ -299,7 +299,7 @@ pub fn claude_stop(state: State<'_, ClaudeState>) -> Result<(), String> {
 }
 
 fn field<'a>(job: &'a Value, name: &str) -> Result<&'a str, String> {
-    job[name].as_str().ok_or_else(|| format!("Missing {name}"))
+    job[name].as_str().ok_or_else(|| format!("Das Feld {name} fehlt"))
 }
 fn valid_id(id: &str) -> bool {
     id.len() == 36 && id.chars().all(|c| c.is_ascii_hexdigit() || c == '-')
@@ -313,17 +313,17 @@ pub async fn claude_run(
     state: State<'_, ClaudeState>,
 ) -> Result<Value, String> {
     if !enabled_users(&app)?.contains(&user_id) {
-        return Err("Connect Claude on this device first".into());
+        return Err("Verbinde zuerst Claude auf diesem Gerät".into());
     }
     let id = field(&job, "id")?.to_owned();
     if !valid_id(&id) {
-        return Err("Invalid run id".into());
+        return Err("Ungültige Lauf-ID".into());
     }
     let cancel = Arc::new(AtomicBool::new(false));
     {
         let mut active = state.active.lock().map_err(|e| e.to_string())?;
         if active.is_some() {
-            return Err("Claude is already running a task".into());
+            return Err("Claude führt bereits eine Aufgabe aus".into());
         }
         *active = Some((id.clone(), cancel.clone()));
     }
@@ -337,7 +337,7 @@ fn run_cli(app: &AppHandle, job: &Value, cancel: Arc<AtomicBool>) -> Result<Valu
     let id = field(job, "id")?;
     let token = field(job, "token")?;
     if token.len() != 64 || !token.chars().all(|c| c.is_ascii_hexdigit()) {
-        return Err("Invalid run token".into());
+        return Err("Ungültiges Lauf-Token".into());
     }
     let model = field(job, "model")?;
     if ![
@@ -351,12 +351,12 @@ fn run_cli(app: &AppHandle, job: &Value, cancel: Arc<AtomicBool>) -> Result<Valu
     ]
     .contains(&model)
     {
-        return Err("Invalid model".into());
+        return Err("Ungültiges Modell".into());
     }
     let prompt = field(job, "prompt")?;
     let system = field(job, "system")?;
     if prompt.len() + system.len() > 1_000_000 {
-        return Err("Task is too large".into());
+        return Err("Die Aufgabe ist zu groß".into());
     }
     let turns = job["maxTurns"].as_u64().unwrap_or(24).clamp(1, 40);
     let dir = directory(app)?.join(id);
@@ -429,7 +429,7 @@ fn run_cli(app: &AppHandle, job: &Value, cancel: Arc<AtomicBool>) -> Result<Valu
             };
             if event["type"] == "result" {
                 final_result = Some(
-                    json!({"success":event["is_error"] == false && event["subtype"] == "success", "text":event["result"].as_str().unwrap_or("Claude did not complete the task. Check your login and usage limits, then retry.")}),
+                    json!({"success":event["is_error"] == false && event["subtype"] == "success", "text":event["result"].as_str().unwrap_or("Claude hat die Aufgabe nicht abgeschlossen. Prüfe Deine Anmeldung und Nutzungslimits und versuche es erneut.")}),
                 );
             }
             // Send only human-readable progress; MCP headers and tool payloads stay out of UI events.
@@ -443,7 +443,7 @@ fn run_cli(app: &AppHandle, job: &Value, cancel: Arc<AtomicBool>) -> Result<Valu
             }
         })?;
         let mut result = final_result.ok_or(
-            "Claude exited without a result. Check your CLI login and version, then retry.",
+            "Claude wurde ohne Ergebnis beendet. Prüfe Deine CLI-Anmeldung und -Version und versuche es erneut.",
         )?;
         if !ok {
             result["success"] = json!(false);

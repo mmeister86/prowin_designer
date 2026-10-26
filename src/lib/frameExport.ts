@@ -19,13 +19,13 @@ export function frameExportUrl(frame: Frame, format: FrameExportFormat): string 
 function fileNameOf(res: Response, frame: Frame, format: FrameExportFormat): string {
   const header = res.headers.get('Content-Disposition') ?? ''
   const match = /filename="([^"]+)"/.exec(header)
-  return match?.[1] ?? `${frame.name || 'frame'}.${format}`
+  return match?.[1] ?? `${frame.name || 'Zeichenfläche'}.${format}`
 }
 
 async function failureOf(res: Response, format: FrameExportFormat): Promise<string> {
   const body: unknown = await res.json().catch(() => null)
   const error = (body as { error?: unknown } | null)?.error
-  return typeof error === 'string' ? error : `Couldn’t export the ${FORMAT_LABEL[format]}`
+  return typeof error === 'string' ? error : `Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`
 }
 
 /* A `download` attribute is what makes this a download everywhere: the
@@ -56,7 +56,7 @@ let inFlight = 0
 function report(outcome: string | null) {
   const { notice, pushNotice } = useStore.getState()
   if (inFlight > 0) {
-    const more = `Exporting ${inFlight} more…`
+    const more = `Noch ${inFlight.toLocaleString('de-DE')} ${inFlight === 1 ? 'Export' : 'Exporte'} in Arbeit…`
     pushNotice(outcome ? `${outcome} · ${more}` : more, { busy: true })
   } else if (outcome) {
     pushNotice(outcome)
@@ -71,11 +71,11 @@ async function exportOutcome(frame: Frame, format: FrameExportFormat): Promise<s
     if (!res.ok) return await failureOf(res, format)
     const fileName = fileNameOf(res, frame, format)
     saveBlob(await res.blob(), fileName)
-    return isDesktopShell() ? null : `“${fileName}” is ready`
+    return isDesktopShell() ? null : `„${fileName}“ ist bereit`
   } catch (err) {
     return err instanceof DOMException && err.name === 'TimeoutError'
-      ? `The ${FORMAT_LABEL[format]} export timed out — try again`
-      : `Couldn’t export the ${FORMAT_LABEL[format]}`
+      ? `Der ${FORMAT_LABEL[format]}-Export hat zu lange gedauert. Versuche es erneut.`
+      : `Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`
   }
 }
 
@@ -87,12 +87,12 @@ async function exportOutcome(frame: Frame, format: FrameExportFormat): Promise<s
  *  shows, so a draft in progress exports as typed. Nothing to fetch, so it
  *  cannot fail the way the rendered exports can. */
 export function downloadFrameHtml(frame: Frame, html = frame.html): void {
-  saveBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), `${frame.name || 'frame'}.html`)
+  saveBlob(new Blob([html], { type: 'text/html;charset=utf-8' }), `${frame.name || 'Zeichenfläche'}.html`)
 }
 
 export async function downloadFrameExport(frame: Frame, format: FrameExportFormat): Promise<void> {
   inFlight += 1
-  useStore.getState().pushNotice(`Exporting ${FORMAT_LABEL[format]}…`, { busy: true })
+  useStore.getState().pushNotice(`${FORMAT_LABEL[format]} wird exportiert…`, { busy: true })
   const outcome = await exportOutcome(frame, format)
   inFlight -= 1
   report(outcome)
@@ -106,21 +106,22 @@ export async function copyFramePng(frame: Frame): Promise<void> {
   /* no async clipboard outside a secure context (a self-hosted instance on
      plain http) or in older engines: say so before spending a render */
   if (!('clipboard' in navigator) || typeof ClipboardItem === 'undefined') {
-    useStore.getState().pushNotice('This browser can’t copy images')
+    useStore.getState().pushNotice('Dieser Browser kann keine Bilder kopieren')
     return
   }
   inFlight += 1
-  useStore.getState().pushNotice('Copying PNG…', { busy: true })
+  useStore.getState().pushNotice('PNG wird kopiert…', { busy: true })
   /* engines differ in what the write rejects with when the blob fails, so
      the render's reason is kept here rather than read off the error */
-  let failure = 'Couldn’t copy the PNG'
+  let failure = 'Das PNG konnte nicht kopiert werden'
   const png = (async () => {
     try {
       const res = await fetch(frameExportUrl(frame, 'png'), { signal: AbortSignal.timeout(EXPORT_TIMEOUT_MS) })
       if (res.ok) return await res.blob()
       failure = await failureOf(res, 'png')
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'TimeoutError') failure = 'The PNG copy timed out — try again'
+      if (err instanceof DOMException && err.name === 'TimeoutError')
+        failure = 'Das Kopieren des PNG hat zu lange gedauert. Versuche es erneut.'
     }
     throw new Error(failure)
   })()
@@ -129,7 +130,7 @@ export async function copyFramePng(frame: Frame): Promise<void> {
   let outcome: string
   try {
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
-    outcome = 'PNG copied'
+    outcome = 'PNG kopiert'
   } catch {
     outcome = failure
   }

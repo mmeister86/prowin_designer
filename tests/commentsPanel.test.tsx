@@ -48,15 +48,15 @@ it.each(['frame', 'canvas'])('reads resolved %s replies in chronological order',
     ],
   })
   act(() => root.render(<CommentsPanel />))
-  const resolved = [...container.querySelectorAll('button')].find((el) => el.textContent?.startsWith('Resolved'))!
+  const resolved = [...container.querySelectorAll('button')].find((el) => el.textContent?.startsWith('Erledigt'))!
   act(() => resolved.click())
   expect(container.textContent).toContain('Review the heading')
   const expand = container.querySelector<HTMLButtonElement>('[data-slot="collapsible-trigger"]')!
-  expect(expand.textContent).toContain('2 replies')
+  expect(expand.textContent).toContain('2 Antworten')
   expect(expand.getAttribute('aria-expanded')).toBe('false')
   act(() => expand.click())
   expect(expand.getAttribute('aria-expanded')).toBe('true')
-  const replies = [...container.querySelectorAll('ol[aria-label="Resolved replies"] li')]
+  const replies = [...container.querySelectorAll('ol[aria-label="Erledigte Antworten"] li')]
   expect(replies.map((el) => el.querySelector('p')?.textContent)).toEqual([
     'Please make it larger',
     'Done\nReady to ship',

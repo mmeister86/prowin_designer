@@ -118,19 +118,21 @@ export function digest(
   const first = items[0]
   const subject =
     n === 1 && first
-      ? `${first.comment.from} ${first.comment.parentId ? 'replied' : 'commented'} on ${quote(canvas.name)}`
+      ? `${first.comment.from} hat ${first.comment.parentId ? `auf ${quote(canvas.name)} geantwortet` : `${quote(canvas.name)} kommentiert`}`
       : authors.length === 1
-        ? `${authors[0]} left ${n} comments on ${quote(canvas.name)}`
-        : `${n} new comments on ${quote(canvas.name)}`
+        ? `${authors[0]} hat ${n} Kommentare zu ${quote(canvas.name)} hinterlassen`
+        : `${n} neue Kommentare zu ${quote(canvas.name)}`
   const body = items
     .map(({ comment, frameName }) => {
-      const verb = comment.parentId ? 'replied in' : 'commented on'
-      const where = frameName ? quote(frameName) : 'the canvas'
+      const where = frameName ? quote(frameName) : 'die Arbeitsfläche'
+      const action = comment.parentId
+        ? `in ${frameName ? quote(frameName) : 'der Arbeitsfläche'} geantwortet`
+        : `${where} kommentiert`
       const text = comment.text.length > 600 ? `${comment.text.slice(0, 597)}…` : comment.text
-      return `${comment.from} ${verb} ${where}:\n\n  ${quote(text.replace(/\n/g, '\n  '))}\n  ${commentLink(comment)}`
+      return `${comment.from} hat ${action}:\n\n  ${quote(text.replace(/\n/g, '\n  '))}\n  ${commentLink(comment)}`
     })
     .join('\n\n')
-  const text = `Hi ${person.name || 'there'},\n\n${body}\n\n—\nYou get this because you collaborate on ${quote(canvas.name)}. Turn comment emails off under Settings → Your account: ${settingsLink('account')}\n`
+  const text = `Hallo${person.name ? ` ${person.name}` : ''},\n\n${body}\n\n—\nDu erhältst diese E-Mail, weil Du an ${quote(canvas.name)} mitarbeitest. Du kannst Kommentar-E-Mails unter Einstellungen → Dein Konto deaktivieren: ${settingsLink('account')}\n`
   return { to: person.email, subject, text }
 }
 

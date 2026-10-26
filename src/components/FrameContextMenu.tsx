@@ -17,9 +17,9 @@ async function copyImageUrl(frame: Frame) {
   const notify = useStore.getState().pushNotice
   try {
     await navigator.clipboard.writeText(`${location.origin}/i/${frame.id}.png?scale=2`)
-    notify('Image URL copied')
+    notify('Bild-URL kopiert')
   } catch (err) {
-    notify(errorMessage(err, 'Couldn’t copy the image URL'))
+    notify(errorMessage(err, 'Die Bild-URL konnte nicht kopiert werden'))
   }
 }
 
@@ -61,43 +61,50 @@ export function FrameContextMenu({ frame, at }: { frame: Frame; at: MutableRefOb
         }}
       >
         <ContextMenuItem onSelect={() => copyFrames(groupFrames())}>
-          {groupSize > 1 ? `Copy ${groupSize} frames` : 'Copy'}
+          {groupSize > 1 ? `${groupSize.toLocaleString('de-DE')} Zeichenflächen kopieren` : 'Kopieren'}
           <MenuHint>{MOD_KEY}C</MenuHint>
         </ContextMenuItem>
         <ContextMenuItem
           disabled={!hasFrameClip()}
           onSelect={() => pasteFrameAtScreen(frame.canvasId, at.current.x, at.current.y)}
         >
-          Paste
+          Einfügen
           <MenuHint>{MOD_KEY}V</MenuHint>
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => duplicateFrames(groupFrames())}>
-          {groupSize > 1 ? `Duplicate ${groupSize} frames` : 'Duplicate'}
+          {groupSize > 1 ? `${groupSize.toLocaleString('de-DE')} Zeichenflächen duplizieren` : 'Duplizieren'}
           <MenuHint>{MOD_KEY}D</MenuHint>
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => setFramesHidden(groupFrames(), !allHidden)}>
-          {`${allHidden ? 'Show' : 'Hide'}${groupSize > 1 ? ` ${groupSize} frames` : ''}`}
+          {groupSize > 1
+            ? `${groupSize.toLocaleString('de-DE')} Zeichenflächen ${allHidden ? 'einblenden' : 'ausblenden'}`
+            : allHidden
+              ? 'Einblenden'
+              : 'Ausblenden'}
           <MenuHint>{MOD_KEY}⇧H</MenuHint>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem
           onSelect={() => navigator.clipboard.writeText(`${location.origin}/c/${frame.canvasId}?frame=${frame.id}`)}
         >
-          Copy link
+          Link kopieren
         </ContextMenuItem>
-        <ContextMenuItem onSelect={() => void copyFramePng(frame)}>Copy as PNG</ContextMenuItem>
-        <ContextMenuItem onSelect={() => void copyImageUrl(frame)}>Copy image URL</ContextMenuItem>
-        <ContextMenuItem onSelect={() => setShowExport(true)}>Export…</ContextMenuItem>
-        <ContextMenuItem onSelect={() => setHistoryOpen(true)}>Version history…</ContextMenuItem>
+        <ContextMenuItem onSelect={() => void copyFramePng(frame)}>Als PNG kopieren</ContextMenuItem>
+        <ContextMenuItem onSelect={() => void copyImageUrl(frame)}>Bild-URL kopieren</ContextMenuItem>
+        <ContextMenuItem onSelect={() => setShowExport(true)}>Exportieren…</ContextMenuItem>
+        <ContextMenuItem onSelect={() => setHistoryOpen(true)}>Versionsverlauf…</ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem disabled={!canManageLocks} onSelect={() => setFramesLocked(groupFrames(), !allLocked)}>
-          {allLocked ? 'Unlock' : 'Lock'}
-          {groupSize > 1 ? ` ${groupSize} frames` : ''}
+          {groupSize > 1
+            ? `${groupSize.toLocaleString('de-DE')} Zeichenflächen ${allLocked ? 'entsperren' : 'sperren'}`
+            : allLocked
+              ? 'Entsperren'
+              : 'Sperren'}
           <MenuHint>{MOD_KEY}⇧L</MenuHint>
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem tone="danger" disabled={allLocked} onSelect={deleteSelection}>
-          {groupSize > 1 ? `Delete ${groupSize} frames` : 'Delete frame'}
+          {groupSize > 1 ? `${groupSize.toLocaleString('de-DE')} Zeichenflächen löschen` : 'Zeichenfläche löschen'}
           <MenuHint>⌫</MenuHint>
         </ContextMenuItem>
       </ContextMenuContent>

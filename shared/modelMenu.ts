@@ -16,20 +16,25 @@ export const IMAGE_MODELS: ImageModelOption[] = [
   {
     id: 'gpt-image-2',
     name: 'GPT Image 2',
-    blurb: 'OpenAI’s image model — reliable text rendering and UI assets.',
+    blurb: 'Das Bildmodell von OpenAI – zuverlässige Textdarstellung und UI-Grafiken.',
     provider: 'openai',
   },
   {
     id: 'gemini-3.1-flash-image',
     name: 'Nano Banana 2',
-    blurb: 'Google’s image model — photoreal scenes, editing, 4K.',
+    blurb: 'Das Bildmodell von Google – fotorealistische Szenen, Bearbeitung und 4K.',
     provider: 'gemini',
   },
   {
     id: 'seedream-5-0-pro',
     name: 'Seedream 5 Pro',
-    blurb: 'ByteDance’s top image model — rich, painterly quality.',
+    blurb: 'Das Spitzenmodell von ByteDance – detailreiche, malerische Qualität.',
     provider: 'ark',
   },
-  { id: 'seedream-5-0-lite', name: 'Seedream 5 Lite', blurb: 'Faster, cheaper Seedream tier.', provider: 'ark' },
+  {
+    id: 'seedream-5-0-lite',
+    name: 'Seedream 5 Lite',
+    blurb: 'Die schnellere, günstigere Seedream-Variante.',
+    provider: 'ark',
+  },
 ]

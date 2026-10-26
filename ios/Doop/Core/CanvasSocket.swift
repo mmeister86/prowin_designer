@@ -16,12 +16,12 @@ public enum CanvasSocket {
 
         public var message: String {
             switch self {
-            case .interrupted: return "Connection interrupted. Reconnecting…"
-            case .sessionExpired: return "Your session expired. Return to the library and sign in again."
-            case .accessDenied: return "You no longer have access to this canvas."
-            case .notFound: return "This canvas no longer exists."
-            case .messageTooLarge: return "This canvas is too large to load live on iOS. Open it in the web app."
-            case .invalidData: return "This canvas update could not be read. Update the app or reopen the canvas to try again."
+            case .interrupted: return "Verbindung unterbrochen. Wird wieder verbunden…"
+            case .sessionExpired: return "Deine Sitzung ist abgelaufen. Kehre zur Übersicht zurück und melde Dich erneut an."
+            case .accessDenied: return "Du hast keinen Zugriff mehr auf diese Arbeitsfläche."
+            case .notFound: return "Diese Arbeitsfläche existiert nicht mehr."
+            case .messageTooLarge: return "Diese Arbeitsfläche ist zu groß, um sie unter iOS live zu laden. Öffne sie in der Web-App."
+            case .invalidData: return "Die Aktualisierung der Arbeitsfläche konnte nicht gelesen werden. Aktualisiere die App oder öffne die Arbeitsfläche erneut."
             }
         }
 

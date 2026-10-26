@@ -31,6 +31,9 @@ it('keeps one identity per session when localStorage reads work but writes throw
   writable = false
   const { getIdentity, setName } = await import('../src/lib/identity.ts')
   const first = getIdentity()
+  expect(first.name).toMatch(
+    /^(Goldener|Blauer|Grüner|Sanfter|Roter|Heller|Indigoblauer|Scharlachroter|Dunkler|Kupferfarbener) (Fuchs|Reiher|Otter|Luchs|Falter|Zaunkönig|Dachs|Ibis|Molch|Hase)$/,
+  )
   expect(getIdentity()).toEqual(first)
   expect(data.size).toBe(0)
 

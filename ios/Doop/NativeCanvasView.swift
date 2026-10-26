@@ -24,16 +24,16 @@ struct NativeCanvasView: View {
         VStack(spacing: 0) {
             HStack(spacing: 7) {
                 Circle().fill(model.connected ? .green : .orange).frame(width: 6, height: 6)
-                Text(model.connected ? "Live" : model.connecting ? "Connecting…" : "Disconnected")
+                Text(model.connected ? "Live" : model.connecting ? "Verbindung wird hergestellt…" : "Getrennt")
                 Spacer()
-                if !model.presences.isEmpty { Label("\(model.presences.count) here", systemImage: "person.2") }
-                Text("\(model.canvas?.frames.count ?? 0) \(model.canvas?.frames.count == 1 ? "frame" : "frames")")
+                if !model.presences.isEmpty { Label("\(model.presences.count) hier", systemImage: "person.2") }
+                Text("\(model.canvas?.frames.count ?? 0) \(model.canvas?.frames.count == 1 ? "Zeichenfläche" : "Zeichenflächen")")
             }.font(.caption).foregroundStyle(.secondary).padding(.horizontal, 18).padding(.vertical, 10)
             if let error = model.error ?? model.connectionError {
                 HStack {
                     Text(error).font(.caption)
                     Spacer()
-                    Button { if model.error != nil { model.error = nil } else { model.connectionError = nil } } label: { Image(systemName: "xmark") }.accessibilityLabel("Dismiss message")
+                    Button { if model.error != nil { model.error = nil } else { model.connectionError = nil } } label: { Image(systemName: "xmark") }.accessibilityLabel("Meldung schließen")
                 }.padding(12).background(Color.orange.opacity(0.12))
             }
             ZStack(alignment: .bottom) {
@@ -47,11 +47,11 @@ struct NativeCanvasView: View {
                                 Text(element.text.isEmpty ? element.selector : element.text).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer()
-                            Button("Comment") { sheet = .comments }.font(.callout.bold())
-                            Button { model.selectedElement = nil } label: { Image(systemName: "xmark") }.accessibilityLabel("Clear element selection")
+                            Button("Kommentieren") { sheet = .comments }.font(.callout.bold())
+                            Button { model.selectedElement = nil } label: { Image(systemName: "xmark") }.accessibilityLabel("Elementauswahl aufheben")
                         }.padding(.horizontal, 16).padding(.vertical, 12).modifier(FloatingGlass())
                     } else if model.inspecting, model.selected != nil {
-                        Text("Tap an element in the selected frame").font(.caption).padding(10).modifier(FloatingGlass())
+                        Text("Tippe auf ein Element in der ausgewählten Zeichenfläche").font(.caption).padding(10).modifier(FloatingGlass())
                     }
                     VStack(spacing: 10) {
                         HStack(spacing: 10) {
@@ -66,14 +66,14 @@ struct NativeCanvasView: View {
                             Button(action: sendPrompt) {
                                 if sending { ProgressView() } else { Image(systemName: "arrow.up.circle.fill").font(.title) }
                             }.disabled(sending || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.connected)
-                                .accessibilityLabel("Send design task")
+                                .accessibilityLabel("Designaufgabe senden")
                         }.padding(.horizontal, 16).padding(.vertical, 14).modifier(FloatingGlass())
                         GlassDock {
-                            GlassDockButton(label: "Add frame", symbol: "plus", caption: "Add") { Task { await model.addFrame() } }
-                            GlassDockButton(label: "Fit canvas", symbol: "arrow.up.left.and.arrow.down.right", caption: "Fit") { model.viewportCommand += 1 }
-                            GlassDockButton(label: "Frames", symbol: "square.3.layers.3d") { sheet = .frames }
-                            GlassDockButton(label: "Frame properties", symbol: "slider.horizontal.3", caption: "Properties") { sheet = .inspector }.disabled(model.selected == nil)
-                            GlassDockButton(label: "Inspect elements", symbol: "scope", caption: "Inspect", selected: model.inspecting) {
+                            GlassDockButton(label: "Zeichenfläche hinzufügen", symbol: "plus", caption: "Hinzufügen") { Task { await model.addFrame() } }
+                            GlassDockButton(label: "Arbeitsfläche einpassen", symbol: "arrow.up.left.and.arrow.down.right", caption: "Einpassen") { model.viewportCommand += 1 }
+                            GlassDockButton(label: "Zeichenflächen", symbol: "square.3.layers.3d") { sheet = .frames }
+                            GlassDockButton(label: "Eigenschaften der Zeichenfläche", symbol: "slider.horizontal.3", caption: "Eigenschaften") { sheet = .inspector }.disabled(model.selected == nil)
+                            GlassDockButton(label: "Elemente untersuchen", symbol: "scope", caption: "Untersuchen", selected: model.inspecting) {
                                 model.inspecting.toggle()
                                 if !model.inspecting { model.selectedElement = nil }
                             }.disabled(model.selected == nil)
@@ -88,11 +88,11 @@ struct NativeCanvasView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    Button { sheet = .tasks } label: { Label("Agent tasks", systemImage: "sparkles") }
-                    Button { sheet = .comments } label: { Label("Comments", systemImage: "bubble.left.and.bubble.right") }
-                    ShareLink(item: model.client.server.origin.appendingPathComponent("c/\(model.id)")) { Label("Share canvas link", systemImage: "square.and.arrow.up") }
-                    if model.selected != nil { Button("Export selected frame HTML") { exportFrame() } }
-                } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Canvas actions")
+                    Button { sheet = .tasks } label: { Label("Agentenaufgaben", systemImage: "sparkles") }
+                    Button { sheet = .comments } label: { Label("Kommentare", systemImage: "bubble.left.and.bubble.right") }
+                    ShareLink(item: model.client.server.origin.appendingPathComponent("c/\(model.id)")) { Label("Link zur Arbeitsfläche teilen", systemImage: "square.and.arrow.up") }
+                    if model.selected != nil { Button("HTML der ausgewählten Zeichenfläche exportieren") { exportFrame() } }
+                } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Aktionen der Arbeitsfläche")
             }
         }
         .sheet(item: $sheet) { panel in
@@ -106,8 +106,8 @@ struct NativeCanvasView: View {
                 NavigationStack {
                     VStack(spacing: 24) {
                         Image(systemName: "doc.text").font(.largeTitle)
-                        if let exportURL { ShareLink("Save or share HTML", item: exportURL).buttonStyle(.borderedProminent) }
-                    }.navigationTitle("Export frame").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { sheet = nil } } }
+                        if let exportURL { ShareLink("HTML speichern oder teilen", item: exportURL).buttonStyle(.borderedProminent) }
+                    }.navigationTitle("Zeichenfläche exportieren").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { sheet = nil } } }
                 }
             }
         }
@@ -125,8 +125,8 @@ struct NativeCanvasView: View {
     }
 
     private var promptPlaceholder: String {
-        guard let scope = promptScope else { return "Ask your agent to design…" }
-        return scope.isElement ? "Ask your agent to change this element…" : "Ask your agent to change this frame…"
+        guard let scope = promptScope else { return "Bitte Deinen Agenten um ein Design…" }
+        return scope.isElement ? "Bitte Deinen Agenten, dieses Element zu ändern…" : "Bitte Deinen Agenten, diese Zeichenfläche zu ändern…"
     }
 
     private func sendPrompt() {
@@ -136,7 +136,7 @@ struct NativeCanvasView: View {
         let scope = promptScope?.scope
         Task {
             do { try await model.queue(value, scope: scope); prompt = ""; sheet = .tasks }
-            catch { model.error = error.localizedDescription }
+            catch { model.error = NativeMessages.error(error) }
             sending = false
         }
     }
@@ -154,8 +154,8 @@ struct NativeCanvasView: View {
                         if model.selectedID == frame.id { Image(systemName: "checkmark") }
                     }.padding(.vertical, 5)
                 }
-            }.navigationTitle("Frames")
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { sheet = nil } } }
+            }.navigationTitle("Zeichenflächen")
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { sheet = nil } } }
         }
     }
     private func exportFrame() {
@@ -165,7 +165,7 @@ struct NativeCanvasView: View {
             try Data(frame.html.utf8).write(to: destination, options: .atomic)
             exportURL = destination
             sheet = .export
-        } catch { model.error = error.localizedDescription }
+        } catch { model.error = NativeMessages.error(error) }
     }
 }
 
@@ -180,7 +180,7 @@ private struct PromptScopeChip: View {
             Image(systemName: scope.isElement ? "scope" : "rectangle").font(.caption)
             Text(scope.label).font(.caption.monospaced().bold()).lineLimit(1).truncationMode(.tail)
             Button(action: dismiss) { Image(systemName: "xmark").font(.caption2.bold()) }
-                .accessibilityLabel(scope.isElement ? "Remove element scope" : "Remove frame scope")
+                .accessibilityLabel(scope.isElement ? "Elementbezug entfernen" : "Zeichenflächenbezug entfernen")
         }
         .foregroundStyle(.tint)
         .padding(.leading, 8).padding(.trailing, 6).padding(.vertical, 5)
@@ -188,7 +188,7 @@ private struct PromptScopeChip: View {
         .frame(maxWidth: 150, alignment: .leading)
         .fixedSize(horizontal: true, vertical: false)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(scope.isElement ? "Scoped to \(scope.label) in \(scope.frameName)" : "Scoped to the frame \(scope.label)")
+        .accessibilityLabel(scope.isElement ? "Bezogen auf \(scope.label) in \(scope.frameName)" : "Bezogen auf die Zeichenfläche \(scope.label)")
     }
 }
 
@@ -206,44 +206,44 @@ private struct FrameInspector: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Frame") {
+                Section("Zeichenfläche") {
                     TextField("Name", text: $name)
-                    HStack { Text("Width"); Spacer(); TextField("Width", value: $width, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
-                    HStack { Text("Height"); Spacer(); TextField("Height", value: $height, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
+                    HStack { Text("Breite"); Spacer(); TextField("Breite", value: $width, format: .number.locale(Locale(identifier: "de_DE"))).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
+                    HStack { Text("Höhe"); Spacer(); TextField("Höhe", value: $height, format: .number.locale(Locale(identifier: "de_DE"))).keyboardType(.decimalPad).multilineTextAlignment(.trailing) }
                 }
                 Section("HTML") {
                     TextEditor(text: $html).font(.system(.caption, design: .monospaced)).frame(minHeight: 280)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityLabel("Frame HTML")
+                        .textInputAutocapitalization(.never).autocorrectionDisabled().accessibilityLabel("HTML der Zeichenfläche")
                 }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
-                Section { Button("Delete frame", role: .destructive) { deleting = true } }
+                Section { Button("Zeichenfläche löschen", role: .destructive) { deleting = true } }
             }
-            .navigationTitle("Frame properties").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("Eigenschaften der Zeichenfläche").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(saving ? "Saving…" : "Save", action: save).disabled(saving) }
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(saving ? "Wird gespeichert…" : "Speichern", action: save).disabled(saving) }
             }
             .onAppear { name = original.name; width = original.width; height = original.height; html = original.html }
-            .confirmationDialog("Delete this frame?", isPresented: $deleting, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) { Task { do { try await model.deleteFrame(original.id); dismiss() } catch { self.error = error.localizedDescription } } }
+            .confirmationDialog("Diese Zeichenfläche löschen?", isPresented: $deleting, titleVisibility: .visible) {
+                Button("Löschen", role: .destructive) { Task { do { try await model.deleteFrame(original.id); dismiss() } catch { self.error = NativeMessages.error(error) } } }
             }
         }
     }
     private func save() {
         guard width.isFinite, height.isFinite, (1...10000).contains(width), (1...10000).contains(height), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            error = "Enter a name and dimensions between 1 and 10,000."; return
+            error = "Gib einen Namen und Maße zwischen 1 und 10.000 ein."; return
         }
-        guard let current = model.canvas?.frames.first(where: { $0.id == original.id }) else { error = "This frame was deleted."; return }
+        guard let current = model.canvas?.frames.first(where: { $0.id == original.id }) else { error = "Diese Zeichenfläche wurde gelöscht."; return }
         var patch: [String: Any] = [:]
         if name != original.name { patch["name"] = name }
         if width != original.width { patch["width"] = width }
         if height != original.height { patch["height"] = height }
         if html != original.html {
-            guard current.html == original.html else { error = "This frame was edited by a collaborator. Close and reopen properties before changing its HTML."; return }
+            guard current.html == original.html else { error = "Diese Zeichenfläche wurde von einem anderen Mitglied bearbeitet. Schließe und öffne die Eigenschaften erneut, bevor Du ihr HTML änderst."; return }
             patch["html"] = html
         }
         saving = true
-        Task { do { if !patch.isEmpty { try await model.patchFrame(original.id, patch: patch) }; dismiss() } catch { self.error = error.localizedDescription }; saving = false }
+        Task { do { if !patch.isEmpty { try await model.patchFrame(original.id, patch: patch) }; dismiss() } catch { self.error = NativeMessages.error(error) }; saving = false }
     }
 }
 
@@ -253,18 +253,18 @@ private struct TasksPanel: View {
     var body: some View {
         NavigationStack {
             List {
-                if model.tasks.isEmpty { Text("Ask your agent to design something. Tasks appear here as the team works.").foregroundStyle(.secondary) }
+                if model.tasks.isEmpty { Text("Bitte Deinen Agenten, etwas zu gestalten. Hier erscheinen Aufgaben, während das Team arbeitet.").foregroundStyle(.secondary) }
                 ForEach(model.tasks.sorted { $0.startedAt > $1.startedAt }) { task in
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: task.failedAt != nil ? "exclamationmark.circle" : task.endedAt != nil ? "checkmark.circle" : "sparkles").foregroundStyle(task.failedAt != nil ? .orange : .blue)
                         VStack(alignment: .leading, spacing: 6) {
                             Text(task.status).font(.body)
-                            Text(task.agentName.isEmpty ? "Waiting for an agent" : task.agentName).font(.caption).foregroundStyle(.secondary)
+                            Text(task.agentName.isEmpty ? "Wartet auf einen Agenten" : task.agentName).font(.caption).foregroundStyle(.secondary)
                             if let reason = task.failureReason { Text(reason).font(.caption).foregroundStyle(.orange) }
                         }
                     }.padding(.vertical, 8)
                 }
-            }.navigationTitle("Agent tasks").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            }.navigationTitle("Agentenaufgaben").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() } } }
         }
     }
 }
@@ -278,33 +278,33 @@ private struct CommentsPanel: View {
     var body: some View {
         NavigationStack {
             List {
-                Section(model.selectedElement.map { "Comment on \($0.label)" } ?? "Add a frame comment") {
+                Section(model.selectedElement.map { "Kommentar zu \($0.label)" } ?? "Kommentar zur Zeichenfläche hinzufügen") {
                     if let element = model.selectedElement, !element.text.isEmpty {
                         Text(element.text).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
-                    Picker("Frame", selection: $model.selectedID) {
-                        Text("Choose a frame").tag(String?.none)
+                    Picker("Zeichenfläche", selection: $model.selectedID) {
+                        Text("Zeichenfläche auswählen").tag(String?.none)
                         ForEach(model.canvas?.frames ?? []) { Text($0.name).tag(Optional($0.id)) }
                     }
-                    TextField("Leave feedback…", text: $text, axis: .vertical).lineLimit(2...5)
-                    Button("Post comment") {
+                    TextField("Feedback hinterlassen…", text: $text, axis: .vertical).lineLimit(2...5)
+                    Button("Kommentar senden") {
                         guard let id = model.selectedID else { return }
                         sending = true
-                        Task { do { try await model.comment(text, frameID: id); text = "" } catch { self.error = error.localizedDescription }; sending = false }
+                        Task { do { try await model.comment(text, frameID: id); text = "" } catch { self.error = NativeMessages.error(error) }; sending = false }
                     }.disabled(sending || model.selectedID == nil || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     if let error { Text(error).foregroundStyle(.red) }
                 }
-                Section("Conversation") {
-                    if model.comments.isEmpty { Text("No comments yet.").foregroundStyle(.secondary) }
+                Section("Unterhaltung") {
+                    if model.comments.isEmpty { Text("Noch keine Kommentare.").foregroundStyle(.secondary) }
                     ForEach(model.comments.sorted { $0.at > $1.at }) { comment in
                         VStack(alignment: .leading, spacing: 6) {
                             HStack { Text(comment.from).font(.subheadline.bold()); Spacer(); if comment.resolvedAt != nil { Image(systemName: "checkmark.circle").foregroundStyle(.green) } }
                             Text(comment.text)
-                            Text(model.canvas?.frames.first(where: { $0.id == comment.frameId })?.name ?? "Frame").font(.caption).foregroundStyle(.secondary)
+                            Text(model.canvas?.frames.first(where: { $0.id == comment.frameId })?.name ?? "Zeichenfläche").font(.caption).foregroundStyle(.secondary)
                         }.padding(.vertical, 6)
                     }
                 }
-            }.navigationTitle("Comments").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            }.navigationTitle("Kommentare").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() } } }
         }
     }
 }
