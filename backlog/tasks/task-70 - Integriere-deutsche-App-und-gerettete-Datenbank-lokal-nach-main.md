@@ -1,10 +1,10 @@
 ---
 id: TASK-70
 title: Integriere deutsche App und gerettete Datenbank lokal nach main
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-26T07:10:00Z'
-updated_date: '2026-10-26T07:35:00Z'
+updated_date: '2026-10-26T07:41:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -51,3 +51,9 @@ Nach-Merge-Gates frisch bestanden auf mainb08c265:165Dateien/1309Tests in255.42s
 
 DB-Aktivierung erfolgreich: vollständige Inventare für Ziel, aktuelleQuelle, Incoming undAssets sowie Offlinezustand vor atomarem Linux-renameat2-Tausch geprüft. Erste Guardläufe stoppten ohne Datenmutation an nicht-dumpbaren System-/Loginmanagern; diese per PID/ps/cmdline als systemd--user,sd-pam,sshd-session verifiziert, deren App-Kinder und alle übrigen eigenen Prozesse/DB-FDs weiterhin geprüft. Danach Guard erkannte eine echte Quelländerung um08:25; alten Incoming-Stand und Manifeste gesichert statt Schutz zu umgehen, neue stabile Quellkopie mit1161Dateien erzeugt und versiegelt. Erst diese aktuellere Kopie aktiviert. Atomarer Tausch auf gleichem FS mit vorherigem Assert-Selfcheck erfolgreich, beschädigter altermainStand vollständig in retired-main-pg erhalten. Echte main-initDb inklusive40Migrationen grün; alle39Tabellen mit vollständigen Zeilen-Hashes identisch zur zuletzt geprüften Quelle,2Canvases/2Frames. Maincode-Smoke auf isolierter Kopie zweimalStart/Stop/Neustart, /healthz,/api/login-providers,/api/auth/get-session jeweils200; echte Nutzerdaten nicht durch Smoke verändert. Private Sicherungen: main/data/integration-backups/2026-10-26-task70-Ou03W1. Worktree/Featurebranch erhalten; Sitzung wieder im Hauptcheckout. Fremde während der Arbeit erschienene Änderung an TASK-23 bleibt unangetastet und wird nicht mitcommittet. Keine Remoteoperationen. Prüfprotokoll docs/prowin/deutsche-uebersetzung.md aktualisiert, finale Docs-/Git-Prüfung folgt.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Deutsche App lokal nach main integriert (Feature a1ab4cc, Merge b08c265, Integrationsnachweise 0c90397). Gerettete aktuelle Datenbank und Assets nach Offline-Sicherung atomar in den Hauptcheckout übernommen; 39 Tabellen per Zeilen-Hashes identisch, 40 Migrationen und API-Neustart geprüft. Jeweils 1309 Tests sowie Typecheck, Lint, Formatierung und Build vor/nach Merge bestanden. Kein Push oder Deployment. Sicherungen und Worktree erhalten; native/externe Prüfgrenzen und fehlende Prävention erneuter DB-Schäden dokumentiert. Nutzer hat den Abschluss von TASK-70 ausdrücklich freigegeben. Weitere Backlog-Aufgaben bleiben unverändert.
+<!-- SECTION:FINAL_SUMMARY:END -->
