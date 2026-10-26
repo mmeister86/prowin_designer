@@ -293,3 +293,42 @@ diese offenen Plattformnachweise nicht grün.
       Authentifizierung, Live Activities und widerrufenen Zugriff testen.
 - [ ] Nutzer ausdrücklich um manuelle Abnahme und Erlaubnis zum Setzen von
       `Done` bitten. Erst nach Bestätigung schließt der Controller Backlog per CLI.
+
+## Nutzerabnahme und lokale Integration am 26. Oktober 2026
+
+Der Nutzer hat die Übersetzung vorläufig akzeptiert und die lokale Übernahme nach
+`main` einschließlich geretteter Datenbank ausdrücklich freigegeben. Die Aussagen
+oben zu uncommittierten Änderungen und ausstehender Zusammenführung dokumentieren
+den früheren Prüfstand. Featurecommit: `a1ab4cc`; lokaler Mergecommit: `b08c265`.
+Die älteren Aufgaben-/Planstände des Hauptcheckouts bleiben mit `c2f6189` erhalten.
+Es wurde nichts gepusht oder deployt.
+
+Vor und nach dem Merge bestanden jeweils alle **165 Testdateien / 1.309 Tests**
+unter Node 24.21.0 mit Bun im PATH und `--maxWorkers=2`, ohne geänderte Timeouts.
+Typecheck, vollständiges Lint, globaler Formatcheck, Web-/Claude-Erweiterungsbuild
+und `git diff --check` bestanden ebenfalls. Leia bestätigte den unveränderten
+Produkt-/Teststand zum finalen unabhängigen Review; Spock prüfte die getrennte
+Offline-Datenübernahme. Die bekannten nichtfatalen Testausgaben und der bestehende
+Hinweis auf große JS-Chunks bleiben bestehen.
+
+Die Datenbank wurde separat von Git nach `data/pg` im Hauptcheckout übernommen.
+Maßgeblich ist der zuletzt genutzte Worktree-Stand mit **2 Arbeitsflächen und
+2 Zeichenflächen**, nicht der ältere Rettungssnapshot mit 4 beziehungsweise 5.
+Eine während der Prüfung erkannte weitere Quelländerung stoppte den Wechsel;
+erst eine neue, vollständig geprüfte Kopie wurde aktiviert. Alle 39 Tabellen
+stimmen anhand ihrer Zeilenzahlen und vollständigen Zeilen-Hashes überein.
+Die echte `initDb()`-Initialisierung einschließlich 40 Migrationen bestand.
+Zweimaliger Serverstart mit einer isolierten Kopie des übernommenen Datenstands
+lieferte für Healthcheck, Login-Provider und Session jeweils HTTP 200. Dabei
+wurden keine echten externen Dienste aufgerufen.
+
+Private Sicherungen einschließlich ursprünglicher Datenbank, Rettungsunterlagen,
+Assets und Prüfnachweisen liegen unter
+`data/integration-backups/2026-10-26-task70-Ou03W1/`. Der Datenbanktausch erfolgte
+atomar; der bisherige Zielstand bleibt zusätzlich unter `retired-main-pg`
+erhalten. Daten, Sicherungen und lokale Geheimnisse sind nicht Teil der Commits.
+Der Feature-Worktree bleibt als zusätzliche Sicherung und für die Reviewbelege
+erhalten. Die oben dokumentierten nativen und externen Prüfgrenzen gelten weiter;
+eine dauerhafte Prävention des ursprünglichen Datenbankschadens ist nicht Teil
+dieser Integration. Backlog-Aufgaben bleiben ohne ausdrückliche
+`Done`-Freigabe offen; Integrationsnachweise stehen in TASK-70.

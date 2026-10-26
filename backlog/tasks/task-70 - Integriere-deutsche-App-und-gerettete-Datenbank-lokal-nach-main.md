@@ -4,7 +4,7 @@ title: Integriere deutsche App und gerettete Datenbank lokal nach main
 status: In Progress
 assignee: []
 created_date: '2026-10-26T07:10:00Z'
-updated_date: '2026-10-26T07:17:00Z'
+updated_date: '2026-10-26T07:35:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -19,10 +19,10 @@ Vom Nutzer autorisierte lokale Integration der Übersetzung aus feat/german-app 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Vollsuite und relevante Projektprüfungen vor und nach der lokalen Integration erfolgreich
-- [ ] #2 Freigegebene Übersetzung samt Tests und Dokumentation ist auf lokalem main committed
-- [ ] #3 Gerettete Datenbank und benötigte Assets sind im Hauptcheckout verfügbar; bisheriger Zielstand ist gesichert und DB-/API-Neustart geprüft
-- [ ] #4 Keine Laufzeitdaten oder Geheimnisse im Git-Commit; Ergebnis und verbleibende Prüfgrenzen dokumentiert
+- [x] #1 Vollsuite und relevante Projektprüfungen vor und nach der lokalen Integration erfolgreich
+- [x] #2 Freigegebene Übersetzung samt Tests und Dokumentation ist auf lokalem main committed
+- [x] #3 Gerettete Datenbank und benötigte Assets sind im Hauptcheckout verfügbar; bisheriger Zielstand ist gesichert und DB-/API-Neustart geprüft
+- [x] #4 Keine Laufzeitdaten oder Geheimnisse im Git-Commit; Ergebnis und verbleibende Prüfgrenzen dokumentiert
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -44,4 +44,10 @@ Nutzerfreigabe: Übersetzung passt erstmal; ausdrücklich alles lokal nach main 
 Vorintegration: Leia bestätigt bytegleichen Produkt-/Test-/Konfigurationsstand zum finalen unabhängigen Review (680 Produktdateien; 870/871 Manifestdateien geprüft, .env.example bewusst ausgelassen); keine neuen Critical/Important. Ziel- und Quell-DB offline gesichert nach main/data/integration-backups/2026-10-26-task70-Ou03W1; 1164 Original-Zieldateien und1160 gerettete Quelldateien mit SHA256 geprüft. Rettungsunterlagen und Assets separat mitkopiert. Aktueller Worktree-Datenstand nach manueller Nutzung:2Canvases/2Frames,39Tabellen,40Migrationen (nicht den älteren Rettungssnapshot4/5 wieder einspielen). DB-Eingangskopie im Hauptcheckout data/pg-task70-incoming erfolgreich geöffnet/gelesen/sauber geschlossen; vollständige Tabellen-Fingerprints als private Backupdatei gesichert. Originalziel noch unverändert.
 
 Vor-Merge-Gates frisch bestanden: Vollsuite165Dateien/1309Tests,268.22s unter Node24.21.0/Bun-PATH und maxWorkers2, unveränderte Timeouts. Typecheck, vollständiges Lint, globaler Formatcheck, Web-/Claude-Erweiterungsbuild und git diff --check grün. Bekannte nichtfatale Happy-DOM-/Port3000-Ausgaben und bestehender Chunkgrößenhinweis bleiben sichtbar. Keine Runtime-/Credentialdateinamen unter872nichtignorierten Git-Dateinamen. Alle10ungetrackten alten Hauptcheckout-Records zusätzlich privat im Datenbackup gesichert. Danach bestehende Hauptcheckout-Records per eigenem Dokumentationscommit historisieren; bei reinen Add/Add-Dokumentkonflikten den nachweislich aktuelleren Feature-Stand verwenden, Task69 bleibt erhalten.
+
+Lokaler Code-Merge abgeschlossen: Featurecommit a1ab4cc, historisierter Hauptcheckout-Dokumentstand c2f6189, Mergecommit b08c265. Vorhersehbare reine Add/Add-Dokumentkonflikte zugunsten der neueren Feature-Dokumente aufgelöst; Vergleich feat/german-app..main zeigt ausschließlich den zusätzlich erhaltenen Task69-Record, keine Produkt-/Testabweichungen. Erster Merge-Commitversuch wurde nur vom Commitlint wegen nicht erlaubtem Typ merge abgelehnt; konventioneller chore(merge)-Commit anschließend erfolgreich, keine Hooks umgangen. Git-Arbeitsbaum zunächst sauber; kein Push/Fetch/Pull ausgeführt. Zweite vollständige Suite läuft auf main. DB-Wechsel noch ausstehend; Original weiterhin am Platz und zusätzlich offline gesichert.
+
+Nach-Merge-Gates frisch bestanden auf mainb08c265:165Dateien/1309Tests in255.42s, danach Typecheck, vollständiges Lint, globaler Formatcheck, Web-/Claude-Erweiterungsbuild und git diff --check grün. Merge-Code identisch zum freigegebenen Featurecommit; Runtime/Credentialdateinamen im Commitbaum geprüft und ausgeschlossen. Spocks statischer Transfercheck benannte echte Härtungspunkte; Script vor Ausführung auf vollständige Inventare, versiegeltes Incoming, aktuelle Quellassets, offene eigene DB-FDs und Linux-atomaren renameat2-Verzeichnistausch umgestellt. Plattform-Selfcheck an Wegwerfverzeichnissen erfolgreich; Incoming erneut an39Tabellenfingerprints geprüft und1160Dateien versiegelt. Aktivierung noch nicht ausgeführt; Nachprüfung der Transferkorrektur läuft.
+
+DB-Aktivierung erfolgreich: vollständige Inventare für Ziel, aktuelleQuelle, Incoming undAssets sowie Offlinezustand vor atomarem Linux-renameat2-Tausch geprüft. Erste Guardläufe stoppten ohne Datenmutation an nicht-dumpbaren System-/Loginmanagern; diese per PID/ps/cmdline als systemd--user,sd-pam,sshd-session verifiziert, deren App-Kinder und alle übrigen eigenen Prozesse/DB-FDs weiterhin geprüft. Danach Guard erkannte eine echte Quelländerung um08:25; alten Incoming-Stand und Manifeste gesichert statt Schutz zu umgehen, neue stabile Quellkopie mit1161Dateien erzeugt und versiegelt. Erst diese aktuellere Kopie aktiviert. Atomarer Tausch auf gleichem FS mit vorherigem Assert-Selfcheck erfolgreich, beschädigter altermainStand vollständig in retired-main-pg erhalten. Echte main-initDb inklusive40Migrationen grün; alle39Tabellen mit vollständigen Zeilen-Hashes identisch zur zuletzt geprüften Quelle,2Canvases/2Frames. Maincode-Smoke auf isolierter Kopie zweimalStart/Stop/Neustart, /healthz,/api/login-providers,/api/auth/get-session jeweils200; echte Nutzerdaten nicht durch Smoke verändert. Private Sicherungen: main/data/integration-backups/2026-10-26-task70-Ou03W1. Worktree/Featurebranch erhalten; Sitzung wieder im Hauptcheckout. Fremde während der Arbeit erschienene Änderung an TASK-23 bleibt unangetastet und wird nicht mitcommittet. Keine Remoteoperationen. Prüfprotokoll docs/prowin/deutsche-uebersetzung.md aktualisiert, finale Docs-/Git-Prüfung folgt.
 <!-- SECTION:NOTES:END -->

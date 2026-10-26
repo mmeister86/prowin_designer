@@ -4,7 +4,7 @@ title: Übersetze die gesamte App ins Deutsche
 status: In Progress
 assignee: []
 created_date: '2026-10-25T19:50:00Z'
-updated_date: '2026-10-26T07:13:00Z'
+updated_date: '2026-10-26T07:35:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -14,7 +14,7 @@ ordinal: 79000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Vollständige deutsche Endnutzeroberfläche für Web, Desktop und iOS einschließlich Accessibility, Fehlermeldungen, Transaktionsmails, Standardinhalten und Formaten gemäß freigegebenem Plan umgesetzt. Sechs Teilaufgaben und finales Gesamt-Review samt Korrekturwelle technisch geprüft. Bestehende Nutzerinhalte und technische Verträge bleiben erhalten. Native/echte externe Abläufe und ausdrückliche manuelle Nutzerabnahme stehen aus; nicht zusammengeführt, veröffentlicht oder deployt.
+Vollständige deutsche Endnutzeroberfläche für Web, Desktop und iOS einschließlich Accessibility, Fehlermeldungen, Transaktionsmails, Standardinhalten und Formaten umgesetzt und vorläufig vom Nutzer akzeptiert. Lokal unter TASK-70 nach main integriert, einschließlich separat gesicherter geretteter Datenbank. Native und echte externe Abläufe bleiben gemäß Prüfprotokoll ungeprüft. Keine Veröffentlichung oder Deployment; Statusabschluss erst nach ausdrücklicher Done-Freigabe.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -48,4 +48,6 @@ Vollständige deutsche Endnutzeroberfläche für Web, Desktop und iOS einschlie�
 26.10.2026: Finale Controller-Verifikation vollständig abgeschlossen:165Dateien/1309Tests bestanden (maxWorkers2, unveränderte Timeouts), Typecheck, vollständiges Lint, globaler Formatcheck, Web-/Claude-Erweiterungsbuild und git diff --check grün.670Produkt-/Test-/Konfigurationsdateien bytegleich zum final unabhängig geprüften Snapshot. Alle technischen Akzeptanzkriterien1-5 nachgewiesen; AC6 ausdrücklich offen. Keine offenen Critical-/Important-Reviewbefunde. Änderungen weiterhin uncommittet auf feat/german-app; keine Zusammenführung, Veröffentlichung oder Deployment. Bitte erst nach ausdrücklicher manueller Nutzerabnahme auf Done setzen.
 
 26.10.2026: Nutzer bestätigt im Chat, dass die Übersetzung erstmal passt, und autorisiert ausdrücklich die lokale Integration nach main inklusive geretteter Datenbank. Manuelle vorläufige Abnahme damit erfolgt. Kein Push/Deployment beauftragt. Aufgabenstatus bleibt mangels ausdrücklicher Freigabe zum Setzen auf Done unverändert; lokale Integration wird unter TASK-70 verfolgt.
+
+26.10.2026: Vom Nutzer autorisierter lokaler Merge unter TASK-70 erfolgt: Feature a1ab4cc, Merge b08c265. Frische Vollsuite vor und nach Merge165Dateien/1309Tests grün, Typecheck/Lint/Format/Build ebenfalls. Aktueller geretteter Datenstand separat nach Hauptcheckout/data/pg übernommen und verifiziert. Kein Push/Deployment. Native/externe Prüfgrenzen bleiben bestehen, keine ausdrückliche Done-Freigabe angenommen.
 <!-- SECTION:NOTES:END -->
