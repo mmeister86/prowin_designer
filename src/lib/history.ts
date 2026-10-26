@@ -1,6 +1,6 @@
 import { applyPageChanges, canvasPages, samePages } from '../../shared/pages'
 import type { CanvasPageInfo, Frame } from '../../shared/types'
-import { api, ApiError } from './api'
+import { api, ApiError, errorMessage, UserFacingError } from './api'
 import { useStore } from './store'
 
 /** Local undo/redo for this client's own frame edits. Undo re-issues the
@@ -238,7 +238,7 @@ function remapId(oldId: string, newId: string) {
 async function recreate(e: { frameId: string; snapshot: Snapshot; expected?: Frame }) {
   const { canvasId, ...rest } = e.snapshot
   const canvas = useStore.getState().canvas
-  if (!canvas || canvas.id !== canvasId) throw new Error('Canvas changed')
+  if (!canvas || canvas.id !== canvasId) throw new UserFacingError('Die Arbeitsfläche wurde geändert')
   const pages = canvasPages(canvas)
   if (!rest.pageId || !pages.some((p) => p.id === rest.pageId)) rest.pageId = pages[0]!.id
   const f = await api.createFrame(canvasId, rest)
@@ -268,10 +268,10 @@ function advanceTransferVersions(frame: Frame) {
 
 async function transferWrite<T>(expected: Frame, request: () => Promise<T>): Promise<T> {
   const canvas = useStore.getState().canvas
-  if (canvas?.id !== expected.canvasId) throw new Error('Canvas changed')
+  if (canvas?.id !== expected.canvasId) throw new UserFacingError('Die Arbeitsfläche wurde geändert')
   const current = canvas.frames.find((frame) => frame.id === expected.id)
   if (!current || current.updatedAt !== expected.updatedAt || !sameTransferState(current, expected))
-    throw new Error('The frame changed.')
+    throw new UserFacingError('Die Zeichenfläche wurde geändert.')
   try {
     return await request()
   } catch (error) {
@@ -287,7 +287,7 @@ async function transferWrite<T>(expected: Frame, request: () => Promise<T>): Pro
         local.updatedAt <= remote.updatedAt
       )
         useStore.getState().upsertFrame(remote)
-      throw new Error('The frame changed.', { cause: error })
+      throw new UserFacingError('Die Zeichenfläche wurde geändert.', { cause: error })
     }
     throw error
   }
@@ -313,7 +313,7 @@ class PrerequisiteFailed extends Error {
     cause: unknown,
     readonly canvasId?: string,
   ) {
-    super(cause instanceof Error ? cause.message : 'Could not apply the page change', { cause })
+    super('Die Änderung konnte nicht angewendet werden. Versuche es erneut.', { cause })
   }
 }
 
@@ -401,12 +401,28 @@ async function apply(e: Entry, direction: 'undo' | 'redo'): Promise<Entry | null
   if (e.type === 'pages') {
     const state = useStore.getState()
     const canvas = state.canvas
-    if (!canvas || canvas.id !== e.canvasId) throw new Error('Canvas changed')
+    if (!canvas || canvas.id !== e.canvasId) throw new UserFacingError('Die Arbeitsfläche wurde geändert')
     const expected = canvasPages(canvas)
-    const next = applyPageChanges(expected, forward ? e.before : e.after, forward ? e.after : e.before)
+    let next: CanvasPageInfo[]
+    try {
+      next = applyPageChanges(expected, forward ? e.before : e.after, forward ? e.after : e.before)
+    } catch (error) {
+      // This pure local helper is the sole producer of these conflict messages.
+      if (
+        error instanceof Error &&
+        [
+          'Diese Seite wurde von einer anderen Person umbenannt.',
+          'Diese Seite ist nicht mehr vorhanden.',
+          'Eine andere Seite verwendet bereits diese ID.',
+          'Die Seitenreihenfolge wurde geändert. Versuche es erneut.',
+        ].includes(error.message)
+      )
+        throw new UserFacingError(error.message, { cause: error })
+      throw error
+    }
     const saved = await api.setPages(canvas.id, next, expected)
     const current = useStore.getState()
-    if (current.canvas?.id !== e.canvasId) throw new Error('Canvas changed')
+    if (current.canvas?.id !== e.canvasId) throw new UserFacingError('Die Arbeitsfläche wurde geändert')
     if (samePages(canvasPages(current.canvas), expected) || samePages(canvasPages(current.canvas), saved)) {
       current.setPages(saved, canvas.id)
       const active = forward ? e.activeAfter : e.activeBefore
@@ -482,7 +498,9 @@ async function step(direction: 'undo' | 'redo') {
       const from = direction === 'undo' ? undoStack : redoStack
       from.push(retry.remaining)
       if (retry.applied) (direction === 'undo' ? redoStack : undoStack).push(retry.applied)
-      useStore.getState().pushNotice(retry.message)
+      let cause: unknown = retry.cause
+      while (cause instanceof PrerequisiteFailed) cause = cause.cause
+      useStore.getState().pushNotice(errorMessage(cause, retry.message))
     }
     /* the frame is gone or the canvas moved on — drop the entry */
     console.error(`${direction} failed`, err)

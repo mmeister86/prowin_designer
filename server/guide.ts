@@ -78,6 +78,8 @@ External inspiration search is temporarily disabled.`
 
 export const DOOP_GUIDE = `# Doop Agent Guide
 
+Respond in German by default, using friendly Du address for people. Follow explicit requests for another language. Preserve user content and technical tool contracts.
+
 ## The room you're in
 
 Doop is a live multiplayer canvas. Humans and other agents may be present RIGHT NOW:

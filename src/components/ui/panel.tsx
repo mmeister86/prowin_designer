@@ -152,7 +152,7 @@ function PanelDisclosure({ className, ...props }: React.ComponentProps<typeof Co
  *  baseline and never centres in the button, the icon does. */
 function PanelClose({
   className,
-  label = 'Close',
+  label = 'Schließen',
   children: _children,
   ...props
 }: React.ComponentProps<'button'> & { label?: string }) {

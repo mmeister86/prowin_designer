@@ -71,9 +71,9 @@ describe('normalize', () => {
       minute: 0,
       tz: 'UTC',
     })
-    /* the clock reads in the runner's locale: 16:00 or 4:00 PM */
+    /* Display time is fixed to German; scheduler math stays unchanged. */
     expect(describeSchedule(normalizeSchedule({ kind: 'weekly', weekday: 5, hour: 16, minute: 0 }))).toMatch(
-      /^Every Friday at (16:00|4:00 PM)$/,
+      /^Jeden Freitag um 16:00$/,
     )
   })
 
@@ -86,17 +86,17 @@ describe('normalize', () => {
       { id: 's1', type: 'pull', provider: 'meta', accountId: 'act_1', filter: 'active', canvasId: 'c1' },
       { id: 's2', type: 'agent', title: '', prompt: 'Review it', roles: ['ux'], canvasId: 'c1' },
     ])
-    expect(normalizeSteps([{ type: 'webhook' }])).toBe('each step is a pull or an agent task')
+    expect(normalizeSteps([{ type: 'webhook' }])).toBe('Jeder Schritt muss ein Import oder eine Agentenaufgabe sein.')
   })
 
   it('says what is missing before an automation can run', () => {
-    expect(incompleteReason([])).toBe('Add a step')
+    expect(incompleteReason([])).toBe('Füge einen Schritt hinzu.')
     expect(incompleteReason([{ id: 's1', type: 'agent', title: '', prompt: 'x', roles: ['doop'], canvasId: '' }])).toBe(
-      'Pick a canvas for every step',
+      'Wähle für jeden Schritt eine Arbeitsfläche.',
     )
     expect(
       incompleteReason([{ id: 's1', type: 'pull', provider: 'meta', accountId: '', filter: 'active', canvasId: 'c' }]),
-    ).toBe('Pick a Meta ad account')
+    ).toBe('Wähle ein Meta-Werbekonto.')
     expect(
       incompleteReason([{ id: 's1', type: 'agent', title: '', prompt: 'x', roles: ['doop'], canvasId: 'c' }]),
     ).toBeUndefined()
@@ -284,7 +284,7 @@ it('creates, completes, runs and lists an automation for its owner only', async 
      cleanly and the run says why */
   const run = await (await owner.post(`/api/automations/${created.id}/run`)).json()
   expect(run).toMatchObject({ automationId: created.id, status: 'failed', canvasId: canvas.id })
-  expect(run.error).toMatch(/server agent task allowance/)
+  expect(run.error).toMatch(/Aufgabenkontingent des Server-Agenten/)
   expect(run.endedAt).toBeGreaterThanOrEqual(run.startedAt)
 
   const runs = await (await owner.get(`/api/automations/${created.id}/runs`)).json()

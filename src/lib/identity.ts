@@ -26,8 +26,19 @@ const storage = {
   },
 }
 
-const ADJ = ['Amber', 'Cobalt', 'Mossy', 'Velvet', 'Copper', 'Ivory', 'Indigo', 'Scarlet', 'Dusky', 'Golden']
-const ANIMAL = ['Fox', 'Heron', 'Otter', 'Lynx', 'Moth', 'Wren', 'Badger', 'Ibis', 'Newt', 'Hare']
+const ADJ = [
+  'Goldener',
+  'Blauer',
+  'Grüner',
+  'Sanfter',
+  'Roter',
+  'Heller',
+  'Indigoblauer',
+  'Scharlachroter',
+  'Dunkler',
+  'Kupferfarbener',
+]
+const ANIMAL = ['Fuchs', 'Reiher', 'Otter', 'Luchs', 'Falter', 'Zaunkönig', 'Dachs', 'Ibis', 'Molch', 'Hase']
 
 function randomName() {
   return `${ADJ[Math.floor(Math.random() * ADJ.length)]} ${ANIMAL[Math.floor(Math.random() * ANIMAL.length)]}`

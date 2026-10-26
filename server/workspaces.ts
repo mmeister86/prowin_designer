@@ -482,7 +482,7 @@ async function listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
   return [...map]
     .map(([userId, m]) => ({
       userId,
-      name: users.get(userId)?.name ?? 'Unknown',
+      name: users.get(userId)?.name ?? 'Unbekannt',
       email: users.get(userId)?.email ?? '',
       role: m.role,
       addedAt: m.addedAt,
@@ -513,7 +513,7 @@ export function planRequired(res: express.Response, ws: WorkspaceRecord) {
   return res.status(402).json({
     error: 'workspace_plan_required',
     workspaceId: ws.id,
-    message: `"${ws.name}" needs a Team plan before it can grow`,
+    message: `„${ws.name}“ benötigt einen Team-Tarif, bevor Du weitere Inhalte oder Mitglieder hinzufügen kannst.`,
   })
 }
 
@@ -521,11 +521,13 @@ function requireWorkspace(req: express.Request, res: express.Response, id: strin
   const ws = records.get(id)
   if (!ws || !isWorkspaceMember(id, req.user!.id)) {
     /* 404 for non-members: a workspace's existence is its members' business */
-    res.status(404).json({ error: 'workspace not found' })
+    res.status(404).json({ error: 'Arbeitsbereich nicht gefunden' })
     return null
   }
   if (!hasRole(id, req.user!.id, atLeast)) {
-    res.status(403).json({ error: `only workspace ${atLeast === 'owner' ? 'owners' : 'creators'} can do that` })
+    res
+      .status(403)
+      .json({ error: `Das können nur ${atLeast === 'owner' ? 'Eigentümer' : 'Creator'} des Arbeitsbereichs tun.` })
     return null
   }
   return ws
@@ -537,9 +539,9 @@ workspacesRouter.get('/', (req, res) => {
 
 workspacesRouter.post('/', async (req, res) => {
   if (!(await permissionIdentity(req.user!.id)).creator)
-    return res.status(403).json({ error: 'register as Creator first' })
+    return res.status(403).json({ error: 'Registriere Dich zuerst als Creator.' })
   const name = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 80) : ''
-  if (!name) return res.status(400).json({ error: 'name required' })
+  if (!name) return res.status(400).json({ error: 'Bitte gib einen Namen ein.' })
   const ws = createWorkspace(name, req.user!.id)
   res.json(summaryFor(ws, req.user!.id))
 })
@@ -554,7 +556,7 @@ workspacesRouter.patch('/:id', (req, res) => {
   const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
   const name = typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 80) : ''
-  if (!name) return res.status(400).json({ error: 'name required' })
+  if (!name) return res.status(400).json({ error: 'Bitte gib einen Namen ein.' })
   renameWorkspace(ws.id, name)
   res.json(summaryFor(ws, req.user!.id))
 })
@@ -567,7 +569,7 @@ workspacesRouter.delete('/:id', async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     console.error('[workspaces] delete failed', err)
-    res.status(500).json({ error: 'could not delete the workspace — try again' })
+    res.status(500).json({ error: 'Der Arbeitsbereich konnte nicht gelöscht werden. Versuche es erneut.' })
   }
 })
 
@@ -578,29 +580,35 @@ workspacesRouter.post('/:id/members', async (req, res) => {
   if (!ws) return
   if (!isActive(ws)) return planRequired(res, ws)
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
-  if (!email || !email.includes('@')) return res.status(400).json({ error: 'a valid email is required' })
+  if (!email || !email.includes('@'))
+    return res.status(400).json({ error: 'Bitte gib eine gültige E-Mail-Adresse ein.' })
   const role = req.body?.role ?? 'member'
-  if (role !== 'creator' && role !== 'member') return res.status(400).json({ error: 'role must be creator or member' })
+  if (role !== 'creator' && role !== 'member')
+    return res.status(400).json({ error: 'Die Rolle muss creator oder member sein.' })
   const [row] = await db
     .select({ id: authSchema.user.id, name: authSchema.user.name, email: authSchema.user.email })
     .from(authSchema.user)
     .where(eq(authSchema.user.email, email))
   if (row) {
     if (role === 'creator' && !(await permissionIdentity(row.id)).creator)
-      return res.status(400).json({ error: 'the invited account must register as Creator first' })
-    if (!addMember(ws.id, row.id, role, req.user!.id)) return res.status(400).json({ error: 'already a member' })
+      return res.status(400).json({ error: 'Das eingeladene Konto muss sich zuerst als Creator registrieren.' })
+    if (!addMember(ws.id, row.id, role, req.user!.id))
+      return res.status(400).json({ error: 'Diese Person ist bereits Mitglied.' })
     const member: WorkspaceMember = { userId: row.id, name: row.name, email: row.email, role, addedAt: Date.now() }
     return res.json({ member })
   }
-  if (role === 'creator') return res.status(400).json({ error: 'invite a registered Creator or choose member' })
+  if (role === 'creator')
+    return res.status(400).json({ error: 'Lade einen registrierten Creator ein oder wähle die Rolle Mitglied.' })
   if (!unknownEmailInvitesAllowed())
-    return res.status(404).json({ error: 'no doop account with that email — ask them to sign up first' })
+    return res.status(404).json({
+      error: 'Für diese E-Mail-Adresse gibt es kein doop-Konto. Bitte die Person, sich zuerst zu registrieren.',
+    })
   const invite = await createInvite(ws.id, email, role, req.user!.id)
   if (mailerConfigured) {
     sendMail({
       to: email,
-      subject: `${req.user!.name} invited you to "${ws.name}" on doop`,
-      text: `${req.user!.name} invited you to the "${ws.name}" workspace on doop.\n\nCreate an account with this email address and you'll be in:\n\n${ORIGIN}/\n`,
+      subject: `${req.user!.name} hat Dich zu „${ws.name}“ auf doop eingeladen`,
+      text: `${req.user!.name} hat Dich zum Arbeitsbereich „${ws.name}“ auf doop eingeladen.\n\nErstelle ein Konto mit dieser E-Mail-Adresse, um beizutreten:\n\n${ORIGIN}/\n`,
     }).catch((err) => console.error('[workspaces] invite email failed', err))
   }
   const pending: WorkspaceInvite = {
@@ -617,11 +625,14 @@ workspacesRouter.patch('/:id/members/:userId', async (req, res) => {
   const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
   const role = req.body?.role
-  if (role !== 'creator' && role !== 'member') return res.status(400).json({ error: 'role must be creator or member' })
+  if (role !== 'creator' && role !== 'member')
+    return res.status(400).json({ error: 'Die Rolle muss creator oder member sein.' })
   if (role === 'creator' && !(await permissionIdentity(req.params.userId)).creator)
-    return res.status(400).json({ error: 'the account must register as Creator first' })
-  if (req.params.userId === ws.ownerId) return res.status(400).json({ error: 'the owner keeps the owner role' })
-  if (!(await setRole(ws.id, req.params.userId, role))) return res.status(404).json({ error: 'not a member' })
+    return res.status(400).json({ error: 'Das Konto muss sich zuerst als Creator registrieren.' })
+  if (req.params.userId === ws.ownerId)
+    return res.status(400).json({ error: 'Der Eigentümer behält die Eigentümerrolle.' })
+  if (!(await setRole(ws.id, req.params.userId, role)))
+    return res.status(404).json({ error: 'Diese Person ist kein Mitglied.' })
   res.json({ ok: true })
 })
 
@@ -631,16 +642,18 @@ workspacesRouter.delete('/:id/members/:userId', async (req, res) => {
   const target = req.params.userId
   const self = target === req.user!.id
   if (!self && !hasRole(ws.id, req.user!.id, 'owner'))
-    return res.status(403).json({ error: 'only the workspace owner can remove people' })
+    return res.status(403).json({ error: 'Nur der Eigentümer des Arbeitsbereichs kann Personen entfernen.' })
   if (target === ws.ownerId)
-    return res
-      .status(400)
-      .json({ error: self ? 'delete the workspace instead of leaving it' : 'the owner cannot be removed' })
+    return res.status(400).json({
+      error: self
+        ? 'Als Eigentümer kannst Du den Arbeitsbereich nur löschen, statt ihn zu verlassen.'
+        : 'Der Eigentümer kann nicht entfernt werden.',
+    })
   try {
-    if (!(await removeMember(ws.id, target))) return res.status(404).json({ error: 'not a member' })
+    if (!(await removeMember(ws.id, target))) return res.status(404).json({ error: 'Diese Person ist kein Mitglied.' })
   } catch (err) {
     console.error('[workspaces] remove member failed', err)
-    return res.status(500).json({ error: 'could not remove the member' })
+    return res.status(500).json({ error: 'Das Mitglied konnte nicht entfernt werden.' })
   }
   res.json({ ok: true })
 })
@@ -662,13 +675,17 @@ workspacesRouter.delete('/:id/invites/:inviteId', async (req, res) => {
 workspacesRouter.post('/:id/billing/checkout', async (req, res) => {
   const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
-  if (!billing.billingEnabled()) return res.status(400).json({ error: 'billing is not configured on this server' })
+  if (!billing.billingEnabled())
+    return res.status(400).json({ error: 'Die Abrechnung ist auf diesem Server nicht eingerichtet.' })
   const interval = req.body?.interval
-  if (!isBillingInterval(interval)) return res.status(400).json({ error: 'interval must be month or year' })
+  if (!isBillingInterval(interval))
+    return res.status(400).json({ error: 'Das Abrechnungsintervall muss month oder year sein.' })
   /* one subscription per workspace: a second checkout would bill twice
      while only the last one is on file */
   if (ws.stripeSubscriptionId && isWorkspaceActive(ws.status))
-    return res.status(409).json({ error: 'this workspace already has a plan — change it from the billing portal' })
+    return res
+      .status(409)
+      .json({ error: 'Dieser Arbeitsbereich hat bereits einen Tarif. Ändere ihn im Abrechnungsportal.' })
   try {
     const customerId = await billing.ensureCustomer(ws, req.user!.email)
     setCustomer(ws.id, customerId)
@@ -677,20 +694,22 @@ workspacesRouter.post('/:id/billing/checkout', async (req, res) => {
     res.json({ url })
   } catch (err) {
     console.error('[billing] checkout failed', err)
-    res.status(502).json({ error: err instanceof Error ? err.message : 'could not start checkout' })
+    res.status(502).json({ error: 'Die Zahlung konnte nicht gestartet werden. Versuche es erneut.' })
   }
 })
 
 workspacesRouter.post('/:id/billing/portal', async (req, res) => {
   const ws = requireWorkspace(req, res, req.params.id, 'owner')
   if (!ws) return
-  if (!billing.billingEnabled()) return res.status(400).json({ error: 'billing is not configured on this server' })
-  if (!ws.stripeCustomerId) return res.status(400).json({ error: 'no billing account yet — choose a plan first' })
+  if (!billing.billingEnabled())
+    return res.status(400).json({ error: 'Die Abrechnung ist auf diesem Server nicht eingerichtet.' })
+  if (!ws.stripeCustomerId)
+    return res.status(400).json({ error: 'Es gibt noch kein Abrechnungskonto. Wähle zuerst einen Tarif.' })
   try {
     res.json({ url: await billing.createPortal({ ...ws, stripeCustomerId: ws.stripeCustomerId }) })
   } catch (err) {
     console.error('[billing] portal failed', err)
-    res.status(502).json({ error: 'could not open the billing portal' })
+    res.status(502).json({ error: 'Das Abrechnungsportal konnte nicht geöffnet werden.' })
   }
 })
 
@@ -710,7 +729,7 @@ workspacesRouter.post('/:id/billing/sync', async (req, res) => {
     res.json(summaryFor(ws, req.user!.id))
   } catch (err) {
     console.error('[billing] sync failed', err)
-    res.status(502).json({ error: 'could not read the subscription from Stripe' })
+    res.status(502).json({ error: 'Das Abonnement konnte nicht von Stripe geladen werden.' })
   }
 })
 
@@ -718,14 +737,14 @@ workspacesRouter.post('/:id/billing/sync', async (req, res) => {
  *  the raw body (signatures are over the exact bytes). */
 export async function handleStripeWebhook(req: express.Request, res: express.Response): Promise<void> {
   if (!billing.webhookConfigured()) {
-    res.status(501).json({ error: 'webhook not configured' })
+    res.status(501).json({ error: 'Der Webhook ist nicht eingerichtet.' })
     return
   }
   let event
   try {
     event = billing.parseWebhook(req.body as Buffer, req.header('stripe-signature'))
-  } catch (err) {
-    res.status(400).json({ error: err instanceof Error ? err.message : 'bad signature' })
+  } catch {
+    res.status(400).json({ error: 'Ungültige Signatur' })
     return
   }
   try {
@@ -744,6 +763,6 @@ export async function handleStripeWebhook(req: express.Request, res: express.Res
   } catch (err) {
     /* a 5xx makes Stripe retry, which is what we want for a transient failure */
     console.error('[billing] webhook failed', err)
-    res.status(500).json({ error: 'webhook handling failed' })
+    res.status(500).json({ error: 'Der Webhook konnte nicht verarbeitet werden.' })
   }
 }

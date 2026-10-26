@@ -51,11 +51,11 @@ export interface DrawingTarget {
 export const DRAWING_FILL = '#d9d9d9'
 export const DRAWING_INK = '#202124'
 const names: Record<DrawingTool, string> = {
-  rectangle: 'Rectangle',
-  circle: 'Circle',
-  path: 'Vector path',
+  rectangle: 'Rechteck',
+  circle: 'Kreis',
+  path: 'Vektorpfad',
   text: 'Text',
-  frame: 'Frame',
+  frame: 'Zeichenfläche',
 }
 let pendingDrawing: Promise<void> = Promise.resolve()
 
@@ -213,6 +213,7 @@ export function drawingElement(doc: Document, drawing: Drawing, standalone: bool
 
 export function drawingDocument(drawing: Drawing): string {
   const doc = new DOMParser().parseFromString('<!doctype html><html><head></head><body></body></html>', 'text/html')
+  doc.documentElement.lang = 'de'
   doc.documentElement.style.cssText = 'width:100%;height:100%;margin:0;'
   doc.body.style.cssText = 'width:100%;height:100%;margin:0;'
   if (drawing.tool === 'frame') doc.body.style.background = '#ffffff'
@@ -234,7 +235,9 @@ export function saveDrawing(drawing: Drawing, target: DrawingTarget): Promise<vo
       const canvas = s.canvas?.id === target.canvasId ? s.canvas : await api.getCanvas(target.canvasId)
       const frame = canvas.frames.find((f) => f.id === target.frameId)
       if (!frame || frame.locked || frame.hidden) {
-        s.pushNotice('Couldn’t add the drawing: its frame was deleted, locked, or hidden.')
+        s.pushNotice(
+          'Die Zeichnung konnte nicht hinzugefügt werden: Ihre Zeichenfläche wurde gelöscht, gesperrt oder ausgeblendet.',
+        )
         return
       }
       const doc = new DOMParser().parseFromString(frame.html, 'text/html')
@@ -270,7 +273,7 @@ export function saveDrawing(drawing: Drawing, target: DrawingTarget): Promise<vo
       if (useStore.getState().activePageId === target.pageId) useStore.getState().select(frame.id)
     }
   }
-  return queueDrawingSave(save, 'Couldn’t save the drawing. Please try again.')
+  return queueDrawingSave(save, 'Die Zeichnung konnte nicht gespeichert werden. Versuche es erneut.')
 }
 
 /** Creation and reparenting share a queue so consecutive gestures compose

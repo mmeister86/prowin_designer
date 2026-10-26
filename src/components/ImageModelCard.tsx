@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import type { ImageModelStatus } from '../lib/api'
 import { IMAGE_MODELS } from '../../shared/modelMenu'
 import { useStore } from '../lib/store'
@@ -9,9 +9,9 @@ import { CheckIcon } from './ui/icons'
 
 /** Why an entry is disabled, phrased as the fix. */
 const UNAVAILABLE_HINTS = {
-  openai: 'Not configured on this server. Contact the administrator.',
-  gemini: 'Not configured on this server. Contact the administrator.',
-  ark: 'Not configured on this server. Contact the administrator.',
+  openai: 'Auf diesem Server nicht eingerichtet. Wende Dich an die Administration.',
+  gemini: 'Auf diesem Server nicht eingerichtet. Wende Dich an die Administration.',
+  ark: 'Auf diesem Server nicht eingerichtet. Wende Dich an die Administration.',
 } as const
 
 /**
@@ -44,8 +44,7 @@ export function ImageModelCard() {
       const { models: next } = await api.setImageModel(id)
       setModels(next)
     } catch (e) {
-      const body = (e as { body?: { error?: string } })?.body
-      setError(body?.error || (e instanceof Error ? e.message : 'That did not work — try again'))
+      setError(errorMessage(e, 'Das hat nicht funktioniert — versuche es erneut'))
       refresh()
     } finally {
       setBusy(false)
@@ -55,13 +54,14 @@ export function ImageModelCard() {
   return (
     <SettingsCard>
       <CardHeader>
-        <CardTitle>Image model</CardTitle>
+        <CardTitle>Bildmodell</CardTitle>
         <CardDescription>
-          Choose an image model configured by your administrator. Generated images use the central service.
+          Wähle ein von Deiner Administration eingerichtetes Bildmodell. Bilder werden über den zentralen Dienst
+          erzeugt.
         </CardDescription>
       </CardHeader>
       <div className="px-4 pb-5 pt-4 sm:px-[22px]">
-        <ToggleChipGroup aria-label="Image model" value={selected?.id ?? ''} onValueChange={pick} disabled={busy}>
+        <ToggleChipGroup aria-label="Bildmodell" value={selected?.id ?? ''} onValueChange={pick} disabled={busy}>
           {IMAGE_MODELS.map((option) => {
             const status = models.find((m) => m.id === option.id)
             if (!status?.available) {

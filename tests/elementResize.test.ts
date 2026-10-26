@@ -76,5 +76,6 @@ describe('handles', () => {
   })
   it('labels the box size in whole pixels', () => {
     expect(sizeLabel({ width: 511.4, height: 638.6 })).toBe('511 × 639')
+    expect(sizeLabel({ width: 1234.5, height: 6789 })).toBe('1.235 × 6.789')
   })
 })

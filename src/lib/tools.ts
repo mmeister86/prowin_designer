@@ -10,14 +10,14 @@ export function isDrawingTool(tool: Tool): tool is DrawingTool {
 }
 
 export const TOOLS: { id: Tool; label: string; key: string }[] = [
-  { id: 'select', label: 'Select', key: 'V' },
+  { id: 'select', label: 'Auswählen', key: 'V' },
   { id: 'hand', label: 'Hand', key: 'H' },
-  { id: 'frame', label: 'Frame', key: 'F' },
-  { id: 'rectangle', label: 'Rectangle', key: 'R' },
-  { id: 'circle', label: 'Circle', key: 'O' },
-  { id: 'path', label: 'Vector path', key: 'P' },
+  { id: 'frame', label: 'Zeichenfläche', key: 'F' },
+  { id: 'rectangle', label: 'Rechteck', key: 'R' },
+  { id: 'circle', label: 'Kreis', key: 'O' },
+  { id: 'path', label: 'Vektorpfad', key: 'P' },
   { id: 'text', label: 'Text', key: 'T' },
-  { id: 'comment', label: 'Comment', key: 'C' },
+  { id: 'comment', label: 'Kommentar', key: 'C' },
 ]
 
 export type PointerAction =

@@ -36,14 +36,14 @@ export class LocalAgentRuns {
 
   async startAuthorized(userId: string, model: ClaudeModel, request: LocalHarnessRequest): Promise<LocalAgentResult> {
     if (!(await this.permitted(userId, request.canvasId)))
-      return { success: false, text: 'Creator rights in this canvas are required.' }
+      return { success: false, text: 'Du benötigst Creator-Rechte auf dieser Arbeitsfläche.' }
     return this.start(userId, model, request)
   }
 
   async pollAuthorized(userId: string, deviceId: string): Promise<LocalAgentJob | null> {
     for (const run of [...this.runs.values()].filter((r) => r.userId === userId && !r.closing)) {
       if (!(await this.permitted(userId, run.request.canvasId))) {
-        await this.close(run, { success: false, text: 'Creator rights in this canvas were revoked.' })
+        await this.close(run, { success: false, text: 'Die Creator-Rechte auf dieser Arbeitsfläche wurden entzogen.' })
       }
     }
     return this.poll(userId, deviceId)
@@ -111,7 +111,7 @@ export class LocalAgentRuns {
     const run = this.runs.get(id)
     if (!run || run.userId !== userId || run.deviceId !== deviceId || run.closing) return false
     if (!(await this.permitted(userId, run.request.canvasId))) {
-      await this.close(run, { success: false, text: 'Creator rights in this canvas were revoked.' })
+      await this.close(run, { success: false, text: 'Die Creator-Rechte auf dieser Arbeitsfläche wurden entzogen.' })
       return false
     }
     await this.close(run, result)
@@ -130,7 +130,7 @@ export class LocalAgentRuns {
     await Promise.all(
       [...this.runs.values()]
         .filter((r) => r.userId === userId && !r.closing)
-        .map((r) => this.close(r, { success: false, text: 'Local Claude run stopped.' })),
+        .map((r) => this.close(r, { success: false, text: 'Der lokale Claude-Durchlauf wurde gestoppt.' })),
     )
   }
 
@@ -148,8 +148,8 @@ export class LocalAgentRuns {
           this.close(r, {
             success: false,
             text: r.request.isCanceled?.()
-              ? 'Task stopped.'
-              : 'Desktop disconnected or local run timed out. Retry the task.',
+              ? 'Die Aufgabe wurde gestoppt.'
+              : 'Die Desktop-Verbindung wurde getrennt oder die Zeit für den lokalen Durchlauf ist abgelaufen. Starte die Aufgabe erneut.',
           }),
         ),
     )

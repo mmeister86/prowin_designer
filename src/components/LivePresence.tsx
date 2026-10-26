@@ -39,14 +39,14 @@ export function LivePresence({
   return (
     <BarPill
       className="gap-0 pr-3 pl-2"
-      title={others.map((p) => p.name).join(', ') || 'Just you here'}
+      title={others.map((p) => p.name).join(', ') || 'Du bist allein hier'}
       aria-live="polite"
     >
       <span className="flex h-6 items-center">
         <button
           type="button"
           className="relative z-[1] rounded-full transition-transform hover:z-10 hover:-translate-y-px focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-faint"
-          title={`You are “${me.name}” — click to change your name`}
+          title={`Du bist „${me.name}“ – klicke, um Deinen Namen zu ändern`}
           onClick={onRenameSelf}
         >
           <PresenceFace name={me.name} color={me.color} kind="user" />
@@ -68,7 +68,7 @@ export function LivePresence({
           </span>
         </>
       ) : (
-        <span className="ml-2.5 whitespace-nowrap leading-4">{online} online</span>
+        <span className="ml-2.5 whitespace-nowrap leading-4">{online.toLocaleString('de-DE')} online</span>
       )}
     </BarPill>
   )

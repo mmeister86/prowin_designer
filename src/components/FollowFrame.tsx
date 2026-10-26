@@ -18,7 +18,7 @@ export function FollowFrame() {
         style={{ background: leader.color }}
       >
         <span>
-          Following{' '}
+          Du folgst{' '}
           {leader.kind === 'agent' && (
             <>
               <AgentIcon name={leader.name} size={11} color="#fff" />{' '}
@@ -29,8 +29,8 @@ export function FollowFrame() {
         <button
           type="button"
           className="grid size-[18px] place-items-center rounded-full bg-white/25 text-[12px] leading-none hover:bg-white/40"
-          aria-label={`Stop following ${leader.name}`}
-          title="Stop following (Esc)"
+          aria-label={`${leader.name} nicht mehr folgen`}
+          title="Nicht mehr folgen (Esc)"
           onClick={() => stop(null)}
         >
           ×

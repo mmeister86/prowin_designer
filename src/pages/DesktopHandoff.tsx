@@ -36,17 +36,17 @@ export function DesktopHandoff() {
 
   return (
     <AuthScreen>
-      <AuthCard title={failed ? 'Something went wrong.' : "You're signed in."}>
+      <AuthCard title={failed ? 'Etwas ist schiefgelaufen.' : 'Du bist angemeldet.'}>
         {failed ? (
           <Callout tone="error">
-            Could not hand the sign-in over to the doop app. Go back to the app and try again.
+            Die Anmeldung konnte nicht an die doop-App übergeben werden. Kehre zur App zurück und versuche es erneut.
           </Callout>
         ) : (
           <>
-            <AuthCardText>Sending you back to the doop app… You can close this tab afterwards.</AuthCardText>
+            <AuthCardText>Du wirst zur doop-App zurückgeleitet… Danach kannst Du diesen Tab schließen.</AuthCardText>
             {link && (
               <Button asChild className="mt-1">
-                <a href={link}>Open doop</a>
+                <a href={link}>doop öffnen</a>
               </Button>
             )}
           </>

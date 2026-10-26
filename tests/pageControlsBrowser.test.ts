@@ -88,7 +88,7 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
   it('drags pages, double-clicks to rename, and restores a deleted page and frame with Cmd+Z', async () => {
     // Exercise the ordering that made this test race on CI: broadcasts land first.
     await page.emulateNetworkConditions({ offline: false, download: -1, upload: -1, latency: 150 })
-    const framePlus = await page.$eval('button[aria-label="New frame"] svg', (el) => el.outerHTML)
+    const framePlus = await page.$eval('button[aria-label="Neue Zeichenfläche"] svg', (el) => el.outerHTML)
     const typography = (element: Element) => {
       const style = getComputedStyle(element)
       return [style.fontFamily, style.fontSize, style.fontWeight, style.letterSpacing, style.textTransform]
@@ -96,15 +96,15 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     const frameTypography = await page.$eval('[data-slot="frame-section-heading"]', typography)
     /* pages sit above the frames, Figma-style, with the search underneath both */
     expect(await page.$$('[data-page-id]')).toHaveLength(1)
-    await page.waitForSelector('button[aria-label="Add page"]')
-    expect(await page.$('input[placeholder="Search layers"]')).not.toBeNull()
+    await page.waitForSelector('button[aria-label="Seite hinzufügen"]')
+    expect(await page.$('input[placeholder="Ebenen durchsuchen"]')).not.toBeNull()
     expect(await page.$('[data-slot="frame-section-heading"]')).not.toBeNull()
-    expect(await page.$eval('button[aria-label="Add page"] svg', (el) => el.outerHTML)).toBe(framePlus)
+    expect(await page.$eval('button[aria-label="Seite hinzufügen"] svg', (el) => el.outerHTML)).toBe(framePlus)
     expect(await page.$eval('[data-slot="page-section-heading"]', typography)).toEqual(frameTypography)
-    await page.click('button[aria-label="Add page"]')
+    await page.click('button[aria-label="Seite hinzufügen"]')
     await page.waitForFunction(() => document.querySelectorAll('[data-page-id]').length === 2)
     await page.waitForFunction(
-      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Add page"]')!.disabled,
+      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Seite hinzufügen"]')!.disabled,
     )
     expect(await page.$$('[aria-label^="Rename "]')).toHaveLength(0)
     expect(await page.$$('[aria-label^="Move Page"]')).toHaveLength(0)
@@ -116,31 +116,31 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     await page.mouse.down()
     await page.mouse.move(first!.x + 50, first!.y + 2, { steps: 8 })
     await page.mouse.up()
-    await page.waitForFunction(() => document.querySelector('[data-page-id]')?.textContent?.includes('Page 2'))
+    await page.waitForFunction(() => document.querySelector('[data-page-id]')?.textContent?.includes('Seite 2'))
     await page.waitForFunction(
-      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Add page"]')!.disabled,
+      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Seite hinzufügen"]')!.disabled,
     )
     await page.click('[data-page-id] > button:first-of-type', { count: 2 })
-    await page.waitForSelector('input[aria-label="Page name"]')
+    await page.waitForSelector('input[aria-label="Seitenname"]')
     /* the row being renamed is the active one (a grey fill); the input reads
        as ink on its own white surface, not as text on the row's fill */
     expect(
-      await page.$eval('input[aria-label="Page name"]', (input) => [
+      await page.$eval('input[aria-label="Seitenname"]', (input) => [
         getComputedStyle(input).color === getComputedStyle(document.body).color,
         getComputedStyle(input).backgroundColor !== getComputedStyle(input.closest('[data-page-id]')!).backgroundColor,
       ]),
     ).toEqual([true, true])
-    await page.type('input[aria-label="Page name"]', 'Ideas')
+    await page.type('input[aria-label="Seitenname"]', 'Ideas')
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => document.querySelector('[data-page-id]')?.textContent?.includes('Ideas'))
     await page.waitForFunction(
-      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Add page"]')!.disabled,
+      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Seite hinzufügen"]')!.disabled,
     )
     const selectedColor = await page.$eval(
       '[data-page-id] button[aria-current="page"]',
       (button) => getComputedStyle(button.parentElement!).backgroundColor,
     )
-    await page.click('button[aria-label="New frame"]')
+    await page.click('button[aria-label="Neue Zeichenfläche"]')
     await page.waitForSelector('iframe[data-doop-frame]')
     await page.waitForSelector('[role="treeitem"][aria-selected="true"]')
     expect(selectedColor).toBe(
@@ -168,8 +168,8 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     await page.waitForSelector('[role="menuitem"]')
     expect(await page.$eval('[role="menuitem"]:last-child', (item) => item.getAttribute('aria-disabled'))).toBe('true')
     await page.click('[role="menuitem"]:first-child')
-    await page.waitForSelector('input[aria-label="Page name"]')
-    await page.type('input[aria-label="Page name"]', 'Main')
+    await page.waitForSelector('input[aria-label="Seitenname"]')
+    await page.type('input[aria-label="Seitenname"]', 'Main')
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => document.querySelector('[data-page-id]')?.textContent?.includes('Main'))
   }, 20_000)
@@ -178,10 +178,10 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     /* runs on whatever single page the previous test left (or the fresh
        canvas's own), so it reads the destination's name instead of assuming it */
     const pageCount = (await page.$$('[data-page-id]')).length
-    await page.click('button[aria-label="Add page"]')
+    await page.click('button[aria-label="Seite hinzufügen"]')
     await page.waitForFunction((n) => document.querySelectorAll('[data-page-id]').length === n + 1, {}, pageCount)
     await page.waitForFunction(
-      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Add page"]')!.disabled,
+      () => !document.querySelector<HTMLButtonElement>('button[aria-label="Seite hinzufügen"]')!.disabled,
     )
     const source = await page.$eval(
       '[aria-current="page"]',
@@ -191,12 +191,12 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
       '[data-page-id] > button:first-of-type:not([aria-current="page"])',
       (button) => button.textContent!,
     )
-    await page.click('button[aria-label="New frame"]')
+    await page.click('button[aria-label="Neue Zeichenfläche"]')
     await page.waitForSelector('iframe[data-doop-frame]')
     /* the room's broadcast can paint the frame before the create response
        selects it, and the picker only shows for a selection */
-    await page.waitForSelector('[aria-label="Move selection to page"]:not([disabled])')
-    await page.click('[aria-label="Move selection to page"]')
+    await page.waitForSelector('[aria-label="Auswahl auf Seite verschieben"]:not([disabled])')
+    await page.click('[aria-label="Auswahl auf Seite verschieben"]')
     await page.waitForSelector('[role="option"]')
     expect(await page.$$('[role="option"]')).toHaveLength(1)
     expect(await page.$eval('[role="option"]', (option) => option.textContent)).toBe(destination)
@@ -205,7 +205,7 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
     await page.keyboard.press('Backspace')
     await page.keyboard.press('r')
     expect(await page.$$('iframe[data-doop-frame]')).toHaveLength(1)
-    expect(await page.$eval('button[aria-label="Rectangle"]', (b) => b.getAttribute('aria-pressed'))).toBe('false')
+    expect(await page.$eval('button[aria-label="Rechteck"]', (b) => b.getAttribute('aria-pressed'))).toBe('false')
     expect(await page.$('[role="option"]')).not.toBeNull()
     await page.screenshot({ path: '/tmp/doop-page-move.png' })
     await page.click('[role="option"]')

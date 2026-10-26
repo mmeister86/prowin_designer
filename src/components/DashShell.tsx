@@ -47,7 +47,7 @@ export function AccountMenu({
       <DropdownMenuTrigger asChild>
         {face ? (
           <IconButton
-            aria-label="Account"
+            aria-label="Konto"
             title={name}
             shape="round"
             className="size-7 hover:bg-transparent focus-visible:ring-ink-faint data-[state=open]:ring-2 data-[state=open]:ring-ink-faint"
@@ -55,7 +55,7 @@ export function AccountMenu({
             <Avatar name={name} color={colorFor(session?.user.id ?? name)} size={28} className="shadow-none" />
           </IconButton>
         ) : (
-          <Pressable aria-label="Account" title={name} layout="inline" focus="ring" className="flex-none rounded-full">
+          <Pressable aria-label="Konto" title={name} layout="inline" focus="ring" className="flex-none rounded-full">
             <Avatar tone="ink" name={name} size={34} />
           </Pressable>
         )}
@@ -73,32 +73,32 @@ export function AccountMenu({
         <div className="mx-2.5 mb-2 flex items-center gap-[7px] text-caption text-ink-soft">
           {me?.plan === 'team' ? (
             <>
-              <Badge tone="accent">team</Badge> Team plan
+              <Badge tone="accent">Team</Badge> Team-Tarif
             </>
           ) : (
             <>
-              <Badge>free</Badge> Personal plan
+              <Badge>kostenlos</Badge> Persönlicher Tarif
             </>
           )}
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => navigate('/settings')}>
-          <GearIcon size="rail" /> Settings
+          <GearIcon size="rail" /> Einstellungen
         </DropdownMenuItem>
         {me?.admin && (
           <DropdownMenuItem onSelect={() => navigate('/admin')}>
-            <ShieldIcon size="rail" /> Admin
+            <ShieldIcon size="rail" /> Administration
           </DropdownMenuItem>
         )}
         <DropdownMenuItem asChild>
           <a href="/docs" target="_blank" rel="noopener noreferrer">
-            <HelpIcon size="rail" /> Help &amp; docs
+            <HelpIcon size="rail" /> Hilfe &amp; Dokumentation
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {/* the theme is one click from every page; picking one keeps the menu
             open so the change can be seen, and judged, before it closes */}
-        <DropdownMenuCaption>Appearance</DropdownMenuCaption>
+        <DropdownMenuCaption>Darstellung</DropdownMenuCaption>
         <DropdownMenuRadioGroup value={theme} onValueChange={(next) => isTheme(next) && setTheme(next)}>
           {themeOptions.map(({ value, label, Icon }) => (
             <DropdownMenuRadioItem key={value} value={value} onSelect={(e) => e.preventDefault()}>
@@ -119,7 +119,7 @@ export function AccountMenu({
             })
           }
         >
-          <LogOutIcon size="rail" /> Log out
+          <LogOutIcon size="rail" /> Abmelden
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

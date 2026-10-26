@@ -25,10 +25,10 @@ export function publishableFrames(canvas: Canvas) {
 
 export function parseListing(body: unknown): { description: string; category: CommunityItem['category'] } | string {
   const { description, category } = (body ?? {}) as { description?: unknown; category?: unknown }
-  if (!isCommunityCategory(category)) return 'category must be one of the gallery shelves'
-  if (description !== undefined && typeof description !== 'string') return 'description must be text'
+  if (!isCommunityCategory(category)) return 'Wähle eine gültige Community-Kategorie.'
+  if (description !== undefined && typeof description !== 'string') return 'Die Beschreibung muss ein Text sein.'
   const clean = (description ?? '').trim()
-  if (clean.length > MAX_DESCRIPTION) return `description must be ${MAX_DESCRIPTION} characters or fewer`
+  if (clean.length > MAX_DESCRIPTION) return `Die Beschreibung darf höchstens ${MAX_DESCRIPTION} Zeichen lang sein.`
   return { description: clean, category }
 }
 
@@ -43,7 +43,7 @@ async function toItem(canvas: Canvas): Promise<CommunityItem> {
     name: canvas.name,
     ...(canvas.description ? { description: canvas.description } : {}),
     category: canvas.category ?? 'other',
-    authorName: (canvas.ownerId && (await getUserName(canvas.ownerId))) || 'Unknown',
+    authorName: (canvas.ownerId && (await getUserName(canvas.ownerId))) || 'Unbekannt',
     publishedAt: canvas.publishedAt ?? canvas.createdAt,
     updatedAt: canvas.updatedAt,
     copyCount: canvas.copyCount ?? 0,
@@ -68,17 +68,18 @@ communityRouter.get('/', async (_req, res) => {
  *  its copy count. */
 communityRouter.post('/:id/copy', async (req, res) => {
   const source = store.getCanvas(req.params.id)
-  if (!source || source.publishedAt === undefined) return res.status(404).json({ error: 'not in the gallery' })
+  if (!source || source.publishedAt === undefined)
+    return res.status(404).json({ error: 'Nicht in der Community-Galerie vorhanden' })
   try {
     const copy = await store.duplicateCanvas(source.id, req.user!.id, req.user!.name, {
       name: source.name,
       dropDemo: true,
     })
-    if (!copy) return res.status(404).json({ error: 'not in the gallery' })
+    if (!copy) return res.status(404).json({ error: 'Nicht in der Community-Galerie vorhanden' })
     store.recordCommunityCopy(source.id)
     res.json(copy)
   } catch (error) {
     console.error('[community] copy failed', error)
-    res.status(500).json({ error: 'could not copy this design' })
+    res.status(500).json({ error: 'Dieses Design konnte nicht kopiert werden.' })
   }
 })

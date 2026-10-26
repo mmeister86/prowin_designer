@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { api, ApiError } from './api'
+import { api, ApiError, errorMessage } from './api'
 import { useStore } from './store'
+import { localClaudeActionMessage } from './localClaudeErrors'
 import type { LocalAgentJob, LocalAgentPreference, LocalAgentResult } from '../../shared/localAgent'
 
 type NativeStatus = { installed: boolean; connected: boolean; enabled: boolean; email?: string; plan?: string }
@@ -18,7 +19,7 @@ export const hasLocalClaude = () => bridge.__DOOP_CLAUDE_CLI__ === true
 
 export function invokeClaude<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!hasLocalClaude() || !bridge.__TAURI__)
-    return Promise.reject(new Error('Update the Doop desktop app to use local Claude.'))
+    return Promise.reject(new Error('Aktualisiere die Doop-Desktop-App, um Claude lokal zu verwenden.'))
   return bridge.__TAURI__.core.invoke<T>(command, args)
 }
 
@@ -92,7 +93,13 @@ export function startLocalAgent(userId: string): () => void {
     try {
       result = await invokeClaude<LocalAgentResult>('claude_run', { userId, job })
     } catch (error) {
-      result = { success: false, text: String(error) }
+      result = {
+        success: false,
+        text: localClaudeActionMessage(
+          error,
+          'Claude konnte die Aufgabe auf diesem Gerät nicht ausführen. Prüfe Deine CLI-Installation und Dateiberechtigungen und versuche es erneut.',
+        ),
+      }
     }
     if (disposed) return
     result.text = result.text.slice(0, 100_000)
@@ -127,7 +134,10 @@ export function startLocalAgent(userId: string): () => void {
       }
       if (job && !activeId) void launch(job)
     } catch (error) {
-      if (!disposed) useLocalAgent.setState({ error: error instanceof Error ? error.message : String(error) })
+      if (!disposed)
+        useLocalAgent.setState({
+          error: errorMessage(error, 'Der lokale Agent konnte nicht aktualisiert werden. Versuche es erneut.'),
+        })
     } finally {
       polling = false
     }

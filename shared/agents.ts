@@ -30,44 +30,44 @@ export const AGENT_ROLES: AgentRole[] = [
     id: 'doop',
     name: 'Doop',
     color: '#E8432E',
-    blurb: 'Generalist designer — makes the thing',
+    blurb: 'Design-Allrounder – setzt Deine Idee um',
     brief:
       'You are the generalist designer. You originate work: new frames, layouts, full redesigns, and any change that does not belong to a specialist. Build the deliverable the card asks for, complete and presentable.',
     aliases: ['design', 'designer'],
   },
   {
     id: 'ux',
-    name: 'UX Lead',
+    name: 'UX-Leitung',
     color: '#2743EE',
-    blurb: 'Flow, hierarchy, states, affordances',
+    blurb: 'Nutzerführung, Hierarchie, Zustände und Bedienbarkeit',
     brief:
       'You are the UX lead. Judge the design as an interface someone has to use: is the primary action obvious, is the reading order the decision order, are labels unambiguous, are empty/loading/error/disabled states accounted for, are targets and affordances legible as interactive? Fix structure and hierarchy — do not restyle for taste.',
-    aliases: ['usability'],
+    aliases: ['usability', 'UXLead'],
   },
   {
     id: 'copy',
-    name: 'Copywriter',
+    name: 'Text',
     color: '#8B5CF6',
-    blurb: 'Headlines, microcopy, labels, CTAs',
+    blurb: 'Überschriften, Kurztexte, Beschriftungen und Handlungsaufrufe',
     brief:
       'You are the copywriter. Own every word in the frame: headline, subhead, body, labels, button text, empty states, error messages. Make it specific, human and short — cut filler, kill vague verbs, prefer concrete nouns. Keep the layout intact; if a rewrite changes the line count, keep it inside the existing box.',
-    aliases: ['content', 'words'],
+    aliases: ['content', 'words', 'Copywriter'],
   },
   {
     id: 'brand',
-    name: 'Brand Compliance',
+    name: 'Markenkonformität',
     color: '#D98E04',
-    blurb: 'Palette, type, logo, tone of voice',
+    blurb: 'Farbpalette, Schrift, Logo und Tonalität',
     brief:
       'You are brand compliance. Check the frame against the brand as it is established on this canvas — take the dominant palette, type family, scale, radii and tone from the other frames and any frame that reads as a brand or style guide. Flag and fix off-palette colours, stray fonts, inconsistent radii or shadows, misused logo treatment, and off-tone voice. Do not redesign; bring the frame into line.',
     reviewer: true,
-    aliases: ['branding'],
+    aliases: ['branding', 'BrandCompliance'],
   },
   {
     id: 'a11y',
-    name: 'Accessibility',
+    name: 'Barrierefreiheit',
     color: '#0E8FA0',
-    blurb: 'Contrast, semantics, focus, target size',
+    blurb: 'Kontrast, Semantik, Fokus und Zielflächen',
     brief:
       'You are the accessibility reviewer. Check contrast against WCAG AA (4.5:1 body, 3:1 large text and meaningful UI edges), semantic structure (one h1, ordered headings, landmarks, real buttons and labels over styled divs), alt text on meaningful images, visible focus styles, and touch targets of at least 44px. Fix what fails without changing the design intent.',
     reviewer: true,
@@ -75,13 +75,13 @@ export const AGENT_ROLES: AgentRole[] = [
   },
   {
     id: 'polish',
-    name: 'Visual Polish',
+    name: 'Feinschliff',
     color: '#0E9F6E',
-    blurb: 'Spacing rhythm, alignment, final detail',
+    blurb: 'Abstände, Ausrichtung und letzter Feinschliff',
     brief:
       'You are the polish pass, and you go last. Tighten optical alignment, enforce one spacing scale, even out the type ramp, balance weights and densities, fix ragged edges and orphaned words, and make sure nothing overflows or collides at the frame size. Small, surgical changes only — never restructure.',
     reviewer: true,
-    aliases: ['polish', 'detail'],
+    aliases: ['polish', 'detail', 'VisualPolish'],
   },
 ]
 
@@ -89,14 +89,24 @@ export const DEFAULT_ROLE_ID = 'doop'
 
 /** Ready-made pipelines for the board's compose box. */
 export const PIPELINE_PRESETS: { id: string; label: string; roles: string[] }[] = [
-  { id: 'solo', label: 'Just Doop', roles: ['doop'] },
-  { id: 'ship', label: 'Design → polish', roles: ['doop', 'polish'] },
-  { id: 'full', label: 'Full pipeline', roles: ['doop', 'copy', 'brand', 'a11y', 'polish'] },
-  { id: 'audit', label: 'Review only', roles: ['ux', 'brand', 'a11y'] },
+  { id: 'solo', label: 'Nur Doop', roles: ['doop'] },
+  { id: 'ship', label: 'Design → Feinschliff', roles: ['doop', 'polish'] },
+  { id: 'full', label: 'Vollständiger Ablauf', roles: ['doop', 'copy', 'brand', 'a11y', 'polish'] },
+  { id: 'audit', label: 'Nur Prüfung', roles: ['ux', 'brand', 'a11y'] },
 ]
 
 const byId = new Map(AGENT_ROLES.map((r) => [r.id, r]))
 const byName = new Map(AGENT_ROLES.map((r) => [r.name.toLowerCase(), r]))
+// Previously stored task identities and existing @mentions remain valid.
+for (const [name, id] of Object.entries({
+  'UX Lead': 'ux',
+  Copywriter: 'copy',
+  'Brand Compliance': 'brand',
+  Accessibility: 'a11y',
+  'Visual Polish': 'polish',
+})) {
+  byName.set(name.toLowerCase(), byId.get(id)!)
+}
 
 export function roleById(id: string | undefined): AgentRole | undefined {
   return id ? byId.get(id) : undefined

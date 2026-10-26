@@ -66,7 +66,11 @@ function DashSidebarBrand({
       className={cn('mb-2.5 flex h-[30px] flex-none items-center gap-2 px-1.5', className)}
       {...props}
     >
-      <IconButton aria-label="Doop home" className="size-[26px] rounded-row hover:bg-transparent" onClick={onHome}>
+      <IconButton
+        aria-label="Doop-Startseite"
+        className="size-[26px] rounded-row hover:bg-transparent"
+        onClick={onHome}
+      >
         <Logo className="size-[26px] rounded-row" />
       </IconButton>
       {children}
@@ -214,12 +218,12 @@ function DashBrand() {
   if (!mounted) return null
   return (
     <span data-slot="dash-brand" className="flex items-center gap-2 md:hidden">
-      <IconButton aria-label="Show sidebar" onClick={() => setOpen(true)}>
+      <IconButton aria-label="Seitenleiste anzeigen" onClick={() => setOpen(true)}>
         <PanelLeftIcon width={16} height={16} />
       </IconButton>
       <a
         href="/"
-        aria-label="Doop home"
+        aria-label="Doop-Startseite"
         className="rounded-control focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
         onClick={(e) => {
           e.preventDefault()

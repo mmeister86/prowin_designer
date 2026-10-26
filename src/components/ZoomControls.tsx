@@ -56,32 +56,32 @@ export function ZoomControls({
         hidden && 'hidden',
       )}
     >
-      <ToolbarButton aria-label="Zoom out" className={stepBtn} onClick={onZoomOut}>
+      <ToolbarButton aria-label="Verkleinern" className={stepBtn} onClick={onZoomOut}>
         <MinusIcon />
       </ToolbarButton>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <ToolbarButton
-            aria-label="Zoom level"
+            aria-label="Zoomstufe"
             className={cn(stepBtn, 'w-auto min-w-[48px] px-1.5 font-mono text-[12px] text-ink sm:w-auto sm:px-1.5')}
           >
-            <span ref={labelRef}>100%</span>
+            <span ref={labelRef}>100 %</span>
           </ToolbarButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="end" width="md">
-          <DropdownMenuItem onSelect={onZoomIn}>Zoom in{hint(`${MOD_KEY}+`)}</DropdownMenuItem>
-          <DropdownMenuItem onSelect={onZoomOut}>Zoom out{hint(`${MOD_KEY}−`)}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={onZoomIn}>Vergrößern{hint(`${MOD_KEY}+`)}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={onZoomOut}>Verkleinern{hint(`${MOD_KEY}−`)}</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={onFit}>Zoom to fit{hint('⇧1')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={onFit}>Alles einpassen{hint('⇧1')}</DropdownMenuItem>
           <DropdownMenuItem disabled={!hasSelection} onSelect={onFitSelection}>
-            Zoom to selection{hint('⇧2')}
+            Auswahl einpassen{hint('⇧2')}
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onZoomTo(0.5)}>Zoom to 50%</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onZoomTo(1)}>Zoom to 100%{hint(`${MOD_KEY}0`)}</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onZoomTo(2)}>Zoom to 200%</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onZoomTo(0.5)}>Auf 50 % zoomen</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onZoomTo(1)}>Auf 100 % zoomen{hint(`${MOD_KEY}0`)}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onZoomTo(2)}>Auf 200 % zoomen</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <ToolbarButton aria-label="Zoom in" className={stepBtn} onClick={onZoomIn}>
+      <ToolbarButton aria-label="Vergrößern" className={stepBtn} onClick={onZoomIn}>
         <PlusIcon />
       </ToolbarButton>
     </Toolbar>

@@ -1,7 +1,7 @@
 import type { Canvas, CanvasPageInfo, Frame } from './types.ts'
 
 export function canvasPages(canvas: Pick<Canvas, 'id' | 'pages'>): CanvasPageInfo[] {
-  return canvas.pages?.length ? canvas.pages : [{ id: `${canvas.id}:page1`, name: 'Page 1' }]
+  return canvas.pages?.length ? canvas.pages : [{ id: `${canvas.id}:page1`, name: 'Seite 1' }]
 }
 
 export function framePageId(canvas: Pick<Canvas, 'id' | 'pages'>, frame: Frame): string {
@@ -20,7 +20,7 @@ export const MAX_PAGE_NAME = 100
 export function copyPageName(name: string, taken: readonly string[]): string {
   const used = new Set(taken)
   for (let n = 1; ; n++) {
-    const suffix = n === 1 ? ' copy' : ` copy ${n}`
+    const suffix = n === 1 ? ' Kopie' : ` Kopie ${n}`
     const candidate = `${name.slice(0, MAX_PAGE_NAME - suffix.length).trimEnd()}${suffix}`
     if (!used.has(candidate)) return candidate
   }
@@ -45,12 +45,13 @@ export function applyPageChanges(
     const target = to.find((candidate) => candidate.id === page.id)
     const existing = next.find((candidate) => candidate.id === page.id)
     if (!target) {
-      if (existing && existing.name !== page.name) throw new Error('This page was renamed by a collaborator.')
+      if (existing && existing.name !== page.name)
+        throw new Error('Diese Seite wurde von einer anderen Person umbenannt.')
       next = next.filter((candidate) => candidate.id !== page.id)
     } else if (target.name !== page.name) {
-      if (!existing) throw new Error('This page no longer exists.')
+      if (!existing) throw new Error('Diese Seite ist nicht mehr vorhanden.')
       if (existing.name !== page.name && existing.name !== target.name)
-        throw new Error('This page was renamed by a collaborator.')
+        throw new Error('Diese Seite wurde von einer anderen Person umbenannt.')
       existing.name = target.name
     }
   }
@@ -58,7 +59,7 @@ export function applyPageChanges(
     if (from.some((candidate) => candidate.id === page.id)) continue
     const existing = next.find((candidate) => candidate.id === page.id)
     if (existing) {
-      if (existing.name !== page.name) throw new Error('A different page already uses this ID.')
+      if (existing.name !== page.name) throw new Error('Eine andere Seite verwendet bereits diese ID.')
       continue
     }
     const following = to.slice(index + 1).find((candidate) => next.some((p) => p.id === candidate.id))
@@ -84,7 +85,7 @@ export function applyPageChanges(
       JSON.stringify(currentOrder) !== JSON.stringify(originalOrder) &&
       JSON.stringify(currentOrder) !== JSON.stringify(targetOrder)
     )
-      throw new Error('Page order changed. Please try again.')
+      throw new Error('Die Seitenreihenfolge wurde geändert. Versuche es erneut.')
     const ordered = targetOrder.map((id) => next.find((p) => p.id === id)!)
     let index = 0
     next = next.map((page) => (sharedIds.has(page.id) ? ordered[index++]! : page))

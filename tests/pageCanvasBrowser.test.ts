@@ -95,7 +95,7 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
       canvas([frame('original', 'first', 0), target]),
       `?${new URLSearchParams({ frame: target.id, selector })}`,
     )
-    await page.waitForSelector('button[aria-label="Copy link to element"]')
+    await page.waitForSelector('button[aria-label="Link zum Element kopieren"]')
     expect(await page.evaluate(() => window.pageState())).toMatchObject({
       activePageId: pageId,
       selectedId: target.id,
@@ -106,16 +106,16 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
     })
 
     // Copy through the actual element toolbar, then reopen the resulting URL.
-    await page.locator('button[aria-label="Copy link to element"]').click()
-    await page.waitForFunction(() => window.pageState().notice === 'Element link copied')
+    await page.locator('button[aria-label="Link zum Element kopieren"]').click()
+    await page.waitForFunction(() => window.pageState().notice === 'Link zum Element kopiert')
     const copied = await page.evaluate(() => navigator.clipboard.readText())
     const url = new URL(copied)
     expect(url.pathname).toBe('/c/c')
     expect(url.searchParams.get('frame')).toBe(target.id)
     expect(url.searchParams.get('selector')).toBe(selector)
-    expect(await page.evaluate(() => window.pageState().notice)).toBe('Element link copied')
+    expect(await page.evaluate(() => window.pageState().notice)).toBe('Link zum Element kopiert')
     await load(canvas([target]), url.search)
-    await page.waitForSelector('button[aria-label="Copy link to element"]')
+    await page.waitForSelector('button[aria-label="Link zum Element kopieren"]')
     expect(await page.evaluate(() => window.pageState().selectedElement)).toEqual({ frameId: target.id, selector })
 
     // Deselecting still removes the probe and its panel after a deep link.
@@ -132,7 +132,7 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
       selectedElement: null,
       elementPanelOpen: false,
       inspectorOpen: true,
-      notice: 'This element no longer exists. Showing its frame instead.',
+      notice: 'Dieses Element existiert nicht mehr. Stattdessen wird seine Zeichenfläche angezeigt.',
     })
   })
 
@@ -147,7 +147,7 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
       </script>`,
     }
     await load(canvas([frame('original', 'first', 0), target]), '?frame=target&selector=%23chart')
-    await page.waitForSelector('button[aria-label="Copy link to element"]', { timeout: 5000 })
+    await page.waitForSelector('button[aria-label="Link zum Element kopieren"]', { timeout: 5000 })
     expect(await page.evaluate(() => window.pageState())).toMatchObject({
       activePageId: pageId,
       selectedId: target.id,
@@ -157,11 +157,11 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
     })
     expect(await page.evaluate(() => window.pageState().notice)).toBeUndefined()
 
-    await page.locator('button[aria-label="Copy link to element"]').click()
-    await page.waitForFunction(() => window.pageState().notice === 'Element link copied')
+    await page.locator('button[aria-label="Link zum Element kopieren"]').click()
+    await page.waitForFunction(() => window.pageState().notice === 'Link zum Element kopiert')
     const copied = await page.evaluate(() => navigator.clipboard.readText())
     await load(canvas([target]), new URL(copied).search)
-    await page.waitForSelector('button[aria-label="Copy link to element"]', { timeout: 5000 })
+    await page.waitForSelector('button[aria-label="Link zum Element kopieren"]', { timeout: 5000 })
     expect(await page.evaluate(() => window.pageState().selectedElement)).toEqual({
       frameId: target.id,
       selector: '#chart',
@@ -181,9 +181,9 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
       selectedElement: null,
       elementPanelOpen: false,
       inspectorOpen: true,
-      notice: 'This element no longer exists. Showing its frame instead.',
+      notice: 'Dieses Element existiert nicht mehr. Stattdessen wird seine Zeichenfläche angezeigt.',
     })
-    expect(await page.$('button[aria-label="Copy link to element"]')).toBeNull()
+    expect(await page.$('button[aria-label="Link zum Element kopieren"]')).toBeNull()
   })
 
   it('follows another element link and browser history within the same mounted canvas', async () => {
@@ -195,7 +195,7 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
     await page.waitForFunction(() => window.pageState().selectedElement?.selector === '#two')
-    await page.waitForSelector('button[aria-label="Copy link to element"]')
+    await page.waitForSelector('button[aria-label="Link zum Element kopieren"]')
     await page.evaluate(() => history.back())
     await page.waitForFunction(() => window.pageState().selectedElement?.selector === '#one')
     await page.evaluate(() => {
@@ -203,7 +203,7 @@ describe.skipIf(!findBrowserPath())('page camera and snapping', { timeout: 30_00
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
     await page.waitForFunction(() => window.pageState().inspectorOpen && !window.pageState().selectedElement)
-    await page.waitForSelector('button[aria-label="Copy link to element"]', { hidden: true })
+    await page.waitForSelector('button[aria-label="Link zum Element kopieren"]', { hidden: true })
   })
 
   it('does not snap a drag to the invisible frame on another page', async () => {

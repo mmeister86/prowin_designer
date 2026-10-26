@@ -128,7 +128,7 @@ function Modal({
         >
           {showClose && (
             <DialogPrimitive.Close
-              aria-label="Close"
+              aria-label="Schließen"
               className="absolute top-2.5 right-2.5 z-[1] grid size-6 place-items-center rounded-full bg-ink/[0.06] text-ink/50 transition-colors hover:bg-ink/10 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-faint"
             >
               <XIcon className="size-3" />

@@ -107,25 +107,25 @@ describe('address screening', () => {
 
   it('refuses schemes, credentials and local names before any lookup', () => {
     expect(webhooks.urlProblem('ftp://x.example.com/')).toMatch(/https/)
-    expect(webhooks.urlProblem('https://user:pw@x.example.com/')).toMatch(/credentials/)
-    expect(webhooks.urlProblem('http://localhost:5678/hook')).toMatch(/private/)
-    expect(webhooks.urlProblem('http://n8n.localhost/hook')).toMatch(/private/)
-    expect(webhooks.urlProblem('http://127.0.0.1/')).toMatch(/private/)
-    expect(webhooks.urlProblem('http://[::1]/')).toMatch(/private/)
+    expect(webhooks.urlProblem('https://user:pw@x.example.com/')).toMatch(/Zugangsdaten/)
+    expect(webhooks.urlProblem('http://localhost:5678/hook')).toMatch(/privaten/)
+    expect(webhooks.urlProblem('http://n8n.localhost/hook')).toMatch(/privaten/)
+    expect(webhooks.urlProblem('http://127.0.0.1/')).toMatch(/privaten/)
+    expect(webhooks.urlProblem('http://[::1]/')).toMatch(/privaten/)
     /* the URL parser spells a mapped IPv4 in hex — the form the screen must catch */
     expect(new URL('http://[::ffff:127.0.0.1]/').hostname).toBe('[::ffff:7f00:1]')
-    expect(webhooks.urlProblem('http://[::ffff:127.0.0.1]/')).toMatch(/private/)
-    expect(webhooks.urlProblem('http://[::ffff:7f00:1]/')).toMatch(/private/)
-    expect(webhooks.urlProblem('http://2130706433/')).toMatch(/private/)
-    expect(webhooks.urlProblem('nope')).toMatch(/valid URL/)
+    expect(webhooks.urlProblem('http://[::ffff:127.0.0.1]/')).toMatch(/privaten/)
+    expect(webhooks.urlProblem('http://[::ffff:7f00:1]/')).toMatch(/privaten/)
+    expect(webhooks.urlProblem('http://2130706433/')).toMatch(/privaten/)
+    expect(webhooks.urlProblem('nope')).toMatch(/ungültig/i)
     expect(webhooks.urlProblem('https://hooks.example.com/doop')).toBeNull()
   })
 
   it('refuses a public name that resolves inward, and a name that does not resolve', async () => {
     mocks.lookup.mockResolvedValueOnce([{ address: '10.0.0.5', family: 4 }])
-    expect(await webhooks.targetProblem('https://evil.example.com/')).toMatch(/private/)
+    expect(await webhooks.targetProblem('https://evil.example.com/')).toMatch(/privaten/)
     mocks.lookup.mockRejectedValueOnce(new Error('ENOTFOUND'))
-    expect(await webhooks.targetProblem('https://gone.example.com/')).toMatch(/resolve/)
+    expect(await webhooks.targetProblem('https://gone.example.com/')).toMatch(/aufgelöst/)
     expect(await webhooks.targetProblem('https://hooks.example.com/')).toBeNull()
   })
 
@@ -149,8 +149,8 @@ describe('registry', () => {
 
   it('rejects bad input as a user error', async () => {
     await expect(register('alice', [])).rejects.toBeInstanceOf(webhooks.WebhookInputError)
-    await expect(register('alice', ['no.such.event'])).rejects.toThrow(/at least one event/)
-    await expect(register('alice', ['comment.created'], 'http://localhost/')).rejects.toThrow(/private/)
+    await expect(register('alice', ['no.such.event'])).rejects.toThrow(/mindestens ein Ereignis/)
+    await expect(register('alice', ['comment.created'], 'http://localhost/')).rejects.toThrow(/privaten/)
   })
 
   it('caps the number of hooks per account, also under concurrent requests', async () => {
@@ -158,7 +158,7 @@ describe('registry', () => {
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(webhooks.MAX_WEBHOOKS)
     expect(results.filter((r) => r.status === 'rejected')).toHaveLength(3)
     expect(webhooks.listWebhooks('alice')).toHaveLength(webhooks.MAX_WEBHOOKS)
-    await expect(register()).rejects.toThrow(/remove one/)
+    await expect(register()).rejects.toThrow(/Entferne einen/)
   })
 
   it('leaves memory untouched when the database write fails', async () => {
@@ -316,7 +316,7 @@ describe('delivery', () => {
     for (const delay of webhooks.RETRY_DELAYS_MS) await vi.advanceTimersByTimeAsync(delay)
     await vi.advanceTimersByTimeAsync(60 * 60_000)
     expect(mocks.fetch).toHaveBeenCalledTimes(1 + webhooks.RETRY_DELAYS_MS.length)
-    expect(webhooks.listWebhooks('alice')[0]?.lastError).toBe('redirects are not followed')
+    expect(webhooks.listWebhooks('alice')[0]?.lastError).toBe('Weiterleitungen werden nicht verfolgt.')
   })
 
   it('pauses itself after too many failures in a row', async () => {
@@ -325,7 +325,9 @@ describe('delivery', () => {
     for (let i = 0; i < webhooks.DISABLE_AFTER_FAILURES; i++) await webhooks.testWebhook('alice', info.id)
     const paused = webhooks.listWebhooks('alice')[0]!
     expect(paused.enabled).toBe(false)
-    expect(paused.lastError).toMatch(/^paused after/)
+    expect(paused.lastError).toBe(
+      `Pausiert nach ${webhooks.DISABLE_AFTER_FAILURES} fehlgeschlagenen Zustellungen in Folge (zuletzt: Die Webhook-Anfrage ist fehlgeschlagen.)`,
+    )
     mocks.fetch.mockClear()
     webhooks.onCanvasEvent('c1', { type: 'comment.created', comment: COMMENT, frame: FRAME, actorKind: 'user' })
     await vi.advanceTimersByTimeAsync(0)
@@ -337,7 +339,7 @@ describe('delivery', () => {
     mocks.lookup.mockResolvedValue([{ address: '192.168.0.9', family: 4 }])
     const result = await webhooks.testWebhook('alice', info.id)
     expect(result).toMatchObject({ ok: false, status: null })
-    expect(result?.error).toMatch(/private/)
+    expect(result?.error).toMatch(/privaten/)
     expect(mocks.fetch).not.toHaveBeenCalled()
   })
 
@@ -346,7 +348,10 @@ describe('delivery', () => {
     const timeout = new Error('aborted')
     timeout.name = 'TimeoutError'
     mocks.fetch.mockRejectedValue(timeout)
-    expect(await webhooks.testWebhook('alice', info.id)).toMatchObject({ ok: false, error: 'no response within 10s' })
+    expect(await webhooks.testWebhook('alice', info.id)).toMatchObject({
+      ok: false,
+      error: 'Keine Antwort innerhalb von 10 Sek.',
+    })
   })
 })
 

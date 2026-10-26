@@ -4,7 +4,7 @@ import { canvasPages } from '../../shared/pages'
 import type { CanvasPageInfo } from '../../shared/types'
 import { useStore } from '../lib/store'
 import { savePages, duplicatePage, moveFramesToPage } from '../lib/pageEdits'
-import { ApiError } from '../lib/api'
+import { errorMessage } from '../lib/api'
 import { Button } from './ui/button'
 import { PageIcon, PlusIcon } from './ui/icons'
 import { cn } from '../lib/utils'
@@ -37,9 +37,13 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
     setBusy(true)
     try {
       await moveFramesToPage(canvas, movableIds, pageId)
-    } catch {
+    } catch (error) {
       if (useStore.getState().canvas?.id === canvas.id)
-        useStore.getState().pushNotice('Could not move all selected frames to the page')
+        useStore
+          .getState()
+          .pushNotice(
+            errorMessage(error, 'Nicht alle ausgewählten Zeichenflächen konnten auf die Seite verschoben werden'),
+          )
     } finally {
       setBusy(false)
     }
@@ -54,11 +58,7 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
       setRenaming(null)
     } catch (error) {
       if (useStore.getState().canvas?.id !== canvas.id) return
-      useStore
-        .getState()
-        .pushNotice(
-          error instanceof ApiError && typeof error.body.error === 'string' ? error.body.error : 'Could not save pages',
-        )
+      useStore.getState().pushNotice(errorMessage(error, 'Die Seiten konnten nicht gespeichert werden'))
     } finally {
       setBusy(false)
     }
@@ -120,13 +120,7 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
       await duplicatePage(canvas, pageId)
     } catch (error) {
       if (useStore.getState().canvas?.id !== canvas.id) return
-      useStore
-        .getState()
-        .pushNotice(
-          error instanceof ApiError && typeof error.body.error === 'string'
-            ? error.body.error
-            : 'Could not duplicate the page',
-        )
+      useStore.getState().pushNotice(errorMessage(error, 'Die Seite konnte nicht dupliziert werden'))
     } finally {
       setBusy(false)
     }
@@ -137,10 +131,10 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
       variant="bare"
       size="icon-sm"
       className={sectionBtn}
-      aria-label="Add page"
+      aria-label="Seite hinzufügen"
       disabled={busy}
       onClick={() => {
-        const page = { id: nanoid(10), name: `Page ${pages.length + 1}` }
+        const page = { id: nanoid(10), name: `Seite ${(pages.length + 1).toLocaleString('de-DE')}` }
         void save([...pages, page], page.id)
       }}
     >
@@ -185,7 +179,7 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
                 >
                   <input
                     autoFocus
-                    aria-label="Page name"
+                    aria-label="Seitenname"
                     maxLength={100}
                     disabled={busy}
                     onFocus={(e) => e.target.select()}
@@ -235,17 +229,17 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
                 setName(page.name)
               }}
             >
-              Rename
+              Umbenennen
             </ContextMenuItem>
             <ContextMenuItem disabled={busy || pages.length >= 100} onSelect={() => void duplicate(page.id)}>
-              Duplicate page
+              Seite duplizieren
             </ContextMenuItem>
             <ContextMenuItem
               tone="danger"
               disabled={busy || pages.length === 1}
               onSelect={() => void save(pages.filter((p) => p.id !== page.id))}
             >
-              Delete page
+              Seite löschen
             </ContextMenuItem>
           </ContextMenuContent>
         </ContextMenu>
@@ -257,7 +251,7 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
     <div className={cn('flex flex-none flex-col', fill && 'min-h-0 flex-1')}>
       <div className={cn('mt-1.5 flex h-6 flex-none items-center justify-between pr-2.5 pl-3.5', sectionHeading)}>
         <span data-slot="page-section-heading" className={sectionHeading}>
-          Pages
+          Seiten
         </span>
         {addPage}
       </div>
@@ -269,8 +263,8 @@ export function PagesPanel({ fill = false }: { fill?: boolean }) {
            div too, before the native event reaches window */
         <div className="px-2 pb-2" onKeyDown={(e) => e.stopPropagation()}>
           <Select value="" disabled={busy || !movableIds.length} onValueChange={(id) => void moveSelection(id)}>
-            <SelectTrigger size="sm" className="w-full" aria-label="Move selection to page">
-              <SelectValue placeholder="Move selection to page…" />
+            <SelectTrigger size="sm" className="w-full" aria-label="Auswahl auf Seite verschieben">
+              <SelectValue placeholder="Auswahl auf Seite verschieben…" />
             </SelectTrigger>
             <SelectContent>
               {pages

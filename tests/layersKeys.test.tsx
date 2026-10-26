@@ -93,7 +93,7 @@ describe('LayersPanel ⌫', () => {
   })
 
   it('leaves ↵ on a focused lock button to the button, not to the tree', () => {
-    const lock = container.querySelector<HTMLButtonElement>('button[aria-label="Lock"]')
+    const lock = container.querySelector<HTMLButtonElement>('button[aria-label="Sperren"]')
     if (!lock) throw new Error('lock button not rendered')
     const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
     act(() => {

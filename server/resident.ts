@@ -94,7 +94,9 @@ async function sweep(canvasId: string) {
   }
 }
 
-const SYSTEM = `You are a resident design agent of the Doop canvas — a multiplayer design tool where humans and AI agents design HTML frames together. You live in the server and your job is narrow: when work lands on the canvas for you, you do it, promptly and well.
+const SYSTEM = `Respond in German by default, using friendly Du address for people. Follow explicit requests for another language. Preserve user content and technical tool contracts.
+
+You are a resident design agent of the Doop canvas — a multiplayer design tool where humans and AI agents design HTML frames together. You live in the server and your job is narrow: when work lands on the canvas for you, you do it, promptly and well.
 
 Rules:
 - Only make the changes the request asks for, and only the ones your specialty covers. No refactors, no redesigns beyond the request, no new frames unless asked.
@@ -208,7 +210,7 @@ export function createFrameInput(
       ? placeBeside(placement.near, size, pageFrames(canvas, placement.pageId))
       : undefined
   return {
-    name: String(raw.name || 'Frame'),
+    name: String(raw.name || 'Unbenannte Zeichenfläche'),
     ...size,
     html: raw.html,
     ...(placement ? { pageId: placement.pageId } : {}),
@@ -310,7 +312,8 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
      fail visibly with a fix, not crash on a key that was never meant to pay. */
   const actor = actions.resolveActor({ name: role.name, kind: 'agent' })
   if (!model.userId && RESIDENT_TASK_LIMIT <= 0) {
-    const reason = 'The server agent is disabled by its task allowance. Contact the administrator, then retry.'
+    const reason =
+      'Der Server-Agent ist durch sein Aufgabenkontingent deaktiviert. Wende Dich an die Administration und versuche es danach erneut.'
     for (const f of actions.takeFeedbackFor(canvasId, role.name, payer)) actions.failTaskFeedback(f.id, reason)
     for (const c of actions.takeAgentCommentsFor(canvasId, role.name, payer)) actions.failComment(c.id, reason)
     for (const c of actions.takeQueuedCardsFor(canvasId, role.name, payer)) actions.failCard(canvasId, c.id, reason)
@@ -395,7 +398,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     actions.setAgentStatus(
       canvasId,
       actor,
-      items.length + comments.length > 0 ? 'Reading feedback…' : 'Picking up a card…',
+      items.length + comments.length > 0 ? 'Liest Rückmeldungen …' : 'Übernimmt eine Aufgabe …',
     )
 
     const canvas = store.getCanvas(canvasId)
@@ -615,7 +618,11 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                 console.warn(
                   `[resident] model connection interrupted canvas=${canvasId} turn=${turn + 1} retry=${attempt}`,
                 )
-                actions.setAgentStatus(canvasId, actor, `Model connection interrupted — reconnecting (${attempt}/2)…`)
+                actions.setAgentStatus(
+                  canvasId,
+                  actor,
+                  `Modellverbindung unterbrochen – verbindet erneut (${attempt}/2) …`,
+                )
               },
             },
           )
@@ -623,7 +630,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
 
           if (canceled()) return 'ran'
           if (res.stop_reason === 'refusal') {
-            actions.setAgentStatus(canvasId, actor, "Couldn't address that feedback")
+            actions.setAgentStatus(canvasId, actor, 'Die Rückmeldung konnte nicht bearbeitet werden')
             refused = true
             break
           }
@@ -710,9 +717,14 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       console.error('[resident] run errored', err)
       const providerError = err instanceof Error ? (err.cause ?? err) : err
       if (providerError instanceof ModelAuthError || providerError instanceof ModelUnavailableError) {
-        crashReason = 'The server agent needs administrator attention before retrying.'
+        crashReason =
+          'Der Server-Agent benötigt Unterstützung durch die Administration, bevor Du es erneut versuchen kannst.'
       }
-      actions.setAgentStatus(canvasId, actor, crashReason ?? 'Hit a snag — waiting for a retry')
+      actions.setAgentStatus(
+        canvasId,
+        actor,
+        crashReason ?? 'Ein Problem ist aufgetreten – wartet auf einen neuen Versuch',
+      )
     }
 
     /* only a NATURALLY finished run completes its work — refused, crashed,
@@ -725,9 +737,12 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       cards.length > 0 &&
       deliverableFrames.some((id) => !runState.verifiedFrames.has(id))
     const exhausted = !finished && !refused && !crashed
-    if (exhausted) actions.setAgentStatus(canvasId, actor, 'Ran out of turns — waiting for a retry')
-    if (noMutation) actions.setAgentStatus(canvasId, actor, 'No frame changed — waiting for a retry')
-    if (unverifiedMutation) actions.setAgentStatus(canvasId, actor, 'Change not verified — waiting for a retry')
+    if (exhausted)
+      actions.setAgentStatus(canvasId, actor, 'Maximale Anzahl an Schritten erreicht – wartet auf einen neuen Versuch')
+    if (noMutation)
+      actions.setAgentStatus(canvasId, actor, 'Keine Zeichenfläche geändert – wartet auf einen neuen Versuch')
+    if (unverifiedMutation)
+      actions.setAgentStatus(canvasId, actor, 'Änderung nicht überprüft – wartet auf einen neuen Versuch')
     console.log(
       `[resident] run end canvas=${canvasId} agent=${role.name} turns=${turnsUsed} finished=${finished} refused=${refused} crashed=${crashed} mutations=${runState.mutatedFrames.size} deliverables=${deliverableFrames.length} verified=${runState.verifiedFrames.size}`,
     )
@@ -754,15 +769,17 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     } else {
       let reason: string
       if (refused) {
-        reason = `${role.name} could not take this request. Retry when you are ready.`
+        reason = `${role.name} konnte diese Anfrage nicht übernehmen. Versuche es erneut, wenn Du bereit bist.`
       } else if (crashed) {
-        reason = crashReason ?? `${role.name} hit a snag before finishing. Retry when you are ready.`
+        reason =
+          crashReason ??
+          `${role.name} konnte die Aufgabe wegen eines Problems nicht abschließen. Versuche es erneut, wenn Du bereit bist.`
       } else if (exhausted) {
-        reason = `${role.name} ran out of turns before finishing. Retry when you are ready.`
+        reason = `${role.name} hat die maximale Anzahl an Schritten erreicht. Versuche es erneut, wenn Du bereit bist.`
       } else if (noMutation) {
-        reason = `${role.name} finished without changing a frame. Retry when you are ready.`
+        reason = `${role.name} hat keine Zeichenfläche geändert. Versuche es erneut, wenn Du bereit bist.`
       } else {
-        reason = `${role.name} changed a frame but could not verify it. Retry when you are ready.`
+        reason = `${role.name} hat eine Zeichenfläche geändert, konnte sie aber nicht überprüfen. Versuche es erneut, wenn Du bereit bist.`
       }
       for (const f of claimed) actions.failTaskFeedback(f.id, reason)
       for (const c of comments) actions.failComment(c.id, reason)

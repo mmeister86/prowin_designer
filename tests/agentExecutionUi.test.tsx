@@ -30,11 +30,11 @@ it.each(['creator', 'admin'] as const)('preserves independent Local Agent contro
   state[role] = true
   const html = renderToStaticMarkup(<AgentExecutionPanel />)
   expect(html).toContain('Local Agent controls')
-  expect(html).toContain('Use server agent')
+  expect(html).toContain('Server-Agent verwenden')
 })
 
 it('offers no private subscription as a remedy for an exhausted allowance', () => {
   const text = meterText({ used: 5, limit: 5, connected: false, localAgent: false })
-  expect(text).toContain('administrator')
-  expect(text).not.toMatch(/connect|ChatGPT|plan/i)
+  expect(text).toContain('Administration')
+  expect(text).not.toMatch(/connect|verbinde|ChatGPT|plan|Tarif/i)
 })

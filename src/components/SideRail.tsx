@@ -50,26 +50,26 @@ export function SideRail({
   return (
     <>
       {(showInspector || !agentsOpen) && (
-        <nav aria-label="Canvas panels" className={cn(island, 'top-2.5')} style={style}>
+        <nav aria-label="Bereiche der Arbeitsfläche" className={cn(island, 'top-2.5')} style={style}>
           {showInspector && (
-            <IslandControl label="Inspect frame" onClick={onToggleInspector}>
+            <IslandControl label="Zeichenfläche untersuchen" onClick={onToggleInspector}>
               <SlidersIcon className="size-3.5" />
             </IslandControl>
           )}
           {!agentsOpen && <PanelTabButtons onOpen={openTab} />}
         </nav>
       )}
-      <nav aria-label="Account" className={cn(island, 'bottom-3.5 gap-1.5')} style={style}>
-        <IslandControl label="Settings" onClick={() => navigate('/settings')}>
+      <nav aria-label="Konto" className={cn(island, 'bottom-3.5 gap-1.5')} style={style}>
+        <IslandControl label="Einstellungen" onClick={() => navigate('/settings')}>
           <GearIcon className="size-3.5" />
         </IslandControl>
         <DropdownMenu>
-          <Tooltip label="Help" side="left">
+          <Tooltip label="Hilfe" side="left">
             <DropdownMenuTrigger asChild>
               <Button
                 variant="bare"
                 size="icon"
-                aria-label="Help"
+                aria-label="Hilfe"
                 className={cn(islandBtn, 'data-[state=open]:bg-paper-deep data-[state=open]:text-ink')}
               >
                 <HelpIcon className="size-3.5" />
@@ -79,15 +79,15 @@ export function SideRail({
           <DropdownMenuContent side="left" align="end" width="sm">
             <DropdownMenuItem asChild>
               <a href="/docs" target="_blank" rel="noopener noreferrer">
-                <BookOpenIcon /> Docs
+                <BookOpenIcon /> Dokumentation
               </a>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Tooltip label={`You are “${me.name}” — click to change your name`} side="left">
+        <Tooltip label={`Du bist „${me.name}“ – klicke, um Deinen Namen zu ändern`} side="left">
           <button
             type="button"
-            aria-label="Change your display name"
+            aria-label="Deinen Anzeigenamen ändern"
             className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-faint"
             onClick={onRenameSelf}
           >
@@ -117,7 +117,11 @@ export function PanelTabButtons({
     <>
       <IslandControl
         side={tooltipSide}
-        label={working ? `Agents · ${working} working · ⌘K to ask the Doop Agent` : 'Agents · ⌘K to ask the Doop Agent'}
+        label={
+          working
+            ? `Agenten · ${working.toLocaleString('de-DE')} in Arbeit · ⌘K, um den Doop-Agenten zu fragen`
+            : 'Agenten · ⌘K, um den Doop-Agenten zu fragen'
+        }
         onClick={() => onOpen('tasks')}
       >
         <SparkIcon className="size-3.5" />
@@ -125,18 +129,18 @@ export function PanelTabButtons({
       </IslandControl>
       <IslandControl
         side={tooltipSide}
-        label={openThreads ? `Comments · ${openThreads} open` : 'Comments'}
+        label={openThreads ? `Kommentare · ${openThreads.toLocaleString('de-DE')} offen` : 'Kommentare'}
         onClick={() => onOpen('comments')}
       >
         <CommentIcon className="size-3.5" />
         {openThreads > 0 && <IslandDot className="bg-brand" />}
       </IslandControl>
-      <IslandControl side={tooltipSide} label="Activity" onClick={() => onOpen('activity')}>
+      <IslandControl side={tooltipSide} label="Aktivität" onClick={() => onOpen('activity')}>
         <PulseIcon className="size-3.5" />
       </IslandControl>
       <IslandControl
         side={tooltipSide}
-        label={proposalPending ? 'Memory · suggestion to review' : 'Memory'}
+        label={proposalPending ? 'Designwissen · Vorschlag zur Prüfung' : 'Designwissen'}
         onClick={() => onOpen('memory')}
       >
         <BookOpenIcon className="size-3.5" />
@@ -150,7 +154,7 @@ export function PanelTabButtons({
 export function MobilePanelTabs({ onOpen }: { onOpen: (tab: PanelTab) => void }) {
   return (
     <nav
-      aria-label="Canvas panels"
+      aria-label="Bereiche der Arbeitsfläche"
       className="pointer-events-auto absolute top-2 right-2 z-[38] flex items-center gap-1 rounded-[12px] bg-surface px-1.5 py-1 shadow-float"
     >
       <PanelTabButtons onOpen={onOpen} tooltipSide="bottom" />

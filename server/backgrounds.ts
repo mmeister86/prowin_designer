@@ -511,16 +511,16 @@ export interface PreparedImage {
 /** Decode, re-encode and measure an uploaded image. Throws on anything that
  *  is not a usable background (too small, not an image). */
 export async function prepareImage(bytes: Buffer): Promise<PreparedImage> {
-  if (bytes.length === 0) throw new Error('empty file')
-  if (bytes.length > MAX_UPLOAD_BYTES) throw new Error('file exceeds the 40 MB limit')
+  if (bytes.length === 0) throw new Error('Die Datei ist leer.')
+  if (bytes.length > MAX_UPLOAD_BYTES) throw new Error('Die Datei überschreitet die Grenze von 40 MB.')
   const source = createHash('sha1').update(bytes).digest('hex')
   const image = sharp(bytes, { failOn: 'none' }).rotate()
   const meta = await image.metadata().catch(() => {
-    throw new Error('not an image')
+    throw new Error('Diese Datei ist kein Bild.')
   })
-  if (!meta.width || !meta.height) throw new Error('not an image')
+  if (!meta.width || !meta.height) throw new Error('Diese Datei ist kein Bild.')
   if (meta.width < MIN_SOURCE_WIDTH)
-    throw new Error(`image is ${meta.width}px wide — backgrounds need at least ${MIN_SOURCE_WIDTH}px`)
+    throw new Error(`Das Bild ist ${meta.width} px breit. Hintergründe benötigen mindestens ${MIN_SOURCE_WIDTH} px.`)
   const display = await image
     .clone()
     .resize({ width: DISPLAY_WIDTH, withoutEnlargement: true })
@@ -566,7 +566,7 @@ Describe the image for that search:
 - tags: 4–10 lowercase single words a designer would type: color names ("teal", "coral"), mood ("calm", "energetic", "premium", "playful"), temperature ("warm", "cool"), subjects ("sunset", "clouds", "mountains"), and industries it suits ("saas", "fintech", "wellness", "gaming"). No hashtags, no duplicates of tone or style.
 - slots: which of hero (wide, quiet enough for a headline), section (a band behind a row of content), card (small tile, strong focal point still reads when cropped) it suits. Most images suit several.
 - text_zone: the region where a headline would sit cleanly — left, right, center, top, bottom, anywhere (uniformly quiet), or none (too busy everywhere).
-- description: one plain sentence, under 20 words, as a designer would say it ("Soft teal aurora ribbon drifting across a near-black field").`
+- description: one plain sentence in German, under 20 words, as a designer would say it ("Soft teal aurora ribbon drifting across a near-black field").`
 
 export function taggingEnabled(): boolean {
   return OPTIONAL_FEATURES.backgrounds && Boolean(env.REQUESTY_API_KEY)
@@ -575,9 +575,11 @@ export function taggingEnabled(): boolean {
 /** Ask the model to describe an image. Throws when tagging is off or refused. */
 export async function tagWithModel(jpeg: Buffer): Promise<BackgroundTags> {
   if (!taggingEnabled())
-    throw new Error('auto-tagging is off (background library disabled or REQUESTY_API_KEY not set)')
+    throw new Error(
+      'Die automatische Verschlagwortung ist deaktiviert. Die Hintergrundbibliothek oder der Dienst ist nicht eingerichtet.',
+    )
   const config = requestyConfig(env.DOOP_AGENT_MODEL, true)
-  if (!config) throw new Error('auto-tagging is off (REQUESTY_API_KEY not set)')
+  if (!config) throw new Error('Die automatische Verschlagwortung ist nicht eingerichtet.')
   const response = await runChatCompletionsTurn(config, {
     system: '',
     tools: [],
@@ -596,10 +598,10 @@ export async function tagWithModel(jpeg: Buffer): Promise<BackgroundTags> {
       },
     ],
   })
-  if (response.stop_reason === 'refusal') throw new Error('the model declined to describe this image')
-  if (response.stop_reason !== 'end_turn') throw new Error('incomplete tagging response')
+  if (response.stop_reason === 'refusal') throw new Error('Das Modell hat die Beschreibung dieses Bildes abgelehnt.')
+  if (response.stop_reason !== 'end_turn') throw new Error('Die Antwort zur Verschlagwortung ist unvollständig.')
   const block = response.content.find((b) => b.type === 'text')
-  if (!block || block.type !== 'text') throw new Error('no text in tagging response')
+  if (!block || block.type !== 'text') throw new Error('Die Antwort zur Verschlagwortung enthält keinen Text.')
   return normalizeTags(JSON.parse(block.text))
 }
 
@@ -625,7 +627,7 @@ const HEX = /^#[0-9a-f]{6}$/
 export function normalizeTags(input: unknown): BackgroundTags {
   const raw = (input ?? {}) as Record<string, unknown>
   const oneOf = <T extends string>(list: readonly T[], v: unknown, field: string): T => {
-    if (!list.includes(v as T)) throw new Error(`${field} must be one of ${list.join(', ')}`)
+    if (!list.includes(v as T)) throw new Error(`${field} muss einen dieser Werte haben: ${list.join(', ')}`)
     return v as T
   }
   const words = (v: unknown): string[] =>
@@ -633,9 +635,9 @@ export function normalizeTags(input: unknown): BackgroundTags {
       .map((w) => String(w).toLowerCase().trim())
       .filter(Boolean)
   const palette = words(raw.palette).filter((h) => HEX.test(h))
-  if (palette.length === 0) throw new Error('palette needs at least one #rrggbb color')
+  if (palette.length === 0) throw new Error('Die Farbpalette benötigt mindestens eine Farbe im Format #rrggbb.')
   const slots = [...new Set(words(raw.slots))].map((s) => oneOf(BACKGROUND_SLOTS, s, 'slots'))
-  if (slots.length === 0) throw new Error('slots needs at least one of hero, section, card')
+  if (slots.length === 0) throw new Error('Wähle mindestens einen Einsatzbereich: hero, section oder card.')
   return {
     tone: oneOf(BACKGROUND_TONES, raw.tone, 'tone'),
     style: oneOf(BACKGROUND_STYLES, raw.style, 'style'),
@@ -662,7 +664,7 @@ export type CreateOutcome =
 /** Ingest one image: bytes → storage objects + row. Duplicate sources are
  *  reported, not re-added. */
 export async function createBackground(bytes: Buffer, opts: CreateOptions = {}): Promise<CreateOutcome> {
-  if (!OPTIONAL_FEATURES.backgrounds) throw new Error('Background library is disabled')
+  if (!OPTIONAL_FEATURES.backgrounds) throw new Error('Die Hintergrundbibliothek ist deaktiviert.')
   const prepared = await prepareImage(bytes)
   const existing = catalog.find((e) => e.source === prepared.source)
   if (existing) return { status: 'duplicate', entry: existing }
@@ -675,7 +677,8 @@ export async function createBackground(bytes: Buffer, opts: CreateOptions = {}):
       tags = await tagWithModel(prepared.tagging)
       tagged = 'model'
     } catch (e) {
-      error = e instanceof Error ? e.message : 'tagging failed'
+      console.error('[backgrounds] tagging failed', e)
+      error = 'Die automatische Verschlagwortung ist fehlgeschlagen. Versuche es erneut.'
     }
   }
   const entry: BackgroundEntry = {
@@ -718,7 +721,7 @@ export async function retagBackground(id: string): Promise<BackgroundEntry | nul
   const current = catalog.find((e) => e.id === id)
   if (!current) return null
   const display = await storage.getObject(displayKey(id))
-  if (!display) throw new Error('image bytes are missing from storage')
+  if (!display) throw new Error('Die Bilddatei fehlt im Speicher.')
   const jpeg = await sharp(display).resize({ width: TAGGING_WIDTH }).jpeg({ quality: 80 }).toBuffer()
   const tags = await tagWithModel(jpeg)
   return updateBackground(id, { ...tags, enabled: true })

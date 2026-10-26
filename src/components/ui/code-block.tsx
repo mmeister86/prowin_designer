@@ -28,6 +28,7 @@ function CodeBlock({
       {text}
       <button
         type="button"
+        aria-label={copied ? 'Kopiert' : 'Kopieren'}
         className={cn(
           'absolute rounded-[6px] bg-white/[0.08] px-2 py-1 text-caption/3.5 text-code-ink transition-colors hover:bg-white/[0.18]',
           density === 'rail' ? 'right-[5px] top-[5px]' : 'right-2 top-2',
@@ -39,7 +40,7 @@ function CodeBlock({
           }, console.error)
         }}
       >
-        {copied ? '✓' : 'copy'}
+        {copied ? '✓' : 'kopieren'}
       </button>
     </div>
   )

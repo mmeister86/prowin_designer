@@ -63,7 +63,11 @@ function RepoTag({ task }: { task: AgentTask }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[10.5px] text-ink-faint">
       ⎇ {task.payload.repo}
-      {task.kind === 'design-system' ? ' · design system' : task.payload.screen ? ` · ${task.payload.screen.kind}` : ''}
+      {task.kind === 'design-system'
+        ? ' · Designsystem'
+        : task.payload.screen
+          ? ` · ${{ page: 'Seite', story: 'Story', component: 'Komponente', static: 'Statische Seite' }[task.payload.screen.kind]}`
+          : ''}
     </span>
   )
 }
@@ -113,12 +117,12 @@ function Team({ tasks, onPick }: { tasks: AgentTask[]; onPick: (id: string) => v
   return (
     <div className="mb-[26px]">
       <div className="mb-3 flex items-baseline gap-2.5 border-b border-line pb-2.5">
-        <h2 className={cn(colHeadH2Cls, 'text-ink-soft')}>The team</h2>
-        <span className={hintCls}>Pick one to queue a card · @mention them on any element</span>
+        <h2 className={cn(colHeadH2Cls, 'text-ink-soft')}>Das Team</h2>
+        <span className={hintCls}>Wähle einen Agenten für eine Karte · Erwähne ihn mit @ an jedem Element</span>
       </div>
       <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [scroll-snap-type:x_proximity] md:flex-wrap md:overflow-visible md:pb-0">
         {AGENT_ROLES.map((role) => {
-          const working = tasks.find((t) => t.agentName === role.name && !t.endedAt && !t.failedAt)
+          const working = tasks.find((t) => roleByAgentName(t.agentName)?.id === role.id && !t.endedAt && !t.failedAt)
           const waiting = tasks.filter(
             (t) => t.queuedBy && !t.agentName && !t.failedAt && !t.endedAt && pipelineOf(t)[t.stage ?? 0] === role.id,
           ).length
@@ -131,7 +135,7 @@ function Team({ tasks, onPick }: { tasks: AgentTask[]; onPick: (id: string) => v
                 working ? 'border-brand' : 'hover:border-ink-soft',
               )}
               onClick={() => onPick(role.id)}
-              title={`Queue a card for ${role.name}`}
+              title={`Karte für ${role.name} einreihen`}
             >
               <span className="flex flex-wrap items-center gap-x-[5px] gap-y-[2px] font-display text-[13px] font-[650] tracking-[-0.01em] text-ink">
                 <RoleMark role={role} size={16} />
@@ -150,9 +154,9 @@ function Team({ tasks, onPick }: { tasks: AgentTask[]; onPick: (id: string) => v
                     {working.status}
                   </>
                 ) : waiting > 0 ? (
-                  `${waiting} card${waiting > 1 ? 's' : ''} waiting`
+                  `${waiting.toLocaleString('de-DE')} ${waiting === 1 ? 'Karte wartet' : 'Karten warten'}`
                 ) : (
-                  'idle'
+                  'bereit'
                 )}
               </span>
             </Button>
@@ -210,8 +214,8 @@ export function Board({ canvasId }: { canvasId: string }) {
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-7 md:min-w-max md:grid-cols-[repeat(3,minmax(280px,380px))] md:gap-[34px]">
         <section>
           <div className={colHeadCls}>
-            <h2 className={cn(colHeadH2Cls, 'text-ink-soft')}>Queued</h2>
-            <span className={countCls}>{queued.length + failed.length}</span>
+            <h2 className={cn(colHeadH2Cls, 'text-ink-soft')}>In der Warteschlange</h2>
+            <span className={countCls}>{(queued.length + failed.length).toLocaleString('de-DE')}</span>
           </div>
           <div className="flex flex-col gap-3">
             {failed.map((t) => (
@@ -225,8 +229,8 @@ export function Board({ canvasId }: { canvasId: string }) {
                 <Button
                   variant="bare"
                   className={dismissCls}
-                  aria-label="Remove this card"
-                  title="Remove this card"
+                  aria-label="Diese Karte entfernen"
+                  title="Diese Karte entfernen"
                   onClick={() => api.completeCard(canvasId, t.id).catch(console.error)}
                 >
                   ✕
@@ -240,12 +244,12 @@ export function Board({ canvasId }: { canvasId: string }) {
                   <Trail task={t} state="queued" />
                 )}
                 <div className={metaCls}>
-                  <b>Attempt stopped</b>
+                  <b>Versuch abgebrochen</b>
                   {t.agentName ? <span> · {t.agentName}</span> : null}
                   <span> · {timeAgo(t.failedAt!)}</span>
                 </div>
                 <div className="mt-[9px] text-[11.5px] leading-[1.4] text-accent-ink">
-                  {t.failureReason ?? 'The agent did not finish this task.'}
+                  {t.failureReason ?? 'Der Agent hat diese Aufgabe nicht abgeschlossen.'}
                 </div>
                 <Button
                   variant="danger-solid"
@@ -258,7 +262,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                     })
                   }
                 >
-                  ↻ Retry
+                  ↻ Erneut versuchen
                 </Button>
               </Card>
             ))}
@@ -270,7 +274,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                   <Button
                     variant="bare"
                     className={dismissCls}
-                    title={cards.length > 1 ? 'Remove these cards' : 'Remove this card'}
+                    title={cards.length > 1 ? 'Diese Karten entfernen' : 'Diese Karte entfernen'}
                     onClick={() => Promise.all(cards.map((c) => api.completeCard(canvasId, c.id))).catch(console.error)}
                   >
                     ✕
@@ -278,7 +282,9 @@ export function Board({ canvasId }: { canvasId: string }) {
                   {isImport ? (
                     <>
                       <h3 className={cardH3Cls}>
-                        {cards.length === 1 ? t.status : `${cards.length} cards from ${t.payload?.repo}`}
+                        {cards.length === 1
+                          ? t.status
+                          : `${cards.length.toLocaleString('de-DE')} Karten aus ${t.payload?.repo}`}
                       </h3>
                       {cards.length === 1 ? (
                         <div className="mt-1.5">
@@ -292,7 +298,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                               className="rounded-full border border-line px-2 py-0.5 text-[11px] text-ink-soft"
                               title={c.payload?.screen?.route}
                             >
-                              {c.kind === 'design-system' ? '✦ design system' : c.status}
+                              {c.kind === 'design-system' ? '✦ Designsystem' : c.status}
                             </span>
                           ))}
                         </div>
@@ -308,7 +314,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                     <b>{t.queuedBy}</b> · {timeAgo(t.startedAt)}
                   </div>
                   <div className="mt-[9px] font-mono text-[11px] text-ink-faint">
-                    ✦ waiting for {roleName(pipelineOf(t)[t.stage ?? 0])}
+                    ✦ wartet auf {roleName(pipelineOf(t)[t.stage ?? 0])}
                   </div>
                 </Card>
               )
@@ -319,7 +325,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                 className="justify-center rounded-[14px] border-[1.5px] border-dashed p-3.5 text-[13px] font-[650] text-ink-faint hover:border-brand hover:bg-transparent hover:text-accent-ink"
                 onClick={openCompose}
               >
-                + New card
+                + Neue Karte
               </Button>
             ) : (
               <Card className={cn(cardBase, 'bg-surface')}>
@@ -329,7 +335,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                   className="min-h-[54px] md:text-[13.5px]"
                   value={draft}
                   maxLength={MAX_CARD_CHARS}
-                  placeholder="What should an agent work on?"
+                  placeholder="Woran soll ein Agent arbeiten?"
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
@@ -341,7 +347,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                 />
                 <div className="mt-1 border-t border-line pt-2.5">
                   <div className="flex flex-col gap-1.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-faint">
-                    <span>Assign to</span>
+                    <span>Zuweisen an</span>
                     <div className="-ml-1.5 flex flex-wrap gap-[3px]">
                       {PIPELINE_PRESETS.map((p) => (
                         <Button
@@ -391,15 +397,15 @@ export function Board({ canvasId }: { canvasId: string }) {
                     disabled={!draft.trim()}
                     onClick={submit}
                   >
-                    Queue it
+                    In die Warteschlange
                   </Button>
                   <MeterLine allowance={allowance} />
                   <span className={hintCls}>
                     {agents.length === 0
-                      ? 'Doop picks it up right away'
+                      ? 'Doop übernimmt sofort'
                       : agents.length === 1
-                        ? `${roleName(agents[0])} picks it up right away`
-                        : `${roleName(agents[0])} starts, then ${agents.slice(1).map(roleName).join(' → ')}`}
+                        ? `${roleName(agents[0])} übernimmt sofort`
+                        : `${roleName(agents[0])} beginnt, danach ${agents.slice(1).map(roleName).join(' → ')}`}
                   </span>
                 </div>
               </Card>
@@ -409,11 +415,13 @@ export function Board({ canvasId }: { canvasId: string }) {
 
         <section>
           <div className={colHeadCls}>
-            <h2 className={cn(colHeadH2Cls, 'text-accent-ink')}>In progress</h2>
-            <span className={countCls}>{inProgress.length}</span>
+            <h2 className={cn(colHeadH2Cls, 'text-accent-ink')}>In Arbeit</h2>
+            <span className={countCls}>{inProgress.length.toLocaleString('de-DE')}</span>
           </div>
           <div className="flex flex-col gap-3">
-            {inProgress.length === 0 && <div className="px-0.5 py-1 text-[13px] text-ink-faint">Nothing in flight</div>}
+            {inProgress.length === 0 && (
+              <div className="px-0.5 py-1 text-[13px] text-ink-faint">Gerade nichts in Arbeit</div>
+            )}
             {inProgress.map((t) => (
               <Card
                 key={t.id}
@@ -437,8 +445,8 @@ export function Board({ canvasId }: { canvasId: string }) {
                     <RoleMark role={roleByAgentName(t.agentName)} size={13} />
                     {t.agentName}
                   </b>
-                  {t.owner && <span> · for {t.owner}</span>}
-                  {t.queuedBy && <span> · card from {t.queuedBy}</span>}
+                  {t.owner && <span> · für {t.owner}</span>}
+                  {t.queuedBy && <span> · Karte von {t.queuedBy}</span>}
                   <span> · {timeAgo(t.claimedAt ?? t.startedAt)}</span>
                 </div>
               </Card>
@@ -448,11 +456,11 @@ export function Board({ canvasId }: { canvasId: string }) {
 
         <section>
           <div className={colHeadCls}>
-            <h2 className={cn(colHeadH2Cls, 'text-ink-soft')}>Done</h2>
-            <span className={countCls}>{done.length}</span>
+            <h2 className={cn(colHeadH2Cls, 'text-ink-soft')}>Erledigt</h2>
+            <span className={countCls}>{done.length.toLocaleString('de-DE')}</span>
           </div>
           <div className="flex flex-col gap-3">
-            {done.length === 0 && <div className="px-0.5 py-1 text-[13px] text-ink-faint">Nothing yet</div>}
+            {done.length === 0 && <div className="px-0.5 py-1 text-[13px] text-ink-faint">Noch nichts vorhanden</div>}
             {done.map((t) => (
               <Card key={t.id} className={cn(cardBase, 'bg-transparent shadow-none')}>
                 <h3 className="break-words pr-4 font-display text-[13.5px] font-semibold leading-[1.35] tracking-[-0.01em] text-ink-soft">
@@ -466,7 +474,7 @@ export function Board({ canvasId }: { canvasId: string }) {
                 {t.queuedBy && pipelineOf(t).length > 1 && <Trail task={t} state="done" />}
                 <div className={metaCls}>
                   <span className="font-[750] text-success-ink">✓</span> {t.agentName || t.queuedBy}
-                  {t.queuedBy && t.agentName && <span> · for {t.queuedBy}</span>}
+                  {t.queuedBy && t.agentName && <span> · für {t.queuedBy}</span>}
                   <span> · {timeAgo(t.endedAt!)}</span>
                 </div>
               </Card>

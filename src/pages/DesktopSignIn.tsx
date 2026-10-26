@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { authClient } from '../lib/auth'
+import { authClient, authErrorMessage } from '../lib/auth'
 import { desktopHandoffURL, parseDesktopSignInQuery } from '../lib/desktopAuth'
 import { AuthCard, AuthCardText, AuthScreen } from '../components/ui/screen'
 import { Callout } from '../components/ui/callout'
@@ -13,7 +13,9 @@ export function DesktopSignIn({ signedIn }: { signedIn: boolean }) {
   /* read once: the query is fixed for the life of this page */
   const request = useMemo(() => parseDesktopSignInQuery(location.search), [])
   const [startError, setStartError] = useState<string | null>(null)
-  const error = request ? startError : 'This sign-in link is incomplete — go back to the doop app and try again.'
+  const error = request
+    ? startError
+    : 'Dieser Anmeldelink ist unvollständig — kehre zur doop-App zurück und versuche es erneut.'
 
   useEffect(() => {
     if (!request) return
@@ -29,22 +31,22 @@ export function DesktopSignIn({ signedIn }: { signedIn: boolean }) {
       newUserCallbackURL: desktopHandoffURL(request.challenge, request.newUserCallbackURL),
       errorCallbackURL: '/auth',
     }
-    const failed = 'Could not start sign-in — go back to the doop app and try again.'
+    const failed = 'Die Anmeldung konnte nicht gestartet werden — kehre zur doop-App zurück und versuche es erneut.'
     const start = authClient.signIn.social({ provider: request.provider, ...redirects })
     start
       .then((res) => {
-        if (res.error) setStartError(res.error.message ?? failed)
+        if (res.error) setStartError(authErrorMessage(res.error, failed))
       })
       .catch(() => setStartError(failed))
   }, [request, signedIn])
 
   return (
     <AuthScreen>
-      <AuthCard title={error ? 'Something went wrong.' : 'Signing you in…'}>
+      <AuthCard title={error ? 'Etwas ist schiefgelaufen.' : 'Du wirst angemeldet…'}>
         {error ? (
           <Callout tone="error">{error}</Callout>
         ) : (
-          <AuthCardText>Taking you to your identity provider for the doop app.</AuthCardText>
+          <AuthCardText>Du wirst zum Anmeldedienst für die doop-App weitergeleitet.</AuthCardText>
         )}
       </AuthCard>
     </AuthScreen>

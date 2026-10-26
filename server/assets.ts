@@ -17,6 +17,9 @@ import * as storage from './storage.ts'
 
 export const MAX_ASSET_BYTES = 5 * 1024 * 1024
 
+/** Only our input validation may be shown to people; storage/provider errors stay private. */
+export class AssetInputError extends Error {}
+
 const MIME_EXT = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
@@ -102,11 +105,13 @@ export async function createAsset(
   buf: Buffer,
   meta: { canvasId?: string; ownerId?: string; uploadedBy: string },
 ): Promise<AssetMeta> {
-  if (buf.length === 0) throw new Error('empty file')
+  if (buf.length === 0) throw new AssetInputError('Die Datei ist leer.')
   if (buf.length > MAX_ASSET_BYTES)
-    throw new Error(`file is ${(buf.length / 1024 / 1024).toFixed(1)} MB — the limit is 5 MB`)
+    throw new AssetInputError(
+      `Die Datei ist ${(buf.length / 1024 / 1024).toLocaleString('de-DE', { maximumFractionDigits: 1 })} MB groß. Die Grenze liegt bei 5 MB.`,
+    )
   const mime = sniffMime(buf)
-  if (!mime) throw new Error('unsupported file type — png, jpg, webp, gif and svg are accepted')
+  if (!mime) throw new AssetInputError('Nicht unterstützter Dateityp. Erlaubt sind PNG, JPG, WebP, GIF und SVG.')
   const ext = MIME_EXT[mime]
   const id = nanoid(10)
   /* object first, row second: an orphaned object is swept later, but a row
@@ -151,7 +156,8 @@ export async function fetchRemote(rawUrl: string): Promise<Buffer> {
       continue
     }
     if (!res.ok) throw new Error(`fetch failed: HTTP ${res.status}`)
-    if (Number(res.headers.get('content-length') || 0) > MAX_ASSET_BYTES) throw new Error('file exceeds the 5 MB limit')
+    if (Number(res.headers.get('content-length') || 0) > MAX_ASSET_BYTES)
+      throw new Error('Die Datei überschreitet die Grenze von 5 MB.')
     if (!res.body) throw new Error('empty response')
     const chunks: Uint8Array[] = []
     let total = 0
@@ -162,7 +168,7 @@ export async function fetchRemote(rawUrl: string): Promise<Buffer> {
       total += value.byteLength
       if (total > MAX_ASSET_BYTES) {
         await reader.cancel()
-        throw new Error('file exceeds the 5 MB limit')
+        throw new Error('Die Datei überschreitet die Grenze von 5 MB.')
       }
       chunks.push(value)
     }

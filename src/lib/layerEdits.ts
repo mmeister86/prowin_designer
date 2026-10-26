@@ -63,7 +63,7 @@ export function setFramesLocked(frames: Frame[], locked: boolean) {
       api.updateFrame(f.id, { locked }).catch((err: unknown) => {
         const s = useStore.getState()
         s.patchFrameLocal(f.id, { locked: !locked })
-        s.pushNotice(errorMessage(err, `Couldn’t ${locked ? 'lock' : 'unlock'} “${f.name}”`))
+        s.pushNotice(errorMessage(err, `„${f.name}“ konnte nicht ${locked ? 'gesperrt' : 'entsperrt'} werden`))
       }),
     )
   }
@@ -148,7 +148,7 @@ export function setFramesHidden(frames: Frame[], hidden: boolean) {
       api.updateFrame(f.id, { hidden }).catch((err: unknown) => {
         const s = useStore.getState()
         s.patchFrameLocal(f.id, { hidden: !hidden })
-        s.pushNotice(errorMessage(err, `Couldn’t ${hidden ? 'hide' : 'show'} “${f.name}”`))
+        s.pushNotice(errorMessage(err, `„${f.name}“ konnte nicht ${hidden ? 'ausgeblendet' : 'eingeblendet'} werden`))
       }),
     )
   }

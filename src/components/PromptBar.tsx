@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useStore, type ComposerSend } from '../lib/store'
-import { api, type Allowance } from '../lib/api'
+import { api, errorMessage, type Allowance } from '../lib/api'
 import { uploadImageFrames } from '../lib/frameClipboard'
 import { isResidentLimit, meterText, useAllowance } from './TeamAllowance'
 import { Button } from './ui/button'
@@ -131,7 +131,7 @@ async function sendPrompt(args: {
        the card carries the frame ids so the agent views them before
        designing. Known-ids include them so the camera saves its flight for
        the agent's deliverable, not the user's own screenshots. */
-    const refFrames = await uploadImageFrames(canvasId, files, 'Attached image')
+    const refFrames = await uploadImageFrames(canvasId, files, 'Angehängtes Bild')
     await api.addCard(
       canvasId,
       text,
@@ -158,7 +158,7 @@ async function sendPrompt(args: {
       setSend({
         canvasId,
         status: 'error',
-        message: err instanceof Error ? err.message : 'Something went wrong — try again',
+        message: errorMessage(err, 'Deine Anfrage konnte nicht gesendet werden. Versuche es erneut.'),
         at: Date.now(),
       })
     }
@@ -210,7 +210,7 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
     const node = findLayer(buildLayerTree(frame.html), selectedElement.selector)
     return {
       scope,
-      label: node ? layerName(node) : (selectedElement.selector.split(' > ').at(-1) ?? 'element'),
+      label: node ? layerName(node) : (selectedElement.selector.split(' > ').at(-1) ?? 'Element'),
       kind: node?.kind ?? 'box',
     }
   }, [frames, selectedId, selectedElement, dismissed])
@@ -252,8 +252,8 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
     const oversize = images.find((f) => f.size > MAX_ATTACHMENT_BYTES)
     const fitting = images.filter((f) => f.size <= MAX_ATTACHMENT_BYTES)
     const room = MAX_ATTACHMENTS - attachments.length
-    if (oversize) showError(`“${oversize.name}” exceeds the 5 MB limit`)
-    else if (fitting.length > room) showError(`Up to ${MAX_ATTACHMENTS} images per request`)
+    if (oversize) showError(`„${oversize.name}“ überschreitet die Grenze von 5 MB`)
+    else if (fitting.length > room) showError(`Bis zu ${MAX_ATTACHMENTS} Bilder pro Anfrage`)
     const ok = fitting.slice(0, Math.max(0, room))
     if (ok.length)
       setAttachments((cur) => [...cur, ...ok.map((file) => ({ file, preview: URL.createObjectURL(file) }))])
@@ -301,7 +301,7 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
               <Button
                 variant="bare"
                 className="absolute right-0.5 top-0.5 size-4 justify-center rounded-full bg-black/55 p-0 text-xs leading-none text-white hover:bg-black/70 hover:text-white"
-                aria-label={`Remove ${a.file.name}`}
+                aria-label={`${a.file.name} entfernen`}
                 disabled={busy}
                 onClick={() => removeAttachment(a.preview)}
               >
@@ -334,7 +334,9 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
             <span
               className="flex h-6 min-w-0 max-w-full items-center gap-1.5 rounded-[6px] pr-1 pl-2 text-[12px] text-ink-soft shadow-ring"
               title={
-                chip.kind === 'frame' ? `Scoped to the frame “${chip.label}”` : `Scoped to ${chip.label} in this frame`
+                chip.kind === 'frame'
+                  ? `Kontext: Zeichenfläche „${chip.label}“`
+                  : `Kontext: ${chip.label} in dieser Zeichenfläche`
               }
             >
               <span className="flex-none text-ink-faint">
@@ -344,7 +346,9 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
               <Button
                 variant="bare"
                 className="size-4 flex-none justify-center rounded-full p-0 text-ink-faint hover:bg-paper-deep hover:text-ink"
-                aria-label={chip.kind === 'frame' ? 'Remove frame scope' : 'Remove element scope'}
+                aria-label={
+                  chip.kind === 'frame' ? 'Zeichenfläche als Kontext entfernen' : 'Element als Kontext entfernen'
+                }
                 disabled={busy}
                 onClick={() => setDismissed(scopeKey(chip.scope))}
               >
@@ -357,16 +361,16 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
           ref={inputRef}
           variant="bare"
           rows={1}
-          aria-label="Ask the Doop Agent"
+          aria-label="Frag den Doop-Agenten"
           className="block overflow-y-auto px-0.5 text-[12.5px] leading-[1.45] placeholder:text-ink-ghost md:text-[12.5px]"
           value={text}
           disabled={busy}
           placeholder={
             chip
               ? chip.kind === 'frame'
-                ? 'What should change in this frame…'
-                : 'What should change in this element…'
-              : 'Ask Doop to design something…'
+                ? 'Was soll sich an dieser Zeichenfläche ändern…'
+                : 'Was soll sich an diesem Element ändern…'
+              : 'Bitte Doop, etwas zu gestalten…'
           }
           onKeyDown={onKeyDown}
           onChange={(e) => setDraft(canvasId, e.target.value)}
@@ -383,8 +387,8 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
             variant="bare"
             size="icon-sm"
             className="size-7 rounded-[7px] text-ink-faint hover:bg-paper-deep hover:text-ink"
-            aria-label="Attach images"
-            title="Attach screenshots or images"
+            aria-label="Bilder anhängen"
+            title="Screenshots oder Bilder anhängen"
             disabled={busy}
             onClick={() => fileRef.current?.click()}
           >
@@ -393,7 +397,7 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
           <span className="flex-1" />
           {/* the meter rides on the send button; a disabled button takes no
               pointer events, so the span under it is what the tooltip hangs on */}
-          <Tooltip label={meterText(allowance) ?? 'Send (Enter)'} side="top" align="end">
+          <Tooltip label={meterText(allowance) ?? 'Senden (Enter)'} side="top" align="end">
             <span
               className="inline-flex rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-faint"
               /* while the button is disabled the wrapper takes its tab stop,
@@ -406,7 +410,7 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
                 size="icon-sm"
                 className="size-7 rounded-full"
                 type="submit"
-                aria-label="Send"
+                aria-label="Senden"
                 disabled={busy || !text.trim()}
               >
                 {busy ? <span aria-hidden>…</span> : <ArrowUpIcon className="size-3.5" strokeWidth={1.6} />}
@@ -423,7 +427,7 @@ export function PromptBar({ canvasId }: { canvasId: string }) {
             </Note>
           ) : (
             <Note size="sm" className="text-[11px] text-ink-soft">
-              <DoopMark size={11} /> The Doop Agent is on it — watch the canvas
+              <DoopMark size={11} /> Der Doop-Agent arbeitet daran – schau auf die Arbeitsfläche
             </Note>
           )}
         </div>

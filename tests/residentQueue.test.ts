@@ -88,6 +88,16 @@ beforeEach(() => {
 })
 
 describe('who pays for the next run', () => {
+  it('routes persisted English agent targets to the same German role without rewriting them', () => {
+    const storedComment = { ...comment('legacy-comment', 'alice', 1000), targetAgent: 'Accessibility' }
+    const storedFeedback = { ...feedback('legacy-feedback', 'alice', 2000), targetAgent: 'Accessibility' }
+    seed({ comments: [storedComment], feedback: [storedFeedback] })
+    expect(actions.nextWorkPayer(CANVAS, roleName('a11y'))).toBe('alice')
+    expect(actions.takeAgentCommentsFor(CANVAS, roleName('a11y'), 'alice').map((c) => c.id)).toEqual(['legacy-comment'])
+    expect(actions.takeFeedbackFor(CANVAS, roleName('a11y'), 'alice').map((f) => f.id)).toEqual(['legacy-feedback'])
+    expect(storedComment.targetAgent).toBe('Accessibility')
+    expect(storedFeedback.targetAgent).toBe('Accessibility')
+  })
   it('picks the requester behind the oldest claimable item', () => {
     seed({ tasks: [card('newer', 'bob', 2000), card('older', 'alice', 1000)] })
     expect(actions.nextWorkPayer(CANVAS, AGENT)).toBe('alice')

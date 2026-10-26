@@ -18,7 +18,7 @@ localAgentRouter.use((req, res, next) => {
   void permissionIdentity(req.user!.id)
     .then((identity) => {
       if (!identity.creator) {
-        res.status(403).json({ error: 'register as Creator to use Local Agent' })
+        res.status(403).json({ error: 'Registriere Dich als Creator, um den lokalen Agenten zu nutzen.' })
         return
       }
       next()
@@ -41,7 +41,7 @@ localAgentRouter.get('/', (req, res, next) => {
 localAgentRouter.put('/', (req, res, next) => {
   const parsed = preferenceSchema.safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid local agent preference' })
+    res.status(400).json({ error: 'Ungültige Einstellung für den lokalen Agenten' })
     return
   }
   const userId = req.user!.id
@@ -61,7 +61,7 @@ function wake(userId: string) {
 localAgentRouter.post('/poll', (req, res, next) => {
   const parsed = deviceSchema.safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid device' })
+    res.status(400).json({ error: 'Ungültiges Gerät' })
     return
   }
   void (async () => {
@@ -81,7 +81,7 @@ localAgentRouter.post('/poll', (req, res, next) => {
 localAgentRouter.post('/finish/:id', (req, res, next) => {
   const parsed = deviceSchema.extend({ success: z.boolean(), text: z.string().max(100_000) }).safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: 'Invalid result' })
+    res.status(400).json({ error: 'Ungültiges Ergebnis' })
     return
   }
   localAgentRuns
@@ -111,7 +111,7 @@ export async function handleLocalAgentMcp(req: Request, res: Response) {
     !(await canUseLocalAgent(run.userId, canvas.id)) ||
     (await isBanned(run.userId))
   ) {
-    res.status(403).json({ error: 'Local run unavailable' })
+    res.status(403).json({ error: 'Der lokale Durchlauf ist nicht verfügbar.' })
     return
   }
   if (req.method !== 'POST') {

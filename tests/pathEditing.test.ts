@@ -5,7 +5,6 @@ import type { Canvas, Frame } from '../shared/types'
 vi.mock('../src/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/api')>()),
   api: { updateFrame: vi.fn(), getCanvas: vi.fn() },
-  errorMessage: (e: Error) => e.message,
 }))
 const { api, ApiError } = await import('../src/lib/api')
 const { useStore } = await import('../src/lib/store')
@@ -42,6 +41,7 @@ const source: PathEditSource = {
 
 beforeEach(() => {
   vi.resetAllMocks()
+  useStore.setState({ notice: null })
   clearHistory()
   useStore.getState().setCanvas({
     id: 'c',
@@ -125,6 +125,9 @@ describe('editable vector paths', () => {
     expect(await savePathEdit(frame, source, source)).toBeNull()
     expect(api.updateFrame).not.toHaveBeenCalled()
     expect(useStore.getState().canvas!.frames[0]!.html).toBe(html)
+    expect(useStore.getState().notice?.text).toBe(
+      'Der Pfad wurde während Deiner Bearbeitung geändert. Öffne ihn erneut, um fortzufahren.',
+    )
   })
   it('does not save into a frame locked during editing', async () => {
     useStore.getState().patchFrameLocal(frame.id, { locked: true })
@@ -154,6 +157,7 @@ describe('editable vector paths', () => {
       await savePathEdit(frame, source, { ...source, points: source.points.map((p) => ({ ...p, x: p.x + 20 })) }),
     ).toBeNull()
     expect(useStore.getState().canvas!.frames[0]).toMatchObject(frame)
+    expect(useStore.getState().notice?.text).toBe('Der Pfad konnte nicht gespeichert werden. Versuche es erneut.')
     await undo()
     expect(api.updateFrame).toHaveBeenCalledTimes(1)
   })

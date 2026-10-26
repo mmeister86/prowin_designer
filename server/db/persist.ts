@@ -832,7 +832,7 @@ export async function hydrate(): Promise<Hydrated> {
   }
 
   const now = Date.now()
-  const interruptedReason = 'The agent stopped before finishing. Retry when you are ready.'
+  const interruptedReason = 'Der Agent wurde vor dem Abschluss gestoppt. Versuche es erneut, wenn Du bereit bist.'
   const tasks = new Map<string, AgentTask[]>()
   for (const row of taskRows) {
     const list = tasks.get(row.canvasId) ?? []

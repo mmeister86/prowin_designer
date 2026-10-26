@@ -14,6 +14,7 @@ struct AgentLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: AgentActivityAttributes.self) { context in
             AgentStatusCard(state: context.state, stale: context.isStale)
+                .environment(\.locale, Locale(identifier: "de_DE"))
                 .padding(18)
                 .activityBackgroundTint(card)
                 .widgetURL(CanvasLink.url(canvasID: context.attributes.canvasID, serverOrigin: context.attributes.serverOrigin))
@@ -22,12 +23,15 @@ struct AgentLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     BrandRow(agentName: context.state.agentName).padding(.leading, 6)
+                        .environment(\.locale, Locale(identifier: "de_DE"))
                 }
                 DynamicIslandExpandedRegion(.trailing) {
                     ElapsedTime(state: context.state, stale: context.isStale).padding(.trailing, 6)
+                        .environment(\.locale, Locale(identifier: "de_DE"))
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     AgentStatusBody(state: context.state, stale: context.isStale, recentSteps: 1).padding(.horizontal, 6)
+                        .environment(\.locale, Locale(identifier: "de_DE"))
                 }
             } compactLeading: {
                 DoopLogo().frame(width: 14, height: 16)
@@ -69,17 +73,17 @@ private struct AgentStatusBody: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.canvasName).font(.subheadline).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
-                Text(stale ? "Status needs updating" : title(state)).font(.title2.weight(.semibold)).lineLimit(1)
+                Text(stale ? "Status muss aktualisiert werden" : title(state)).font(.title2.weight(.semibold)).lineLimit(1)
             }
             if stale {
-                Caption(text: "Open Doop for the latest agent status.")
+                Caption(text: "Öffne Doop für den aktuellen Agentenstatus.")
             } else if state.phase == "working" {
                 StepLog(steps: (state.steps ?? []).suffix(recentSteps), current: state.status)
             } else if state.isActive {
                 Caption(text: state.status)
             } else {
                 if state.phase == "failed" { Caption(text: state.status) }
-                Text(state.phase == "failed" ? "Open Canvas" : "View Canvas")
+                Text(state.phase == "failed" ? "Arbeitsfläche öffnen" : "Arbeitsfläche ansehen")
                     .font(.subheadline.weight(.medium))
                     .frame(maxWidth: .infinity).padding(.vertical, 9)
                     .background(brand, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -111,7 +115,7 @@ private struct ElapsedTime: View {
     let stale: Bool
     var body: some View {
         HStack(spacing: 6) {
-            if state.activeCount > 1 { Text("\(state.activeCount) agents") }
+            if state.activeCount > 1 { Text("\(state.activeCount) Agenten") }
             if state.isActive && !stale {
                 Text(Date(timeIntervalSince1970: state.startedAt), style: .timer).monospacedDigit()
                     .multilineTextAlignment(.trailing).frame(maxWidth: 64, alignment: .trailing)
@@ -172,10 +176,10 @@ private struct MarkShape: Shape {
 
 private func title(_ state: AgentActivityState) -> String {
     switch state.phase {
-    case "working": "Working"
-    case "queued": "Waiting for an agent"
-    case "failed": "Needs attention"
-    default: "Design ready"
+    case "working": "In Arbeit"
+    case "queued": "Wartet auf einen Agenten"
+    case "failed": "Benötigt Aufmerksamkeit"
+    default: "Design fertig"
     }
 }
 

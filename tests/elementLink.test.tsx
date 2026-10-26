@@ -59,7 +59,7 @@ it.each(['#hero > h1:nth-of-type(1)', '#price\\:usd', '[data-name="A&B + #50% / 
 it('reports clipboard failure without a false success or a rejected promise', async () => {
   writeText.mockRejectedValueOnce(new Error('Permission denied'))
   await copyElementLink(frame, '#title')
-  expect(useStore.getState().notice?.text).toBe('Couldn’t copy the element link. Please try again.')
+  expect(useStore.getState().notice?.text).toBe('Der Link zum Element konnte nicht kopiert werden. Versuche es erneut.')
 })
 
 it('copies the right-clicked layer even when another element is selected', async () => {
@@ -84,10 +84,10 @@ it('copies the right-clicked layer even when another element is selected', async
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 }))
   })
   const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find(
-    (el) => el.textContent === 'Copy link to element',
+    (el) => el.textContent === 'Link zum Element kopieren',
   )!
   expect(item).toBeDefined()
   await act(async () => item.click())
   expect(writeText).toHaveBeenCalledWith(elementLink(frame, '#hero'))
-  expect(useStore.getState().notice?.text).toBe('Element link copied')
+  expect(useStore.getState().notice?.text).toBe('Link zum Element kopiert')
 })

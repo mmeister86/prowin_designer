@@ -41,7 +41,7 @@ describe('admin surface', () => {
 
   it('still creates a first canvas on signup (the admin plugin adds its own db hooks)', async () => {
     const list = await (await alice.get('/api/canvases')).json()
-    expect(list.some((c: { name: string }) => c.name === "Alice's first canvas")).toBe(true)
+    expect(list.some((c: { name: string }) => c.name === 'Alice: erste Arbeitsfläche')).toBe(true)
   })
 
   it('hides the admin surface from non-admins as 404, not 403', async () => {

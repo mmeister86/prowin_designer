@@ -13,7 +13,7 @@ function InstallBlock({
   status,
   error,
   manual,
-  manualLabel = 'Set up manually',
+  manualLabel = 'Manuell einrichten',
   className,
 }: {
   /** the button or link that installs, or a sentence when this setup cannot */

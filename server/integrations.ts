@@ -11,7 +11,7 @@ import { extensions } from './extensions.ts'
  */
 export const integrationsRouter = express.Router()
 integrationsRouter.use('/meta', (_req, res, next) => {
-  if (!OPTIONAL_FEATURES.metaAds) return res.status(404).json({ error: 'Meta Ads is disabled' })
+  if (!OPTIONAL_FEATURES.metaAds) return res.status(404).json({ error: 'Meta Ads ist deaktiviert.' })
   next()
 })
 
@@ -36,7 +36,8 @@ integrationsRouter.get('/', async (req, res) => {
 })
 
 integrationsRouter.post('/meta/start', (req, res) => {
-  if (!meta.metaEnabled()) return res.status(400).json({ error: 'the Meta app is not configured on this server' })
+  if (!meta.metaEnabled())
+    return res.status(400).json({ error: 'Die Meta-App ist auf diesem Server nicht eingerichtet.' })
   res.json({ url: meta.authorizeUrl(meta.signState(req.user!.id)) })
 })
 
@@ -46,16 +47,17 @@ integrationsRouter.post('/meta/start', (req, res) => {
 integrationsRouter.get('/meta/callback', async (req, res) => {
   const fail = (reason: string) => res.redirect(`/integrations?metaError=${encodeURIComponent(reason)}`)
   const state = meta.verifyState(String(req.query.state ?? ''))
-  if (!state || state.userId !== req.user!.id) return fail('the Meta handoff expired — try connecting again')
+  if (!state || state.userId !== req.user!.id) return fail('Die Meta-Anmeldung ist abgelaufen. Verbinde Dich erneut.')
   const code = String(req.query.code ?? '')
   if (!code) {
-    const why = String(req.query.error_description ?? req.query.error ?? 'Meta sent no code back')
+    const why = 'Die Meta-Anmeldung wurde abgebrochen oder ist fehlgeschlagen. Versuche es erneut.'
     return fail(why)
   }
   try {
     await meta.connect(req.user!.id, code)
   } catch (err) {
-    return fail(err instanceof Error ? err.message : 'Meta rejected the connection')
+    console.error('[meta] connection failed', err)
+    return fail('Meta hat die Verbindung abgelehnt. Verbinde Dich erneut.')
   }
   res.redirect('/integrations?meta=connected')
 })

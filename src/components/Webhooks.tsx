@@ -21,16 +21,17 @@ function hostOf(url: string): string {
 
 /** The one-line health of a hook, phrased for a person. */
 function health(hook: WebhookInfo): { text: string; tone?: 'error' | 'success' } {
-  if (!hook.enabled && hook.lastError?.startsWith('paused')) return { text: hook.lastError, tone: 'error' }
-  if (!hook.enabled) return { text: 'off — nothing is sent' }
-  if (!hook.lastAt) return { text: 'no deliveries yet — send a test' }
+  if (!hook.enabled && (hook.lastError?.startsWith('paused') || hook.lastError?.startsWith('Pausiert nach ')))
+    return { text: hook.lastError, tone: 'error' }
+  if (!hook.enabled) return { text: 'aus — es wird nichts gesendet' }
+  if (!hook.lastAt) return { text: 'noch keine Zustellungen — sende einen Test' }
   if (hook.failures) {
     return {
-      text: `${hook.failures} failed in a row · last ${timeAgo(hook.lastAt)}: ${hook.lastError ?? 'failed'}`,
+      text: `${hook.failures} Fehler in Folge · zuletzt ${timeAgo(hook.lastAt)}: ${hook.lastError ?? 'fehlgeschlagen'}`,
       tone: 'error',
     }
   }
-  return { text: `delivered ${timeAgo(hook.lastAt)} (HTTP ${hook.lastStatus})`, tone: 'success' }
+  return { text: `zugestellt ${timeAgo(hook.lastAt)} (HTTP ${hook.lastStatus})`, tone: 'success' }
 }
 
 /** Picks events with the shared labels; used for the new-hook form. */
@@ -78,7 +79,7 @@ export function Webhooks() {
     api.listWebhooks().then(setHooks, (e: unknown) => {
       console.error(e)
       setHooks([])
-      setError(errorMessage(e, 'Your webhooks could not be loaded'))
+      setError(errorMessage(e, 'Deine Webhooks konnten nicht geladen werden'))
     })
   }, [])
 
@@ -95,7 +96,7 @@ export function Webhooks() {
       setSecret({ id: info.id, secret: fresh })
       setHooks((current) => [info, ...(current ?? [])])
     } catch (e) {
-      setError(errorMessage(e, 'That webhook could not be created'))
+      setError(errorMessage(e, 'Der Webhook konnte nicht erstellt werden'))
     } finally {
       setSaving(false)
     }
@@ -120,20 +121,20 @@ export function Webhooks() {
         setRowNote((n) => ({
           ...n,
           [hook.id]: result.ok
-            ? { text: `ping answered with HTTP ${result.status}`, tone: 'success' }
-            : { text: `ping failed: ${result.error ?? 'no response'}`, tone: 'error' },
+            ? { text: `Test mit HTTP-Status ${result.status}`, tone: 'success' }
+            : { text: `Test fehlgeschlagen: ${result.error ?? 'keine Antwort'}`, tone: 'error' },
         }))
         const fresh = await api.listWebhooks()
         setHooks(fresh)
       },
-      'The test could not be sent',
+      'Der Test konnte nicht gesendet werden',
     )
 
   const toggle = (hook: WebhookInfo) =>
     act(
       hook,
       async () => replace(await api.updateWebhook(hook.id, { enabled: !hook.enabled })),
-      'That could not be saved',
+      'Speichern fehlgeschlagen',
     )
 
   const rotate = (hook: WebhookInfo) =>
@@ -143,7 +144,7 @@ export function Webhooks() {
         const { secret: fresh } = await api.rotateWebhookSecret(hook.id)
         setSecret({ id: hook.id, secret: fresh })
       },
-      'The secret could not be rotated',
+      'Das Geheimnis konnte nicht erneuert werden',
     )
 
   const remove = (hook: WebhookInfo) =>
@@ -154,7 +155,7 @@ export function Webhooks() {
         setHooks((current) => current?.filter((h) => h.id !== hook.id) ?? null)
         if (secret?.id === hook.id) setSecret(null)
       },
-      'That webhook could not be removed',
+      'Der Webhook konnte nicht entfernt werden',
     )
 
   return (
@@ -162,19 +163,20 @@ export function Webhooks() {
       <CardHeader>
         <CardTitle>Webhooks</CardTitle>
         <CardDescription>
-          doop POSTs a signed JSON event to each URL below when something happens on a canvas you own, were invited to,
-          or that lives in one of your workspaces — route it to Slack, n8n, an issue tracker, anything with an HTTP
-          endpoint. Each delivery carries an <code className="font-mono text-label">X-Doop-Signature</code> header
-          (HMAC-SHA256 with the webhook’s secret) so the receiver can trust it. Failed deliveries are retried three
-          times; a hook that keeps failing pauses itself.
+          doop sendet per POST ein signiertes JSON-Ereignis an jede URL unten, wenn auf einer eigenen oder geteilten
+          Arbeitsfläche oder in einem Deiner Arbeitsbereiche etwas passiert — leite es an Slack, n8n, eine
+          Aufgabenverwaltung oder einen beliebigen HTTP-Endpunkt weiter. Jede Zustellung enthält einen{' '}
+          <code className="font-mono text-label">X-Doop-Signature</code> Header (HMAC-SHA256 mit dem Geheimnis des
+          Webhooks), damit der Empfänger sie prüfen kann. Fehlgeschlagene Zustellungen werden dreimal wiederholt; ein
+          dauerhaft fehlschlagender Webhook pausiert automatisch.
         </CardDescription>
       </CardHeader>
 
       <CardRow
-        label="New webhook"
+        label="Neuer Webhook"
         action={
           <Button size="sm" disabled={saving || hooks === null || !url.trim() || !events.length} onClick={create}>
-            {saving ? 'Adding…' : 'Add webhook'}
+            {saving ? 'Wird hinzugefügt…' : 'Webhook hinzufügen'}
           </Button>
         }
         controlWidth="lg"
@@ -187,7 +189,7 @@ export function Webhooks() {
             }}
             placeholder="https://hooks.example.com/doop"
             inputMode="url"
-            aria-label="Webhook URL"
+            aria-label="Webhook-URL"
           />
         }
       >
@@ -199,13 +201,15 @@ export function Webhooks() {
       </CardRow>
 
       {secret && (
-        <CardRow label="Signing secret">
+        <CardRow label="Signaturgeheimnis">
           <div className="min-w-0 flex-1">
-            <Note tone="success">Copy it now — it is shown once. Verify deliveries with it on your side.</Note>
+            <Note tone="success">
+              Kopiere es jetzt — es wird nur einmal angezeigt. Prüfe damit die Zustellungen auf Deiner Seite.
+            </Note>
             <CodeBlock className="mt-2" text={secret.secret} />
             <Note>
-              signature = “sha256=” + HMAC-SHA256(secret, X-Doop-Timestamp + “.” + raw body). The docs have a ready-made
-              check.
+              Signatur = „sha256=“ + HMAC-SHA256(secret, X-Doop-Timestamp + „.“ + unveränderter Anfrageinhalt). Die
+              Dokumentation enthält eine fertige Prüfung.
             </Note>
           </div>
         </CardRow>
@@ -220,7 +224,7 @@ export function Webhooks() {
             action={
               <div className="flex flex-wrap items-center gap-1">
                 <Button size="sm" variant="ghost" disabled={busy === hook.id} onClick={() => void test(hook)}>
-                  Send test
+                  Test senden
                 </Button>
                 <Button
                   size="sm"
@@ -228,19 +232,19 @@ export function Webhooks() {
                   disabled={busy === hook.id}
                   onClick={() => setConfirming({ kind: 'rotate', hook })}
                 >
-                  Rotate secret
+                  Geheimnis erneuern
                 </Button>
                 <Button size="sm" variant="ghost" disabled={busy === hook.id} onClick={() => void toggle(hook)}>
-                  {hook.enabled ? 'Turn off' : 'Turn on'}
+                  {hook.enabled ? 'Ausschalten' : 'Einschalten'}
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   disabled={busy === hook.id}
-                  aria-label={`Remove webhook for ${hostOf(hook.url)}`}
+                  aria-label={`Webhook entfernen für ${hostOf(hook.url)}`}
                   onClick={() => setConfirming({ kind: 'remove', hook })}
                 >
-                  <TrashIcon /> Remove
+                  <TrashIcon /> Entfernen
                 </Button>
               </div>
             }
@@ -256,8 +260,10 @@ export function Webhooks() {
         )
       })}
       {hooks && hooks.length === 0 && !secret && (
-        <CardRow label="No webhooks yet">
-          <Note>Add one above — a quick way to try it is an n8n Webhook node or a request bin.</Note>
+        <CardRow label="Noch keine Webhooks">
+          <Note>
+            Füge oben einen hinzu — zum schnellen Testen eignet sich ein n8n-Webhook-Knoten oder ein Testendpunkt.
+          </Note>
         </CardRow>
       )}
       <ConfirmDialog
@@ -265,13 +271,15 @@ export function Webhooks() {
         onOpenChange={(open) => !open && setConfirming(null)}
         title={
           confirming?.kind === 'rotate'
-            ? `Rotate the secret for ${confirming ? hostOf(confirming.hook.url) : ''}?`
-            : `Remove the webhook for ${confirming ? hostOf(confirming.hook.url) : ''}?`
+            ? `Geheimnis erneuern für ${confirming ? hostOf(confirming.hook.url) : ''}?`
+            : `Webhook entfernen für ${confirming ? hostOf(confirming.hook.url) : ''}?`
         }
         description={
-          confirming?.kind === 'rotate' ? 'Deliveries signed with the old secret stop verifying.' : undefined
+          confirming?.kind === 'rotate'
+            ? 'Mit dem alten Geheimnis signierte Zustellungen können danach nicht mehr verifiziert werden.'
+            : undefined
         }
-        confirmLabel={confirming?.kind === 'rotate' ? 'Rotate secret' : 'Remove webhook'}
+        confirmLabel={confirming?.kind === 'rotate' ? 'Geheimnis erneuern' : 'Webhook entfernen'}
         destructive
         onConfirm={() => {
           const target = confirming

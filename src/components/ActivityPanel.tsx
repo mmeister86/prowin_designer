@@ -42,10 +42,10 @@ function reportLimit(err: unknown) {
 function duration(t: AgentTask): string {
   const end = t.endedAt ?? Date.now()
   const s = Math.max(1, Math.round((end - t.startedAt) / 1000))
-  if (s < 60) return `${s}s`
+  if (s < 60) return `${s.toLocaleString('de-DE')} s`
   const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ${s % 60 ? `${s % 60}s` : ''}`.trim()
-  return `${Math.floor(m / 60)}h ${m % 60}m`
+  if (m < 60) return `${m.toLocaleString('de-DE')} Min. ${s % 60 ? `${s % 60} s` : ''}`.trim()
+  return `${Math.floor(m / 60).toLocaleString('de-DE')} Std. ${m % 60} Min.`
 }
 
 export function ActivityPanel({
@@ -86,15 +86,23 @@ export function ActivityPanel({
     >
       <PanelTabsRoot value={tab} onValueChange={(next) => setTab(next as typeof tab)}>
         <PanelHeader className="pl-2">
-          <PanelTabs aria-label="Agents panel">
-            <PanelIconTab value="tasks" icon={<SparkIcon />} title="Agents">
-              Agents
-              {working > 0 && <em className="ml-[7px] text-[11px] font-normal not-italic text-ink-faint">{working}</em>}
+          <PanelTabs aria-label="Agentenbereich">
+            <PanelIconTab value="tasks" icon={<SparkIcon />} title="Agenten">
+              Agenten
+              {working > 0 && (
+                <em className="ml-[7px] text-[11px] font-normal not-italic text-ink-faint">
+                  {working.toLocaleString('de-DE')}
+                </em>
+              )}
             </PanelIconTab>
             <PanelIconTab
               value="comments"
               icon={<CommentIcon />}
-              title={openThreads ? `Comments · ${openThreads} open` : 'Comments — every thread pinned on this page'}
+              title={
+                openThreads
+                  ? `Kommentare · ${openThreads.toLocaleString('de-DE')} offen`
+                  : 'Kommentare – alle auf dieser Seite angehefteten Unterhaltungen'
+              }
               /* open threads on this page: a count on the tab itself */
               badge={
                 openThreads > 0 && (
@@ -104,20 +112,20 @@ export function ActivityPanel({
                 )
               }
             >
-              Comments
+              Kommentare
             </PanelIconTab>
-            <PanelIconTab value="activity" icon={<PulseIcon />} title="Activity">
-              Activity
+            <PanelIconTab value="activity" icon={<PulseIcon />} title="Aktivität">
+              Aktivität
             </PanelIconTab>
             <PanelIconTab
               value="memory"
               icon={<BookOpenIcon />}
-              title="Design memory — references, rules and decisions every agent on this canvas designs with"
+              title="Designwissen – Referenzen, Regeln und Entscheidungen für alle Agenten dieser Arbeitsfläche"
             >
-              Memory
+              Designwissen
             </PanelIconTab>
           </PanelTabs>
-          <PanelClose label="Close panel" onClick={onClose} />
+          <PanelClose label="Bereich schließen" onClick={onClose} />
         </PanelHeader>
         {/* the Agents tab is a column: what the agents are doing scrolls above,
             the prompt composer is docked underneath */}
@@ -156,16 +164,17 @@ function RecentTasks() {
   const finished = useMemo(() => claimed.filter((t) => t.endedAt || t.failedAt), [claimed])
 
   return (
-    <section aria-label="Recent tasks" className="flex flex-none flex-col pt-1.5 pb-1">
-      <h3 className="flex h-7 flex-none items-center px-3 text-[11.5px] font-normal text-ink-faint">Recent tasks</h3>
+    <section aria-label="Letzte Aufgaben" className="flex flex-none flex-col pt-1.5 pb-1">
+      <h3 className="flex h-7 flex-none items-center px-3 text-[11.5px] font-normal text-ink-faint">Letzte Aufgaben</h3>
       {claimed.length === 0 ? (
         <p className="px-3 pb-2 text-[12px] leading-[1.45] text-ink-faint">
-          No tasks yet. Ask the Doop Agent below, or connect your own — what agents work on shows up here.
+          Noch keine Aufgaben. Frag unten den Doop-Agenten oder verbinde Deinen eigenen. Hier siehst Du, woran Agenten
+          arbeiten.
         </p>
       ) : all ? (
         <>
-          {working.length > 0 && <TaskGroup label="Working on" tasks={working} />}
-          {finished.length > 0 && <TaskGroup label="Worked on" tasks={finished} />}
+          {working.length > 0 && <TaskGroup label="In Arbeit" tasks={working} />}
+          {finished.length > 0 && <TaskGroup label="Bearbeitet" tasks={finished} />}
         </>
       ) : (
         claimed.slice(0, RECENT_SHOWN).map((t) => <RecentTaskRow key={t.id} task={t} />)
@@ -177,7 +186,7 @@ function RecentTasks() {
           aria-expanded={all}
           onClick={() => setAll((v) => !v)}
         >
-          {all ? 'Show less' : 'Show all'}
+          {all ? 'Weniger anzeigen' : 'Alle anzeigen'}
           <ChevronDownIcon className={cn('size-3 text-ink-faint transition-transform', all && 'rotate-180')} />
         </Button>
       )}
@@ -218,7 +227,7 @@ function RecentTaskRow({ task }: { task: AgentTask }) {
     <div
       role={frameId ? 'button' : undefined}
       tabIndex={frameId ? 0 : undefined}
-      title={frameName ? `Go to “${frameName}”` : undefined}
+      title={frameName ? `Zu „${frameName}“ gehen` : undefined}
       onClick={goToFrame}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return
@@ -237,7 +246,7 @@ function RecentTaskRow({ task }: { task: AgentTask }) {
           <AgentIcon name={task.agentName} size={14} />
         </span>
         <b className="truncate font-medium text-ink">{task.agentName}</b>
-        {task.owner && <em className="truncate not-italic text-ink-faint">for {task.owner}</em>}
+        {task.owner && <em className="truncate not-italic text-ink-faint">für {task.owner}</em>}
       </span>
       <span className="text-[11px] text-ink-faint tabular-nums">{taskTime(task)}</span>
       <span className="col-span-2 flex min-w-0 items-center gap-[7px] pl-[22px] text-ink-soft">
@@ -264,7 +273,7 @@ function RecentTaskRow({ task }: { task: AgentTask }) {
               api.retryCard(canvasId, task.id).catch(reportLimit)
             }}
           >
-            Retry
+            Erneut versuchen
           </Button>
         )}
       </span>
@@ -294,7 +303,11 @@ function ActivityList() {
   const activity = useStore((s) => s.activity)
   return (
     <PanelBody className="py-2">
-      {activity.length === 0 && <div className={emptyNote}>No activity yet. Add a frame, or connect an agent.</div>}
+      {activity.length === 0 && (
+        <div className={emptyNote}>
+          Noch keine Aktivität. Füge eine Zeichenfläche hinzu oder verbinde einen Agenten.
+        </div>
+      )}
       {activity.map((a) => (
         <div key={a.id} className="flex animate-[chip-in_0.25s_ease] gap-2.5 px-3.5 py-2 text-[12px] leading-[1.45]">
           <Dot className="mt-[5px]" style={{ background: a.actorColor }} />
@@ -302,7 +315,9 @@ function ActivityList() {
             <div>
               <span className="font-medium">
                 {a.actorName}
-                <span className="ml-[5px] text-[11px] font-normal text-ink-faint">{a.actorKind}</span>
+                <span className="ml-[5px] text-[11px] font-normal text-ink-faint">
+                  {a.actorKind === 'agent' ? 'Agent' : a.actorKind === 'user' ? 'Nutzer' : 'System'}
+                </span>
               </span>{' '}
               <span className="text-ink-soft">{a.message}</span>
             </div>

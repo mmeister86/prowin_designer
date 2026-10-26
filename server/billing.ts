@@ -31,7 +31,7 @@ export function billingEnabled(): boolean {
 
 let client: Stripe | null = null
 function stripe(): Stripe {
-  if (!SECRET_KEY) throw new Error('billing is not configured on this server')
+  if (!SECRET_KEY) throw new Error('Die Abrechnung ist auf diesem Server nicht eingerichtet.')
   return (client ??= new Stripe(SECRET_KEY))
 }
 

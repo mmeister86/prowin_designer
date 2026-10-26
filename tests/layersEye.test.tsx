@@ -42,7 +42,9 @@ function row(key: string): HTMLElement {
   return el
 }
 function eye(key: string): HTMLButtonElement {
-  const el = row(key).querySelector<HTMLButtonElement>('button[aria-label="Hide"], button[aria-label="Show"]')
+  const el = row(key).querySelector<HTMLButtonElement>(
+    'button[aria-label="Ausblenden"], button[aria-label="Einblenden"]',
+  )
   if (!el) throw new Error(`row ${key} has no eye`)
   return el
 }
@@ -72,14 +74,14 @@ describe('LayersPanel eye', () => {
   })
 
   it('hides a frame from the eye on its row, and the crossed eye stays', () => {
-    expect(eye('f1').getAttribute('aria-label')).toBe('Hide')
+    expect(eye('f1').getAttribute('aria-label')).toBe('Ausblenden')
     act(() => eye('f1').click())
     expect(updateFrame).toHaveBeenCalledWith('f1', { hidden: true })
     expect(useStore.getState().canvas?.frames[0]?.hidden).toBe(true)
     /* the row stays selected: the eye is not a click on the row */
     expect(useStore.getState().selectedId).toBe('f1')
     const crossed = eye('f1')
-    expect(crossed.getAttribute('aria-label')).toBe('Show')
+    expect(crossed.getAttribute('aria-label')).toBe('Einblenden')
     expect(crossed.getAttribute('aria-pressed')).toBe('true')
     act(() => crossed.click())
     expect(updateFrame).toHaveBeenLastCalledWith('f1', { hidden: false })
@@ -105,8 +107,8 @@ describe('LayersPanel eye', () => {
       await Promise.resolve()
     })
     expect(useStore.getState().canvas?.frames[0]?.hidden).toBe(false)
-    expect(eye('f1').getAttribute('aria-label')).toBe('Hide')
-    expect(useStore.getState().notice?.text).toBe('Couldn’t hide “Frame”')
+    expect(eye('f1').getAttribute('aria-label')).toBe('Ausblenden')
+    expect(useStore.getState().notice?.text).toBe('„Frame“ konnte nicht ausgeblendet werden')
   })
 
   it('hides a layer by marking it in the frame HTML', () => {
@@ -118,12 +120,12 @@ describe('LayersPanel eye', () => {
     expect(html).toContain('<div data-doop-hidden="true" style="display: none !important;"><p>A</p></div>')
     expect(updateFrame).toHaveBeenCalledWith('f1', { html })
     expect(requestFrame).toHaveBeenCalledWith('f1', 'doop:visibility', { selector: DIV, hidden: true })
-    expect(eye(key).getAttribute('aria-label')).toBe('Show')
+    expect(eye(key).getAttribute('aria-label')).toBe('Einblenden')
     act(() => eye(key).click())
     const shown = useStore.getState().canvas?.frames[0]?.html ?? ''
     expect(shown).toContain('<div><p>A</p></div>')
     expect(shown).not.toContain('data-doop')
     expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:visibility', { selector: DIV, hidden: false })
-    expect(eye(key).getAttribute('aria-label')).toBe('Hide')
+    expect(eye(key).getAttribute('aria-label')).toBe('Ausblenden')
   })
 })

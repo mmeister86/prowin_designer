@@ -56,7 +56,7 @@ type Scope = 'all' | 'mine' | 'shared' | `ws:${string}`
 
 /** how the list is ordered; the default is what the server already sends */
 type Sort = 'updated' | 'name' | 'created'
-const SORT_LABELS: Record<Sort, string> = { updated: 'Last edited', name: 'Name', created: 'Newest' }
+const SORT_LABELS: Record<Sort, string> = { updated: 'Zuletzt bearbeitet', name: 'Name', created: 'Neueste' }
 const isSort = (value: string): value is Sort => Object.hasOwn(SORT_LABELS, value)
 
 function workspaceOf(scope: Scope): string | undefined {
@@ -118,12 +118,16 @@ export function Home() {
   async function createCanvas() {
     const workspaceId = workspaceOf(scope)
     try {
-      const canvas = await api.createCanvas('Untitled canvas', workspaceId)
+      const canvas = await api.createCanvas('Unbenannte Arbeitsfläche', workspaceId)
       open(canvas.id, canvas.name)
     } catch (error) {
       const walled = paywalledWorkspace(error)
-      if (walled) setUpgrade({ workspaceId: walled, reason: 'Adding a canvas to a workspace needs a Team plan.' })
-      else showToast(errorMessage(error, 'Couldn’t create the canvas'))
+      if (walled)
+        setUpgrade({
+          workspaceId: walled,
+          reason: 'Um eine Arbeitsfläche zu einem Arbeitsbereich hinzuzufügen, brauchst Du einen Team-Tarif.',
+        })
+      else showToast(errorMessage(error, 'Die Arbeitsfläche konnte nicht erstellt werden'))
     }
   }
 
@@ -152,7 +156,7 @@ export function Home() {
           store.setComposerSend({
             canvasId: canvas.id,
             status: 'error',
-            message: errorMessage(error, 'The brief didn’t queue — try sending it again'),
+            message: errorMessage(error, 'Der Auftrag wurde nicht eingereiht — versuche, ihn erneut zu senden'),
             at: Date.now(),
           })
         }
@@ -160,8 +164,12 @@ export function Home() {
       open(canvas.id, canvas.name)
     } catch (error) {
       const walled = paywalledWorkspace(error)
-      if (walled) setUpgrade({ workspaceId: walled, reason: 'Adding a canvas to a workspace needs a Team plan.' })
-      else showToast(errorMessage(error, 'Couldn’t start the canvas'))
+      if (walled)
+        setUpgrade({
+          workspaceId: walled,
+          reason: 'Um eine Arbeitsfläche zu einem Arbeitsbereich hinzuzufügen, brauchst Du einen Team-Tarif.',
+        })
+      else showToast(errorMessage(error, 'Die Arbeitsfläche konnte nicht gestartet werden'))
     } finally {
       setStarting(false)
     }
@@ -188,7 +196,7 @@ export function Home() {
       open(copy.id, copy.name)
     } catch (error) {
       console.error(error)
-      showToast('Couldn’t duplicate canvas')
+      showToast('Die Arbeitsfläche konnte nicht dupliziert werden')
     } finally {
       setDuplicatingId(null)
     }
@@ -199,7 +207,7 @@ export function Home() {
       setShareCanvas(await api.getCanvas(canvas.id))
     } catch (error) {
       console.error(error)
-      showToast('Couldn’t open sharing')
+      showToast('Die Freigabe konnte nicht geöffnet werden')
     }
   }
 
@@ -255,10 +263,10 @@ export function Home() {
   const listTitle = currentWorkspace
     ? currentWorkspace.name
     : scope === 'mine'
-      ? 'Owned by me'
+      ? 'Meine Arbeitsflächen'
       : scope === 'shared'
-        ? 'Shared with me'
-        : 'All canvases'
+        ? 'Mit mir geteilt'
+        : 'Alle Arbeitsflächen'
 
   return (
     <DashLayout className={railLayout}>
@@ -278,13 +286,13 @@ export function Home() {
               className="min-h-10 max-md:hidden md:min-h-0"
               onClick={() => navigate(`/w/${currentWorkspace.id}`)}
             >
-              <BuildingIcon /> Manage
+              <BuildingIcon /> Verwalten
             </Button>
           )}
           <Button variant="primary" size="bar" onClick={createCanvas}>
             <PlusIcon width={15} height={15} strokeWidth={1.75} />
-            <span className="max-md:hidden">New canvas</span>
-            <span className="hidden max-md:inline">New</span>
+            <span className="max-md:hidden">Neue Arbeitsfläche</span>
+            <span className="hidden max-md:inline">Neu</span>
           </Button>
         </DashHeader>
 
@@ -304,14 +312,14 @@ export function Home() {
             {currentWorkspace && !currentWorkspace.active && (
               <Callout className="mb-5 flex max-w-[760px] flex-col gap-2 sm:flex-row sm:items-center">
                 <span className="flex-1">
-                  <b>{currentWorkspace.name} has no plan yet.</b>{' '}
+                  <b>{currentWorkspace.name} hat noch keinen Tarif.</b>{' '}
                   {currentWorkspace.role !== 'owner'
-                    ? 'Ask the owner to choose one — until then no canvases can be added here.'
-                    : 'Choose a Team plan to add canvases and invite your team.'}
+                    ? 'Bitte den Eigentümer, einen Tarif auszuwählen — bis dahin können hier keine Arbeitsflächen hinzugefügt werden.'
+                    : 'Wähle einen Team-Tarif, um Arbeitsflächen hinzuzufügen und Dein Team einzuladen.'}
                 </span>
                 {currentWorkspace.role === 'owner' && (
                   <Button variant="primary" size="sm" onClick={() => setUpgrade({ workspaceId: currentWorkspace.id })}>
-                    Choose a plan
+                    Tarif auswählen
                   </Button>
                 )}
               </Callout>
@@ -323,18 +331,19 @@ export function Home() {
                 {currentWorkspace && listTitle}
                 {currentWorkspace && (
                   <span className="ml-2 font-normal text-ink-faint">
-                    {currentWorkspace.memberCount} {currentWorkspace.memberCount === 1 ? 'person' : 'people'} ·{' '}
+                    {currentWorkspace.memberCount.toLocaleString('de-DE')}{' '}
+                    {currentWorkspace.memberCount === 1 ? 'Person' : 'Personen'} ·{' '}
                     {currentWorkspace.plan === 'team' && currentWorkspace.active
-                      ? 'Team plan'
+                      ? 'Team-Tarif'
                       : currentWorkspace.active
-                        ? 'Shared workspace'
-                        : 'No plan yet'}
+                        ? 'Geteilter Arbeitsbereich'
+                        : 'Noch kein Tarif'}
                   </span>
                 )}
               </h2>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <MenuButton aria-label={`Sort: ${SORT_LABELS[sort]}`}>{SORT_LABELS[sort]}</MenuButton>
+                  <MenuButton aria-label={`Sortierung: ${SORT_LABELS[sort]}`}>{SORT_LABELS[sort]}</MenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" width="sm">
                   <DropdownMenuRadioGroup value={sort} onValueChange={(next) => isSort(next) && setSort(next)}>
@@ -348,14 +357,14 @@ export function Home() {
               </DropdownMenu>
               <SegmentedIcons
                 className="flex-none"
-                aria-label="View"
+                aria-label="Ansicht"
                 value={view}
                 onValueChange={(next) => setView(next as 'grid' | 'list')}
               >
-                <SegmentedIconItem value="grid" aria-label="Grid view">
+                <SegmentedIconItem value="grid" aria-label="Rasteransicht">
                   <GridIcon width={14} height={14} />
                 </SegmentedIconItem>
-                <SegmentedIconItem value="list" aria-label="List view">
+                <SegmentedIconItem value="list" aria-label="Listenansicht">
                   <ListIcon width={14} height={14} />
                 </SegmentedIconItem>
               </SegmentedIcons>
@@ -364,16 +373,16 @@ export function Home() {
             {empty ? (
               <EmptyState
                 className="mt-5"
-                title="Start your first canvas"
-                description="A canvas is a shared space of live HTML frames — you design in the browser, your AI agents design through MCP, and everyone watches everything happen in real time."
+                title="Starte Deine erste Arbeitsfläche"
+                description="Eine Arbeitsfläche ist ein gemeinsamer Bereich mit live aktualisierten HTML-Zeichenflächen — Du gestaltest im Browser, Deine KI-Agenten über MCP, und alle sehen die Änderungen in Echtzeit."
                 action={
                   <Button variant="primary" onClick={createCanvas}>
-                    + Create a canvas
+                    + Arbeitsfläche erstellen
                   </Button>
                 }
               />
             ) : canvases !== null && visible.length === 0 ? (
-              <p className="mt-7 text-copy text-ink-soft">Nothing here yet — try another scope.</p>
+              <p className="mt-7 text-copy text-ink-soft">Hier ist noch nichts — versuche einen anderen Bereich.</p>
             ) : view === 'grid' ? (
               <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3.5 xs:grid-cols-[repeat(auto-fill,minmax(230px,1fr))] md:gap-[18px]">
                 {canvases === null && [0, 1, 2, 3].map((i) => <Skeleton key={i} index={i} shape="tile" aspect="5/3" />)}
@@ -409,13 +418,13 @@ export function Home() {
                 {canvases !== null && (
                   <Pressable
                     className="grid min-h-[132px] place-items-center content-center gap-2.5 rounded-panel border border-dashed border-line p-6 text-body text-ink-faint transition-colors hover:border-ink-faint hover:text-ink xs:min-h-full"
-                    aria-label="Create a new canvas"
+                    aria-label="Neue Arbeitsfläche erstellen"
                     onClick={createCanvas}
                   >
                     <span className="grid size-7 place-items-center rounded-full bg-surface text-ink-soft shadow-ring">
                       <PlusIcon width={14} height={14} />
                     </span>
-                    New canvas
+                    Neue Arbeitsfläche
                   </Pressable>
                 )}
               </div>
@@ -433,7 +442,7 @@ export function Home() {
                       <FrameThumb frameId={c.previewFrameId} />
                       <span className="min-w-0 flex-1 truncate text-body font-medium">{c.name}</span>
                       <span className="hidden w-[82px] flex-none text-caption text-ink-faint sm:block">
-                        {c.frameCount} frame{c.frameCount === 1 ? '' : 's'}
+                        {c.frameCount.toLocaleString('de-DE')} Zeichenfläche{c.frameCount === 1 ? '' : 'n'}
                       </span>
                       <span className="hidden w-[72px] flex-none xs:flex">
                         <PeopleStack canvas={c} />
@@ -474,7 +483,7 @@ export function Home() {
           onClose={() => setShareCanvas(null)}
           onCopied={() => {
             setShareCanvas(null)
-            showToast('Canvas link copied')
+            showToast('Link zur Arbeitsfläche kopiert')
           }}
         />
       )}
@@ -487,7 +496,7 @@ export function Home() {
             setScope(`ws:${ws.id}`)
             /* a workspace that cannot grow yet goes straight to the plan picker */
             if (!ws.active)
-              setUpgrade({ workspaceId: ws.id, reason: `"${ws.name}" is ready — pick a plan to start using it.` })
+              setUpgrade({ workspaceId: ws.id, reason: `„${ws.name}“ ist bereit — wähle einen Tarif, um loszulegen.` })
           }}
         />
       )}
@@ -508,21 +517,28 @@ export function Home() {
           onClose={() => setMoveCanvas(null)}
           onMoved={(workspaceId) => {
             setMoveCanvas(null)
-            showToast(workspaceId ? `Moved to ${workspaceName(workspaceId) ?? 'the workspace'}` : 'Moved to Personal')
+            showToast(
+              workspaceId
+                ? `Verschoben nach ${workspaceName(workspaceId) ?? 'den Arbeitsbereich'}`
+                : 'In den persönlichen Bereich verschoben',
+            )
             reload()
           }}
           onPaywall={(workspaceId) => {
             setMoveCanvas(null)
-            setUpgrade({ workspaceId, reason: 'Moving a canvas into a workspace needs a Team plan.' })
+            setUpgrade({
+              workspaceId,
+              reason: 'Um eine Arbeitsfläche in einen Arbeitsbereich zu verschieben, brauchst Du einen Team-Tarif.',
+            })
           }}
         />
       )}
       <ConfirmDialog
         open={!!deleteCanvas}
         onOpenChange={(open) => !open && setDeleteCanvas(null)}
-        title={`Delete “${deleteCanvas?.name ?? 'canvas'}”?`}
-        description="This permanently deletes the canvas and everything in it. This can’t be undone."
-        confirmLabel="Delete canvas"
+        title={`„${deleteCanvas?.name ?? 'Arbeitsfläche'}“ löschen?`}
+        description="Die Arbeitsfläche und alle Inhalte werden dauerhaft gelöscht. Das lässt sich nicht rückgängig machen."
+        confirmLabel="Arbeitsfläche löschen"
         destructive
         onConfirm={() => {
           if (deleteCanvas) remove(deleteCanvas.id, reload)
@@ -581,25 +597,25 @@ function Meta({ canvas: c, onClaim, workspace }: { canvas: CanvasMeta; onClaim: 
           <Badge
             tone="accent"
             interactive
-            title="This canvas predates accounts and is visible to everyone. Claim it to make it yours."
+            title="Diese Arbeitsfläche stammt aus der Zeit vor Benutzerkonten und ist für alle sichtbar. Übernimm sie, damit sie Dir gehört."
             onClick={async (e) => {
               e.stopPropagation()
               await api.claimCanvas(c.id).catch(console.error)
               onClaim()
             }}
           >
-            unclaimed — make mine
+            ohne Eigentümer — übernehmen
           </Badge>
         )
       }
     >
       {c.shared && !workspace && !c.workspaceId && owner ? (
-        <span title="You were invited to collaborate on this canvas">Shared by {owner.name}</span>
+        <span title="Du wurdest zur Mitarbeit auf dieser Arbeitsfläche eingeladen">Geteilt von {owner.name}</span>
       ) : (
-        <span>Edited {timeAgo(c.updatedAt)}</span>
+        <span>Bearbeitet {timeAgo(c.updatedAt)}</span>
       )}
       {workspace && (
-        <span className="inline-flex min-w-0 items-center gap-1 truncate" title={`In the ${workspace} workspace`}>
+        <span className="inline-flex min-w-0 items-center gap-1 truncate" title={`Im Arbeitsbereich ${workspace} `}>
           <BuildingIcon width={11} height={11} aria-hidden /> {workspace}
         </span>
       )}
@@ -628,7 +644,7 @@ function CanvasActions({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <IconButton
-          aria-label={`Actions for ${canvas.name}`}
+          aria-label={`Aktionen für ${canvas.name}`}
           variant={compact ? 'quiet' : 'frosted'}
           shape={compact ? 'round' : 'square'}
           className={
@@ -643,21 +659,21 @@ function CanvasActions({
       </DropdownMenuTrigger>
       <DropdownMenuContent width="md">
         <DropdownMenuItem onSelect={onShare}>
-          <ShareIcon className="size-4" /> Share
+          <ShareIcon className="size-4" /> Teilen
         </DropdownMenuItem>
         <DropdownMenuItem disabled={duplicating} onSelect={onDuplicate}>
-          <CopyIcon className="size-4" /> {duplicating ? 'Duplicating…' : 'Duplicate'}
+          <CopyIcon className="size-4" /> {duplicating ? 'Wird dupliziert…' : 'Duplizieren'}
         </DropdownMenuItem>
         {onMove && (
           <DropdownMenuItem onSelect={onMove}>
-            <BuildingIcon className="size-4" /> {canvas.workspaceId ? 'Move…' : 'Move to workspace…'}
+            <BuildingIcon className="size-4" /> {canvas.workspaceId ? 'Verschieben…' : 'In Arbeitsbereich verschieben…'}
           </DropdownMenuItem>
         )}
         {onDelete && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem tone="danger" onSelect={onDelete}>
-              <TrashIcon className="size-4" /> Delete
+              <TrashIcon className="size-4" /> Löschen
             </DropdownMenuItem>
           </>
         )}

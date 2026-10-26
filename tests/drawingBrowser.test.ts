@@ -28,6 +28,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   let saved: Frame[] = []
   let nextId = 0
   let patchRequests = 0
+  let patchResponseGate: Promise<void> | null = null
   const errors: string[] = []
 
   beforeAll(async () => {
@@ -52,6 +53,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
         await req.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(frame) })
       } else if (path.startsWith('/api/frames/') && req.method() === 'PATCH') {
         patchRequests++
+        if (patchResponseGate) await patchResponseGate
         const id = path.split('/').at(-1)
         const frame = { ...saved.find((f) => f.id === id), ...JSON.parse(req.postData()!) }
         saved = saved.map((f) => (f.id === id ? frame : f))
@@ -68,6 +70,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
     saved = []
     nextId = 0
     patchRequests = 0
+    patchResponseGate = null
     await page.setViewport({ width: 1200, height: 800 })
     await page.goto(`${vite.resolvedUrls!.local[0]}tests/fixtures/drawing.html`)
     await page.waitForFunction(() => !!window.drawingHarness)
@@ -84,7 +87,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
         updatedAt: 0,
       }),
     )
-    await page.waitForSelector('[aria-label="Canvas tools"]')
+    await page.waitForSelector('[aria-label="Werkzeuge der Arbeitsfläche"]')
     await page.evaluate(() => window.drawingHarness.viewport({ x: 40, y: 20, zoom: 2 }))
   })
 
@@ -170,10 +173,10 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   }
 
   it('draws a frame with reverse drag at a panned/zoomed viewport, then adds editable shapes inside it', async () => {
-    await page.click('[aria-label="Frame"]')
+    await page.click('[aria-label="Zeichenfläche"]')
     await drag([700, 500], [200, 200])
     const [frame] = await waitForFrames(1)
-    expect(frame).toMatchObject({ name: 'Frame', x: 80, y: 70, width: 250, height: 150, pageId: 'first' })
+    expect(frame).toMatchObject({ name: 'Zeichenfläche', x: 80, y: 70, width: 250, height: 150, pageId: 'first' })
     await page.keyboard.press('r')
     await drag([240, 240], [400, 320])
     await page.waitForFunction(() =>
@@ -202,7 +205,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   })
 
   it('creates standalone transparent circles, constrained rectangles and SVG paths', async () => {
-    await page.click('[aria-label="Circle"]')
+    await page.click('[aria-label="Kreis"]')
     await drag([220, 200], [320, 260])
     expect((await waitForFrames(1))[0]).toMatchObject({ width: 50, height: 50 })
     expect(await page.$eval('iframe', (el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
@@ -211,7 +214,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
     await drag([450, 200], [600, 270])
     await page.keyboard.up('Shift')
     expect((await waitForFrames(2))[1]).toMatchObject({ width: 75, height: 75 })
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await page.mouse.click(220, 420)
     await page.mouse.click(320, 380)
     await page.mouse.click(420, 450)
@@ -257,7 +260,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   })
 
   it('draws smooth Bézier curves by dragging anchors, including a curved closed path', async () => {
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await drag([220, 300], [220, 180])
     await drag([520, 300], [520, 420])
     await page.keyboard.press('Enter')
@@ -280,7 +283,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   })
 
   it('drags a circle into a frame, into another frame, and back onto the canvas with undo/redo', async () => {
-    await page.click('[aria-label="Frame"]')
+    await page.click('[aria-label="Zeichenfläche"]')
     await drag([200, 200], [500, 500])
     await waitForFrames(1)
     await page.keyboard.press('f')
@@ -316,7 +319,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
     await page.mouse.click(1100, 550)
     await drag([750, 360], [500, 600])
     const outside = (await waitForFrames(3))[2]!
-    expect(outside).toMatchObject({ x: 210, y: 250, width: 40, height: 40, name: 'Circle' })
+    expect(outside).toMatchObject({ x: 210, y: 250, width: 40, height: 40, name: 'Kreis' })
     expect(saved[1]!.html).not.toContain('data-doop-drawing')
     for (let i = 0; i < 3; i++) await page.evaluate(() => window.drawingHarness.undo())
     const restored = await waitForFrames(3)
@@ -328,7 +331,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
 
   it.each([0.5, 2, 3])('snaps the path preview and closes at the first anchor at zoom %s', async (zoom) => {
     await page.evaluate((zoom) => window.drawingHarness.viewport({ x: 40, y: 20, zoom }), zoom)
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await page.mouse.click(220, 250)
     await page.mouse.click(420, 250)
     await page.mouse.click(420, 450)
@@ -345,7 +348,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   })
 
   it('snaps to intermediate anchors and lets Alt place a point freely', async () => {
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await page.mouse.click(220, 250)
     await page.mouse.click(420, 250)
     await page.mouse.click(420, 450)
@@ -380,27 +383,45 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
       {},
       before,
     )
-    await page.waitForFunction(() => !document.querySelector('[data-path-editor] button:disabled'))
+    await page.waitForFunction(
+      () =>
+        document.querySelector('div[data-path-editor]')?.textContent?.includes('Ziehe Punkte oder Griffe') &&
+        !document.querySelector('[data-path-editor] button:disabled'),
+    )
   }
 
   it('edits anchors and handles, converts curves, deletes points, and undoes each change', async () => {
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await drag([220, 300], [220, 220])
     await drag([420, 300], [420, 380])
     await page.mouse.click(420, 450)
     await page.keyboard.press('Enter')
     await waitForFrames(1)
-    await visibleDrawing('Vector path')
+    await visibleDrawing('Vektorpfad')
     await page.mouse.click(320, 300, { count: 2, delay: 60 })
     const original = saved[0]!
     const first = await editorPoint(0)
-    await drag(first, [first[0] - 60, first[1] + 30])
+    let releasePatch!: () => void
+    patchResponseGate = new Promise<void>((resolve) => {
+      releasePatch = resolve
+    })
+    try {
+      await drag(first, [first[0] - 60, first[1] + 30])
+      await page.waitForFunction(() =>
+        document.querySelector('div[data-path-editor]')?.textContent?.includes('Pfad wird gespeichert…'),
+      )
+      expect(await page.$('[data-path-editor] button:disabled')).not.toBeNull()
+      expect(saved[0]!.html).toBe(original.html)
+    } finally {
+      patchResponseGate = null
+      releasePatch()
+    }
     await waitForPathSave(original.html)
     const moved = await editorPoint(0)
     expect(moved[0]).toBeCloseTo(first[0] - 60, 1)
     expect(moved[1]).toBeCloseTo(first[1] + 30, 1)
     await page.evaluate(() => window.drawingHarness.undo())
-    await page.waitForFunction(() => !document.body.textContent?.includes('Saving path…'))
+    await page.waitForFunction(() => !document.body.textContent?.includes('Pfad wird gespeichert…'))
     await page.waitForFunction(
       (x) => Math.abs(document.querySelector('[data-path-edit-anchor="0"]')!.getBoundingClientRect().x + 9 - x) < 0.1,
       {},
@@ -422,7 +443,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
     expect(await page.$('[data-path-handle="0-handleOut"]')).toBeNull()
     await page.click('[data-path-editor] button')
     await page.waitForSelector('[data-path-handle="0-handleOut"]')
-    await page.waitForFunction(() => !document.body.textContent?.includes('Saving path…'))
+    await page.waitForFunction(() => !document.body.textContent?.includes('Pfad wird gespeichert…'))
     await page.screenshot({ path: '/tmp/doop-path-editing.png' })
     await page.keyboard.press('Delete')
     await page.waitForFunction(() => document.querySelectorAll('[data-path-edit-anchor]').length === 2)
@@ -434,13 +455,13 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   })
 
   it('selects asymmetric handles and anchors without changing the path or saving', async () => {
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await drag([220, 300], [220, 220])
     await drag([420, 300], [420, 380])
     await page.mouse.click(560, 450)
     await page.keyboard.press('Enter')
     await waitForFrames(1)
-    await visibleDrawing('Vector path')
+    await visibleDrawing('Vektorpfad')
     await page.mouse.click(320, 300, { count: 2, delay: 60 })
     const opposite = await editorPoint(1, 'handleIn')
     const handle = await editorPoint(1, 'handleOut')
@@ -497,7 +518,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
       expect(await editorPoint(0)).toEqual(first)
       await drag(first, [first[0] - 30, first[1] + 40])
       await page.waitForFunction((before) => window.drawingHarness.state().frames[0]!.html !== before, {}, frame.html)
-      await page.waitForFunction(() => !document.body.textContent?.includes('Saving path…'))
+      await page.waitForFunction(() => !document.body.textContent?.includes('Pfad wird gespeichert…'))
       if (!standalone) expect(saved[0]).toMatchObject({ x: 30, y: 30, width: 400, height: 300 })
       const after = await editorPoint(1)
       expect(after[0]).toBeCloseTo(last[0], 1)
@@ -507,13 +528,13 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   )
 
   it('snaps edited anchors, allows Alt to bypass snapping, and cancels on pointer cancellation', async () => {
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await page.mouse.click(220, 300)
     await page.mouse.click(420, 300)
     await page.mouse.click(420, 450)
     await page.keyboard.press('Enter')
     await waitForFrames(1)
-    await visibleDrawing('Vector path')
+    await visibleDrawing('Vektorpfad')
     await page.mouse.click(320, 350, { count: 2, delay: 60 })
     const first = await editorPoint(0)
     const target = await editorPoint(1)
@@ -561,7 +582,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   })
 
   it('leaves editing keys in unrelated fields alone while a vector path is unfinished', async () => {
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await page.mouse.click(220, 200)
     await page.mouse.click(320, 280)
     for (const kind of ['input', 'textarea', 'contenteditable']) {
@@ -605,7 +626,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   })
 
   it('cancels moving an element on Escape, pointer cancellation, and page changes', async () => {
-    await page.click('[aria-label="Circle"]')
+    await page.click('[aria-label="Kreis"]')
     await drag([250, 300], [330, 380])
     const [original] = await waitForFrames(1)
     await waitForRuntime(original!.id)
@@ -613,13 +634,13 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
       await page.mouse.move(290, 340)
       await page.mouse.down()
       await page.mouse.move(700, 300, { steps: 4 })
-      await page.waitForSelector('iframe[title="Moving drawing"]')
+      await page.waitForSelector('iframe[title="Zeichnung wird verschoben"]')
       if (reason === 'escape') await page.keyboard.press('Escape')
       else if (reason === 'pointer')
         await page.evaluate(() => window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1 })))
       else await page.evaluate(() => window.drawingHarness.page('second'))
       await page.mouse.up()
-      expect(await page.$('iframe[title="Moving drawing"]')).toBeNull()
+      expect(await page.$('iframe[title="Zeichnung wird verschoben"]')).toBeNull()
       expect(saved).toEqual([original])
     }
   })
@@ -656,7 +677,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
         await page.mouse.move(...from)
         await page.mouse.down()
         await page.mouse.move(...to, { steps: 5 })
-        const preview = await visibleDrawing('Moving drawing')
+        const preview = await visibleDrawing('Zeichnung wird verschoben')
         await page.mouse.up()
         expect(preview.width).toBeCloseTo(initial.width, 1)
         expect(preview.height).toBeCloseTo(initial.height, 1)
@@ -713,22 +734,22 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   )
 
   it('measures drawing geometry consistently once the world settles at the zoom', async () => {
-    await page.click('[aria-label="Frame"]')
+    await page.click('[aria-label="Zeichenfläche"]')
     await drag([200, 200], [600, 600])
     await waitForFrames(1)
-    await page.click('[aria-label="Circle"]')
+    await page.click('[aria-label="Kreis"]')
     await drag([250, 300], [330, 380])
     await waitForFrames(1)
     await page.waitForFunction(() => window.drawingHarness.state().frames[0]?.html.includes('data-doop-drawing'))
-    const initial = await visibleDrawing('Frame')
-    const iframe = (await (await page.$('iframe[title="Frame"]'))!.contentFrame())!
+    const initial = await visibleDrawing('Zeichenfläche')
+    const iframe = (await (await page.$('iframe[title="Zeichenfläche"]'))!.contentFrame())!
     await page.evaluate(() => window.drawingHarness.viewport({ x: 40, y: 20, zoom: 3 }))
     // the settled zoom is the world's CSS zoom, which the iframe element undoes;
     // the document inside keeps its design viewport, so nothing in there changes
     await page.waitForFunction(() => (document.querySelector('.world') as HTMLElement).style.zoom === '3')
     const designWidth = await page.evaluate(() => window.drawingHarness.state().frames[0]!.width)
     expect(await iframe.evaluate(() => [innerWidth, document.documentElement.style.zoom])).toEqual([designWidth, ''])
-    const zoomed = await visibleDrawing('Frame')
+    const zoomed = await visibleDrawing('Zeichenfläche')
     expect(zoomed.width).toBeCloseTo(initial.width * 1.5, 1)
     expect(zoomed.height).toBeCloseTo(initial.height * 1.5, 1)
   })
@@ -758,11 +779,11 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
     await page.mouse.move(drawing.x + drawing.width / 2, drawing.y + drawing.height / 2)
     await page.mouse.down()
     await page.mouse.move(drawing.x + drawing.width / 2 + 60, drawing.y + drawing.height / 2 + 30, { steps: 5 })
-    const handle = await page.waitForSelector('iframe[title="Moving drawing"]')
+    const handle = await page.waitForSelector('iframe[title="Zeichnung wird verschoben"]')
     const preview = (await handle!.contentFrame())!
     await preview.waitForSelector('[data-doop-drawing]')
     const inside = await preview.evaluate(() => ({ width: innerWidth, dpr: devicePixelRatio }))
-    const moving = await visibleDrawing('Moving drawing')
+    const moving = await visibleDrawing('Zeichnung wird verschoben')
     await page.keyboard.press('Escape')
     await page.mouse.up()
     // Chromium takes the world's 2x layout zoom as the preview's pixel density,
@@ -880,7 +901,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
         () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
       )
       expect(saved).toEqual([source])
-      expect(await page.$('iframe[title="Moving drawing"]')).toBeNull()
+      expect(await page.$('iframe[title="Zeichnung wird verschoben"]')).toBeNull()
     } else {
       const result = await waitForFrames(2)
       expect(result[0]!.html).not.toContain('data-doop-drawing')
@@ -914,7 +935,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   it('preserves canvas comments and lets comment pins interrupt drawing without creating a shape', async () => {
     await page.keyboard.press('c')
     await page.mouse.click(220, 200)
-    await page.waitForSelector('textarea[placeholder="Leave a comment here…"]')
+    await page.waitForSelector('textarea[placeholder="Schreib hier einen Kommentar…"]')
     expect(await page.$eval('.stage', (el) => getComputedStyle(el).cursor)).toContain('url(')
     await page.keyboard.press('Escape')
     await page.evaluate(() =>
@@ -933,23 +954,24 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
         },
       ]),
     )
-    await page.click('[aria-label="Rectangle"]')
+    await page.click('[aria-label="Rechteck"]')
     await page.click('[title="Alice: Keep this"]')
-    const reply = 'textarea[placeholder="Reply… (@doop to ask the agent)"]'
+    const reply = 'textarea[placeholder="Antworten… (@doop, um den Agenten zu fragen)"]'
     await page.waitForSelector(reply)
     await page.click(reply)
     await page.keyboard.type('Reply text')
     expect(await page.$eval(reply, (el) => el.value)).toBe('Reply text')
     expect(await page.$eval(reply, (el) => getComputedStyle(el).cursor)).not.toBe('crosshair')
     expect(saved).toHaveLength(0)
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await page.mouse.click(800, 200)
     await page.mouse.click(900, 220)
+    expect(await page.$eval('[data-drawing-hint]', (el) => el.textContent)).toContain('Pfad abschließen')
     await page.click('[title="Alice: Keep this"]')
     await page.waitForSelector(reply)
     await page.click(reply)
     await page.keyboard.press('Enter')
-    expect(await page.$eval('[data-drawing-hint]', (el) => el.textContent)).not.toContain('Finish path')
+    expect(await page.$eval('[data-drawing-hint]', (el) => el.textContent)).not.toContain('Pfad abschließen')
     expect(saved).toHaveLength(0)
   })
 
@@ -967,28 +989,28 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
         updatedAt: 0,
       }),
     )
-    await page.waitForSelector('[aria-label="Canvas tools"]')
+    await page.waitForSelector('[aria-label="Werkzeuge der Arbeitsfläche"]')
     expect(await page.evaluate(() => window.innerWidth)).toBe(390)
     const boxes = await page.evaluate(() => {
-      const tools = document.querySelector('[aria-label="Canvas tools"]')!.getBoundingClientRect()
-      const zoom = document.querySelector('[aria-label="Zoom level"]')!.getBoundingClientRect()
+      const tools = document.querySelector('[aria-label="Werkzeuge der Arbeitsfläche"]')!.getBoundingClientRect()
+      const zoom = document.querySelector('[aria-label="Zoomstufe"]')!.getBoundingClientRect()
       return { left: tools.left, right: tools.right, top: tools.top, zoomBottom: zoom.bottom }
     })
     expect(boxes.left).toBeGreaterThanOrEqual(0)
     expect(boxes.right).toBeLessThanOrEqual(390)
     expect(boxes.zoomBottom).toBeLessThan(boxes.top)
-    await page.click('[aria-label="Rectangle"]')
+    await page.click('[aria-label="Rechteck"]')
     const hintClear = await page.evaluate(
       () =>
-        document.querySelector('[aria-label="Zoom level"]')!.getBoundingClientRect().bottom <
+        document.querySelector('[aria-label="Zoomstufe"]')!.getBoundingClientRect().bottom <
         document.querySelector('[data-drawing-hint]')!.getBoundingClientRect().top,
     )
     expect(hintClear).toBe(true)
     await page.screenshot({ path: '/tmp/doop-drawing-mobile-tools.png' })
     await page.touchscreen.tap(180, 250)
-    expect((await waitForFrames(1))[0]!.name).toBe('Rectangle')
+    expect((await waitForFrames(1))[0]!.name).toBe('Rechteck')
     await page.screenshot({ path: '/tmp/doop-drawing-mobile.png' })
-    await page.click('[aria-label="Vector path"]')
+    await page.click('[aria-label="Vektorpfad"]')
     await page.touchscreen.touchStart(80, 450)
     await page.touchscreen.touchMove(80, 390)
     await page.touchscreen.touchEnd()

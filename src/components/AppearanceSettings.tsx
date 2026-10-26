@@ -11,18 +11,18 @@ export function AppearanceSettings() {
   return (
     <SettingsCard>
       <CardHeader>
-        <CardTitle>Theme</CardTitle>
+        <CardTitle>Farbschema</CardTitle>
         <CardDescription>
-          Light or dark, across every canvas and page in this browser. System follows your operating system and switches
-          whenever it does.
+          Hell oder dunkel, auf jeder Arbeitsfläche und Seite in diesem Browser. „System“ folgt Deinem Betriebssystem
+          und wechselt mit dessen Einstellung.
         </CardDescription>
       </CardHeader>
-      <CardRow label="Appearance">
+      <CardRow label="Darstellung">
         <ThemePicker />
         <Note>
           {theme === 'system'
-            ? `Following your system — ${resolved} right now.`
-            : 'Set by hand — your system setting is ignored.'}
+            ? `Folgt Deinem System — derzeit ${resolved === 'dark' ? 'dunkel' : 'hell'}.`
+            : 'Manuell festgelegt — Deine Systemeinstellung wird ignoriert.'}
         </Note>
       </CardRow>
     </SettingsCard>

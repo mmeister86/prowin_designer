@@ -18,6 +18,47 @@ beforeAll(async () => {
 
 afterAll(() => server?.stop())
 
+it('defaults only unnamed new frames to Zeichenfläche', async () => {
+  const client = await new Client(server).signUp('frame-default@test.dev', 'English Name')
+  const canvas = await (await client.post('/api/canvases', { name: 'English Canvas' })).json()
+  for (const input of [{}, { name: '' }, { name: 'English Hero' }]) {
+    const response = await client.post(`/api/canvases/${canvas.id}/frames`, input)
+    expect(response.status).toBe(200)
+    expect((await response.json()).name).toBe('name' in input && input.name ? input.name : 'Zeichenfläche')
+  }
+})
+
+it('distinguishes image model validation and hides unexpected error details', async () => {
+  const client = await new Client(server).signUp('image-validation@test.dev', 'Images')
+  const { models } = await (await client.get('/api/image-model')).json()
+  const unavailable = models.find((entry: { available: boolean }) => !entry.available)
+  expect(unavailable).toBeDefined()
+  for (const [model, error] of [
+    ['not-a-model', 'Unbekanntes Bildmodell'],
+    [unavailable.id, 'Dieses Bildmodell ist für Dein Konto oder diesen Server nicht verfügbar.'],
+    [{ toString: 'private diagnostic' }, 'Das Bildmodell konnte nicht geändert werden.'],
+  ]) {
+    const response = await client.req('/api/image-model', { method: 'PUT', body: JSON.stringify({ model }) })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error })
+  }
+})
+
+it('keeps German upload validation actionable and JSON parser errors at HTTP 400', async () => {
+  const client = await new Client(server).signUp('german-validation@test.dev', 'Validation')
+  const canvas = await (await client.post('/api/canvases', { name: 'Validation' })).json()
+  const invalid = await client.req(`/api/canvases/${canvas.id}/assets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/png' },
+    body: Buffer.from('not an image'),
+  })
+  expect(invalid.status).toBe(400)
+  expect((await invalid.json()).error).toBe('Nicht unterstützter Dateityp. Erlaubt sind PNG, JPG, WebP, GIF und SVG.')
+  const malformed = await client.req('/api/account-exists', { method: 'POST', body: '{' })
+  expect(malformed.status).toBe(400)
+  expect((await malformed.json()).error).toBe('Die Anfrage enthält ungültige Daten. Prüfe Deine Eingabe.')
+})
+
 describe('canvas access model', () => {
   /* assigned once the server is up — the clients need its base URL and port */
   let owner: Client
@@ -205,7 +246,7 @@ describe('canvas access model', () => {
     const res = await invited.post(`/api/canvases/${canvasId}/duplicate`)
     const copy = await res.json()
     expect(res.status, JSON.stringify(copy)).toBe(200)
-    expect(copy.name).toBe('ACL copy')
+    expect(copy.name).toBe('ACL Kopie')
     expect(copy.ownerId).toBe(invitedId)
     expect(copy.linkAccess).toBeUndefined()
     expect(copy.memberIds).toBeUndefined()

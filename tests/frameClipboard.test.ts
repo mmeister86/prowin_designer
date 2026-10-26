@@ -131,8 +131,8 @@ describe('multi-frame copy and paste', () => {
     clipboard.duplicateFrames([frame('a', 100, 100), frame('b', 300, 150)])
     await flush()
 
-    expect(api.createFrame.mock.calls[0]![1]).toMatchObject({ name: 'a copy', x: 140, y: 140 })
-    expect(api.createFrame.mock.calls[1]![1]).toMatchObject({ name: 'b copy', x: 340, y: 190 })
+    expect(api.createFrame.mock.calls[0]![1]).toMatchObject({ name: 'a Kopie', x: 140, y: 140 })
+    expect(api.createFrame.mock.calls[1]![1]).toMatchObject({ name: 'b Kopie', x: 340, y: 190 })
     expect(useStore.getState().selectedIds).toEqual(['new1', 'new2'])
   })
 })

@@ -14,12 +14,18 @@ export function OAuthConsent({ email }: { email: string }) {
     const controller = new AbortController()
     fetch(endpoint, { signal: controller.signal })
       .then(async (res) => {
-        if (!res.ok) throw new Error('This connection request has expired. Start again from your agent.')
+        if (!res.ok) throw new Error('Diese Verbindungsanfrage ist abgelaufen. Starte erneut von Deinem Agenten aus.')
         return res.json() as Promise<{ name: string }>
       })
       .then(setClient)
       .catch((err: unknown) => {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Could not load the connection.')
+        if (!controller.signal.aborted)
+          setError(
+            err instanceof Error &&
+              err.message === 'Diese Verbindungsanfrage ist abgelaufen. Starte erneut von Deinem Agenten aus.'
+              ? err.message
+              : 'Die Verbindung konnte nicht geladen werden.',
+          )
       })
     return () => controller.abort()
   }, [endpoint])
@@ -33,30 +39,36 @@ export function OAuthConsent({ email }: { email: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accept }),
       })
-      if (!res.ok) throw new Error('Could not finish connecting. Start again from your agent.')
+      if (!res.ok)
+        throw new Error('Die Verbindung konnte nicht abgeschlossen werden. Starte erneut von Deinem Agenten aus.')
       const result = (await res.json()) as { redirectURI: string }
       location.assign(result.redirectURI)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not finish connecting.')
+      setError(
+        err instanceof Error &&
+          err.message === 'Die Verbindung konnte nicht abgeschlossen werden. Starte erneut von Deinem Agenten aus.'
+          ? err.message
+          : 'Die Verbindung konnte nicht abgeschlossen werden.',
+      )
       setBusy(false)
     }
   }
 
   return (
     <AuthScreen>
-      <AuthCard title={client ? `Connect ${client.name}?` : 'Connect your agent'}>
-        <AuthCardText className="break-all">Signed in as {email}</AuthCardText>
+      <AuthCard title={client ? `Verbinden: ${client.name}?` : 'Verbinde Deinen Agenten'}>
+        <AuthCardText className="break-all">Angemeldet als {email}</AuthCardText>
         <AuthCardText>
-          This agent will be able to read your profile and read, create, edit and delete designs on the canvases you can
-          access. Its changes will be attributed to your account.
+          Dieser Agent kann Dein Profil lesen und auf den für Dich zugänglichen Arbeitsflächen Designs lesen, erstellen,
+          bearbeiten und löschen. Seine Änderungen werden Deinem Konto zugeordnet.
         </AuthCardText>
         {error && <Callout tone="error">{error}</Callout>}
         <div className="flex justify-end gap-2">
           <Button disabled={!client || busy} onClick={() => void respond(false)}>
-            Cancel
+            Abbrechen
           </Button>
           <Button variant="solid" disabled={!client || busy} onClick={() => void respond(true)}>
-            {busy ? 'Connecting…' : 'Connect'}
+            {busy ? 'Verbindung wird hergestellt…' : 'Verbinden'}
           </Button>
         </div>
       </AuthCard>

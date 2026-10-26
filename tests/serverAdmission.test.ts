@@ -60,7 +60,7 @@ it.each(['snapshot', 'transaction'])(
     if (stage === 'transaction') vi.spyOn(state.db, 'transaction').mockRejectedValueOnce(error)
     const broken = { id: 'broken', serverPaid: false }
     expect(await prepareServerWork('alice', 'card', broken, flush, (reason) => failures.push(reason))).toBe(false)
-    expect(failures).toEqual([expect.stringMatching(/admission failed.*retry/i)])
+    expect(failures).toEqual([expect.stringMatching(/nicht gestartet.*erneut/i)])
     expect((await client.query('SELECT * FROM resident_usage')).rows).toHaveLength(0)
     const next = { id: 'next', serverPaid: false }
     expect(

@@ -164,7 +164,7 @@ export function CanvasComments({
             className={cn('absolute -top-[13px]', composeAt.placement.side === 'left' ? 'right-[20px]' : 'left-[20px]')}
             style={composeAt.placement.shift ? { transform: `translateX(${composeAt.placement.shift}px)` } : undefined}
           >
-            <CommentComposer placeholder="Leave a comment here…" onSubmit={post} onCancel={close} />
+            <CommentComposer placeholder="Schreib hier einen Kommentar…" onSubmit={post} onCancel={close} />
           </div>
         </div>
       )}

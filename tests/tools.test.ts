@@ -18,6 +18,10 @@ const mouse = (over: Partial<PointerContext>): PointerContext => ({
   ...over,
 })
 
+it('shows German drawing labels while preserving tool IDs and shortcuts', () => {
+  expect(TOOLS.find((tool) => tool.id === 'rectangle')).toEqual({ id: 'rectangle', label: 'Rechteck', key: 'R' })
+})
+
 describe('resolvePointerAction', () => {
   it('Select: marquee on the background, drag on a frame', () => {
     expect(resolvePointerAction(mouse({ target: 'background' }))).toBe('marquee')

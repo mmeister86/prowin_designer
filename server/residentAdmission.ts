@@ -41,7 +41,8 @@ export async function prepareServerWork(
   flush: () => PromiseLike<unknown>,
   fail: (reason: string) => void,
 ): Promise<boolean> {
-  let reason = 'Server task allowance exhausted or queued work needs an explicit retry after upgrade.'
+  let reason =
+    'Das Server-Aufgabenkontingent ist aufgebraucht oder die wartende Aufgabe muss nach dem Upgrade erneut gestartet werden.'
   try {
     await flush()
     if (userId && (await admitServerWork(userId, kind, work.id))) {
@@ -50,7 +51,7 @@ export async function prepareServerWork(
     }
   } catch (error) {
     console.error('[resident] server admission failed', error)
-    reason = 'Server task admission failed. Please retry when the service is available.'
+    reason = 'Die Server-Aufgabe konnte nicht gestartet werden. Versuche es erneut, sobald der Dienst verfügbar ist.'
   }
   fail(reason)
   return false

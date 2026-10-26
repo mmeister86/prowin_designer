@@ -3,7 +3,7 @@
   "name": "doop",
   "display_name": "Doop",
   "version": "0.1.0",
-  "description": "Design with Claude on a shared canvas. Create, edit and review designs together in real time.",
+  "description": "Gestalte mit Claude auf einer gemeinsamen Arbeitsfläche. Erstellt, bearbeitet und prüft Designs gemeinsam in Echtzeit.",
   "author": { "name": "Doop", "url": "https://doop.design" },
   "homepage": "https://doop.design",
   "documentation": "https://github.com/kgoedecke/doop/tree/main/claude-extension",
@@ -31,8 +31,8 @@
   "user_config": {
     "server_url": {
       "type": "string",
-      "title": "Doop server URL",
-      "description": "Keep this for Doop Cloud. For self-hosting, use your Doop server's URL followed by /mcp. HTTPS is required except on localhost.",
+      "title": "Doop-Server-URL",
+      "description": "Behalte diese Adresse für Doop Cloud bei. Verwende beim Selbsthosting die URL Deines Doop-Servers, gefolgt von /mcp. Außer für localhost ist HTTPS erforderlich.",
       "default": "https://doop.design/mcp",
       "required": true
     }

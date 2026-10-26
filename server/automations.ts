@@ -132,7 +132,8 @@ function checkCanvases(ownerId: string, steps: Step[]): string | undefined {
   for (const s of steps) {
     if (!s.canvasId) continue
     const c = store.getCanvas(s.canvasId)
-    if (!c || !hasDurableCanvasAccess(ownerId, c)) return 'one of the canvases is not yours'
+    if (!c || !hasDurableCanvasAccess(ownerId, c))
+      return 'Du hast auf eine der Arbeitsflächen keinen dauerhaften Zugriff.'
   }
   return undefined
 }
@@ -150,8 +151,10 @@ function parseInput(
   current?: AutomationRow,
 ): { name: string; enabled: boolean; schedule: AutomationRow['schedule']; steps: Step[] } | string {
   const name =
-    body.name === undefined ? (current?.name ?? 'Untitled automation') : String(body.name).trim().slice(0, MAX_NAME)
-  if (!name) return 'name is required'
+    body.name === undefined
+      ? (current?.name ?? 'Unbenannte Automatisierung')
+      : String(body.name).trim().slice(0, MAX_NAME)
+  if (!name) return 'Bitte gib einen Namen ein.'
   const enabled = body.enabled === undefined ? (current?.enabled ?? true) : !!body.enabled
   const schedule =
     body.schedule === undefined ? (current?.schedule ?? normalizeSchedule({})) : normalizeSchedule(body.schedule)
@@ -257,7 +260,7 @@ class StepError extends Error {
 
 async function runPull(row: AutomationRow, step: Extract<Step, { type: 'pull' }>, actorName: string): Promise<string> {
   const connection = await meta.getConnection(row.ownerId)
-  if (!connection) throw new StepError('Meta is not connected', 'reconnect')
+  if (!connection) throw new StepError('Meta ist nicht verbunden.', 'reconnect')
   try {
     const result = await meta.pullCreatives({
       connection,
@@ -268,11 +271,13 @@ async function runPull(row: AutomationRow, step: Extract<Step, { type: 'pull' }>
       actor: actions.resolveActor({ name: actorName, kind: 'user' }),
     })
     const n = result.created.length
-    const noun = n === 1 ? 'creative' : 'creatives'
-    return result.skipped > 0 ? `${n} new ${noun} (${result.skipped} already here)` : `${n} ${noun} pulled`
+    const noun = n === 1 ? 'Werbemotiv' : 'Werbemotive'
+    return result.skipped > 0
+      ? `${n} ${n === 1 ? 'neues' : 'neue'} ${noun} (${result.skipped} bereits vorhanden)`
+      : `${n} ${noun} importiert`
   } catch (err) {
     if (err instanceof meta.MetaAuthError)
-      throw new StepError(`Meta rejected the connection: ${err.message}`, 'reconnect')
+      throw new StepError('Meta hat die Verbindung abgelehnt. Verbinde Dich erneut.', 'reconnect')
     throw err
   }
 }
@@ -283,7 +288,7 @@ async function runAgent(
   actorName: string,
 ): Promise<string> {
   const gate = await allowance.consumeResidentTask(row.ownerId)
-  if (!gate.ok) throw new StepError('server agent task allowance is unavailable')
+  if (!gate.ok) throw new StepError('Das Aufgabenkontingent des Server-Agenten ist nicht verfügbar.')
   const card = actions.addQueuedCard(
     step.canvasId,
     step.prompt,
@@ -296,9 +301,9 @@ async function runAgent(
   )
   if (!card) {
     await allowance.refundResidentTask(gate, row.ownerId)
-    throw new StepError('canvas not found')
+    throw new StepError('Arbeitsfläche nicht gefunden')
   }
-  return `card queued for ${roleName(step.roles[0])}`
+  return `Aufgabenkarte für ${roleName(step.roles[0])} eingereiht`
 }
 
 /** Run one automation now. The row is re-read here, not carried in from
@@ -311,7 +316,7 @@ export async function runAutomation(
   opts: { scheduled?: boolean } = {},
 ): Promise<AutomationRun | undefined> {
   if (!OPTIONAL_FEATURES.automations) return undefined
-  if (running.has(id)) throw new Error('already running')
+  if (running.has(id)) throw new Error('Läuft bereits')
   running.add(id)
   const summaries: string[] = []
   let run: RunRow | undefined
@@ -335,7 +340,7 @@ export async function runAutomation(
       if (incomplete) throw new StepError(incomplete)
       const bad = checkCanvases(row.ownerId, row.steps)
       if (bad) throw new StepError(bad)
-      const actorName = `${(await getUserName(row.ownerId)) ?? 'Automation'} · ${row.name}`
+      const actorName = `${(await getUserName(row.ownerId)) ?? 'Automatisierung'} · ${row.name}`
       for (const step of row.steps) {
         summaries.push(
           step.type === 'pull' ? await runPull(row, step, actorName) : await runAgent(row, step, actorName),
@@ -346,7 +351,7 @@ export async function runAutomation(
     } catch (err) {
       run.status = 'failed'
       run.summary = summaries.length ? summaries.join(' · ') : null
-      run.error = err instanceof Error ? err.message : String(err)
+      run.error = err instanceof StepError ? err.message : 'Die Automatisierung ist fehlgeschlagen. Versuche es erneut.'
       run.failure = err instanceof StepError ? err.failure : null
     }
     run.endedAt = Date.now()
@@ -419,7 +424,7 @@ export function startScheduler(): void {
 
 export const automationsRouter = express.Router()
 automationsRouter.use((_req, res, next) => {
-  if (!OPTIONAL_FEATURES.automations) return res.status(404).json({ error: 'Automations are disabled' })
+  if (!OPTIONAL_FEATURES.automations) return res.status(404).json({ error: 'Automatisierungen sind deaktiviert.' })
   next()
 })
 
@@ -435,26 +440,26 @@ automationsRouter.post('/', async (req, res) => {
 
 automationsRouter.get('/:id', async (req, res) => {
   const out = await getAutomation(req.user!.id, req.params.id)
-  if (!out) return res.status(404).json({ error: 'not found' })
+  if (!out) return res.status(404).json({ error: 'Nicht gefunden' })
   res.json(out)
 })
 
 automationsRouter.patch('/:id', async (req, res) => {
   const out = await updateAutomation(req.user!.id, req.params.id, req.body ?? {})
-  if (!out) return res.status(404).json({ error: 'not found' })
+  if (!out) return res.status(404).json({ error: 'Nicht gefunden' })
   if (typeof out === 'string') return res.status(400).json({ error: out })
   res.json(out)
 })
 
 automationsRouter.delete('/:id', async (req, res) => {
-  if (!(await deleteAutomation(req.user!.id, req.params.id))) return res.status(404).json({ error: 'not found' })
+  if (!(await deleteAutomation(req.user!.id, req.params.id))) return res.status(404).json({ error: 'Nicht gefunden' })
   res.json({ ok: true })
 })
 
 automationsRouter.get('/:id/runs', async (req, res) => {
   const before = Number(req.query.before) || undefined
   const out = await listRuns(req.user!.id, req.params.id, before)
-  if (!out) return res.status(404).json({ error: 'not found' })
+  if (!out) return res.status(404).json({ error: 'Nicht gefunden' })
   res.json(out)
 })
 
@@ -462,9 +467,9 @@ automationsRouter.get('/:id/runs', async (req, res) => {
    the run has finished — a pull is seconds, an agent step only queues. */
 automationsRouter.post('/:id/run', async (req, res) => {
   const row = await getRow(req.user!.id, req.params.id)
-  if (!row) return res.status(404).json({ error: 'not found' })
-  if (running.has(row.id)) return res.status(409).json({ error: 'already running' })
+  if (!row) return res.status(404).json({ error: 'Nicht gefunden' })
+  if (running.has(row.id)) return res.status(409).json({ error: 'Läuft bereits' })
   const run = await runAutomation(row.id)
-  if (!run) return res.status(404).json({ error: 'not found' })
+  if (!run) return res.status(404).json({ error: 'Nicht gefunden' })
   res.json(run)
 })

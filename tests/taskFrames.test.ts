@@ -12,6 +12,7 @@ vi.mock('../server/db/persist.ts', () => ({
   saveProposal: () => {},
   saveCanvas: () => {},
   saveFrame: () => {},
+  saveFrameVersion: () => {},
 }))
 
 const actions = await import('../server/actions.ts')
@@ -44,6 +45,25 @@ beforeEach(() => {
 })
 
 describe('task frames', () => {
+  it.each([
+    ['create', 'Gestaltet “English Hero”'],
+    ['tweak', 'Verfeinert “English Hero”'],
+    ['redesign', 'Gestaltet “English Hero” neu'],
+    ['stream', 'Gestaltet “English Hero”'],
+  ])('infers a German task for %s while preserving the frame name', (mode, status) => {
+    const human: Actor = { name: 'Alice', kind: 'user', color: '#000' }
+    const frame = actions.createFrame(
+      canvasId,
+      { name: 'English Hero', html: '<h1>Hello there</h1>' },
+      mode === 'create' ? agent : human,
+    )!
+    if (mode === 'tweak') actions.updateFrame(frame.id, { html: '<h1>Hello there!</h1>' }, agent)
+    if (mode === 'redesign') actions.updateFrame(frame.id, { html: '<article>A new design</article>' }, agent)
+    if (mode === 'stream') actions.appendFrameHtml(frame.id, '<main>New', agent, { start: true, done: true })
+    expect(actions.getTasks(canvasId)[0]).toMatchObject({ auto: true, status, frameIds: [frame.id] })
+    expect(store.getFrame(frame.id)?.name).toBe('English Hero')
+  })
+
   it('an announced task remembers the frames edited while it was open', () => {
     actions.setAgentStatus(canvasId, agent, 'Designing the landing page')
     const hero = actions.createFrame(canvasId, { name: 'Hero', html: '<h1>Hi</h1>' }, agent)!

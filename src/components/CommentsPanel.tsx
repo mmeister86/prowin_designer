@@ -35,7 +35,8 @@ export function CommentsPanel() {
     return (
       <PanelBody className="py-2">
         <div className={emptyNote}>
-          No comments on this page yet. Use the comment tool or right-click an element to leave one.
+          Noch keine Kommentare auf dieser Seite. Nutze das Kommentarwerkzeug oder klicke mit der rechten Maustaste auf
+          ein Element, um einen Kommentar zu schreiben.
         </div>
       </PanelBody>
     )
@@ -44,16 +45,18 @@ export function CommentsPanel() {
   return (
     <PanelBody className="pb-2">
       {/* the same quiet segmented switch as the panel's own tabs */}
-      <div role="group" aria-label="Comment filter" className="flex gap-0.5 px-3 pt-2 pb-1">
+      <div role="group" aria-label="Kommentarfilter" className="flex gap-0.5 px-3 pt-2 pb-1">
         <FilterTab active={filter === 'open'} count={counts.open} onClick={() => setFilter('open')}>
-          Open
+          Offen
         </FilterTab>
         <FilterTab active={filter === 'resolved'} count={counts.resolved} onClick={() => setFilter('resolved')}>
-          Resolved
+          Erledigt
         </FilterTab>
       </div>
       {shown.length === 0 ? (
-        <div className={emptyNote}>No {filter} threads on this page.</div>
+        <div className={emptyNote}>
+          Keine {filter === 'open' ? 'offenen' : 'erledigten'} Unterhaltungen auf dieser Seite.
+        </div>
       ) : (
         shown.map((t) => <ThreadRow key={t.root.id} thread={t} />)
       )}
@@ -83,7 +86,9 @@ function FilterTab({
       )}
     >
       {children}
-      <span className={cn('text-[11px] tabular-nums', active ? 'text-ink-soft' : 'text-ink-faint')}>{count}</span>
+      <span className={cn('text-[11px] tabular-nums', active ? 'text-ink-soft' : 'text-ink-faint')}>
+        {count.toLocaleString('de-DE')}
+      </span>
     </button>
   )
 }
@@ -145,7 +150,7 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
       <div
         role="button"
         tabIndex={0}
-        title={frame ? `Go to “${frame.name}”` : 'Go to the pin on the canvas'}
+        title={frame ? `Zu „${frame.name}“ gehen` : 'Zur Markierung auf der Arbeitsfläche'}
         onClick={goToThread}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) return
@@ -186,7 +191,7 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
             )}
             {resolved && root.resolvedBy && (
               <span className="min-w-0 truncate">
-                {frame ? '· ' : ''}resolved by {root.resolvedBy}
+                {frame ? '· ' : ''}erledigt von {root.resolvedBy}
               </span>
             )}
           </span>
@@ -194,10 +199,10 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
       </div>
       {resolved && thread.replies.length > 0 && (
         <Disclosure
-          label={`${thread.replies.length} ${thread.replies.length === 1 ? 'reply' : 'replies'}`}
+          label={`${thread.replies.length.toLocaleString('de-DE')} ${thread.replies.length === 1 ? 'Antwort' : 'Antworten'}`}
           className="py-1 pr-1.5 pl-[28px] text-label text-ink-soft"
         >
-          <ol className="space-y-3" aria-label="Resolved replies">
+          <ol className="space-y-3" aria-label="Erledigte Antworten">
             {thread.replies.map((reply) => (
               <li key={reply.id}>
                 <div className="flex items-center justify-between gap-2">
@@ -216,8 +221,8 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
             variant="bare"
             inputSize="auto"
             className="h-7 min-w-0 flex-1 rounded-[7px] bg-surface px-2.5 shadow-ring focus:shadow-elevation-1-focus md:text-[12px]"
-            placeholder="Reply… @doop to ask the agent"
-            aria-label={`Reply to ${root.from}`}
+            placeholder="Antworten… @doop, um den Agenten zu fragen"
+            aria-label={`Antwort an ${root.from}`}
             value={draft}
             disabled={sending}
             onChange={(e) => setDraft(e.target.value)}
@@ -228,17 +233,18 @@ function ThreadRow({ thread }: { thread: CommentThreadGroup }) {
           <Button
             variant="bare"
             className="h-7 flex-none gap-1 rounded-[7px] px-2 text-[12px] font-normal"
-            title="Mark this thread as resolved"
+            title="Diese Unterhaltung als erledigt markieren"
             onClick={resolve}
           >
             <CheckIcon className="size-3.5" />
-            Resolve
+            Erledigen
           </Button>
         </div>
       )}
       {failed && (
         <div className="pl-[28px] text-[11px] leading-[1.4] text-accent-ink">
-          That reply did not go through — it may be resolved already. Try again.
+          Deine Antwort konnte nicht gesendet werden. Die Unterhaltung wurde möglicherweise bereits erledigt. Versuche
+          es erneut.
         </div>
       )}
     </div>

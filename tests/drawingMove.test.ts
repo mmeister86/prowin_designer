@@ -5,7 +5,6 @@ import type { Canvas, Frame } from '../shared/types'
 vi.mock('../src/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/api')>()),
   api: { createFrame: vi.fn(), updateFrame: vi.fn(), deleteFrame: vi.fn(), getCanvas: vi.fn() },
-  errorMessage: (err: unknown, fallback: string) => (err instanceof Error ? err.message : fallback),
 }))
 const { api, ApiError } = await import('../src/lib/api')
 const { useStore } = await import('../src/lib/store')
@@ -45,7 +44,7 @@ function checkVersion(id: string, expectedUpdatedAt?: number) {
   const current = db.get(id)
   if (!current) throw new Error('Not found')
   if (expectedUpdatedAt !== undefined && current.updatedAt !== expectedUpdatedAt)
-    throw new ApiError(409, JSON.stringify({ error: 'The frame changed.', frame: current }))
+    throw new ApiError(409, JSON.stringify({ error: 'Die Zeichenfläche wurde geändert.', frame: current }))
   return current
 }
 
@@ -189,6 +188,7 @@ describe('moving drawings between frames and canvas', () => {
     await moveDrawing(shape, undefined, rect, base.id)
     expect(api.deleteFrame).not.toHaveBeenCalled()
     expect(frames()).toHaveLength(2)
+    expect(useStore.getState().notice?.text).toBe('Die Zeichnung konnte nicht verschoben werden. Versuche es erneut.')
     vi.mocked(api.deleteFrame).mockRejectedValueOnce(new Error('Offline'))
     await moveDrawing(shape, undefined, rect, base.id)
     expect(frames()[0]!.html).toBe(base.html)
@@ -254,7 +254,7 @@ describe('moving drawings between frames and canvas', () => {
     expect(db.get(remote.id)).toEqual(remote)
     expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
     expect([...db.values()].find((f) => f.id !== remote.id)?.html).toBe(shape.html)
-    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    expect(useStore.getState().notice?.text).toBe('Die Zeichenfläche wurde geändert.')
     if (known) expect(api.updateFrame).not.toHaveBeenCalled()
     else expect(api.updateFrame).toHaveBeenCalledWith(base.id, { html: base.html }, transferred.updatedAt)
     // A failed inverse remains retryable, but retry must never adopt Bob's version.
@@ -280,7 +280,7 @@ describe('moving drawings between frames and canvas', () => {
     expect(db.get(source.id)).toEqual(source)
     expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
     expect(api.deleteFrame).not.toHaveBeenCalled()
-    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    expect(useStore.getState().notice?.text).toBe('Die Zeichenfläche wurde geändert.')
     if (known) expect(api.updateFrame).not.toHaveBeenCalled()
     else
       expect(api.updateFrame).toHaveBeenCalledWith(
@@ -309,7 +309,7 @@ describe('moving drawings between frames and canvas', () => {
       expect(db.get(remote.id)).toEqual(remote)
       expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
       expect(db.get(source.id)?.html).toBe(source.html)
-      expect(useStore.getState().notice?.text).toBe('The frame changed.')
+      expect(useStore.getState().notice?.text).toBe('Die Zeichenfläche wurde geändert.')
       if (known) expect(api.deleteFrame).not.toHaveBeenCalled()
       else expect(api.deleteFrame).toHaveBeenCalledWith(detached.id, detached.updatedAt)
       log.mockRestore()
@@ -335,7 +335,7 @@ describe('moving drawings between frames and canvas', () => {
     }
     await moveDrawing(source, selector, rect, embedded ? base.id : undefined)
     expect(useStore.getState().notice?.text).toBe(
-      'The drawing was copied, but its original could not be removed. You can undo the copy.',
+      'Die Zeichnung wurde kopiert, aber das Original konnte nicht entfernt werden. Du kannst das Kopieren rückgängig machen.',
     )
     const destination = [...db.values()].find((f) => f.id !== source.id)!
     const remote = {
@@ -349,7 +349,7 @@ describe('moving drawings between frames and canvas', () => {
     expect(db.get(remote.id)).toEqual(remote)
     expect(frames().find((f) => f.id === remote.id)).toEqual(remote)
     expect(db.get(source.id)?.html).toBe(source.html)
-    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    expect(useStore.getState().notice?.text).toBe('Die Zeichenfläche wurde geändert.')
     log.mockRestore()
   })
 
@@ -368,13 +368,13 @@ describe('moving drawings between frames and canvas', () => {
     })
     await moveDrawing(source, selector, { ...rect, x: -100 })
     expect(useStore.getState().notice?.text).toBe(
-      'The original could not be removed. The detached copy was kept because it was edited.',
+      'Das Original konnte nicht entfernt werden. Die losgelöste Kopie wurde beibehalten, weil sie bearbeitet wurde.',
     )
     const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     await undo()
     expect(db.get(remote.id)).toEqual(remote)
     expect(db.get(source.id)).toEqual(source)
-    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    expect(useStore.getState().notice?.text).toBe('Die Zeichenfläche wurde geändert.')
     log.mockRestore()
   })
 
@@ -394,11 +394,11 @@ describe('moving drawings between frames and canvas', () => {
     await redo()
     expect(db.get(base.id)).toEqual(remoteDestination)
     expect(db.get(remoteSource.id)).toEqual(remoteSource)
-    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    expect(useStore.getState().notice?.text).toBe('Die Zeichenfläche wurde geändert.')
     useStore.setState({ notice: null })
     await redo()
     expect(db.get(remoteSource.id)).toEqual(remoteSource)
-    expect(useStore.getState().notice?.text).toBe('The frame changed.')
+    expect(useStore.getState().notice?.text).toBe('Die Zeichenfläche wurde geändert.')
     log.mockRestore()
   })
 
@@ -456,7 +456,7 @@ describe('moving drawings between frames and canvas', () => {
       expect(frames()).toHaveLength(2)
       expect(frames()[0]!.html).toBe(source.html)
       expect(frames()[1]).toMatchObject(patch)
-      expect(useStore.getState().notice?.text).toContain('kept because it was edited')
+      expect(useStore.getState().notice?.text).toContain('beibehalten, weil sie bearbeitet wurde')
     },
   )
 
@@ -550,7 +550,9 @@ describe('moving drawings between frames and canvas', () => {
     await moveDrawing(shape, undefined, rect, base.id)
     expect(db.get(base.id)).toEqual(remote)
     expect(db.has(shape.id)).toBe(true)
-    expect(useStore.getState().notice?.text).toContain('Both copies were kept')
+    expect(useStore.getState().notice?.text).toBe(
+      'Das Ziel wurde während des Verschiebens geändert. Beide Kopien wurden beibehalten. Entferne die zusätzliche Zeichnung manuell.',
+    )
     expect(frames().find((f) => f.id === base.id)).toEqual(remote)
     await undo()
     expect(db.get(base.id)).toEqual(remote)

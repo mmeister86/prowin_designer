@@ -35,7 +35,7 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
     api
       .frameVersions(frame.id)
       .then((list) => alive && setVersions(list))
-      .catch((err) => alive && setError(errorMessage(err, 'Couldn’t load the version history')))
+      .catch((err) => alive && setError(errorMessage(err, 'Der Versionsverlauf konnte nicht geladen werden')))
     return () => {
       alive = false
     }
@@ -47,7 +47,7 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
     api
       .frameVersion(frame.id, selected.id)
       .then((version) => alive && setLoaded(version))
-      .catch((err) => alive && setError(errorMessage(err, 'Couldn’t load this version')))
+      .catch((err) => alive && setError(errorMessage(err, 'Diese Version konnte nicht geladen werden')))
     return () => {
       alive = false
     }
@@ -62,10 +62,12 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
       const { frame: after, replaced } = await api.restoreFrameVersion(frame.id, version.id)
       recordUpdate(frame.id, replaced, { html: after.html, width: after.width, height: after.height })
       useStore.getState().upsertFrame(after)
-      useStore.getState().pushNotice(`Restored “${after.name}” to the version from ${timeAgo(version.savedAt)}`)
+      useStore
+        .getState()
+        .pushNotice(`„${after.name}“ wurde auf die Version von ${timeAgo(version.savedAt)} zurückgesetzt`)
       onClose()
     } catch (err) {
-      setError(errorMessage(err, 'Couldn’t restore this version'))
+      setError(errorMessage(err, 'Diese Version konnte nicht wiederhergestellt werden'))
       setBusy(false)
     }
   }
@@ -73,9 +75,14 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
   /* who wrote the picked state, and when — known from the listing before its HTML loads */
   const picked =
     selected === 'current'
-      ? { label: 'current design · last edit by', name: live.updatedBy, kind: undefined, at: live.updatedAt }
+      ? {
+          label: 'Aktuelles Design · zuletzt bearbeitet von',
+          name: live.updatedBy,
+          kind: undefined,
+          at: live.updatedAt,
+        }
       : selected
-        ? { label: 'by', name: selected.savedBy, kind: selected.savedByKind, at: selected.savedAt }
+        ? { label: 'von', name: selected.savedBy, kind: selected.savedByKind, at: selected.savedAt }
         : null
   const shown: Shown | null =
     selected === 'current'
@@ -87,10 +94,10 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
   return (
     <Modal size="xl" onClose={onClose}>
       <div className="flex flex-wrap items-baseline gap-2.5">
-        <ModalTitle className="break-words">“{live.name}” — version history</ModalTitle>
+        <ModalTitle className="break-words">„{live.name}“ – Versionsverlauf</ModalTitle>
         {shown && (
           <Badge tone="outline" className="rounded-full px-2 py-px">
-            {Math.round(shown.width)}×{Math.round(shown.height)}
+            {Math.round(shown.width).toLocaleString('de-DE')}×{Math.round(shown.height).toLocaleString('de-DE')}
           </Badge>
         )}
       </div>
@@ -98,17 +105,22 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
       {picked ? (
         <>
           <div className="mt-1.5 flex items-center gap-1.5 text-[11.5px] text-ink-faint">
-            {picked.label} <Author name={picked.name} kind={picked.kind} /> · {new Date(picked.at).toLocaleString()}
+            {picked.label} <Author name={picked.name} kind={picked.kind} /> ·{' '}
+            {new Date(picked.at).toLocaleString('de-DE')}
           </div>
-          {shown ? <VersionPreview title={live.name} version={shown} /> : <ModalLede>Loading this version…</ModalLede>}
+          {shown ? (
+            <VersionPreview title={live.name} version={shown} />
+          ) : (
+            <ModalLede>Diese Version wird geladen…</ModalLede>
+          )}
           <ModalActions>
             <Button variant="ghost" disabled={busy} onClick={() => setSelected(null)}>
-              Back
+              Zurück
             </Button>
             <ModalSpacer />
             {selected && selected !== 'current' && (
               <Button variant="primary" disabled={busy || !shown} onClick={() => void restore(selected)}>
-                {busy ? 'Restoring…' : 'Restore this version'}
+                {busy ? 'Wird wiederhergestellt…' : 'Diese Version wiederherstellen'}
               </Button>
             )}
           </ModalActions>
@@ -116,30 +128,32 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
       ) : (
         <>
           <ModalLede>
-            Every design a redesign, stream or restore replaced is kept here. Pick one to preview it, then restore it
-            for everyone on the canvas.
+            Hier bleiben alle Designs erhalten, die durch eine Neugestaltung, einen Stream oder eine Wiederherstellung
+            ersetzt wurden. Wähle eine Version zur Vorschau und stelle sie für alle auf der Arbeitsfläche wieder her.
           </ModalLede>
           <div className="mt-3.5 overflow-hidden rounded-[12px] border border-line bg-surface">
             <ListRow className="border-b-0" onClick={() => setSelected('current')}>
-              <ListTitle>Current</ListTitle>
+              <ListTitle>Aktuell</ListTitle>
               <ListSummary>
-                {Math.round(live.width)}×{Math.round(live.height)} · {kb(live.html.length)}
+                {Math.round(live.width).toLocaleString('de-DE')}×{Math.round(live.height).toLocaleString('de-DE')} ·{' '}
+                {kb(live.html.length)}
               </ListSummary>
               <ListMeta className="flex items-center gap-1">
                 <Author name={live.updatedBy} /> · {timeAgo(live.updatedAt)}
               </ListMeta>
             </ListRow>
-            {versions === null && !error && <ModalLede className="px-4 pb-3">Loading…</ModalLede>}
+            {versions === null && !error && <ModalLede className="px-4 pb-3">Wird geladen…</ModalLede>}
             {versions?.length === 0 && (
               <ModalLede className="px-4 pb-3">
-                No earlier versions yet — they appear once a design is replaced.
+                Noch keine früheren Versionen. Sie erscheinen, sobald ein Design ersetzt wird.
               </ModalLede>
             )}
             {(versions ?? []).map((v, i) => (
               <ListRow key={v.id} className="border-b-0 border-t border-line-soft" onClick={() => setSelected(v)}>
                 <ListTitle>v{(versions?.length ?? 0) - i}</ListTitle>
                 <ListSummary>
-                  {Math.round(v.width)}×{Math.round(v.height)} · {kb(v.htmlBytes)}
+                  {Math.round(v.width).toLocaleString('de-DE')}×{Math.round(v.height).toLocaleString('de-DE')} ·{' '}
+                  {kb(v.htmlBytes)}
                 </ListSummary>
                 <ListMeta className="flex items-center gap-1">
                   <Author name={v.savedBy} kind={v.savedByKind} /> · {timeAgo(v.savedAt)}
@@ -149,7 +163,7 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
           </div>
           <ModalActions>
             <Button variant="ghost" onClick={onClose}>
-              Close
+              Schließen
             </Button>
           </ModalActions>
         </>
@@ -159,7 +173,9 @@ export function FrameHistoryModal({ frame, onClose }: { frame: Frame; onClose: (
 }
 
 function kb(bytes: number): string {
-  return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(bytes < 10_240 ? 1 : 0)} KB`
+  return bytes < 1024
+    ? `${bytes.toLocaleString('de-DE')} B`
+    : `${(bytes / 1024).toLocaleString('de-DE', { minimumFractionDigits: bytes < 10_240 ? 1 : 0, maximumFractionDigits: bytes < 10_240 ? 1 : 0 })} KB`
 }
 
 function Author({ name, kind }: { name: string; kind?: FrameVersion['savedByKind'] }) {

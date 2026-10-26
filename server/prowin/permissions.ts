@@ -32,7 +32,7 @@ export function canvasCapabilities(canvas: Canvas): CanvasCapabilities {
 export class CreatorPermissionError extends Error {
   readonly status = 403
   constructor() {
-    super('Creator rights in this canvas are required')
+    super('Du benötigst Creator-Rechte auf dieser Arbeitsfläche.')
   }
 }
 

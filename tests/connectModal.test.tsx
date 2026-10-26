@@ -55,90 +55,92 @@ afterEach(() => {
 
 it('opens on the agent picker and walks to an agent’s own steps and back', async () => {
   await mount('c1')
-  expect(text()).toContain('Choose your agent')
+  expect(text()).toContain('Wähle Deinen Agenten')
   expect(text()).not.toContain('Connect your plan')
-  expect(button('Connect')).toBeDefined()
+  expect(button('Verbinden')).toBeDefined()
 
   await pickCard('Codex')
-  await click('Connect')
-  expect(text()).toContain('Connect Codex')
+  await click('Verbinden')
+  expect(text()).toContain('Verbinden Codex')
   expect(text()).toContain(`codex mcp add doop --url ${location.origin}/mcp`)
-  expect(text()).toContain('Work on Doop canvas c1.')
-  expect(text()).toContain('listening for Codex')
+  expect(text()).toContain('Arbeite auf der Doop-Arbeitsfläche c1.')
+  expect(text()).toContain('Warte auf Codex')
 
-  await click('Back')
-  expect(text()).toContain('Choose your agent')
+  await click('Zurück')
+  expect(text()).toContain('Wähle Deinen Agenten')
 })
 
 it('defaults to Claude Code and shows its command plus the sign-in step', async () => {
   await mount('c1')
-  await click('Connect')
-  expect(text()).toContain('Connect Claude Code')
+  await click('Verbinden')
+  expect(text()).toContain('Verbinden Claude Code')
   expect(text()).toContain(`claude mcp add --transport http doop "${location.origin}/mcp"`)
-  expect(text()).toContain('/mcp')
-  await click('Done')
+  expect(text()).toContain(
+    'Gib in Claude Code /mcp ein, wähle doop und dann Authentifizieren. Ein Browser-Tab öffnet sich, in dem Du die Verbindung genehmigen kannst.',
+  )
+  await click('Fertig')
   expect(onClose).toHaveBeenCalledOnce()
 })
 
 it('offers general MCP clients without a ChatGPT app connector', async () => {
   await mount('c1')
   expect(buttons().some((b) => b.textContent?.includes('Connect in your browser'))).toBe(false)
-  await pickCard('Other MCP client')
-  await click('Connect')
+  await pickCard('Anderer MCP-Client')
+  await click('Verbinden')
   expect(text()).toContain(`${location.origin}/mcp`)
 })
 
 it('keeps the headless agent-key path on the generic MCP screen and returns to the canvas from Settings', async () => {
   await mount('c1')
-  await pickCard('Other MCP client')
-  await click('Connect')
+  await pickCard('Anderer MCP-Client')
+  await click('Verbinden')
   expect(text()).toContain('"mcpServers"')
-  await click('Settings → Agent keys')
+  await click('Einstellungen → Agentenschlüssel')
   expect(mocks.navigate).toHaveBeenCalledWith('/settings?pane=keys&from=%2Fc%2Fc1')
 })
 
 it('skips the canvas prompt and the arrival status when opened without a canvas', async () => {
   await mount()
-  await click('Connect')
-  expect(text()).not.toContain('Work on Doop canvas')
-  expect(text()).not.toContain('listening for')
-  expect(text()).toContain('Open a canvas and tell the agent to work on it')
+  await click('Verbinden')
+  expect(text()).not.toContain('Arbeite auf der Doop-Arbeitsfläche')
+  expect(text()).not.toContain('Warte auf')
+  expect(text()).toContain('Öffne eine Arbeitsfläche und bitte den Agenten, darauf zu arbeiten')
 })
 
 it('explains the local desktop path and keeps file installation as a collapsed fallback', async () => {
   await mount('desktop-canvas')
-  await pickCard('Add Doop to Claude')
-  await click('Connect')
-  expect(button('Desktop app')?.getAttribute('aria-pressed')).toBe('true')
+  await pickCard('Doop zu Claude hinzufügen')
+  await click('Verbinden')
+  expect(button('Desktop-App')?.getAttribute('aria-pressed')).toBe('true')
   const download = document.querySelector<HTMLAnchorElement>('a[download="doop.mcpb"]')
   expect(download?.getAttribute('href')).toBe('/claude-extension/doop.mcpb')
   expect(download?.closest('[data-slot="disclosure"] > [data-state]')?.getAttribute('data-state')).toBe('closed')
-  expect(text()).toContain('Doop server URL')
+  expect(text()).toContain('Doop-Server-URL')
   expect(text()).toContain(`${location.origin}/mcp`)
-  expect(text()).toContain('Work on Doop canvas desktop-canvas.')
-  expect(text()).toContain('Install Extension')
+  expect(text()).toContain('Arbeite auf der Doop-Arbeitsfläche desktop-canvas.')
+  expect(text()).toContain('Erweiterung installieren')
 
-  await click('Connect online')
+  await click('Online verbinden')
   expect(document.querySelector('a[download]')).toBeNull()
-  expect(text()).toContain('publicly reachable HTTPS server')
+  expect(text()).toContain('öffentlich erreichbaren HTTPS-Server')
   expect(document.querySelector('a[href*="claude.ai"]')).toBeNull()
-  await click('Desktop app')
+  await click('Desktop-App')
   expect(document.querySelector('a[download="doop.mcpb"]')).not.toBeNull()
 })
 
 it('defaults to a prefilled Add to Claude link on hosted Doop, without a download', async () => {
   vi.stubGlobal('location', new URL('https://design.example.com'))
   await mount('hosted-canvas')
-  await pickCard('Add Doop to Claude')
-  await click('Connect')
-  expect(button('Connect online')?.getAttribute('aria-pressed')).toBe('true')
+  await pickCard('Doop zu Claude hinzufügen')
+  await click('Verbinden')
+  expect(button('Online verbinden')?.getAttribute('aria-pressed')).toBe('true')
   const link = document.querySelector<HTMLAnchorElement>('a[href*="claude.ai"]')!
   const url = new URL(link.href)
-  expect(link.textContent).toBe('Add to Claude')
+  expect(link.textContent).toBe('Zu Claude hinzufügen')
   expect(url.searchParams.get('modal')).toBe('add-custom-connector')
   expect(url.searchParams.get('connectorUrl')).toBe('https://design.example.com/mcp')
   expect(document.querySelector('a[download]')).toBeNull()
-  expect(text()).toContain('Work on Doop canvas hosted-canvas.')
+  expect(text()).toContain('Arbeite auf der Doop-Arbeitsfläche hosted-canvas.')
 })
 
 it('opens Claude directly in a capable shell and waits for Claude’s confirmation', async () => {
@@ -151,25 +153,27 @@ it('opens Claude directly in a capable shell and waits for Claude’s confirmati
       }),
   )
   await mount('local-canvas')
-  await pickCard('Add Doop to Claude')
-  await click('Connect')
-  await click('Add to Claude')
-  expect(button('Opening Claude…')?.disabled).toBe(true)
+  await pickCard('Doop zu Claude hinzufügen')
+  await click('Verbinden')
+  await click('Zu Claude hinzufügen')
+  expect(button('Claude wird geöffnet…')?.disabled).toBe(true)
   expect(mocks.addToDesktop).toHaveBeenCalledExactlyOnceWith('http://localhost:4301/mcp')
   await act(async () => finish())
-  expect(text()).toContain('Confirm the installation in Claude')
-  expect(text()).not.toContain('is here — it worked')
+  expect(text()).toContain('Bestätige die Installation in Claude')
+  expect(text()).not.toContain('ist da — es hat geklappt')
 })
 
 it('shows native handoff errors and allows retry', async () => {
   mocks.native = true
   mocks.addToDesktop.mockRejectedValue(new Error('Install Claude Desktop first.'))
   await mount()
-  await pickCard('Add Doop to Claude')
-  await click('Connect')
-  await click('Add to Claude')
-  expect(document.querySelector('[role="alert"]')?.textContent).toBe('Install Claude Desktop first.')
-  expect(button('Add to Claude')?.disabled).toBe(false)
+  await pickCard('Doop zu Claude hinzufügen')
+  await click('Verbinden')
+  await click('Zu Claude hinzufügen')
+  expect(document.querySelector('[role="alert"]')?.textContent).toBe(
+    'Claude konnte nicht geöffnet werden. Prüfe, ob Claude Desktop installiert ist, und versuche es erneut.',
+  )
+  expect(button('Zu Claude hinzufügen')?.disabled).toBe(false)
 })
 
 // Decode the actual rendered install link to catch a wrong config envelope or endpoint.
@@ -179,9 +183,9 @@ it.each(['https://doop.design', 'http://localhost:4301'])(
     vi.stubGlobal('location', new URL(origin))
     await mount('cursor-canvas')
     await pickCard('Cursor')
-    await click('Connect')
+    await click('Verbinden')
 
-    const link = Array.from(document.body.querySelectorAll('a')).find((a) => a.textContent === 'Add to Cursor')!
+    const link = Array.from(document.body.querySelectorAll('a')).find((a) => a.textContent === 'Zu Cursor hinzufügen')!
     const installUrl = new URL(link.href)
     expect(installUrl.protocol).toBe('cursor:')
     expect(installUrl.host).toBe('anysphere.cursor-deeplink')
@@ -189,10 +193,10 @@ it.each(['https://doop.design', 'http://localhost:4301'])(
     expect(installUrl.searchParams.get('name')).toBe('doop')
     expect(JSON.parse(atob(installUrl.searchParams.get('config')!))).toEqual({ url: `${origin}/mcp` })
     expect(document.querySelector('[data-slot="collapsible-trigger"]')?.getAttribute('aria-expanded')).toBe('false')
-    expect(text()).toContain('keeping any existing servers')
-    expect(text()).toContain('Work on Doop canvas cursor-canvas.')
-    expect(text()).toContain('listening for Cursor')
-    expect(text()).not.toContain('it worked')
+    expect(text()).toContain('behalte bestehende Server bei')
+    expect(text()).toContain('Arbeite auf der Doop-Arbeitsfläche cursor-canvas.')
+    expect(text()).toContain('Warte auf Cursor')
+    expect(text()).not.toContain('es hat geklappt')
     expect(document.querySelector('a[download]')).toBeNull()
   },
 )

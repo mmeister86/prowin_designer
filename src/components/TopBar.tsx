@@ -67,7 +67,7 @@ const titleCls = 'min-w-0 max-w-[240px] sm:min-w-[60px] sm:max-w-[320px]'
 export function TopBarTitle({
   value,
   onCommit,
-  placeholder = 'Untitled',
+  placeholder = 'Unbenannt',
   loading = false,
   pill = false,
 }: {

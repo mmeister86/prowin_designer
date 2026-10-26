@@ -30,7 +30,7 @@ export function IntegrationCard({
           <div className="mt-0.5 truncate text-label text-ink-soft">{detail}</div>
         </div>
         <StatusLabel tone={connected ? 'done' : 'muted'} className="ml-auto">
-          {connected ? 'connected' : 'not connected'}
+          {connected ? 'verbunden' : 'nicht verbunden'}
         </StatusLabel>
       </div>
       {children}
@@ -45,7 +45,7 @@ export function IntegrationCard({
 export function DisconnectButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
   return (
     <Button variant="bare" size="sm" className="text-ink-soft" disabled={disabled} onClick={onClick}>
-      Disconnect
+      Trennen
     </Button>
   )
 }

@@ -56,7 +56,7 @@ const clickable =
   'transition-transform hover:z-10 hover:-translate-y-px focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-faint'
 
 function presenceLabel(p: Presence) {
-  return `${p.name}${p.kind === 'agent' ? (p.owner ? ` (${p.owner}'s agent)` : ' (agent)') : ''}${p.status ? ` — ${p.status}` : ''}`
+  return `${p.name}${p.kind === 'agent' ? (p.owner ? ` (Agent von ${p.owner})` : ' (Agent)') : ''}${p.status ? ` — ${p.status}` : ''}`
 }
 
 function FollowAvatar({ presence: p }: { presence: Presence }) {
@@ -68,7 +68,7 @@ function FollowAvatar({ presence: p }: { presence: Presence }) {
       /* lifted so the next avatar in the stack does not paint over the halo */
       className={cn(stacked, clickable, followed && 'relative z-10')}
       aria-pressed={followed}
-      title={followed ? `Stop following ${p.name}` : `Follow ${p.name} around the canvas`}
+      title={followed ? `${p.name} nicht mehr folgen` : `${p.name} auf der Arbeitsfläche folgen`}
       onClick={() => setFollowing(followed ? null : p.clientId)}
     >
       <PresenceFace
@@ -97,7 +97,7 @@ function JumpAvatar({ presence: p, glazeDelay }: { presence: Presence; glazeDela
     <button
       type="button"
       className={cn(stacked, clickable, 'relative', active && 'z-[2]')}
-      title={`${presenceLabel(p)} — click to go where it is working`}
+      title={`${presenceLabel(p)} – klicke, um zum Arbeitsort zu springen`}
       onClick={() => {
         const s = useStore.getState()
         const at = locatePresence(p, s)

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import type { ElementInfo, StylePatch } from '../lib/frameBridge'
 import { flexAlignmentAt, flexAxes } from '../lib/flexLayout'
+import { cssValueLabel } from '../lib/cssValues'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -20,17 +21,17 @@ import { Segmented, SegmentedItem } from './ui/segmented'
 const control = 'h-[26px] min-h-0 rounded-row bg-sub p-0 text-ink-soft'
 const caption = 'mb-1 text-caption text-ink-faint'
 const spacing = [
-  ['fixed', 'Fixed gap'],
-  ['space-between', 'Space between'],
-  ['space-around', 'Space around'],
-  ['space-evenly', 'Space evenly'],
+  ['fixed', 'Fester Abstand'],
+  ['space-between', 'Abstand dazwischen'],
+  ['space-around', 'Abstand ringsum'],
+  ['space-evenly', 'Gleichmäßig verteilen'],
 ] as const
 const crossAlignments = [
-  { value: 'flex-start', label: 'Start' },
-  { value: 'center', label: 'Center' },
-  { value: 'flex-end', label: 'End' },
-  { value: 'stretch', label: 'Stretch' },
-  { value: 'baseline', label: 'Baseline' },
+  { value: 'flex-start', label: 'Anfang' },
+  { value: 'center', label: 'Mitte' },
+  { value: 'flex-end', label: 'Ende' },
+  { value: 'stretch', label: 'Strecken' },
+  { value: 'baseline', label: 'Grundlinie' },
 ]
 
 export function PaddingControls({ info, apply }: { info: ElementInfo; apply: (styles: StylePatch) => void }) {
@@ -40,13 +41,13 @@ export function PaddingControls({ info, apply }: { info: ElementInfo; apply: (st
   return (
     <div className="mt-2">
       <div className="mb-1 flex items-center justify-between">
-        <span className="text-caption text-ink-faint">Padding</span>
+        <span className="text-caption text-ink-faint">Innenabstand</span>
         <Button
           variant="bare"
           size="icon-sm"
           className="size-5 rounded-tag text-ink-faint"
-          aria-label="Individual padding"
-          title="Edit padding on each side"
+          aria-label="Einzelne Innenabstände"
+          title="Innenabstand auf jeder Seite bearbeiten"
           aria-expanded={expanded}
           aria-pressed={expanded}
           onClick={() => setExpanded(!expanded)}
@@ -59,8 +60,8 @@ export function PaddingControls({ info, apply }: { info: ElementInfo; apply: (st
           sides.map((side, index) => (
             <NumberField
               key={side}
-              label={`Padding ${side}`}
-              prefix={side[0]!.toUpperCase()}
+              label={`Innenabstand ${{ top: 'oben', right: 'rechts', bottom: 'unten', left: 'links' }[side]}`}
+              prefix={{ top: 'O', right: 'R', bottom: 'U', left: 'L' }[side]}
               value={info.padding[index] ?? null}
               unit="px"
               onCommit={(value) => apply({ [`padding-${side}`]: `${Math.max(0, value)}px` })}
@@ -69,20 +70,20 @@ export function PaddingControls({ info, apply }: { info: ElementInfo; apply: (st
         ) : (
           <>
             <NumberField
-              label="Vertical padding"
+              label="Vertikaler Innenabstand"
               prefix={<VerticalPaddingIcon size="rail" />}
               value={top === bottom ? top : null}
-              placeholder="Mixed"
+              placeholder="Gemischt"
               unit="px"
               onCommit={(value) =>
                 apply({ 'padding-top': `${Math.max(0, value)}px`, 'padding-bottom': `${Math.max(0, value)}px` })
               }
             />
             <NumberField
-              label="Horizontal padding"
+              label="Horizontaler Innenabstand"
               prefix={<HorizontalPaddingIcon size="rail" />}
               value={left === right ? left : null}
-              placeholder="Mixed"
+              placeholder="Gemischt"
               unit="px"
               onCommit={(value) =>
                 apply({ 'padding-left': `${Math.max(0, value)}px`, 'padding-right': `${Math.max(0, value)}px` })
@@ -110,14 +111,14 @@ export function FlexLayoutControls({ info, apply }: { info: ElementInfo; apply: 
 
   return (
     <PropertySection
-      title="Flex layout"
+      title="Flex-Layout"
       action={
         <Button
           variant="bare"
           size="icon-sm"
           className={cn('size-6 rounded-row text-ink-faint', wrapping && 'bg-paper-deep text-ink')}
-          aria-label="Wrap children"
-          title={info.flexWrap === 'wrap-reverse' ? 'Wrapping in reverse order' : 'Wrap children'}
+          aria-label="Unterelemente umbrechen"
+          title={info.flexWrap === 'wrap-reverse' ? 'Umbruch in umgekehrter Reihenfolge' : 'Unterelemente umbrechen'}
           aria-pressed={wrapping}
           onClick={() => apply({ 'flex-wrap': wrapping ? 'nowrap' : 'wrap' })}
         >
@@ -128,13 +129,13 @@ export function FlexLayoutControls({ info, apply }: { info: ElementInfo; apply: 
       <div className="flex gap-1.5">
         <Segmented
           className="min-w-0 flex-1 rounded-row bg-sub p-0.5"
-          aria-label="Flex direction"
+          aria-label="Flex-Richtung"
           value={column ? 'column' : 'row'}
           onValueChange={(value) => apply({ 'flex-direction': `${value}${reverse ? '-reverse' : ''}` })}
         >
           {[
-            { value: 'row', label: 'Row direction', Icon: ArrowRightIcon },
-            { value: 'column', label: 'Column direction', Icon: ArrowDownIcon },
+            { value: 'row', label: 'Zeilenrichtung', Icon: ArrowRightIcon },
+            { value: 'column', label: 'Spaltenrichtung', Icon: ArrowDownIcon },
           ].map(({ value, label, Icon }) => (
             <SegmentedItem
               key={value}
@@ -151,8 +152,8 @@ export function FlexLayoutControls({ info, apply }: { info: ElementInfo; apply: 
           variant="bare"
           size="icon-sm"
           className={cn(control, 'w-[30px]', reverse && 'bg-paper-deep text-ink')}
-          aria-label="Reverse direction"
-          title="Reverse direction"
+          aria-label="Richtung umkehren"
+          title="Richtung umkehren"
           aria-pressed={reverse}
           onClick={() => apply({ 'flex-direction': `${column ? 'column' : 'row'}${reverse ? '' : '-reverse'}` })}
         >
@@ -161,24 +162,24 @@ export function FlexLayoutControls({ info, apply }: { info: ElementInfo; apply: 
       </div>
       <div className="mt-2 grid grid-cols-[84px_minmax(0,1fr)] gap-2">
         <div>
-          <div className={caption}>Alignment</div>
+          <div className={caption}>Ausrichtung</div>
           <div
             role="group"
-            aria-label="Flex alignment"
+            aria-label="Flex-Ausrichtung"
             className="grid size-[84px] grid-cols-3 grid-rows-3 rounded-row bg-sub p-1"
           >
             {[0, 1, 2].flatMap((y) =>
               [0, 1, 2].map((x) => {
                 const target = flexAlignmentAt(info, x, y)
                 const active = align === target.align && (distributed || justify === target.justify)
-                const label = `Align children ${['top', 'middle', 'bottom'][y]} ${['left', 'center', 'right'][x]}`
+                const label = `Unterelemente ${['oben', 'mittig', 'unten'][y]} ${['links', 'zentriert', 'rechts'][x]} ausrichten`
                 return (
                   <Pressable
                     key={`${x}-${y}`}
                     type="button"
                     aria-label={label}
                     aria-pressed={active}
-                    title={distributed ? `${label} (keep ${info.justifyContent.replace('space-', 'space ')})` : label}
+                    title={distributed ? `${label} (Verteilung beibehalten)` : label}
                     className="group grid place-items-center rounded-tag hover:bg-paper-deep focus-visible:outline-2 focus-visible:outline-ink"
                     onClick={() =>
                       apply({ 'align-items': target.align, ...(!distributed && { 'justify-content': target.justify }) })
@@ -197,20 +198,20 @@ export function FlexLayoutControls({ info, apply }: { info: ElementInfo; apply: 
           </div>
           <div className="mt-1.5 flex">
             <SelectField
-              label="Cross-axis alignment"
+              label="Ausrichtung der Querachse"
               value={align}
               options={
                 crossAlignments.some(({ value }) => value === align)
                   ? crossAlignments
-                  : [...crossAlignments, { value: align, label: align }]
+                  : [...crossAlignments, { value: align, label: cssValueLabel(align) }]
               }
               onChange={(value) => apply({ 'align-items': value })}
             />
           </div>
         </div>
         <div>
-          <div className={caption}>Gap</div>
-          <div role="radiogroup" aria-label="Flex spacing" className="space-y-1">
+          <div className={caption}>Abstand</div>
+          <div role="radiogroup" aria-label="Flex-Abstände" className="space-y-1">
             {spacing.map(([value, label]) => (
               <div key={value} className="flex h-[26px] items-center gap-1.5">
                 <label className="flex min-w-0 cursor-pointer items-center gap-1.5 text-caption text-ink-soft">
@@ -228,7 +229,7 @@ export function FlexLayoutControls({ info, apply }: { info: ElementInfo; apply: 
                 </label>
                 {value === 'fixed' && (
                   <NumberField
-                    label="Gap"
+                    label="Abstand"
                     value={gap ?? 0}
                     unit="px"
                     onCommit={(value) => apply({ [axes.gap]: `${Math.max(0, value)}px` })}
@@ -240,9 +241,9 @@ export function FlexLayoutControls({ info, apply }: { info: ElementInfo; apply: 
         </div>
       </div>
       {wrapping && (
-        <PropertyRow label="Line gap">
+        <PropertyRow label="Zeilenabstand">
           <NumberField
-            label="Line gap"
+            label="Zeilenabstand"
             value={crossGap ?? 0}
             unit="px"
             onCommit={(value) => apply({ [axes.crossGap]: `${Math.max(0, value)}px` })}

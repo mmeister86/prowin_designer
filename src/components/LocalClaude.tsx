@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { authClient } from '../lib/auth'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
+import { localClaudeActionMessage } from '../lib/localClaudeErrors'
 import { isDesktopShell } from '../lib/shell'
 import {
   disconnectLocalAgent,
@@ -22,26 +23,38 @@ import { planRow, planMark, planPill, planAsCode, actionsRow } from './ui/model-
 
 const DESKTOP_DOWNLOAD_URL = 'https://doop.design/download/mac'
 
+/** Only these exact texts are app-authored fallbacks. Other result text belongs
+ * to the CLI/agent and must remain intact, including English user content. */
+function localClaudeResultMessage(result: string): string {
+  if (result === 'Claude did not complete the task. Check your login and usage limits, then retry.') {
+    return 'Claude hat die Aufgabe nicht abgeschlossen. Prüfe Deine Anmeldung und Nutzungslimits und versuche es erneut.'
+  }
+  if (result === 'Claude exited without a result. Check your CLI login and version, then retry.') {
+    return 'Claude wurde ohne Ergebnis beendet. Prüfe Deine CLI-Anmeldung und -Version und versuche es erneut.'
+  }
+  return result
+}
+
 /** The plan as a browser sees it: nothing to connect here, so the row is
  *  muted and its only action is getting the desktop app. */
 function DesktopOnlyClaudeRow({ active }: { active: boolean }) {
   return (
-    <section aria-label="Claude Plan — desktop app" className={cn(planRow(false), 'bg-paper-deep/60')}>
+    <section aria-label="Claude-Abonnement — Desktop-App" className={cn(planRow(false), 'bg-paper-deep/60')}>
       <span aria-hidden="true" className={cn(planMark(false), 'border-line bg-paper-deep opacity-50 grayscale')}>
         <AgentIcon name="claude" size={20} />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-[10px] max-md:flex-wrap max-md:items-start max-md:gap-x-[9px] max-md:gap-y-[6px]">
           <h3 className="font-display text-[18px] font-extrabold normal-case tracking-[-0.02em] text-ink-soft max-md:text-[17px]">
-            Claude Plan
+            Claude-Abonnement
           </h3>
           <span className={cn(planPill(false), 'inline-flex items-center gap-[5px] bg-paper-deep text-ink-soft')}>
             <DesktopIcon width={14} height={14} aria-hidden />
-            Desktop app
+            Desktop-App
           </span>
         </div>
         <p className="mt-1.5 text-[14px] leading-[1.55] text-ink-soft max-md:text-[13.5px]">
-          Use your Claude subscription locally.
+          Nutze Dein Claude-Abonnement lokal.
         </p>
         <div className="mt-[18px] flex flex-wrap gap-[9px]">
           {CLAUDE_MODELS.map((model) => (
@@ -52,7 +65,7 @@ function DesktopOnlyClaudeRow({ active }: { active: boolean }) {
         </div>
         <div className="mt-[13px] flex items-center justify-between gap-5 max-md:flex-col max-md:items-start max-md:gap-2">
           <p className="text-[13px] text-ink-faint">
-            {active ? 'Waiting for a connected desktop.' : 'Use this plan in the Doop desktop app.'}
+            {active ? 'Warte auf einen verbundenen Desktop.' : 'Nutze dieses Abonnement in der Doop-Desktop-App.'}
           </p>
           <a
             className="inline-flex items-center gap-[7px] py-1 text-[13px] font-semibold text-brand hover:underline"
@@ -61,7 +74,7 @@ function DesktopOnlyClaudeRow({ active }: { active: boolean }) {
             rel="noreferrer"
           >
             <DownloadIcon width={15} height={15} strokeWidth={1.8} aria-hidden />
-            Download desktop app
+            Desktop-App herunterladen
           </a>
         </div>
       </div>
@@ -79,7 +92,9 @@ export function LocalClaudeRow() {
   useEffect(() => {
     if (!userId) return
     const refresh = () => {
-      refreshLocalAgent(userId).catch((e: unknown) => setError(String(e)))
+      refreshLocalAgent(userId).catch((e: unknown) =>
+        setError(errorMessage(e, 'Der Desktop-Status konnte nicht geladen werden. Versuche es erneut.')),
+      )
     }
     refresh()
     window.addEventListener('focus', refresh)
@@ -92,7 +107,7 @@ export function LocalClaudeRow() {
     try {
       await fn()
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      setError(localClaudeActionMessage(e))
     } finally {
       setBusy(false)
     }
@@ -107,8 +122,8 @@ export function LocalClaudeRow() {
       if (!userId) return
       if (!active || !connected) {
         const { native: current } = await refreshLocalAgent(userId)
-        if (!current?.installed) throw new Error('Install Claude Code to connect.')
-        if (!current.connected) throw new Error('Sign in to Claude Code to connect.')
+        if (!current?.installed) throw new Error('Installiere Claude Code, um Dich zu verbinden.')
+        if (!current.connected) throw new Error('Melde Dich bei Claude Code an, um Dich zu verbinden.')
       }
       await selectLocalAgent(userId, { enabled: true, model })
     })
@@ -123,24 +138,24 @@ export function LocalClaudeRow() {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-[10px] max-md:flex-wrap max-md:items-start max-md:gap-x-[9px] max-md:gap-y-[6px]">
           <h3 className="font-display text-[18px] font-extrabold normal-case tracking-[-0.02em] text-ink max-md:text-[17px]">
-            Claude Plan
+            Claude-Abonnement
           </h3>
           <span className={planPill(connected)}>
-            {connected ? (active ? 'Active · Connected' : 'Connected') : 'Not connected'}
+            {connected ? (active ? 'Aktiv · Verbunden' : 'Verbunden') : 'Nicht verbunden'}
           </span>
         </div>
         <p className="mt-1.5 text-[14px] leading-[1.55] text-ink-soft max-md:text-[13.5px]">
-          Use your Claude subscription locally.
+          Nutze Dein Claude-Abonnement lokal.
         </p>
         {connected && native?.email && (
           <dl className="mt-[14px] grid grid-cols-[auto_auto] items-center justify-start gap-x-[14px] gap-y-2 text-[13px] text-ink-soft max-md:grid-cols-1 max-md:gap-[3px]">
-            <dt>Connected as</dt>
+            <dt>Verbunden als</dt>
             <dd className="min-w-0">
               <code className={planAsCode}>{native.email}</code>
             </dd>
             {native.plan && (
               <>
-                <dt className="max-md:mt-2">Plan</dt>
+                <dt className="max-md:mt-2">Tarif</dt>
                 <dd className="min-w-0">
                   <code className={planAsCode}>{native.plan.charAt(0).toUpperCase() + native.plan.slice(1)}</code>
                 </dd>
@@ -151,7 +166,7 @@ export function LocalClaudeRow() {
         <div className={actionsRow}>
           {connected ? (
             <ToggleChipGroup
-              aria-label="Claude model"
+              aria-label="Claude-Modell"
               value={selectedModel}
               disabled={busy || running}
               onValueChange={(model) => choose(model as ClaudeModel)}
@@ -191,12 +206,12 @@ export function LocalClaudeRow() {
                     })
                   }
                 >
-                  {installing ? 'Installing…' : 'Install Claude Code'}
+                  {installing ? 'Wird installiert…' : 'Claude Code installieren'}
                 </Button>
               )}
               {!connected && error && (
                 <Button variant="ghost" disabled={busy} onClick={() => act(() => refreshLocalAgent(userId!))}>
-                  Refresh
+                  Aktualisieren
                 </Button>
               )}
               {native?.installed && !native.connected && (
@@ -209,17 +224,17 @@ export function LocalClaudeRow() {
                     })
                   }
                 >
-                  {busy ? 'Signing in…' : 'Sign in'}
+                  {busy ? 'Anmeldung läuft…' : 'Anmelden'}
                 </Button>
               )}
               {native?.connected && (!active || !connected) && (
                 <Button disabled={busy} onClick={() => choose()}>
-                  {active ? 'Connect' : 'Use instead'}
+                  {active ? 'Verbinden' : 'Stattdessen verwenden'}
                 </Button>
               )}
               {connected && (
                 <Button variant="danger" disabled={busy} onClick={() => act(() => disconnectLocalAgent(userId!))}>
-                  Disconnect
+                  Trennen
                 </Button>
               )}
               {running && (
@@ -232,32 +247,34 @@ export function LocalClaudeRow() {
                     })
                   }
                 >
-                  Stop task
+                  Aufgabe stoppen
                 </Button>
               )}
             </div>
           )}
         </div>
         {connected && <p className="mt-[10px] text-[13px] text-ink-faint">{selectedBlurb}</p>}
-        {!supported && <p className="mt-[10px] text-[13px] text-ink-faint">Update Doop to connect Claude.</p>}
+        {!supported && (
+          <p className="mt-[10px] text-[13px] text-ink-faint">Aktualisiere Doop, um Claude zu verbinden.</p>
+        )}
         {supported && native && !native.installed && (
           <p className="mt-[10px] text-[13px] text-ink-faint">
             <a className="underline" href="https://code.claude.com/docs/en/setup" target="_blank" rel="noreferrer">
-              Installation guide
+              Installationsanleitung
             </a>
           </p>
         )}
         {active && !connected && (
-          <p className="mt-[10px] text-[13px] text-ink-faint">Waiting for a connected desktop.</p>
+          <p className="mt-[10px] text-[13px] text-ink-faint">Warte auf einen verbundenen Desktop.</p>
         )}
         {(running || runnerError) && (
           <Disclosure
-            label={running ? 'Working…' : 'Last task failed'}
+            label={running ? 'Wird bearbeitet…' : 'Letzte Aufgabe fehlgeschlagen'}
             className="mt-[10px] text-[13px] text-ink-soft"
             triggerClassName={cn(runnerError && 'text-accent-ink')}
           >
             <pre className="max-h-48 overflow-auto whitespace-pre-wrap font-sans" aria-live="polite">
-              {runnerError || progress}
+              {runnerError ? localClaudeResultMessage(runnerError) : progress}
             </pre>
           </Disclosure>
         )}

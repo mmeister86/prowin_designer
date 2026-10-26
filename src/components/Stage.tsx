@@ -197,7 +197,8 @@ export function Stage({
         const py = (((vp.y % vp.zoom) + vp.zoom) % vp.zoom) - vp.zoom
         pixels.style.transform = `translate(${px}px, ${py}px)`
       }
-      if (zoomLabelRef.current) zoomLabelRef.current.textContent = `${Math.round(vp.zoom * 100)}%`
+      if (zoomLabelRef.current)
+        zoomLabelRef.current.textContent = `${Math.round(vp.zoom * 100).toLocaleString('de-DE')} %`
     }
     apply(useStore.getState().viewport)
     let settle = 0
@@ -931,12 +932,12 @@ export function Stage({
             >
               <span>
                 {tool === 'path'
-                  ? 'Click for corners · Drag for curves · Snap to points · Enter to finish'
+                  ? 'Klicke für Ecken · Ziehe für Kurven · Raste an Punkten ein · Enter zum Abschließen'
                   : tool === 'text'
-                    ? `Click or drag, then type · ${MOD_KEY}Enter to save`
+                    ? `Klicke oder ziehe und gib dann Text ein · ${MOD_KEY}Enter zum Speichern`
                     : tool === 'circle'
-                      ? 'Drag to draw a circle · Esc to cancel'
-                      : 'Drag to draw · Shift for a square · Esc to cancel'}
+                      ? 'Ziehe, um einen Kreis zu zeichnen · Esc zum Abbrechen'
+                      : 'Ziehe zum Zeichnen · Shift für ein Quadrat · Esc zum Abbrechen'}
               </span>
               {drawing.pathActive && (
                 <>
@@ -946,16 +947,16 @@ export function Stage({
                     disabled={!drawing.canFinishPath}
                     onClick={drawing.finish}
                   >
-                    Finish path
+                    Pfad abschließen
                   </button>
                   <button type="button" onClick={drawing.cancel}>
-                    Cancel
+                    Abbrechen
                   </button>
                 </>
               )}
             </div>
           )}
-          <Toolbar aria-label="Canvas tools" className="md:w-10 md:flex-col">
+          <Toolbar aria-label="Werkzeuge der Arbeitsfläche" className="md:w-10 md:flex-col">
             {/* one fill slides between tools; the buttons themselves stay
                 transparent so the pill is the only thing that moves */}
             <ToolbarHighlight activeKey={tool} />
@@ -990,10 +991,10 @@ export function Stage({
               disabled={!hasFrameClip()}
               onSelect={() => pasteFrameAtScreen(canvas.id, bgAt.current.x, bgAt.current.y)}
             >
-              Paste
+              Einfügen
               <MenuHint>{MOD_KEY}V</MenuHint>
             </ContextMenuItem>
-            <ContextMenuItem onSelect={onAddFrame}>New frame</ContextMenuItem>
+            <ContextMenuItem onSelect={onAddFrame}>Neue Zeichenfläche</ContextMenuItem>
           </ContextMenuContent>
         )}
       </ContextMenu>

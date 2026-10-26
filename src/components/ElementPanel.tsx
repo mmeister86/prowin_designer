@@ -16,6 +16,7 @@ import { replaceLayerHtml } from '../lib/layerEdits'
 import {
   aspectRatio,
   borderSummary,
+  cssValueLabel,
   colorAlpha,
   colorWithAlpha,
   lengthValue,
@@ -204,12 +205,12 @@ export function ElementPanel({
             <small className="ml-[5px] text-[11px] font-normal text-ink-faint">in {parentLabel}</small>
           </span>
           {parentNode && (
-            <Tooltip label="Select parent" side="bottom" align="end">
+            <Tooltip label="Übergeordnetes Element auswählen" side="bottom" align="end">
               <Button
                 variant="bare"
                 size="icon-sm"
                 className="size-[22px] text-ink-faint hover:bg-paper-deep hover:text-ink"
-                aria-label="Select parent"
+                aria-label="Übergeordnetes Element auswählen"
                 onClick={() =>
                   useStore.getState().setSelectedElement({ frameId: frame.id, selector: parentNode.selector })
                 }
@@ -228,7 +229,7 @@ export function ElementPanel({
                 <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
               </PropertyScrubContext.Provider>
             ) : stale ? (
-              <div aria-busy className="pointer-events-none opacity-50" title="Reading the element…">
+              <div aria-busy className="pointer-events-none opacity-50" title="Element wird gelesen…">
                 <DesignTab info={stale} apply={apply} editGeometry={editGeometry} />
               </div>
             ) : (
@@ -245,38 +246,44 @@ export function ElementPanel({
 }
 
 function Waiting() {
-  return <div className="px-3 py-6 text-center text-[12px] text-ink-faint">Reading the element…</div>
+  return <div className="px-3 py-6 text-center text-[12px] text-ink-faint">Element wird gelesen…</div>
 }
 
 /* ---- Design tab ---- */
 
 const DISPLAYS: { value: string; label: string }[] = [
-  { value: 'block', label: 'block' },
-  { value: 'flex', label: 'flex' },
-  { value: 'grid', label: 'grid' },
-  { value: 'inline-block', label: 'inline-block' },
-  { value: 'inline-flex', label: 'inline-flex' },
-  { value: 'inline', label: 'inline' },
-  { value: 'none', label: 'none' },
+  { value: 'block', label: 'Block' },
+  { value: 'flex', label: 'Flex-Layout' },
+  { value: 'grid', label: 'Raster' },
+  { value: 'inline-block', label: 'Inline-Block' },
+  { value: 'inline-flex', label: 'Inline-Flex' },
+  { value: 'inline', label: 'In Textzeile' },
+  { value: 'none', label: 'Ausgeblendet' },
 ]
-const POSITIONS = ['static', 'relative', 'absolute', 'fixed', 'sticky']
+const POSITIONS = [
+  { value: 'static', label: 'Statisch' },
+  { value: 'relative', label: 'Relativ' },
+  { value: 'absolute', label: 'Absolut' },
+  { value: 'fixed', label: 'Fixiert' },
+  { value: 'sticky', label: 'Haftend' },
+]
 const WEIGHTS = ['100', '200', '300', '400', '500', '600', '700', '800', '900']
 const LAYER_ALIGNS = [
-  { axis: 'x', edge: 'start', label: 'Align layer left', Icon: AlignStartVerticalIcon },
-  { axis: 'x', edge: 'center', label: 'Center layer horizontally', Icon: AlignCenterVerticalIcon },
-  { axis: 'x', edge: 'end', label: 'Align layer right', Icon: AlignEndVerticalIcon },
-  { axis: 'y', edge: 'start', label: 'Align layer top', Icon: AlignStartHorizontalIcon },
-  { axis: 'y', edge: 'center', label: 'Center layer vertically', Icon: AlignCenterHorizontalIcon },
-  { axis: 'y', edge: 'end', label: 'Align layer bottom', Icon: AlignEndHorizontalIcon },
+  { axis: 'x', edge: 'start', label: 'Ebene links ausrichten', Icon: AlignStartVerticalIcon },
+  { axis: 'x', edge: 'center', label: 'Ebene horizontal zentrieren', Icon: AlignCenterVerticalIcon },
+  { axis: 'x', edge: 'end', label: 'Ebene rechts ausrichten', Icon: AlignEndVerticalIcon },
+  { axis: 'y', edge: 'start', label: 'Ebene oben ausrichten', Icon: AlignStartHorizontalIcon },
+  { axis: 'y', edge: 'center', label: 'Ebene vertikal zentrieren', Icon: AlignCenterHorizontalIcon },
+  { axis: 'y', edge: 'end', label: 'Ebene unten ausrichten', Icon: AlignEndHorizontalIcon },
 ] as const
 const ALIGNS = [
-  { value: 'left', label: 'Align left', Icon: AlignLeftIcon },
-  { value: 'center', label: 'Align center', Icon: AlignCenterIcon },
-  { value: 'right', label: 'Align right', Icon: AlignRightIcon },
-  { value: 'justify', label: 'Justify', Icon: AlignJustifyIcon },
+  { value: 'left', label: 'Linksbündig', Icon: AlignLeftIcon },
+  { value: 'center', label: 'Zentriert', Icon: AlignCenterIcon },
+  { value: 'right', label: 'Rechtsbündig', Icon: AlignRightIcon },
+  { value: 'justify', label: 'Blocksatz', Icon: AlignJustifyIcon },
 ]
 const SYSTEM_FONTS = [
-  { value: 'system-ui, sans-serif', label: 'System UI' },
+  { value: 'system-ui, sans-serif', label: 'Systemschrift' },
   { value: 'Arial, sans-serif', label: 'Arial' },
   { value: 'Helvetica, sans-serif', label: 'Helvetica' },
   { value: 'Verdana, sans-serif', label: 'Verdana' },
@@ -315,10 +322,10 @@ function fontOptions(info: ElementInfo) {
   })
 }
 const SIZE_MODES: { value: SizeMode; label: string }[] = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'fixed', label: 'Fixed' },
-  { value: 'fill', label: 'Fill' },
-  { value: 'hug', label: 'Hug' },
+  { value: 'auto', label: 'Automatisch' },
+  { value: 'fixed', label: 'Fest' },
+  { value: 'fill', label: 'Ausfüllen' },
+  { value: 'hug', label: 'An Inhalt anpassen' },
 ]
 
 function displayValue(info: ElementInfo): string {
@@ -328,9 +335,9 @@ function displayValue(info: ElementInfo): string {
 function parentLayout(info: ElementInfo): string {
   const p = info.parent
   if (!p) return ''
-  if (p.display === 'grid' || p.display === 'inline-grid') return 'grid'
-  if (p.display === 'flex' || p.display === 'inline-flex') return `flex ${p.flexDirection.replace('-reverse', '')}`
-  return p.display
+  if (p.display === 'grid' || p.display === 'inline-grid') return 'Raster'
+  if (p.display === 'flex' || p.display === 'inline-flex') return `Flex-Layout · ${cssValueLabel(p.flexDirection)}`
+  return cssValueLabel(p.display)
 }
 
 function DesignTab({
@@ -422,8 +429,8 @@ function DesignTab({
   }
   return (
     <>
-      <PropertySection title="Alignment">
-        <div className="flex gap-1" role="group" aria-label="Layer alignment within parent">
+      <PropertySection title="Ausrichtung">
+        <div className="flex gap-1" role="group" aria-label="Ebene im übergeordneten Element ausrichten">
           {LAYER_ALIGNS.map(({ axis, edge, label, Icon }) => (
             <Button
               key={label}
@@ -431,7 +438,7 @@ function DesignTab({
               size="icon-sm"
               className="h-[26px] min-w-0 flex-1 rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep"
               aria-label={label}
-              title={`${label} within parent`}
+              title={`${label} im übergeordneten Element`}
               disabled={!info.geometry.canAlign}
               onClick={() => editGeometry({ kind: 'align', axis, edge })}
             >
@@ -441,9 +448,12 @@ function DesignTab({
         </div>
       </PropertySection>
       <PropertySection title="Position">
-        <div className="grid grid-cols-2 gap-1.5" title="Rendered position relative to parent, in frame pixels">
+        <div
+          className="grid grid-cols-2 gap-1.5"
+          title="Dargestellte Position relativ zum übergeordneten Element, in Pixeln der Zeichenfläche"
+        >
           <NumberField
-            label="X position"
+            label="X-Position"
             min={-Infinity}
             prefix="X"
             value={info.geometry.x}
@@ -452,7 +462,7 @@ function DesignTab({
             onCommit={(value) => editGeometry({ kind: 'position', axis: 'x', value })}
           />
           <NumberField
-            label="Y position"
+            label="Y-Position"
             min={-Infinity}
             prefix="Y"
             value={info.geometry.y}
@@ -463,7 +473,7 @@ function DesignTab({
         </div>
         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
           <NumberField
-            label="Rotation"
+            label="Drehung"
             min={-Infinity}
             prefix={<CircleDashedIcon size="rail" />}
             value={info.geometry.rotation}
@@ -474,7 +484,7 @@ function DesignTab({
           <div className="grid grid-cols-2 gap-1.5">
             {(['x', 'y'] as const).map((axis) => {
               const Icon = axis === 'x' ? FlipHorizontal2Icon : FlipVertical2Icon
-              const label = axis === 'x' ? 'Flip horizontally' : 'Flip vertically'
+              const label = axis === 'x' ? 'Horizontal spiegeln' : 'Vertikal spiegeln'
               const pressed = (axis === 'x' ? info.geometry.scaleX : info.geometry.scaleY) < 0
               return (
                 <Button
@@ -497,19 +507,19 @@ function DesignTab({
             })}
           </div>
         </div>
-        <PropertyRow label="Type">
+        <PropertyRow label="Typ">
           <SelectField
-            label="Position type"
+            label="Positionstyp"
             value={info.position}
-            options={POSITIONS.map((p) => ({ value: p, label: p }))}
+            options={POSITIONS}
             onChange={(v) => apply({ position: v })}
           />
         </PropertyRow>
-        <PropertyRow label="Order">
+        <PropertyRow label="Reihenfolge">
           <StaticField>
             {info.index}
             <FieldUnit>
-              of {info.count}
+              von {info.count.toLocaleString('de-DE')}
               {parentLayout(info) && ` · ${parentLayout(info)}`}
             </FieldUnit>
           </StaticField>
@@ -521,10 +531,10 @@ function DesignTab({
           <Tooltip
             label={
               ratio !== null
-                ? 'Unlink width and height'
+                ? 'Breite und Höhe entkoppeln'
                 : canLink
-                  ? 'Link width and height'
-                  : 'Set a positive width and height to link them'
+                  ? 'Breite und Höhe koppeln'
+                  : 'Lege eine positive Breite und Höhe fest, um sie zu koppeln'
             }
           >
             <span>
@@ -535,7 +545,7 @@ function DesignTab({
                   'size-5 rounded-tag',
                   ratio !== null ? 'bg-ink text-paper hover:bg-ink/85 hover:text-paper' : 'text-ink-faint',
                 )}
-                aria-label="Link width and height"
+                aria-label="Breite und Höhe koppeln"
                 aria-pressed={ratio !== null}
                 disabled={ratio === null && !canLink}
                 onClick={toggleRatio}
@@ -550,14 +560,14 @@ function DesignTab({
           {(['width', 'height'] as const).map((axis) => (
             <div key={axis} className="flex min-w-0 flex-col gap-1">
               <NumberField
-                label={axis === 'width' ? 'Width' : 'Height'}
+                label={axis === 'width' ? 'Breite' : 'Höhe'}
                 prefix={axis === 'width' ? 'W' : 'H'}
                 value={info[axis]}
                 unit="px"
                 onCommit={(v) => setSize(axis, 'fixed', v)}
               />
               <SelectField
-                label={`${axis === 'width' ? 'Width' : 'Height'} sizing`}
+                label={axis === 'width' ? 'Breitenanpassung' : 'Höhenanpassung'}
                 value={modeFor(axis)}
                 options={SIZE_MODES}
                 onChange={(v) => setSize(axis, v)}
@@ -565,17 +575,17 @@ function DesignTab({
             </div>
           ))}
         </div>
-        <PropertyRow label="Min width">
+        <PropertyRow label="Min. Breite">
           <LengthField
-            label="Minimum width"
+            label="Mindestbreite"
             value={info.inline['min-width'] ?? (info.minWidth === '0px' ? '' : info.minWidth)}
-            placeholder="auto"
+            placeholder="automatisch"
             onCommit={(v) => apply({ 'min-width': lengthValue(v) })}
           />
         </PropertyRow>
-        <PropertyRow label="Display">
+        <PropertyRow label="Darstellung">
           <SelectField
-            label="Display"
+            label="Darstellung"
             value={displayValue(info)}
             options={DISPLAYS}
             onChange={(v) => apply({ display: v })}
@@ -584,15 +594,15 @@ function DesignTab({
         {!isFlex && (
           <>
             {info.display.includes('grid') && (
-              <PropertyRow label="Gap">
+              <PropertyRow label="Abstand">
                 <NumberField
-                  label="Row gap"
+                  label="Zeilenabstand"
                   value={info.rowGap ?? 0}
                   unit="px"
                   onCommit={(v) => apply({ 'row-gap': `${Math.max(0, v)}px` })}
                 />
                 <NumberField
-                  label="Column gap"
+                  label="Spaltenabstand"
                   value={info.columnGap ?? 0}
                   unit="px"
                   onCommit={(v) => apply({ 'column-gap': `${Math.max(0, v)}px` })}
@@ -605,14 +615,14 @@ function DesignTab({
       </PropertySection>
       {isFlex && <FlexLayoutControls info={info} apply={apply} />}
       <PropertySection
-        title="Appearance"
+        title="Aussehen"
         action={
           <Button
             variant="bare"
             size="icon-sm"
             className="size-5 rounded-tag text-ink-faint"
-            aria-label={visible ? 'Hide element' : 'Show element'}
-            title={visible ? 'Hide element' : 'Show element'}
+            aria-label={visible ? 'Element ausblenden' : 'Element einblenden'}
+            title={visible ? 'Element ausblenden' : 'Element einblenden'}
             aria-pressed={!visible}
             onClick={() => apply({ visibility: visible ? 'hidden' : 'visible' })}
           >
@@ -622,7 +632,7 @@ function DesignTab({
       >
         <div className="grid grid-cols-2 gap-1.5">
           <NumberField
-            label="Element opacity"
+            label="Deckkraft des Elements"
             max={100}
             prefix={<DropletIcon size="rail" />}
             value={info.opacity === null ? null : Math.round(info.opacity * 100)}
@@ -630,7 +640,7 @@ function DesignTab({
             onCommit={(v) => apply({ opacity: String(Math.min(100, Math.max(0, v)) / 100) })}
           />
           <NumberField
-            label="Corner radius"
+            label="Eckenradius"
             prefix={<RadiusIcon size="rail" />}
             value={info.borderRadius}
             unit="px"
@@ -638,20 +648,20 @@ function DesignTab({
           />
         </div>
         <label className="mt-2 flex h-5 cursor-pointer items-center justify-between text-[11.5px] text-ink-soft">
-          Clip content
+          Inhalt beschneiden
           <Switch
             size="sm"
-            aria-label="Clip content"
+            aria-label="Inhalt beschneiden"
             className="data-[state=checked]:bg-ink"
             checked={info.clipsContent}
             onCheckedChange={(on) => apply({ overflow: on ? 'hidden' : 'visible' })}
           />
         </label>
       </PropertySection>
-      <PropertySection title="Fill">
+      <PropertySection title="Füllung">
         <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
           <ColorField
-            label="Fill color"
+            label="Füllfarbe"
             value={fillAlpha === 0 && fill === '#000000' ? null : fill}
             onCommit={(v) =>
               apply({
@@ -662,7 +672,7 @@ function DesignTab({
             }
           />
           <NumberField
-            label="Fill opacity"
+            label="Deckkraft der Füllung"
             max={100}
             value={Math.round(fillAlpha * 100)}
             unit="%"
@@ -670,17 +680,17 @@ function DesignTab({
           />
         </div>
       </PropertySection>
-      <PropertySection title="Stroke">
+      <PropertySection title="Kontur">
         <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
           <ColorField
-            label="Border color"
+            label="Rahmenfarbe"
             value={borderColor}
             onCommit={(v) =>
               apply({ 'border-color': v, ...(v && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}) })
             }
           />
           <NumberField
-            label="Border width"
+            label="Rahmenbreite"
             value={border.width}
             unit="px"
             onCommit={(v) =>
@@ -691,28 +701,32 @@ function DesignTab({
             }
           />
         </div>
-        {border.sides && <p className="mt-1 text-[10.5px] text-ink-faint">Sides: {border.sides}</p>}
+        {border.sides && (
+          <p className="mt-1 text-[10.5px] text-ink-faint">
+            Seiten: {border.sides.split(' ').map(cssValueLabel).join(', ')}
+          </p>
+        )}
       </PropertySection>
       {info.hasText && (
         <PropertySection title="Text">
-          <PropertyRow label="Font">
+          <PropertyRow label="Schrift">
             <SelectField
-              label="Font family"
+              label="Schriftfamilie"
               value={info.fontFamily}
               options={fontOptions(info)}
               onChange={(v) => apply({ 'font-family': v })}
             />
           </PropertyRow>
-          <PropertyRow label="Size">
+          <PropertyRow label="Größe">
             <NumberField
-              label="Font size"
+              label="Schriftgröße"
               value={info.fontSize}
               unit="px"
               onCommit={(v) => apply({ 'font-size': `${v}px` })}
             />
             <SelectField
               className="flex-[0_0_66px]"
-              label="Font weight"
+              label="Schriftstärke"
               value={info.fontWeight}
               options={[...new Set([...WEIGHTS, info.fontWeight])]
                 .sort((a, b) => Number(a) - Number(b))
@@ -720,12 +734,12 @@ function DesignTab({
               onChange={(v) => apply({ 'font-weight': v })}
             />
           </PropertyRow>
-          <PropertyRow label="Color">
+          <PropertyRow label="Farbe">
             <ColorField value={rgbToHex(info.color)} onCommit={(v) => apply({ color: v })} />
           </PropertyRow>
-          <PropertyRow label="Align">
+          <PropertyRow label="Ausrichten">
             <Segmented
-              aria-label="Text alignment"
+              aria-label="Textausrichtung"
               className="w-full gap-1 rounded-none bg-transparent p-0"
               value={textAlign}
               onValueChange={(v) => apply({ 'text-align': v })}

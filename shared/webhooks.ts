@@ -12,12 +12,12 @@ export const WEBHOOK_EVENTS = [
 export type WebhookEventType = (typeof WEBHOOK_EVENTS)[number]
 
 export const WEBHOOK_EVENT_LABELS: Record<WebhookEventType, string> = {
-  'comment.created': 'A comment is left on an element',
-  'comment.replied': 'A reply lands in a comment thread',
-  'comment.resolved': 'A comment thread is resolved',
-  'frame.created': 'A frame is created',
-  'task.completed': 'An agent finishes a board card',
-  'task.failed': 'An agent fails a board card',
+  'comment.created': 'Ein Kommentar wird zu einem Element hinterlassen',
+  'comment.replied': 'Eine Antwort wird zu einem Kommentarverlauf hinzugefügt',
+  'comment.resolved': 'Ein Kommentarverlauf wird als erledigt markiert',
+  'frame.created': 'Eine Zeichenfläche wird erstellt',
+  'task.completed': 'Ein Agent schließt eine Aufgabenkarte ab',
+  'task.failed': 'Ein Agent kann eine Aufgabenkarte nicht abschließen',
 }
 
 /** A webhook as the settings page sees it: never the secret. */

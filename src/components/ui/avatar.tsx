@@ -120,7 +120,7 @@ function AvatarStack({
         <Avatar key={p.id} size={size} stacked name={p.name} color={p.color} title={p.name} />
       ))}
       {extra > 0 && (
-        <Avatar size={size} stacked name={`${extra} more`} color="var(--ink-faint)" title={`${extra} more`}>
+        <Avatar size={size} stacked name={`${extra} weitere`} color="var(--ink-faint)" title={`${extra} weitere`}>
           +{extra}
         </Avatar>
       )}

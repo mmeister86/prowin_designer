@@ -71,7 +71,7 @@ export function hydrateLogs(data: {
  *  dev restart): no agent will ever finish it, so at boot it becomes a
  *  visible, retryable failure instead of sitting "in progress" forever. */
 function failInterruptedWork() {
-  const reason = 'Interrupted by a server restart. Retry when you are ready.'
+  const reason = 'Durch einen Serverneustart unterbrochen. Starte die Aufgabe erneut, wenn Du bereit bist.'
   const now = Date.now()
   for (const [canvasId, list] of taskLog) {
     for (const t of list) {
@@ -191,6 +191,10 @@ export function pendingWorkAgents(canvasId: string): string[] {
   return names
 }
 
+function sameAgentIdentity(a: string, b: string): boolean {
+  return (roleByAgentName(a)?.id ?? a) === (roleByAgentName(b)?.id ?? b)
+}
+
 /**
  * Who pays for the next run: the account behind the OLDEST piece of work this
  * agent can claim. A run bills exactly one person, so the queue is worked one
@@ -210,7 +214,13 @@ export function nextWorkPayer(canvasId: string, agentName: string, skip?: Readon
     if (!oldest || at < oldest.at) oldest = { at, payer }
   }
   for (const card of taskLog.get(canvasId) ?? []) {
-    if (card.queuedBy && !card.agentName && !card.failedAt && !card.endedAt && stageAgent(card) === agentName) {
+    if (
+      card.queuedBy &&
+      !card.agentName &&
+      !card.failedAt &&
+      !card.endedAt &&
+      sameAgentIdentity(stageAgent(card), agentName)
+    ) {
       consider(card.startedAt, card.queuedByUserId)
     }
   }
@@ -220,13 +230,13 @@ export function nextWorkPayer(canvasId: string, agentName: string, skip?: Readon
       !c.claimedBy &&
       !c.failedAt &&
       !c.resolvedAt &&
-      (c.targetAgent ?? roleName(DEFAULT_ROLE_ID)) === agentName
+      sameAgentIdentity(c.targetAgent ?? roleName(DEFAULT_ROLE_ID), agentName)
     ) {
       consider(c.at, c.fromUserId)
     }
   }
   for (const f of feedbackLog.get(canvasId) ?? []) {
-    if (!f.deliveredAt && !f.failedAt && (!f.targetAgent || f.targetAgent === agentName)) {
+    if (!f.deliveredAt && !f.failedAt && (!f.targetAgent || sameAgentIdentity(f.targetAgent, agentName))) {
       consider(f.at, f.fromUserId)
     }
   }
@@ -283,7 +293,7 @@ export function setAgentStatus(canvasId: string, actor: Actor, status: string) {
     taskLog.set(canvasId, list)
     void persist.saveTask(canvasId, task)
     broadcast(canvasId, { type: 'task', task })
-    logActivity(canvasId, actor, `is working on: ${clean}`)
+    logActivity(canvasId, actor, `arbeitet an: ${clean}`)
   }
 }
 
@@ -347,7 +357,7 @@ export function addTaskFeedback(
     logActivity(
       canvasId,
       resolveActor({ name: from, kind: 'user' }),
-      `left feedback on ${task.agentName}’s task: “${clean}”`,
+      `hat eine Rückmeldung zur Aufgabe von ${task.agentName} hinterlassen: “${clean}”`,
     )
     return fb
   }
@@ -362,7 +372,7 @@ export function takeFeedbackFor(canvasId: string, agentName: string, payer?: str
     (f) =>
       !f.deliveredAt &&
       !f.failedAt &&
-      (!f.targetAgent || f.targetAgent === agentName) &&
+      (!f.targetAgent || sameAgentIdentity(f.targetAgent, agentName)) &&
       (payer === undefined || (f.fromUserId ?? '') === payer),
   )
   for (const f of pending) {
@@ -421,7 +431,11 @@ export function retryTaskFeedback(feedbackId: string, by: string, serverPaid?: b
     delete feedback.failureReason
     void persist.saveFeedback(feedback)
     broadcast(canvasId, { type: 'feedback', feedback })
-    logActivity(canvasId, resolveActor({ name: by, kind: 'user' }), 'retried agent feedback')
+    logActivity(
+      canvasId,
+      resolveActor({ name: by, kind: 'user' }),
+      'hat die Rückmeldung an den Agenten erneut gesendet',
+    )
     import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
     return feedback
   }
@@ -576,15 +590,15 @@ function postComment(
   void persist.saveComment(comment)
   broadcast(canvasId, { type: 'comment', comment })
   const excerpt = clean.length > 80 ? clean.slice(0, 77) + '…' : clean
-  const where = frame ? `in “${frame.name}”` : 'on the canvas'
+  const where = frame ? `in “${frame.name}”` : 'auf der Arbeitsfläche'
   logActivity(
     canvasId,
     resolveActor({ name: from, kind }),
     parentId
-      ? `replied to a comment ${where}: “${excerpt}”`
+      ? `hat auf einen Kommentar ${where} geantwortet: “${excerpt}”`
       : frame
-        ? `commented on an element in “${frame.name}”: “${excerpt}”`
-        : `commented on the canvas: “${excerpt}”`,
+        ? `hat ein Element in “${frame.name}” kommentiert: “${excerpt}”`
+        : `hat die Arbeitsfläche kommentiert: “${excerpt}”`,
     frame?.id,
   )
   if (comment.forAgent) {
@@ -620,7 +634,7 @@ export function takeAgentCommentsFor(canvasId: string, agentName: string, payer?
       !c.claimedBy &&
       !c.failedAt &&
       !c.resolvedAt &&
-      (c.targetAgent ?? roleName(DEFAULT_ROLE_ID)) === agentName &&
+      sameAgentIdentity(c.targetAgent ?? roleName(DEFAULT_ROLE_ID), agentName) &&
       (payer === undefined || (c.fromUserId ?? '') === payer),
   )
   for (const c of pending) {
@@ -657,7 +671,12 @@ export function retryComment(commentId: string, by: string, serverPaid?: boolean
     delete comment.failureReason
     void persist.saveComment(comment)
     broadcast(canvasId, { type: 'comment', comment })
-    logActivity(canvasId, resolveActor({ name: by, kind: 'user' }), 'retried a comment', comment.frameId)
+    logActivity(
+      canvasId,
+      resolveActor({ name: by, kind: 'user' }),
+      'hat einen Kommentar erneut gesendet',
+      comment.frameId,
+    )
     import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
     return comment
   }
@@ -704,7 +723,7 @@ export function resolveComment(commentId: string, by: string): ElementComment | 
 export function agentSummary(canvasId: string, actor: Actor, text: string) {
   const clean = text.replace(/\s+/g, ' ').trim()
   if (!clean) return
-  logActivity(canvasId, actor, `finished: “${clean.length > 220 ? clean.slice(0, 217) + '…' : clean}”`)
+  logActivity(canvasId, actor, `ist fertig: “${clean.length > 220 ? clean.slice(0, 217) + '…' : clean}”`)
 }
 
 /** True if the agent has an explicitly announced (non-auto) task open. */
@@ -771,7 +790,7 @@ export function endAgentTasks(canvasId: string, agentName: string) {
         /* Interrupted cards pause for a human decision; never auto-retry. */
         if (t.failedAt) continue
         t.failedAt = Date.now()
-        t.failureReason = `${agentName} disconnected before finishing. Retry when you are ready.`
+        t.failureReason = `${agentName} hat die Verbindung vor Abschluss getrennt. Starte die Aufgabe erneut, wenn Du bereit bist.`
       } else {
         t.endedAt = Date.now()
       }
@@ -855,7 +874,7 @@ export function addQueuedCard(
   logActivity(
     canvasId,
     resolveActor({ name: from, kind: 'user' }),
-    `queued a card for ${pipeline.map(roleName).join(' → ')}: “${clean}”`,
+    `hat eine Aufgabenkarte für ${pipeline.map(roleName).join(' → ')} eingereiht: “${clean}”`,
   )
   /* the resident agents pick queued cards up instantly (no-op without a key) */
   import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
@@ -901,7 +920,7 @@ export function takeQueuedCardsFor(canvasId: string, agentName: string, payer?: 
       !t.agentName &&
       !t.failedAt &&
       !t.endedAt &&
-      stageAgent(t) === agentName &&
+      sameAgentIdentity(stageAgent(t), agentName) &&
       (payer === undefined || (t.queuedByUserId ?? '') === payer),
   )
   for (const c of pending) {
@@ -930,7 +949,7 @@ export function advanceCard(canvasId: string, cardId: string, by: Actor): AgentT
   delete card.failureReason
   void persist.saveTask(canvasId, card)
   broadcast(canvasId, { type: 'task', task: card })
-  logActivity(canvasId, by, `handed “${card.status}” to ${roleName(pipeline[next])}`)
+  logActivity(canvasId, by, `hat “${card.status}” an ${roleName(pipeline[next])} übergeben`)
   import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
   return card
 }
@@ -970,7 +989,11 @@ export function retryCard(canvasId: string, cardId: string, by: string, serverPa
   delete card.failureReason
   void persist.saveTask(canvasId, card)
   broadcast(canvasId, { type: 'task', task: card })
-  logActivity(canvasId, resolveActor({ name: by, kind: 'user' }), `retried a card: “${card.status}”`)
+  logActivity(
+    canvasId,
+    resolveActor({ name: by, kind: 'user' }),
+    `hat eine Aufgabenkarte erneut gestartet: “${card.status}”`,
+  )
   import('./resident.ts').then((r) => r.onFeedback(canvasId)).catch(() => {})
   return card
 }
@@ -1066,7 +1089,12 @@ export async function restoreFrameVersion(
   if (!frame) return undefined
   noteHtmlChange(prior, actor, false)
   broadcast(frame.canvasId, { type: 'frame:updated', frame, actor })
-  logActivity(frame.canvasId, actor, `restored “${frame.name}” to an earlier version by ${version.savedBy}`, frame.id)
+  logActivity(
+    frame.canvasId,
+    actor,
+    `hat eine frühere Version von “${frame.name}” von ${version.savedBy} wiederhergestellt`,
+    frame.id,
+  )
   touch(frame.canvasId, actor, frame.id)
   return { frame, replaced }
 }
@@ -1170,7 +1198,7 @@ function finishStream(frameId: string, logDone: boolean) {
   const frame = store.getFrame(frameId)
   if (!frame) return
   broadcast(frame.canvasId, { type: 'frame:streaming', frameId, active: false, actor: s.actor })
-  if (logDone) logActivity(frame.canvasId, s.actor, `finished designing “${frame.name}”`, frameId)
+  if (logDone) logActivity(frame.canvasId, s.actor, `hat das Design von “${frame.name}” fertiggestellt`, frameId)
   endAutoTask(frame.canvasId, s.actor)
 }
 
@@ -1228,8 +1256,8 @@ export function appendFrameHtml(
     finishReveal(frameId) /* a live stream overrides any one-shot playback in flight */
     streams.set(frameId, { actor, escaped, lastActivity: Date.now() })
     broadcast(frame.canvasId, { type: 'frame:streaming', frameId, active: true, actor })
-    logActivity(frame.canvasId, actor, `is designing “${frame.name}” live…`, frameId)
-    autoTask(frame.canvasId, actor, `Designing “${frame.name}”`, frameId)
+    logActivity(frame.canvasId, actor, `gestaltet “${frame.name}” live …`, frameId)
+    autoTask(frame.canvasId, actor, `Gestaltet “${frame.name}”`, frameId)
   }
   const s = streams.get(frameId)!
   s.lastActivity = Date.now()
@@ -1263,7 +1291,7 @@ export async function duplicatePage(canvasId: string, pageId: string, actor: Act
     broadcast(canvasId, { type: 'frame:created', frame, actor })
     emitCanvasEvent(canvasId, { type: 'frame.created', frame, actor })
   }
-  logActivity(canvasId, actor, `duplicated page “${copy.source.name}” as “${copy.page.name}”`)
+  logActivity(canvasId, actor, `hat die Seite “${copy.source.name}” als “${copy.page.name}” dupliziert`)
   touch(canvasId, actor)
   return copy
 }
@@ -1295,11 +1323,11 @@ export function createFrame(
     /* agent one-shot creation still plays back as a reveal */
     broadcast(canvasId, { type: 'frame:created', frame: { ...frame, html: '' }, actor })
     startReveal(frame, actor, 0)
-    autoTask(canvasId, actor, `Designing “${frame.name}”`, frame.id)
+    autoTask(canvasId, actor, `Gestaltet “${frame.name}”`, frame.id)
   } else {
     broadcast(canvasId, { type: 'frame:created', frame, actor })
   }
-  logActivity(canvasId, actor, `created frame “${frame.name}”`, frame.id)
+  logActivity(canvasId, actor, `hat die Zeichenfläche “${frame.name}” erstellt`, frame.id)
   touch(canvasId, actor, frame.id)
   emitCanvasEvent(canvasId, { type: 'frame.created', frame, actor })
   return frame
@@ -1347,12 +1375,12 @@ export function updateFrame(
       trackTaskFrame(frame.canvasId, actor, frameId)
     } else if (smallTweak) {
       broadcast(frame.canvasId, { type: 'frame:updated', frame, actor })
-      logActivity(frame.canvasId, actor, `tweaked the design of “${frame.name}”`, frame.id)
-      autoTask(frame.canvasId, actor, `Tweaking “${frame.name}”`, frameId)
+      logActivity(frame.canvasId, actor, `hat das Design von “${frame.name}” verfeinert`, frame.id)
+      autoTask(frame.canvasId, actor, `Verfeinert “${frame.name}”`, frameId)
     } else {
       startReveal(frame, actor, prefix)
-      logActivity(frame.canvasId, actor, `updated the design of “${frame.name}”`, frame.id)
-      autoTask(frame.canvasId, actor, `Redesigning “${frame.name}”`, frameId)
+      logActivity(frame.canvasId, actor, `hat das Design von “${frame.name}” aktualisiert`, frame.id)
+      autoTask(frame.canvasId, actor, `Gestaltet “${frame.name}” neu`, frameId)
     }
   } else {
     if (htmlChanged) {
@@ -1362,16 +1390,21 @@ export function updateFrame(
     }
     broadcast(frame.canvasId, { type: 'frame:updated', frame, actor })
     if (htmlChanged) {
-      logActivity(frame.canvasId, actor, `updated the design of “${frame.name}”`, frame.id)
+      logActivity(frame.canvasId, actor, `hat das Design von “${frame.name}” aktualisiert`, frame.id)
     } else if (patch.name !== undefined && patch.name !== prevName) {
-      logActivity(frame.canvasId, actor, `renamed “${prevName}” to “${frame.name}”`, frame.id)
+      logActivity(frame.canvasId, actor, `hat “${prevName}” in “${frame.name}” umbenannt`, frame.id)
     } else if (patch.hidden !== undefined && !!patch.hidden !== prevHidden) {
-      logActivity(frame.canvasId, actor, `${frame.hidden ? 'hid' : 'showed'} frame “${frame.name}”`, frame.id)
+      logActivity(
+        frame.canvasId,
+        actor,
+        `hat die Zeichenfläche “${frame.name}” ${frame.hidden ? 'ausgeblendet' : 'eingeblendet'}`,
+        frame.id,
+      )
     }
   }
   /* a lock change is its own line, whatever else the same update carried */
   if (patch.locked !== undefined && !!patch.locked !== prevLocked) {
-    logActivity(frame.canvasId, actor, `${frame.locked ? 'locked' : 'unlocked'} “${frame.name}”`, frame.id)
+    logActivity(frame.canvasId, actor, `hat “${frame.name}” ${frame.locked ? 'gesperrt' : 'entsperrt'}`, frame.id)
   }
 
   touch(frame.canvasId, actor, frame.id)
@@ -1388,7 +1421,7 @@ export function deleteFrame(frameId: string, actor: Actor): Frame | undefined {
   bursts.delete(frameId)
   thumbs.purge(frameId)
   broadcast(frame.canvasId, { type: 'frame:deleted', frameId, actor })
-  logActivity(frame.canvasId, actor, `deleted frame “${frame.name}”`, frame.id)
+  logActivity(frame.canvasId, actor, `hat die Zeichenfläche “${frame.name}” gelöscht`, frame.id)
   touch(frame.canvasId, actor, null)
   return frame
 }
@@ -1415,7 +1448,7 @@ export function renameCanvas(canvasId: string, name: string, actor: Actor) {
   const canvas = store.renameCanvas(canvasId, name)
   if (!canvas) return undefined
   broadcast(canvasId, { type: 'canvas:renamed', name, actor })
-  logActivity(canvasId, actor, `renamed the canvas to “${name}”`)
+  logActivity(canvasId, actor, `hat die Arbeitsfläche in “${name}” umbenannt`)
   return canvas
 }
 
@@ -1458,10 +1491,12 @@ export function setGuideline(
 ): GuidelineDoc | null | undefined {
   const slug = name.trim().toLowerCase()
   if (!GUIDELINE_NAME_RE.test(slug))
-    throw new Error(`invalid doc name “${name}” — use a lowercase slug like "feature-image" (a-z, 0-9, hyphens)`)
+    throw new Error(
+      `Ungültiger Dokumentname “${name}”. Verwende einen Bezeichner wie "feature-image" (a-z, 0-9, Bindestriche).`,
+    )
   const clean = markdown.replace(/\r\n/g, '\n').trim()
   if (clean.length > MAX_GUIDELINE_CHARS)
-    throw new Error(`doc is ${clean.length} chars — the limit is ${MAX_GUIDELINE_CHARS}`)
+    throw new Error(`Das Dokument hat ${clean.length} Zeichen. Die Grenze liegt bei ${MAX_GUIDELINE_CHARS}.`)
   const cleanTitle =
     title === undefined ? undefined : title.replace(/\s+/g, ' ').trim().slice(0, MAX_GUIDELINE_TITLE_CHARS)
 
@@ -1470,19 +1505,21 @@ export function setGuideline(
     if (!store.deleteGuideline(canvasId, slug)) return store.getCanvas(canvasId) ? null : undefined
     persist.saveGuidelineVersion(canvasId, slug, '', actor.name, Date.now())
     broadcast(canvasId, { type: 'guidelines', name: slug, doc: null, actor })
-    logActivity(canvasId, actor, `deleted the design guide “${existing ? guidelineTitle(existing) : slug}”`)
+    logActivity(canvasId, actor, `hat die Designrichtlinie “${existing ? guidelineTitle(existing) : slug}” gelöscht`)
     touch(canvasId, actor)
     return null
   }
 
   const existing = store.getGuidelines(canvasId)
   if (!existing.some((d) => d.name === slug) && existing.length >= MAX_GUIDELINE_DOCS)
-    throw new Error(`this canvas already has ${MAX_GUIDELINE_DOCS} design guides — delete one first`)
+    throw new Error(
+      `Diese Arbeitsfläche enthält bereits ${MAX_GUIDELINE_DOCS} Designrichtlinien. Lösche zuerst eine davon.`,
+    )
   const doc = store.setGuideline(canvasId, slug, clean, actor.name, pos, cleanTitle)
   if (!doc) return undefined
   persist.saveGuidelineVersion(canvasId, slug, clean, actor.name, doc.updatedAt)
   broadcast(canvasId, { type: 'guidelines', name: slug, doc, actor })
-  logActivity(canvasId, actor, `updated the design guide “${guidelineTitle(doc)}”`)
+  logActivity(canvasId, actor, `hat die Designrichtlinie “${guidelineTitle(doc)}” aktualisiert`)
   touch(canvasId, actor)
   return doc
 }
@@ -1507,7 +1544,8 @@ export function patchGuideline(
   const doc = store.patchGuideline(canvasId, name.trim().toLowerCase(), clean)
   if (!doc) return false
   broadcast(canvasId, { type: 'guidelines', name: doc.name, doc, actor })
-  if (clean.title !== undefined) logActivity(canvasId, actor, `renamed a design guide to “${guidelineTitle(doc)}”`)
+  if (clean.title !== undefined)
+    logActivity(canvasId, actor, `hat eine Designrichtlinie in “${guidelineTitle(doc)}” umbenannt`)
   return true
 }
 
@@ -1591,10 +1629,10 @@ export const MAX_DECISION_CHARS = 500
 export function recordChatDecision(canvasId: string, text: string, actor: Actor): DesignDecision | null | undefined {
   if (!store.getCanvas(canvasId)) return undefined
   const clean = text.replace(/\s+/g, ' ').trim()
-  if (!clean) throw new Error('decision text is empty')
+  if (!clean) throw new Error('Der Entscheidungstext ist leer.')
   if (clean.length > MAX_DECISION_CHARS)
     throw new Error(
-      `decision is ${clean.length} chars — keep it under ${MAX_DECISION_CHARS} (the human's words, not an essay)`,
+      `Die Entscheidung hat ${clean.length} Zeichen. Bleibe unter ${MAX_DECISION_CHARS} Zeichen und fasse die Aussage kurz zusammen.`,
     )
   /* agents re-tell things; the same words land in Memory once */
   if (getDecisions(canvasId).some((d) => d.text === clean)) return null
@@ -1613,14 +1651,14 @@ export function pinReference(canvasId: string, frameId: string, actor: Actor): M
   if (!frame || frame.canvasId !== canvasId) return undefined
   const existing = store.getReferences(canvasId)
   if (existing.some((r) => r.frameId === frameId && r.html === frame.html)) {
-    throw new Error('this frame is already pinned to Memory in its current state')
+    throw new Error('Diese Zeichenfläche ist in ihrem aktuellen Zustand bereits im Designwissen angeheftet.')
   }
   if (existing.length >= MAX_REFERENCES)
-    throw new Error(`Memory already holds ${MAX_REFERENCES} references — unpin one first`)
+    throw new Error(`Das Designwissen enthält bereits ${MAX_REFERENCES} Referenzen. Löse zuerst eine davon.`)
   const ref = store.addReference(canvasId, frame, actor.name)
   if (!ref) return undefined
   broadcast(canvasId, { type: 'reference', id: ref.id, reference: ref, actor })
-  logActivity(canvasId, actor, `pinned “${frame.name}” to Memory as a style reference`, frameId)
+  logActivity(canvasId, actor, `hat “${frame.name}” als Stilreferenz im Designwissen angeheftet`, frameId)
   return ref
 }
 
@@ -1628,7 +1666,7 @@ export function unpinReference(canvasId: string, id: string, actor: Actor): bool
   const ref = store.deleteReference(canvasId, id)
   if (!ref) return false
   broadcast(canvasId, { type: 'reference', id, reference: null, actor })
-  logActivity(canvasId, actor, `unpinned the reference “${ref.title}” from Memory`)
+  logActivity(canvasId, actor, `hat die Referenz “${ref.title}” aus dem Designwissen gelöst`)
   return true
 }
 
@@ -1695,6 +1733,6 @@ export function resolveProposal(
   proposal.resolvedAt = Date.now()
   persist.saveProposal(canvasId, proposal)
   broadcast(canvasId, { type: 'proposal', proposal })
-  if (accept) logActivity(canvasId, actor, `accepted a Memory rule into “${proposal.guideName}”`)
+  if (accept) logActivity(canvasId, actor, `hat eine Regel aus dem Designwissen in “${proposal.guideName}” übernommen`)
   return proposal
 }

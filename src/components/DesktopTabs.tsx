@@ -34,7 +34,7 @@ export function DesktopTabs({ path }: { path: string }) {
   if (!isDesktopShell()) return null
 
   async function newCanvas() {
-    const canvas = await api.createCanvas('Untitled canvas')
+    const canvas = await api.createCanvas('Unbenannte Arbeitsfläche')
     openCanvasTab(canvas.id, canvas.name)
   }
 
@@ -50,13 +50,13 @@ export function DesktopTabs({ path }: { path: string }) {
           !activeId && 'bg-ink/[0.08] text-ink',
         )}
         onClick={() => navigate('/')}
-        title="All canvases"
+        title="Alle Arbeitsflächen"
       >
         <Logo className="size-[18px]" />
       </button>
       <div
         role="tablist"
-        aria-label="Open canvases"
+        aria-label="Geöffnete Arbeitsflächen"
         className="flex min-w-0 items-end overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {tabs.map((tab) => {
@@ -86,7 +86,7 @@ export function DesktopTabs({ path }: { path: string }) {
                       e.stopPropagation()
                       closeTab(tab.id, path)
                     }}
-                    title="Close tab"
+                    title="Tab schließen"
                   >
                     <XIcon className="size-3" />
                   </button>
@@ -100,7 +100,7 @@ export function DesktopTabs({ path }: { path: string }) {
       <button
         className="mb-[4px] grid size-[30px] flex-none place-items-center rounded-lg border-0 bg-transparent text-[16px] leading-none text-ink-soft transition-colors hover:bg-ink/[0.06] hover:text-ink"
         onClick={newCanvas}
-        title="New canvas"
+        title="Neue Arbeitsfläche"
       >
         +
       </button>
@@ -116,20 +116,20 @@ function TabContextMenu({ tab, path }: { tab: CanvasTab; path: string }) {
   const on = path === `/c/${tab.id}`
   return (
     <ContextMenuContent className="z-[850]">
-      <ContextMenuItem onSelect={() => navigator.clipboard.writeText(url)}>Copy link</ContextMenuItem>
+      <ContextMenuItem onSelect={() => navigator.clipboard.writeText(url)}>Link kopieren</ContextMenuItem>
       {/* a full load of that canvas: the tab's own page when it's current,
           otherwise a hard navigation there (tabs are in-page routes, so
           there is nothing else to refresh) */}
-      <ContextMenuItem onSelect={() => (on ? location.reload() : location.assign(url))}>Reload</ContextMenuItem>
+      <ContextMenuItem onSelect={() => (on ? location.reload() : location.assign(url))}>Neu laden</ContextMenuItem>
       {/* the shell's opener IPC hands the URL to the system browser; without
           it (a plain browser, or a pre-0.1.2 shell) a new tab is the closest thing */}
       <ContextMenuItem onSelect={() => openExternal(url) || window.open(url, '_blank', 'noopener')}>
-        Open in browser
+        Im Browser öffnen
       </ContextMenuItem>
       <ContextMenuSeparator />
-      <ContextMenuItem onSelect={() => closeTab(tab.id, path)}>Close</ContextMenuItem>
-      <ContextMenuItem onSelect={() => closeOtherTabs(tab.id, path)}>Close other tabs</ContextMenuItem>
-      <ContextMenuItem onSelect={closeAllTabs}>Close all tabs</ContextMenuItem>
+      <ContextMenuItem onSelect={() => closeTab(tab.id, path)}>Schließen</ContextMenuItem>
+      <ContextMenuItem onSelect={() => closeOtherTabs(tab.id, path)}>Andere Tabs schließen</ContextMenuItem>
+      <ContextMenuItem onSelect={closeAllTabs}>Alle Tabs schließen</ContextMenuItem>
     </ContextMenuContent>
   )
 }

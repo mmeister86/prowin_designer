@@ -164,7 +164,7 @@ function ImpersonationBanner({ name }: { name: string }) {
   return (
     <div className="fixed inset-x-0 top-0 z-[900] flex min-h-14 items-center justify-between gap-2 border-b border-accent-ink px-2.5 py-[7px] text-[11.5px] leading-tight text-accent-ink backdrop-blur-[6px] [background:repeating-linear-gradient(-45deg,rgba(208,52,31,0.16)_0_10px,rgba(208,52,31,0.08)_10px_20px)] sm:h-10 sm:min-h-0 sm:justify-center sm:gap-4 sm:text-[13px]">
       <span>
-        Viewing as <strong>{name}</strong> — read only, expires after 15 minutes.
+        Ansicht als <strong>{name}</strong> — schreibgeschützt, endet nach 15 Minuten.
       </span>
       <Button
         variant="ghost"
@@ -180,7 +180,7 @@ function ImpersonationBanner({ name }: { name: string }) {
             .catch(() => location.assign('/'))
         }}
       >
-        {leaving ? 'Leaving…' : 'Stop viewing'}
+        {leaving ? 'Ansicht wird beendet…' : 'Ansicht beenden'}
       </Button>
     </div>
   )

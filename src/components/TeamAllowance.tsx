@@ -34,12 +34,12 @@ export function isResidentLimit(err: unknown): boolean {
 /** The meter as one plain sentence, for a tooltip. */
 export function meterText(allowance: Allowance | null): string | null {
   if (!allowance) return null
-  if (allowance.localAgent) return 'Doop Agent on your local Claude CLI'
-  if (allowance.limit <= 0) return 'Server agent is not enabled — contact the administrator'
+  if (allowance.localAgent) return 'Doop-Agent über Deine lokale Claude CLI'
+  if (allowance.limit <= 0) return 'Der Server-Agent ist nicht aktiviert — wende Dich an die Administration'
   const left = Math.max(0, allowance.limit - allowance.used)
   return left === 0
-    ? 'Agent task allowance used up — contact the administrator'
-    : `${left} of ${allowance.limit} agent tasks left`
+    ? 'Das Agentenaufgabenkontingent ist aufgebraucht — wende Dich an die Administration'
+    : `${left.toLocaleString('de-DE')} von ${allowance.limit.toLocaleString('de-DE')} Agentenaufgaben übrig`
 }
 
 export function MeterLine({ allowance }: { allowance: Allowance | null }) {
@@ -65,29 +65,32 @@ export function LimitWall({
   return (
     <Modal size="lg" onClose={onClose}>
       <>
-        <ModalTitle>{hadFreeTier ? 'Agent task allowance used up' : 'Server agent is not enabled'}</ModalTitle>
+        <ModalTitle>
+          {hadFreeTier ? 'Agentenaufgabenkontingent aufgebraucht' : 'Server-Agent nicht aktiviert'}
+        </ModalTitle>
         <ModalLede>
-          Contact your administrator to enable or extend the agent task allowance. Your designs remain available.
+          Wende Dich an Deine Administration, um das Agentenaufgabenkontingent zu aktivieren oder zu erweitern. Deine
+          Designs bleiben verfügbar.
         </ModalLede>
         {/* the MCP path is a different mode — an agent you prompt yourself, not
             one that picks up queued tasks — so it hands off instead of inlining
             the setup steps here where they read like a fix for the queued card */}
         <div className="mt-5 border-t border-line pt-4">
           <p className="text-[12.5px] text-ink-faint">
-            Prefer to drive the canvas yourself from Claude Code, Codex, or another MCP client? That agent designs as
-            you prompt it — queued tasks stay with the Doop Agent.{' '}
+            Möchtest Du die Arbeitsfläche selbst über Claude Code, Codex oder einen anderen MCP-Client steuern? Dieser
+            Agent gestaltet nach Deinen Eingaben — eingereihte Aufgaben bleiben beim Doop-Agenten.{' '}
             <button
               type="button"
               className="font-semibold text-ink underline underline-offset-2"
               onClick={onOpenConnect}
             >
-              See how to connect it
+              So stellst Du die Verbindung her
             </button>
           </p>
         </div>
 
         <ModalActions>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose}>Schließen</Button>
         </ModalActions>
       </>
     </Modal>

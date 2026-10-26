@@ -14,7 +14,7 @@ describe('first-canvas landing', () => {
   it('sends a fresh signup to the canvas made for it', async () => {
     const client = await new Client(server).signUp('new@example.com', 'Newcomer')
     const canvases: { id: string; name: string }[] = await (await client.get('/api/canvases')).json()
-    const first = canvases.find((c) => c.name === "Newcomer's first canvas")
+    const first = canvases.find((c) => c.name === 'Newcomer: erste Arbeitsfläche')
     expect(first).toBeDefined()
 
     const res = await client.get(FIRST_CANVAS_PATH)

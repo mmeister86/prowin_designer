@@ -14,7 +14,7 @@ export const MAX_PAGES = 100
 
 export class PageLimitError extends Error {
   constructor() {
-    super(`A canvas holds at most ${MAX_PAGES} pages.`)
+    super(`Eine Arbeitsfläche kann höchstens ${MAX_PAGES} Seiten enthalten.`)
   }
 }
 
@@ -167,7 +167,7 @@ class Store {
     }))
     const canvas: Canvas = {
       id: canvasId,
-      name: options.name ?? `${source.name} copy`,
+      name: options.name ?? `${source.name} Kopie`,
       ownerId,
       createdAt: now,
       updatedAt: now,

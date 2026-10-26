@@ -55,14 +55,14 @@ describe.skipIf(!findBrowserPath())('local frame edits', () => {
     const frame = (await (await page.waitForSelector('iframe'))!.contentFrame())!
     await frame.waitForSelector('#target')
     await page.evaluate(() => window.elementPanelHarness.select('#target'))
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Width"]')?.value === '100')
+    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '100')
     await frame.evaluate(() => {
       window.localEditRenders = 0
       window.addEventListener('message', (event) => {
         if (event.data?.type === 'doop:html') window.localEditRenders++
       })
     })
-    await page.click('[aria-label="Width"]', { count: 3 })
+    await page.click('[aria-label="Breite"]', { count: 3 })
     await page.keyboard.type('120')
     await page.keyboard.press('Enter')
     await expect.poll(() => saved.html).toContain('width: 120px')

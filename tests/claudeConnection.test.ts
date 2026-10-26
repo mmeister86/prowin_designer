@@ -73,7 +73,9 @@ it('does not invoke the shell when preparing the bundle fails', async () => {
   vi.stubGlobal('__DOOP_CLAUDE_EXTENSION__', true)
   vi.stubGlobal('__TAURI__', { core: { invoke } })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Unavailable', { status: 503 })))
-  await expect(addToClaudeDesktop('https://doop.design/mcp')).rejects.toThrow('Could not prepare')
+  await expect(addToClaudeDesktop('https://doop.design/mcp')).rejects.toThrow(
+    'Die Claude-Verbindung konnte nicht vorbereitet werden. Versuche es erneut.',
+  )
   expect(invoke).not.toHaveBeenCalled()
 })
 
@@ -81,6 +83,8 @@ it('keeps older shells from invoking an unavailable native command', async () =>
   vi.stubGlobal('__DOOP_CLAUDE_EXTENSION__', undefined)
   const fetcher = vi.fn()
   vi.stubGlobal('fetch', fetcher)
-  await expect(addToClaudeDesktop('https://doop.design/mcp')).rejects.toThrow('Update the Doop desktop app')
+  await expect(addToClaudeDesktop('https://doop.design/mcp')).rejects.toThrow(
+    'Aktualisiere die Doop-Desktop-App, um Claude direkt hinzuzufügen.',
+  )
   expect(fetcher).not.toHaveBeenCalled()
 })

@@ -13,7 +13,7 @@ fn config_path(home: &Path, override_home: Option<PathBuf>) -> Result<PathBuf, S
     let directory = match override_home {
         Some(path) if !path.as_os_str().is_empty() => {
             if !path.is_absolute() || !path.is_dir() {
-                return Err("CODEX_HOME must point to an existing absolute directory.".into());
+                return Err("CODEX_HOME muss auf ein vorhandenes Verzeichnis mit absolutem Pfad verweisen.".into());
             }
             path
         }
@@ -28,7 +28,7 @@ fn mcp_url(mut page: Url) -> Result<String, String> {
         || !page.username().is_empty()
         || page.password().is_some()
     {
-        return Err("Open your Doop server before connecting Codex.".into());
+        return Err("Öffne Deinen Doop-Server, bevor Du Codex verbindest.".into());
     }
     page.set_path("/mcp");
     page.set_query(None);
@@ -40,7 +40,7 @@ fn edit_config(text: &str, url: &str) -> Result<String, String> {
     // Parse errors can quote lines containing credentials. Keep them local,
     // and return only an actionable message to the hosted page.
     let mut document = text.parse::<DocumentMut>().map_err(|_| {
-        "Your Codex config is not valid TOML. Fix it in Codex settings, then try again.".to_string()
+        "Deine Codex-Konfiguration enthält kein gültiges TOML. Korrigiere sie in den Codex-Einstellungen und versuche es erneut.".to_string()
     })?;
     if document.get("mcp_servers").is_none() {
         let mut servers = Table::new();
@@ -49,17 +49,17 @@ fn edit_config(text: &str, url: &str) -> Result<String, String> {
     }
     let inline = document["mcp_servers"].as_inline_table().is_some();
     let servers = document["mcp_servers"].as_table_like_mut().ok_or(
-        "The mcp_servers setting in your Codex config must be a table. Fix it in Codex settings, then try again.",
+        "Die Einstellung mcp_servers in Deiner Codex-Konfiguration muss eine Tabelle sein. Korrigiere sie in den Codex-Einstellungen und versuche es erneut.",
     )?;
     if let Some(existing) = servers.get_mut("doop") {
         let connection = existing.as_table_like_mut().ok_or(
-            "The doop entry in your Codex config is not a server. Rename or remove it in Codex settings, then try again.",
+            "Der doop-Eintrag in Deiner Codex-Konfiguration ist kein Server. Benenne ihn in den Codex-Einstellungen um oder entferne ihn und versuche es erneut.",
         )?;
         if connection.get("url").and_then(Item::as_str) != Some(url)
             || connection.contains_key("command")
             || connection.contains_key("args")
         {
-            return Err("Codex already has a different doop connection. Rename or remove it in Codex settings, then try again. Your settings were not changed.".into());
+            return Err("Codex hat bereits eine andere doop-Verbindung. Benenne sie in den Codex-Einstellungen um oder entferne sie und versuche es erneut. Deine Einstellungen wurden nicht geändert.".into());
         }
         // Keep existing credentials, tool policies and custom timeouts.
         if connection.get("enabled").and_then(Item::as_bool) == Some(false) {
@@ -88,7 +88,7 @@ fn read_config(path: &Path) -> Result<Option<String>, String> {
         Ok(text) => Ok(Some(text)),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
         Err(_) => Err(
-            "Could not read your Codex config. Check its file permissions and try again.".into(),
+            "Deine Codex-Konfiguration konnte nicht gelesen werden. Prüfe die Dateiberechtigungen und versuche es erneut.".into(),
         ),
     }
 }
@@ -96,13 +96,13 @@ fn read_config(path: &Path) -> Result<Option<String>, String> {
 fn install_at(path: &Path, url: &str) -> Result<(), String> {
     let _lock = CONFIG_WRITE
         .lock()
-        .map_err(|_| "Codex setup is busy. Try again.")?;
+        .map_err(|_| "Die Codex-Einrichtung läuft bereits. Versuche es erneut.")?;
     // Follow an existing dotfile symlink instead of replacing the link itself.
     // Broken links fail closed so they cannot be replaced accidentally.
     let path = match fs::symlink_metadata(path) {
-        Ok(_) => fs::canonicalize(path).map_err(|_| "Could not resolve your Codex config file.")?,
+        Ok(_) => fs::canonicalize(path).map_err(|_| "Der Pfad Deiner Codex-Konfigurationsdatei konnte nicht aufgelöst werden.")?,
         Err(error) if error.kind() == ErrorKind::NotFound => path.to_path_buf(),
-        Err(_) => return Err("Could not access your Codex config file.".into()),
+        Err(_) => return Err("Auf Deine Codex-Konfigurationsdatei konnte nicht zugegriffen werden.".into()),
     };
     let before = read_config(&path)?;
     let edited = edit_config(before.as_deref().unwrap_or(""), url)?;
@@ -111,31 +111,31 @@ fn install_at(path: &Path, url: &str) -> Result<(), String> {
     }
     let directory = path
         .parent()
-        .ok_or("Could not locate your Codex config directory.")?;
-    fs::create_dir_all(directory).map_err(|_| "Could not create your Codex config directory.")?;
+        .ok_or("Dein Codex-Konfigurationsverzeichnis konnte nicht gefunden werden.")?;
+    fs::create_dir_all(directory).map_err(|_| "Dein Codex-Konfigurationsverzeichnis konnte nicht erstellt werden.")?;
     let mut temporary = tempfile::NamedTempFile::new_in(directory)
-        .map_err(|_| "Could not prepare your Codex config. Check its file permissions.")?;
+        .map_err(|_| "Deine Codex-Konfiguration konnte nicht vorbereitet werden. Prüfe die Dateiberechtigungen.")?;
     if before.is_some() {
         let permissions = fs::metadata(&path)
-            .map_err(|_| "Could not read your Codex config permissions.")?
+            .map_err(|_| "Die Berechtigungen Deiner Codex-Konfiguration konnten nicht gelesen werden.")?
             .permissions();
         temporary
             .as_file()
             .set_permissions(permissions)
-            .map_err(|_| "Could not preserve your Codex config permissions.")?;
+            .map_err(|_| "Die Berechtigungen Deiner Codex-Konfiguration konnten nicht beibehalten werden.")?;
     }
     temporary
         .write_all(edited.as_bytes())
-        .map_err(|_| "Could not write your Codex config.")?;
+        .map_err(|_| "Deine Codex-Konfiguration konnte nicht geschrieben werden.")?;
     temporary
         .as_file()
         .sync_all()
-        .map_err(|_| "Could not save your Codex config.")?;
+        .map_err(|_| "Deine Codex-Konfiguration konnte nicht gespeichert werden.")?;
     if read_config(&path)? != before {
-        return Err("Your Codex config changed during setup. Please try again.".into());
+        return Err("Deine Codex-Konfiguration wurde während der Einrichtung geändert. Versuche es erneut.".into());
     }
     temporary.persist(&path).map_err(|_| {
-        "Could not replace your Codex config. Check its file permissions and try again."
+        "Deine Codex-Konfiguration konnte nicht ersetzt werden. Prüfe die Dateiberechtigungen und versuche es erneut."
     })?;
     Ok(())
 }
@@ -145,16 +145,16 @@ pub async fn codex_add_mcp(window: WebviewWindow) -> Result<(), String> {
     let url = mcp_url(
         window
             .url()
-            .map_err(|_| "Could not read the current Doop server.")?,
+            .map_err(|_| "Der aktuelle Doop-Server konnte nicht gelesen werden.")?,
     )?;
     let home = window
         .path()
         .home_dir()
-        .map_err(|_| "Could not find your home directory.")?;
+        .map_err(|_| "Dein Benutzerverzeichnis konnte nicht gefunden werden.")?;
     let path = config_path(&home, std::env::var_os("CODEX_HOME").map(PathBuf::from))?;
     tauri::async_runtime::spawn_blocking(move || install_at(&path, &url))
         .await
-        .map_err(|_| "Codex setup could not finish. Please try again.".to_string())?
+        .map_err(|_| "Die Codex-Einrichtung konnte nicht abgeschlossen werden. Versuche es erneut.".to_string())?
 }
 
 #[cfg(test)]

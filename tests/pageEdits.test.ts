@@ -9,22 +9,14 @@ const api = vi.hoisted(() => ({
   getCanvas: vi.fn(),
   duplicatePage: vi.fn(),
 }))
-vi.mock('../src/lib/api', () => ({
+vi.mock('../src/lib/api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/lib/api')>()),
   api,
-  ApiError: class extends Error {
-    status: number
-    body: Record<string, unknown>
-    constructor(status: number, text: string) {
-      super(text)
-      this.status = status
-      this.body = JSON.parse(text)
-    }
-  },
 }))
 const { ApiError } = await import('../src/lib/api')
 const { useStore } = await import('../src/lib/store')
 const { savePages, moveFramesToPage, duplicatePage } = await import('../src/lib/pageEdits')
-const { clearHistory, recordCreate, deleteFrameTracked, undo, redo } = await import('../src/lib/history')
+const { clearHistory, recordCreate, recordPages, deleteFrameTracked, undo, redo } = await import('../src/lib/history')
 const pages = [
   { id: 'first', name: 'Main' },
   { id: 'second', name: 'Exploration' },
@@ -194,7 +186,7 @@ it('undoes a grouped move to a remaining page when the source page was deleted, 
   await moveFramesToPage(useStore.getState().canvas!, ['f', 'g'], 'first')
   useStore.getState().setPages([remaining, pages[0]!])
   api.updateFrame.mockImplementation(async (id, patch) => {
-    if (patch.pageId === 'second') throw new Error('page not found')
+    if (patch.pageId === 'second') throw new Error('Seite nicht gefunden')
     return { ...frame, id, ...patch }
   })
   await undo()
@@ -222,7 +214,7 @@ it('uses a remaining page when the destination is deleted before redo', async ()
   await undo()
   useStore.getState().setPages([remaining, pages[1]!])
   api.updateFrame.mockImplementation(async (id, patch) => {
-    if (patch.pageId === 'first') throw new Error('page not found')
+    if (patch.pageId === 'first') throw new Error('Seite nicht gefunden')
     return { ...frame, id, ...patch }
   })
   await redo()
@@ -348,25 +340,30 @@ it('undoes only the copied page, keeping a page a collaborator added meanwhile',
   expect(useStore.getState().canvas!.pages!.map((p) => p.id)).toEqual(['first', 'second', 'theirs'])
 })
 
-it('keeps a duplicate retryable when its page cannot be restored on redo', async () => {
-  const copyPage = { id: 'copy', name: 'Exploration copy' }
-  api.duplicatePage.mockResolvedValue({
-    page: copyPage,
-    pages: [...pages, copyPage],
-    frames: [{ ...frame, id: 'f2', pageId: 'copy' }],
-  })
-  await duplicatePage(useStore.getState().canvas!, 'second')
-  await undo()
-  expect(useStore.getState().canvas!.pages).toEqual(pages)
-  api.setPages.mockRejectedValueOnce(new Error('Too many pages'))
-  await redo()
-  expect(api.createFrame).not.toHaveBeenCalled()
-  expect(useStore.getState().canvas!.pages).toEqual(pages)
-  expect(useStore.getState().notice).toMatchObject({ text: 'Too many pages' })
-  await redo()
-  expect(useStore.getState().canvas!.pages).toEqual([...pages, copyPage])
-  expect(api.createFrame).toHaveBeenCalledWith('c', expect.objectContaining({ pageId: 'copy' }))
-})
+it.each([new Error('Too many pages'), new TypeError('Failed to fetch'), new Error('internal provider secret')])(
+  'keeps a duplicate retryable with safe recovery when page redo fails: %s',
+  async (error) => {
+    const copyPage = { id: 'copy', name: 'Exploration copy' }
+    api.duplicatePage.mockResolvedValue({
+      page: copyPage,
+      pages: [...pages, copyPage],
+      frames: [{ ...frame, id: 'f2', pageId: 'copy' }],
+    })
+    await duplicatePage(useStore.getState().canvas!, 'second')
+    await undo()
+    expect(useStore.getState().canvas!.pages).toEqual(pages)
+    api.setPages.mockRejectedValueOnce(error)
+    await redo()
+    expect(api.createFrame).not.toHaveBeenCalled()
+    expect(useStore.getState().canvas!.pages).toEqual(pages)
+    expect(useStore.getState().notice).toMatchObject({
+      text: 'Die Änderung konnte nicht angewendet werden. Versuche es erneut.',
+    })
+    await redo()
+    expect(useStore.getState().canvas!.pages).toEqual([...pages, copyPage])
+    expect(api.createFrame).toHaveBeenCalledWith('c', expect.objectContaining({ pageId: 'copy' }))
+  },
+)
 
 it('does not replay the copy response over a newer broadcast of a copied frame', async () => {
   const copyPage = { id: 'copy', name: 'Exploration copy' }
@@ -380,4 +377,34 @@ it('does not replay the copy response over a newer broadcast of a copied frame',
   await duplicatePage(useStore.getState().canvas!, 'second')
   expect(useStore.getState().canvas!.frames.find((f) => f.id === 'f2')!.html).toBe('<h1>Edited</h1>')
   expect(useStore.getState().activePageId).toBe('copy')
+})
+
+it.each([new TypeError('Failed to fetch'), new Error('unknown private diagnostic')])(
+  'keeps a failed page undo safe and retryable: %s',
+  async (error) => {
+    const renamed = [{ ...pages[0]!, name: 'My English page' }, pages[1]!]
+    useStore.getState().setPages(renamed)
+    recordPages('c', pages, renamed, 'first', 'first')
+    api.setPages.mockRejectedValueOnce(error)
+    await undo()
+    expect(useStore.getState().notice?.text).toBe('Die Änderung konnte nicht angewendet werden. Versuche es erneut.')
+    expect(useStore.getState().canvas!.pages).toEqual(renamed)
+    await undo()
+    expect(useStore.getState().canvas!.pages).toEqual(pages)
+    await redo()
+    expect(useStore.getState().canvas!.pages).toEqual(renamed)
+  },
+)
+
+it('preserves a local page conflict and user names while keeping undo retryable', async () => {
+  const renamed = [{ ...pages[0]!, name: 'My English page' }, pages[1]!]
+  recordPages('c', pages, renamed, 'first', 'first')
+  const remote = [{ ...pages[0]!, name: 'Collaborator words' }, pages[1]!]
+  useStore.getState().setPages(remote)
+  await undo()
+  expect(useStore.getState().notice?.text).toBe('Diese Seite wurde von einer anderen Person umbenannt.')
+  expect(useStore.getState().canvas!.pages).toEqual(remote)
+  useStore.getState().setPages(renamed)
+  await undo()
+  expect(useStore.getState().canvas!.pages).toEqual(pages)
 })

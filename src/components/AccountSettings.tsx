@@ -1,6 +1,6 @@
 import { CreatorRegistration } from '../prowin/CreatorRegistration'
 import { useCallback, useEffect, useState } from 'react'
-import { authClient } from '../lib/auth'
+import { authClient, authErrorMessage } from '../lib/auth'
 import { api } from '../lib/api'
 import type { NotificationSettings } from '../../shared/notifications'
 import { Button } from './ui/button'
@@ -52,9 +52,9 @@ export function AccountSettings() {
     setNameError('')
     const { error } = await authClient.updateUser({ name: name.trim() })
     setSavingName(false)
-    if (error) return setNameError(error.message || 'That name could not be saved')
+    if (error) return setNameError(authErrorMessage(error, 'Der Name konnte nicht gespeichert werden'))
     setDraft(null)
-    setNameNote('Saved — agents pick it up within a minute')
+    setNameNote('Gespeichert — Agenten übernehmen die Änderung innerhalb einer Minute')
   }
 
   async function savePassword() {
@@ -69,10 +69,10 @@ export function AccountSettings() {
       revokeOtherSessions: true,
     })
     setSavingPw(false)
-    if (error) return setPwError(error.message || 'That password could not be changed')
+    if (error) return setPwError(authErrorMessage(error, 'Das Passwort konnte nicht geändert werden'))
     setCurrent('')
     setNext('')
-    setPwNote('Password updated — every other session was signed out')
+    setPwNote('Passwort aktualisiert — alle anderen Sitzungen wurden abgemeldet')
   }
 
   async function setCommentEmails(on: boolean) {
@@ -83,7 +83,7 @@ export function AccountSettings() {
     try {
       setNotify(await api.setNotificationPrefs({ commentEmails: on }))
     } catch {
-      setNotifyError('That could not be saved — try again')
+      setNotifyError('Speichern fehlgeschlagen — versuche es erneut')
       refreshNotify()
     } finally {
       setSavingNotify(false)
@@ -94,7 +94,9 @@ export function AccountSettings() {
     if (!user?.email) return
     setVerifyNote('')
     const { error } = await authClient.sendVerificationEmail({ email: user.email })
-    setVerifyNote(error ? error.message || 'That email could not be sent' : 'Verification email sent')
+    setVerifyNote(
+      error ? authErrorMessage(error, 'Die E-Mail konnte nicht gesendet werden') : 'Bestätigungs-E-Mail gesendet',
+    )
   }
 
   return (
@@ -102,10 +104,10 @@ export function AccountSettings() {
       <CreatorRegistration />
       <SettingsCard>
         <CardHeader>
-          <CardTitle>Profile</CardTitle>
+          <CardTitle>Profil</CardTitle>
           <CardDescription>
-            Your name is the identity shown on cursors, in the activity feed, and on everything you leave for an agent.
-            Agents see the change within a minute.
+            Dein Name wird an Cursorn, im Aktivitätsverlauf und bei allem angezeigt, was Du für einen Agenten
+            hinterlässt. Agenten sehen die Änderung innerhalb einer Minute.
           </CardDescription>
         </CardHeader>
 
@@ -113,7 +115,7 @@ export function AccountSettings() {
           label="Name"
           action={
             <Button size="sm" disabled={!dirty || savingName} onClick={saveName}>
-              {savingName ? 'Saving…' : 'Save'}
+              {savingName ? 'Wird gespeichert…' : 'Speichern'}
             </Button>
           }
           control={
@@ -125,7 +127,7 @@ export function AccountSettings() {
                 setNameError('')
               }}
               maxLength={60}
-              aria-label="Display name"
+              aria-label="Anzeigename"
             />
           }
         >
@@ -134,51 +136,53 @@ export function AccountSettings() {
           ) : nameNote ? (
             <Note tone="success">{nameNote}</Note>
           ) : dirty ? (
-            <Note>Changed — not saved yet</Note>
+            <Note>Geändert — noch nicht gespeichert</Note>
           ) : null}
         </CardRow>
 
         <CardRow
-          label="Email"
+          label="E-Mail"
           action={
             user?.emailVerified ? (
-              <Note>Sign-in address — not changeable yet</Note>
+              <Note>Anmeldeadresse — derzeit nicht änderbar</Note>
             ) : (
               <Button size="sm" onClick={resendVerification}>
-                Resend verification
+                Bestätigung erneut senden
               </Button>
             )
           }
         >
           <span className="min-w-0 font-mono text-body [overflow-wrap:anywhere]">{user?.email}</span>
-          {user?.emailVerified ? <Badge tone="success">verified</Badge> : <Badge>unverified</Badge>}
+          {user?.emailVerified ? <Badge tone="success">bestätigt</Badge> : <Badge>unbestätigt</Badge>}
           {verifyNote && <Note tone="success">{verifyNote}</Note>}
         </CardRow>
       </SettingsCard>
 
       <SettingsCard>
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
+          <CardTitle>Benachrichtigungen</CardTitle>
           <CardDescription>
-            Email about what happens on your canvases while you are not looking at them. Your own comments never trigger
-            one.
+            E-Mails zu Ereignissen auf Deinen Arbeitsflächen, während Du sie nicht ansiehst. Deine eigenen Kommentare
+            lösen keine E-Mail aus.
           </CardDescription>
         </CardHeader>
-        <CardRow label="Comment emails">
+        <CardRow label="Kommentar-E-Mails">
           <label className="relative flex cursor-pointer items-center gap-2.5 text-body text-ink">
             <Checkbox
               checked={notify?.commentEmails ?? true}
               disabled={!notify || !notify.emailConfigured || savingNotify}
               onChange={(e) => void setCommentEmails(e.target.checked)}
-              aria-label="Email me about new comments and replies"
+              aria-label="Schicke mir E-Mails zu neuen Kommentaren und Antworten"
             />
             <span>
-              New comments and replies on canvases you own, were invited to, or wrote in — bundled into one email per
-              canvas every couple of minutes.
+              Neue Kommentare und Antworten auf Arbeitsflächen, die Dir gehören, zu denen Du eingeladen wurdest oder auf
+              denen Du geschrieben hast — alle paar Minuten in einer E-Mail pro Arbeitsfläche zusammengefasst.
             </span>
           </label>
           {notify && !notify.emailConfigured ? (
-            <Note>This doop has no email set up (SMTP_HOST), so nothing is sent either way.</Note>
+            <Note>
+              Für dieses doop ist kein E-Mail-Versand eingerichtet (SMTP_HOST). Es werden daher keine E-Mails gesendet.
+            </Note>
           ) : notifyError ? (
             <Note tone="error">{notifyError}</Note>
           ) : null}
@@ -187,13 +191,13 @@ export function AccountSettings() {
 
       <SettingsCard>
         <CardHeader>
-          <CardTitle>Password</CardTitle>
+          <CardTitle>Passwort</CardTitle>
           <CardDescription>
-            Changing it signs out every other browser and device — this one stays signed in.
+            Beim Ändern werden alle anderen Browser und Geräte abgemeldet — dieses bleibt angemeldet.
           </CardDescription>
         </CardHeader>
         <CardRow
-          label="Current password"
+          label="Aktuelles Passwort"
           control={
             <Input
               type="password"
@@ -203,15 +207,15 @@ export function AccountSettings() {
                 setPwError('')
               }}
               autoComplete="current-password"
-              aria-label="Current password"
+              aria-label="Aktuelles Passwort"
             />
           }
         />
         <CardRow
-          label="New password"
+          label="Neues Passwort"
           action={
             <Button size="sm" disabled={savingPw || !current || next.length < 8} onClick={savePassword}>
-              {savingPw ? 'Updating…' : 'Update password'}
+              {savingPw ? 'Wird aktualisiert…' : 'Passwort aktualisieren'}
             </Button>
           }
           control={
@@ -223,7 +227,7 @@ export function AccountSettings() {
                 setPwError('')
               }}
               autoComplete="new-password"
-              aria-label="New password"
+              aria-label="Neues Passwort"
             />
           }
         >
@@ -232,7 +236,7 @@ export function AccountSettings() {
           ) : pwNote ? (
             <Note tone="success">{pwNote}</Note>
           ) : (
-            <Note>At least 8 characters</Note>
+            <Note>Mindestens 8 Zeichen</Note>
           )}
         </CardRow>
       </SettingsCard>

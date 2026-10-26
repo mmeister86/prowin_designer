@@ -1,12 +1,6 @@
 import Foundation
 import WebKit
 
-struct APIError: LocalizedError {
-    let status: Int
-    let message: String
-    var errorDescription: String? { message }
-}
-
 @MainActor
 final class DoopClient {
     let server: ServerAddress
@@ -23,7 +17,7 @@ final class DoopClient {
 
     func request(_ path: String, method: String = "GET", body: [String: Any]? = nil) throws -> URLRequest {
         guard path.hasPrefix("/"), let url = URL(string: path, relativeTo: server.origin)?.absoluteURL,
-              server.contains(url) else { throw APIError(status: 0, message: "Invalid server URL.") }
+              server.contains(url) else { throw APIError(status: 0, message: "Ungültige Serveradresse. Prüfe Deine Servereinstellungen.") }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(server.origin.absoluteString, forHTTPHeaderField: "Origin")
@@ -38,13 +32,10 @@ final class DoopClient {
     func data(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
         let (data, response) = try await session.data(for: request(path, method: method, body: body))
         guard let http = response as? HTTPURLResponse, let url = http.url, server.contains(url) else {
-            throw APIError(status: 0, message: "The server returned an unexpected response.")
+            throw APIError(status: 0, message: "Der Server hat unerwartet geantwortet. Prüfe Deine Serveradresse und versuche es erneut.")
         }
         guard (200..<300).contains(http.statusCode) else {
-            let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            let detail = payload?["message"] as? String ?? payload?["error"] as? String
-            let message = detail == "resident_limit" ? "Your agent allowance is used up. Contact your administrator." : detail
-            throw APIError(status: http.statusCode, message: message ?? "Request failed (\(http.statusCode)).")
+            throw APIError(status: http.statusCode, message: NativeMessages.api(status: http.statusCode, data: data))
         }
         return data
     }
@@ -143,7 +134,7 @@ final class AppModel: ObservableObject {
                 AgentLiveActivities.shared.observeSystem(client: client)
                 await reload()
             }
-        } catch { if self.client === client { self.error = error.localizedDescription } }
+        } catch { if self.client === client { self.error = NativeMessages.error(error) } }
         guard self.client === client else { return }
         loading = false
     }
@@ -155,7 +146,7 @@ final class AppModel: ObservableObject {
         _ = try await client.data(path, method: "POST", body: body)
         await client.persistWebSession()
         await restore()
-        if user == nil { throw APIError(status: 0, message: "Check your email to verify your account, then sign in.") }
+        if user == nil { throw APIError(status: 0, message: "Bestätige Dein Konto über die E-Mail und melde Dich dann an.") }
     }
 
     /// Google: the provider round trip runs in a browser sheet
@@ -166,13 +157,13 @@ final class AppModel: ObservableObject {
         let attempt = ProviderSignIn(provider: provider)
         let callback = try await WebSignIn().run(attempt.startURL(on: client.server))
         guard let token = attempt.token(from: callback) else {
-            throw APIError(status: 0, message: "The sign-in did not answer this app's request. Try again.")
+            throw APIError(status: 0, message: "Die Anmeldung passt nicht zur Anfrage dieser App. Versuche es erneut.")
         }
         guard self.client === client else { return }
         _ = try await client.data("/api/auth/one-time-token/verify", method: "POST", body: ["token": token])
         await client.persistWebSession()
         await restore()
-        if user == nil { throw APIError(status: 0, message: "Signed in, but no session came back. Try again.") }
+        if user == nil { throw APIError(status: 0, message: "Die Anmeldung hat keine Sitzung zurückgegeben. Versuche es erneut.") }
     }
 
     func reload() async {
@@ -190,7 +181,7 @@ final class AppModel: ObservableObject {
         } catch {
             guard self.client === client else { return }
             if (error as? APIError)?.status == 401 { user = nil; canvases = []; workspaces = [] }
-            self.error = error.localizedDescription
+            self.error = NativeMessages.error(error)
         }
     }
 
@@ -200,7 +191,7 @@ final class AppModel: ObservableObject {
         let document = try JSONDecoder().decode(CanvasDocument.self, from: await client.data("/api/canvases", method: "POST", body: body))
         await reload()
         guard let summary = canvases.first(where: { $0.id == document.id }) else {
-            throw APIError(status: 0, message: "Canvas created. Refresh your library to open it.")
+            throw APIError(status: 0, message: "Arbeitsfläche erstellt. Aktualisiere Deine Übersicht, um sie zu öffnen.")
         }
         return summary
     }
@@ -226,7 +217,7 @@ final class AppModel: ObservableObject {
         guard self.client === client else { return }
         await client.persistWebSession()
         await restore()
-        if user == nil { throw APIError(status: 0, message: "Signed in, but no session came back. Try again.") }
+        if user == nil { throw APIError(status: 0, message: "Die Anmeldung hat keine Sitzung zurückgegeben. Versuche es erneut.") }
     }
 
     /// Whether this account can prove itself with a password: an account that
@@ -247,7 +238,7 @@ final class AppModel: ObservableObject {
         do {
             _ = try await client.data("/api/auth/delete-user", method: "POST", body: password.map { ["password": $0] } ?? [:])
         } catch let error as APIError where password == nil && error.status == 400 {
-            throw APIError(status: error.status, message: "Sign out, sign in again, and then delete your account.")
+            throw APIError(status: error.status, message: "Melde Dich ab und wieder an. Danach kannst Du Dein Konto löschen.")
         }
         await client.clearCookies()
         user = nil

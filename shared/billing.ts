@@ -27,33 +27,33 @@ export const TEAM_SEAT_PRICE: Record<BillingInterval, number> = { month: 2000, y
 export const PLANS: readonly Plan[] = [
   {
     id: 'free',
-    name: 'Personal',
-    tagline: 'For you and your agents.',
+    name: 'Privat',
+    tagline: 'Für Dich und Deine Agenten.',
     features: [
-      'Unlimited personal canvases',
-      'Invite collaborators per canvas',
-      'AI agents over MCP and the Doop Agent',
-      'Community gallery, imports, design memory',
+      'Unbegrenzt viele persönliche Arbeitsflächen',
+      'Personen zu einzelnen Arbeitsflächen einladen',
+      'KI-Agenten über MCP und der Doop-Agent',
+      'Community-Galerie, Importe und Designwissen',
     ],
   },
   {
     id: 'team',
     name: 'Team',
-    tagline: 'A shared workspace for your whole org.',
+    tagline: 'Ein gemeinsamer Arbeitsbereich für Dein gesamtes Team.',
     seatPrice: TEAM_SEAT_PRICE,
     features: [
-      'Shared workspaces — every member opens every canvas',
-      'Roles: owner, admin, member',
-      'Invite by email, seats billed as people join',
-      'Move canvases between personal and workspace',
-      'Everything in Personal',
+      'Gemeinsame Arbeitsbereiche – jedes Mitglied hat Zugriff auf alle Arbeitsflächen',
+      'Rollen: Eigentümer, Creator, Mitglied',
+      'Per E-Mail einladen, Abrechnung der Plätze beim Beitritt',
+      'Arbeitsflächen zwischen persönlichem Bereich und Arbeitsbereich verschieben',
+      'Alles aus dem Tarif Privat',
     ],
   },
   {
     id: 'enterprise',
     name: 'Enterprise',
-    tagline: 'Self-host it, or let us run it for you.',
-    features: ['Dedicated support', 'Custom terms and invoicing'],
+    tagline: 'Selbst betreiben oder von uns betreiben lassen.',
+    features: ['Persönliche Unterstützung', 'Individuelle Konditionen und Rechnungsstellung'],
   },
 ]
 
@@ -88,17 +88,22 @@ export function workspaceStatusFrom(stripeStatus: string): WorkspaceStatus {
 }
 
 export const STATUS_LABELS: Record<WorkspaceStatus, string> = {
-  inactive: 'No plan yet',
-  trialing: 'Trial',
-  active: 'Active',
-  past_due: 'Payment failed',
-  canceled: 'Canceled',
+  inactive: 'Noch kein Tarif',
+  trialing: 'Testphase',
+  active: 'Aktiv',
+  past_due: 'Zahlung fehlgeschlagen',
+  canceled: 'Gekündigt',
 }
 
 /** "$20" / "$16.50" — whole dollars stay whole. */
 export function formatUsd(cents: number): string {
   const dollars = cents / 100
-  return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`
+  return new Intl.NumberFormat('de-DE', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: Number.isInteger(dollars) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(dollars)
 }
 
 /** What a seat costs per month on a given interval, for the comparison line. */

@@ -472,7 +472,7 @@ describe('MCP comment write tools over real action state', () => {
 
       const newest = actions.getActivity(CANVAS.id)[0]!
       expect(newest).toMatchObject({ actorName: 'Claude', actorKind: 'agent' })
-      expect(newest.message).toContain('replied to a comment')
+      expect(newest.message).toContain('hat auf einen Kommentar')
     } finally {
       await close()
     }

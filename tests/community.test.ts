@@ -16,6 +16,23 @@ beforeAll(async () => {
 
 afterAll(() => server?.stop())
 
+it('explains the 280-character limit in German and preserves valid descriptions', async () => {
+  const { canvas } = await canvasWithFrame(author, 'Length boundary')
+  const publish = (description: string) =>
+    author.req(`/api/canvases/${canvas.id}/publish`, {
+      method: 'PUT',
+      body: JSON.stringify({ category: 'website', description }),
+    })
+  const invalid = await publish('x'.repeat(281))
+  expect(invalid.status).toBe(400)
+  expect(await invalid.json()).toEqual({ error: 'Die Beschreibung darf höchstens 280 Zeichen lang sein.' })
+  const description = 'English description '.padEnd(280, 'x')
+  const valid = await publish(description)
+  expect(valid.status).toBe(200)
+  expect((await valid.json()).description).toBe(description)
+  await author.delete(`/api/canvases/${canvas.id}/publish`)
+})
+
 async function canvasWithFrame(client: Client, name: string) {
   const canvas = await (await client.post('/api/canvases', { name })).json()
   const frame = await (await client.post(`/api/canvases/${canvas.id}/frames`, { name: 'Hero' })).json()

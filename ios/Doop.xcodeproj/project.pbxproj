@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		000000000000000000000370 /* Core/NativeMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000371 /* Core/NativeMessages.swift */; };
 		000000000000000000000360 /* Core/CanvasSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000361 /* Core/CanvasSocket.swift */; };
 		000000000000000000000352 /* Core/PendingFrameMoves.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000353 /* Core/PendingFrameMoves.swift */; };
 		000000000000000000000354 /* Core/ProviderSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000355 /* Core/ProviderSignIn.swift */; };
@@ -65,6 +66,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		000000000000000000000371 /* Core/NativeMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/NativeMessages.swift; sourceTree = "<group>"; };
 		000000000000000000000361 /* Core/CanvasSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/CanvasSocket.swift; sourceTree = "<group>"; };
 		000000000000000000000353 /* Core/PendingFrameMoves.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/PendingFrameMoves.swift; sourceTree = "<group>"; };
 		000000000000000000000355 /* Core/ProviderSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/ProviderSignIn.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 		000000000000000000000003 /* Doop */ = {
 			isa = PBXGroup;
 			children = (
+				000000000000000000000371 /* Core/NativeMessages.swift */,
 				00000000000000000000012C /* Core/Models.swift */,
 				000000000000000000000351 /* Core/FrameSnapping.swift */,
 				000000000000000000000361 /* Core/CanvasSocket.swift */,
@@ -217,10 +220,10 @@
 			};
 			buildConfigurationList = 00000000000000000000000A /* Build configuration list for PBXProject "Doop" */;
 			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = en;
+			developmentRegion = de;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
+				de,
 				Base,
 			);
 			mainGroup = 000000000000000000000002;
@@ -278,6 +281,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				000000000000000000000370 /* Core/NativeMessages.swift in Sources */,
 				000000000000000000000262 /* Doop/Core/AgentActivityState.swift in Sources */,
 				000000000000000000000263 /* Shared/AgentActivityAttributes.swift in Sources */,
 				000000000000000000000264 /* Doop/AgentLiveActivities.swift in Sources */,
@@ -357,6 +361,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = N29YR8ZK97;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Doop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = doop;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -412,6 +417,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = N29YR8ZK97;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Doop/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = doop;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
@@ -465,7 +471,7 @@
 				DEVELOPMENT_TEAM = N29YR8ZK97;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DoopActivity/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Doop Agent Status";
+				INFOPLIST_KEY_CFBundleDisplayName = "Doop-Agentenstatus";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = design.doop.ios.activity;
@@ -487,7 +493,7 @@
 				DEVELOPMENT_TEAM = N29YR8ZK97;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = DoopActivity/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Doop Agent Status";
+				INFOPLIST_KEY_CFBundleDisplayName = "Doop-Agentenstatus";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = design.doop.ios.activity;

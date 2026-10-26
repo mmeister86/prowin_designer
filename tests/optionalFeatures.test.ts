@@ -69,7 +69,7 @@ it('keeps outbound integrations off even with old keys and a remote background o
   expect(await searchInspiration('flyer')).toEqual([])
   expect(await fetchThumb('example')).toBeNull()
   await expect(exchangeCode('old-code')).rejects.toThrow(/disabled/)
-  await expect(tagWithModel(Buffer.from('image'))).rejects.toThrow(/off|disabled/)
+  await expect(tagWithModel(Buffer.from('image'))).rejects.toThrow(/deaktiviert/)
   expect(request).not.toHaveBeenCalled()
 })
 
@@ -88,7 +88,7 @@ it('rejects background ingestion without writing objects or rows', async () => {
   const image = await sharp({ create: { width: 1600, height: 1000, channels: 3, background: '#123456' } })
     .png()
     .toBuffer()
-  await expect(createBackground(image, { skipModel: true })).rejects.toThrow(/disabled/)
+  await expect(createBackground(image, { skipModel: true })).rejects.toThrow(/deaktiviert/)
   expect(put).not.toHaveBeenCalled()
   expect(db.insert).not.toHaveBeenCalled()
 })

@@ -302,9 +302,9 @@ function DrawingPreview({
     return (
       <textarea
         data-drawing-input
-        aria-label="Text to add to canvas"
+        aria-label="Text für die Arbeitsfläche"
         autoFocus
-        placeholder="Type something…"
+        placeholder="Gib etwas ein…"
         value={d.text ?? ''}
         onChange={(e) => onText(e.target.value, Math.max(d.height, e.target.scrollHeight))}
         onBlur={onFinish}

@@ -4,7 +4,7 @@ import { store } from './store.ts'
 export function seed() {
   if (store.canvases.size > 0) return
 
-  const canvas = store.createCanvas('Welcome Canvas')
+  const canvas = store.createCanvas('Willkommens-Arbeitsfläche')
 
   store.createFrame(
     canvas.id,
@@ -15,7 +15,7 @@ export function seed() {
       width: 720,
       height: 520,
       demo: true,
-      html: `<!doctype html><html><head><style>
+      html: `<!doctype html><html lang="de"><head><style>
   *{margin:0;box-sizing:border-box}
   body{font-family:Georgia,serif;background:#0F1E17;color:#F2EFE6;height:100vh;display:flex;flex-direction:column;justify-content:center;padding:56px;overflow:hidden}
   .eyebrow{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#8FBF9F;margin-bottom:20px}
@@ -28,10 +28,10 @@ export function seed() {
   .orb{position:absolute;right:-80px;top:-80px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#2E4A38,#13291E);filter:blur(2px)}
 </style></head><body>
   <div class="orb"></div>
-  <div class="eyebrow">Terrarium · Field Notes</div>
-  <h1>Grow a garden that <em>thinks</em> for itself.</h1>
-  <p>Terrarium pairs slow horticulture with fast sensors. Moisture, light and root health, observed hourly and explained in plain language.</p>
-  <div class="cta"><button class="btn">Start growing</button><a class="link" href="#">Read the field notes</a></div>
+  <div class="eyebrow">Terrarium · Gartennotizen</div>
+  <h1>Ein Garten, der selbst <em>mitdenkt</em>.</h1>
+  <p>Terrarium verbindet entspanntes Gärtnern mit schneller Sensortechnik. Feuchtigkeit, Licht und Wurzelgesundheit – stündlich erfasst und verständlich erklärt.</p>
+  <div class="cta"><button class="btn">Jetzt pflanzen</button><a class="link" href="#">Gartennotizen lesen</a></div>
 </body></html>`,
     },
     'seed',
@@ -40,13 +40,13 @@ export function seed() {
   store.createFrame(
     canvas.id,
     {
-      name: 'Pricing card',
+      name: 'Tarifkarte',
       x: 920,
       y: 120,
       width: 420,
       height: 520,
       demo: true,
-      html: `<!doctype html><html><head><style>
+      html: `<!doctype html><html lang="de"><head><style>
   *{margin:0;box-sizing:border-box}
   body{font-family:'Helvetica Neue',Arial,sans-serif;background:#F5F3EE;height:100vh;display:grid;place-items:center}
   .card{background:#fff;border:1px solid #E2DDD2;border-radius:18px;padding:36px;width:320px;box-shadow:0 24px 48px -32px rgba(30,25,15,.25)}
@@ -59,15 +59,15 @@ export function seed() {
   button{width:100%;padding:14px;border:none;border-radius:12px;background:#0F1E17;color:#F2EFE6;font-size:14px;cursor:pointer}
 </style></head><body>
   <div class="card">
-    <span class="tag">Greenhouse</span>
-    <div class="price">$24<span> / month</span></div>
+    <span class="tag">Gewächshaus</span>
+    <div class="price">24 $<span> / Monat</span></div>
     <ul>
-      <li>Unlimited plant profiles</li>
-      <li>Hourly sensor readings</li>
-      <li>Weekly care digests</li>
-      <li>Frost &amp; drought alerts</li>
+      <li>Unbegrenzt viele Pflanzenprofile</li>
+      <li>Stündliche Sensormessungen</li>
+      <li>Wöchentliche Pflegetipps</li>
+      <li>Frost- und Trockenheitswarnungen</li>
     </ul>
-    <button>Choose Greenhouse</button>
+    <button>Gewächshaus wählen</button>
   </div>
 </body></html>`,
     },

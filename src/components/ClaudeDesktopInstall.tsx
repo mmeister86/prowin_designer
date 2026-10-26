@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { errorMessage } from '../lib/api'
 import { addToClaudeDesktop, canAddToClaudeDesktop } from '../lib/claudeConnection'
 import { Button } from './ui/button'
 import { InstallBlock } from './ui/install-block'
@@ -15,7 +16,12 @@ export function ClaudeDesktopInstall({ mcpUrl }: { mcpUrl: string }) {
       setState('opened')
     } catch (err) {
       setState('idle')
-      setError(err instanceof Error ? err.message : String(err))
+      setError(
+        errorMessage(
+          err,
+          'Claude konnte nicht geöffnet werden. Prüfe, ob Claude Desktop installiert ist, und versuche es erneut.',
+        ),
+      )
     }
   }
 
@@ -24,26 +30,30 @@ export function ClaudeDesktopInstall({ mcpUrl }: { mcpUrl: string }) {
       action={
         canAddToClaudeDesktop() ? (
           <Button variant="solid" disabled={state === 'opening'} onClick={() => void connect()}>
-            {state === 'opening' ? 'Opening Claude…' : state === 'opened' ? 'Open Claude again' : 'Add to Claude'}
+            {state === 'opening'
+              ? 'Claude wird geöffnet…'
+              : state === 'opened'
+                ? 'Claude erneut öffnen'
+                : 'Zu Claude hinzufügen'}
           </Button>
         ) : (
           <p>
-            Open this server in an updated Doop desktop app to add Claude directly. In a browser, you can use the manual
-            installation below.
+            Öffne diesen Server in einer aktuellen Doop-Desktop-App, um Claude direkt hinzuzufügen. Im Browser kannst Du
+            die manuelle Installation unten nutzen.
           </p>
         )
       }
-      status={state === 'opened' && 'Confirm the installation in Claude, then approve the Doop sign-in.'}
+      status={state === 'opened' && 'Bestätige die Installation in Claude und genehmige dann die Doop-Anmeldung.'}
       error={error}
-      manualLabel="Install manually"
+      manualLabel="Manuell installieren"
       manual={
         <p>
           <a className="underline underline-offset-2" href="/claude-extension/doop.mcpb" download="doop.mcpb">
-            Download extension
+            Erweiterung herunterladen
           </a>
-          , then open it with Claude Desktop. Set <strong>Doop server URL</strong> to{' '}
-          <code className="break-all">{mcpUrl}</code>. If the file doesn’t open, use Claude’s{' '}
-          <strong>Settings → Extensions → Advanced settings → Install Extension</strong>.
+          und dann mit Claude Desktop öffnen. Setze <strong>Doop-Server-URL</strong> auf{' '}
+          <code className="break-all">{mcpUrl}</code>. Falls sich die Datei nicht öffnet, nutze in Claude{' '}
+          <strong>Einstellungen → Erweiterungen → Erweiterte Einstellungen → Erweiterung installieren</strong>.
         </p>
       }
     />

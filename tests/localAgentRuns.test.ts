@@ -117,7 +117,7 @@ it('stops a canceled canvas run without stopping another run on the same account
   await expect(runs.execute(job.id, job.token, 'create_frame', {})).rejects.toThrow()
   expect(execute).not.toHaveBeenCalled()
   await runs.expire()
-  expect(await first).toEqual({ success: false, text: 'Task stopped.' })
+  expect(await first).toEqual({ success: false, text: 'Die Aufgabe wurde gestoppt.' })
   const next = runs.poll('alice', 'desktop')!
   expect(next.id).not.toBe(job.id)
   await runs.finish(next.id, 'alice', 'desktop', { success: true, text: 'Done' })

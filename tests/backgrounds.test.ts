@@ -241,7 +241,7 @@ describe('normalizeTags', () => {
     const base = { tone: 'dark', style: 'glow', palette: ['#000000'], slots: ['hero'], text_zone: 'left' }
     expect(() => normalizeTags({ ...base, tone: 'dim' })).toThrow('tone')
     expect(() => normalizeTags({ ...base, style: 'sparkly' })).toThrow('style')
-    expect(() => normalizeTags({ ...base, slots: [] })).toThrow('slots')
+    expect(() => normalizeTags({ ...base, slots: [] })).toThrow('Einsatzbereich')
     expect(() => normalizeTags({ ...base, palette: ['red'] })).toThrow('palette')
   })
 })

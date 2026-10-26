@@ -18,6 +18,7 @@ struct ServerAddressChecks {
         try ProviderSignInChecks.run()
         AppleSignInChecks.run()
         try CanvasSocketChecks.run()
+        NativeMessagesChecks.run()
         print("All core checks passed.")
     }
     func testNormalizesOriginAndStartsAtAuthentication() {
@@ -62,7 +63,7 @@ struct ServerAddressChecks {
         checkTrue(FileManager.default.fileExists(atPath: second.deletingLastPathComponent().path))
         for name in ["", ".", "..", "\n"] {
             let url = try storage.destination(suggestedFilename: name)
-            checkEqual(url.lastPathComponent, "Doop export")
+            checkEqual(url.lastPathComponent, "Doop-Export")
         }
         let outside = root.appendingPathComponent("keep.txt")
         try Data("keep".utf8).write(to: outside)

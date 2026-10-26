@@ -117,14 +117,14 @@ it('revokes an agent key only after the dialog is confirmed', async () => {
   mocks.listAgentKeys.mockResolvedValue([key('k1', 'ci'), key('k2', 'mastra')])
   await mount(<AgentKeys />)
 
-  await click('Revoke mastra')
-  expect(dialog()?.textContent).toContain('Revoke “mastra”?')
-  await click('Cancel', dialog()!)
+  await click('Widerrufen: mastra')
+  expect(dialog()?.textContent).toContain('„mastra“ widerrufen?')
+  await click('Abbrechen', dialog()!)
   expect(dialog()).toBeNull()
   expect(mocks.deleteAgentKey).not.toHaveBeenCalled()
 
-  await click('Revoke mastra')
-  await click('Revoke key', dialog()!)
+  await click('Widerrufen: mastra')
+  await click('Schlüssel widerrufen', dialog()!)
   expect(mocks.deleteAgentKey).toHaveBeenCalledTimes(1)
   expect(mocks.deleteAgentKey).toHaveBeenCalledWith('k2')
   expect(container.textContent).not.toContain('mastra')
@@ -135,13 +135,13 @@ it('rotates a webhook secret only after the dialog is confirmed', async () => {
   mocks.listWebhooks.mockResolvedValue([hook('h1', 'https://hooks.example.com/doop')])
   await mount(<Webhooks />)
 
-  await click('Rotate secret')
-  expect(dialog()?.textContent).toContain('Rotate the secret for hooks.example.com?')
-  await click('Cancel', dialog()!)
+  await click('Geheimnis erneuern')
+  expect(dialog()?.textContent).toContain('Geheimnis erneuern für hooks.example.com?')
+  await click('Abbrechen', dialog()!)
   expect(mocks.rotateWebhookSecret).not.toHaveBeenCalled()
 
-  await click('Rotate secret')
-  await click('Rotate secret', dialog()!)
+  await click('Geheimnis erneuern')
+  await click('Geheimnis erneuern', dialog()!)
   expect(mocks.rotateWebhookSecret).toHaveBeenCalledTimes(1)
   expect(mocks.rotateWebhookSecret).toHaveBeenCalledWith('h1')
   expect(mocks.deleteWebhook).not.toHaveBeenCalled()
@@ -155,13 +155,13 @@ it('removes a webhook only after the dialog is confirmed', async () => {
   ])
   await mount(<Webhooks />)
 
-  await click('Remove webhook for n8n.example.org')
-  expect(dialog()?.textContent).toContain('Remove the webhook for n8n.example.org?')
-  await click('Cancel', dialog()!)
+  await click('Webhook entfernen für n8n.example.org')
+  expect(dialog()?.textContent).toContain('Webhook entfernen für n8n.example.org?')
+  await click('Abbrechen', dialog()!)
   expect(mocks.deleteWebhook).not.toHaveBeenCalled()
 
-  await click('Remove webhook for n8n.example.org')
-  await click('Remove webhook', dialog()!)
+  await click('Webhook entfernen für n8n.example.org')
+  await click('Webhook entfernen', dialog()!)
   expect(mocks.deleteWebhook).toHaveBeenCalledTimes(1)
   expect(mocks.deleteWebhook).toHaveBeenCalledWith('h2')
   expect(mocks.rotateWebhookSecret).not.toHaveBeenCalled()
@@ -172,13 +172,15 @@ it('bans and unbans accounts from /admin only after the dialog is confirmed', as
   mocks.adminUsers.mockResolvedValue([user('u1', 'Ada', false), user('u2', 'Grace', true)])
   await mount(<Admin />)
   /* the rail item also renders its count, so match the label as a prefix */
-  const accounts = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.startsWith('Accounts'))!
+  const accounts = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.startsWith('Konten'))!
   await act(async () => accounts.click())
 
   /* each account row's own Ban/Unban button: climb from the button to the
      widest ancestor that still holds no other ban control, then match its text */
   const banButtons = () =>
-    Array.from(container.querySelectorAll('button')).filter((b) => /^(Ban|Unban)$/.test(b.textContent?.trim() ?? ''))
+    Array.from(container.querySelectorAll('button')).filter((b) =>
+      /^(Sperren|Entsperren)$/.test(b.textContent?.trim() ?? ''),
+    )
   const rowAction = (name: string) =>
     banButtons().find((b) => {
       let row: HTMLElement = b
@@ -188,18 +190,18 @@ it('bans and unbans accounts from /admin only after the dialog is confirmed', as
     })!
 
   await act(async () => rowAction('Ada').click())
-  expect(dialog()?.textContent).toContain('Ban Ada (u1@example.com)?')
-  await click('Cancel', dialog()!)
+  expect(dialog()?.textContent).toContain('Sperren Ada (u1@example.com)?')
+  await click('Abbrechen', dialog()!)
   expect(mocks.ban).not.toHaveBeenCalled()
 
   await act(async () => rowAction('Ada').click())
-  await click('Ban', dialog()!)
+  await click('Sperren', dialog()!)
   expect(mocks.ban).toHaveBeenCalledTimes(1)
   expect(mocks.ban).toHaveBeenCalledWith('u1')
 
   await act(async () => rowAction('Grace').click())
-  expect(dialog()?.textContent).toContain('Unban Grace (u2@example.com)?')
-  await click('Unban', dialog()!)
+  expect(dialog()?.textContent).toContain('Entsperren Grace (u2@example.com)?')
+  await click('Entsperren', dialog()!)
   expect(mocks.unban).toHaveBeenCalledTimes(1)
   expect(mocks.unban).toHaveBeenCalledWith('u2')
   expect(mocks.ban).toHaveBeenCalledTimes(1)

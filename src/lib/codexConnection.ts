@@ -11,7 +11,10 @@ const bridge = globalThis as CodexBridge
 export const canAddToCodex = () => bridge.__DOOP_CODEX_SETUP__ === true && !!bridge.__TAURI__?.core
 
 export async function addToCodex(): Promise<void> {
-  if (!canAddToCodex()) throw new Error('Update Doop Desktop to add Codex directly, or use the manual setup below.')
+  if (!canAddToCodex())
+    throw new Error(
+      'Aktualisiere Doop Desktop, um Codex direkt hinzuzufügen, oder nutze die manuelle Einrichtung unten.',
+    )
   // The native command derives /mcp from its own webview. Neither a website
   // handoff nor an IPC argument can select another server or a local command.
   await bridge.__TAURI__!.core!.invoke('codex_add_mcp')
