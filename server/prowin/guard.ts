@@ -14,3 +14,9 @@ const configured = FORBIDDEN.filter((key) => process.env[key])
 if (configured.length) {
   throw new Error(`[prowin] non-EU model/analytics keys must stay unset: ${configured.join(', ')}`)
 }
+
+// eslint-disable-next-line no-restricted-syntax -- Provider selection must fail before env.ts initializes.
+const provider = process.env.DOOP_AGENT_PROVIDER
+if (provider === 'azure' || provider === 'anthropic') {
+  throw new Error('[prowin] DOOP_AGENT_PROVIDER must use requesty; direct server model providers are disabled')
+}

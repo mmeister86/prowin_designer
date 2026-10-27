@@ -1,10 +1,13 @@
 // Loaded only by the integration server. Keep its real resident/actions/render
 // loop; replace the paid upstream boundary with deterministic EU responses.
+import { installAiEgress } from './ai-egress.mjs'
+import process from 'node:process'
+
 const originalFetch = globalThis.fetch
-globalThis.fetch = async (url, init) => {
+const routerFetch = async (url, init) => {
   if (url !== 'https://router.eu.requesty.ai/v1/chat/completions') return originalFetch(url, init)
   const body = JSON.parse(init.body)
-  if (init.headers.Authorization !== 'Bearer requesty-integration-key' || body.model !== 'policy/prowin-layout-gen') {
+  if (init.headers.Authorization !== 'Bearer requesty-integration-key') {
     throw new Error('Incorrect Requesty credentials or policy')
   }
   for (const [title, status] of [
@@ -49,6 +52,16 @@ globalThis.fetch = async (url, init) => {
         },
       ],
     })
+  if (body.model === 'policy/prowin-text-gen') {
+    if (body.max_tokens === 100 && !body.tools?.length) {
+      return result({ content: 'Prefer blue accents' }, 'stop')
+    }
+    if (body.max_tokens !== 1000 || body.tool_choice?.function?.name !== 'distill_result') {
+      throw new Error('Distiller did not request its forced result tool')
+    }
+    return call('distill_result', { has_rule: true, guide_name: 'brand-notes', rule: '- Use blue accents' })
+  }
+  if (body.model !== 'policy/prowin-layout-gen') throw new Error('Incorrect Requesty layout policy')
   const tools = body.messages.filter((message) => message.role === 'tool')
   if (!tools.length)
     return call('create_frame', {
@@ -67,5 +80,13 @@ globalThis.fetch = async (url, init) => {
   if (!images.some((part) => part.type === 'image_url' && part.image_url.url.startsWith('data:image/png;base64,'))) {
     throw new Error('Resident screenshot did not reach Requesty as an image')
   }
+  if (!tools.some((message) => message.tool_call_id === 'call-save_decision')) {
+    return call('save_decision', { decision: 'Always use blue accents' })
+  }
   return result({ content: 'Frame created and visually reviewed.' }, 'stop')
 }
+
+// The queue-admission fixture also uses this router, without an Egress journal.
+globalThis.fetch = process.env.PROWIN_TEST_EGRESS_JOURNAL
+  ? installAiEgress(routerFetch, process.env.PROWIN_TEST_EGRESS_JOURNAL)
+  : routerFetch

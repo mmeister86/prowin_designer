@@ -1,24 +1,34 @@
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import WebSocket from 'ws'
 import { Client, startServer, type Server } from './harness.ts'
+import { createEgressDirectory } from './egressJournal.ts'
 import { findBrowserPath } from '../server/screenshot.ts'
-import type { AgentTask, Canvas } from '../shared/types.ts'
+import type { AgentTask, Canvas, DesignDecision, MemoryProposal } from '../shared/types.ts'
 
 let server: Server
 let owner: Client
 let canvas: Canvas
 let socket: WebSocket
 const tasks = new Map<string, AgentTask>()
+const decisions = new Map<string, DesignDecision>()
+const proposals = new Map<string, MemoryProposal>()
+const directory = createEgressDirectory()
+const journal = join(directory, 'requests.jsonl')
 
 beforeAll(async () => {
+  writeFileSync(journal, '')
   server = await startServer({
     DOOP_AGENT_PROVIDER: 'requesty',
     DOOP_AGENT_MODEL: 'policy/prowin-layout-gen',
+    DOOP_DISTILL_MODEL: 'policy/prowin-text-gen',
     REQUESTY_API_KEY: 'requesty-integration-key',
     RESIDENT_TASK_LIMIT: '4',
     ANTHROPIC_API_KEY: '',
     SMTP_HOST: '',
     CHROME_NO_SANDBOX: 'true',
+    PROWIN_TEST_EGRESS_JOURNAL: journal,
     NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${new URL('./fixtures/requesty-router.mjs', import.meta.url).href}`,
   })
   owner = await new Client(server).signUp('requesty-resident@test.dev', 'Requesty Tester')
@@ -33,28 +43,52 @@ beforeAll(async () => {
       const message = JSON.parse(String(data))
       if (message.type === 'init') resolve()
       if (message.type === 'task') tasks.set(message.task.id, message.task)
+      if (message.type === 'decision') decisions.set(message.decision.id, message.decision)
+      if (message.type === 'proposal') proposals.set(message.proposal.id, message.proposal)
     })
   })
 }, 70_000)
-afterAll(() => {
+afterAll(async () => {
   socket?.close()
   server?.stop()
+  await server?.stopped
+  try {
+    const entries = readFileSync(journal, 'utf8')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line))
+    expect(entries.length).toBeGreaterThan(0)
+    // Check independently: Resident and Distiller intentionally catch transport failures.
+    expect(entries.filter((entry) => !entry.allowed)).toEqual([])
+    expect(new Set(entries.map((entry) => entry.origin))).toEqual(new Set(['https://router.eu.requesty.ai']))
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })
 
-it.skipIf(!findBrowserPath())(
-  'completes a real resident card after creating a frame and sending its screenshot to Requesty',
-  async () => {
-    const res = await owner.post(`/api/canvases/${canvas.id}/cards`, { title: 'Create an EU integration frame' })
-    expect(res.status).toBe(200)
-    const card: AgentTask = await res.json()
-    await vi.waitFor(() => expect(tasks.get(card.id)?.endedAt).toBeTypeOf('number'), { timeout: 20_000 })
-    expect(tasks.get(card.id)?.failedAt).toBeUndefined()
-    const updated: Canvas = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
-    expect(updated.frames).toHaveLength(1)
-    expect(updated.frames[0]?.html).toContain('EU integration')
-  },
-  25_000,
-)
+it('completes a real resident card with EU-only screenshot, summary and pending rule proposal', async () => {
+  expect(findBrowserPath(), 'The M2 smoke requires Chrome/Chromium; set CHROME_PATH').not.toBeNull()
+  const res = await owner.post(`/api/canvases/${canvas.id}/cards`, { title: 'Create an EU integration frame' })
+  expect(res.status).toBe(200)
+  const card: AgentTask = await res.json()
+  await vi.waitFor(() => expect(tasks.get(card.id)?.endedAt).toBeTypeOf('number'), { timeout: 20_000 })
+  expect(tasks.get(card.id)?.failedAt).toBeUndefined()
+  const updated: Canvas = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
+  expect(updated.frames).toHaveLength(1)
+  expect(updated.frames[0]?.html).toContain('EU integration')
+  await vi.waitFor(() => {
+    expect([...decisions.values()]).toMatchObject([{ summary: 'Prefer blue accents' }])
+    expect([...proposals.values()]).toMatchObject([{ status: 'pending', rule: '- Use blue accents' }])
+  })
+  const entries = readFileSync(journal, 'utf8')
+    .trim()
+    .split('\n')
+    .map((line) => JSON.parse(line))
+  // Four layout turns plus the two Distiller calls must pass the same boundary.
+  expect(entries).toHaveLength(6)
+  expect(entries.every((entry) => entry.allowed && entry.pathname === '/v1/chat/completions')).toBe(true)
+}, 25_000)
 
 it('pauses a budget-rejected resident card for manual retry without completing it', async () => {
   const res = await owner.post(`/api/canvases/${canvas.id}/cards`, { title: 'Budget failure test' })
@@ -81,7 +115,7 @@ it.each(['Credential failure test', 'Policy failure test'])(
   },
 )
 
-it.skipIf(!findBrowserPath())('enforces the configured task limit before queueing further paid work', async () => {
+it('enforces the configured task limit before queueing further paid work', async () => {
   const response = await owner.post(`/api/canvases/${canvas.id}/cards`, { title: 'Over the task allowance' })
   expect(response.status).toBe(403)
   expect(await response.json()).toMatchObject({ error: 'resident_limit', used: 4, limit: 4 })

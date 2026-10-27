@@ -1,6 +1,6 @@
 # Requesty EU als Server-Provider
 
-TASK-16 / TASK-17 · Stand: 24.10.2026
+TASK-16 / TASK-17 / TASK-22 · Stand: 27.10.2026
 
 Der Resident verwendet standardmäßig Requesty EU über den bestehenden
 Chat-Completions-Transport. System-Blöcke, Tool-Aufrufe und Screenshot-Ergebnisse
@@ -32,7 +32,8 @@ bei einer 307/308-Antwort nicht an ein anderes Ziel gesendet werden.
 Ein fehlender oder leerer `REQUESTY_API_KEY` deaktiviert den Server-Tier. Der Server
 startet weiter und nennt die fehlende Konfiguration im Boot-Log. Wartende Aufgaben
 werden ohne ausführbares Modell nicht geclaimt. Vorhandene Anthropic-/Azure-Keys
-werden dabei nicht als Ersatz verwendet. Auch bei gültigem Key erlaubt
+werden dabei nicht als Ersatz verwendet. Ein nichtleerer Anthropic-Key verhindert
+bereits den Boot; eine explizite Azure-/Anthropic-Providerwahl ebenso. Auch bei gültigem Key erlaubt
 `RESIDENT_TASK_LIMIT=0` keine serverbezahlten Resident-Aufgaben; das Boot-Log nennt
 Key-Bereitschaft und Aufgabenlimit getrennt.
 
@@ -48,12 +49,10 @@ einrichten oder `DOOP_AGENT_MODEL` auf eine dort geprüfte Policy setzen. Der
 Boot-Status prüft nur, ob der Key gesetzt ist; er führt keinen kostenpflichtigen
 Inferenz- oder Management-Aufruf zur Prüfung der Policy-Rechte aus.
 
-**Upgrade bestehender Installationen:** Der bisher implizite Anthropic-Standard
-wird in diesem Fork zu Requesty. Wer vorerst weiter direkt Anthropic verwenden
-muss, setzt vor dem Upgrade ausdrücklich `DOOP_AGENT_PROVIDER=anthropic`.
-Ein vorhandener `ANTHROPIC_API_KEY` allein aktiviert den Residenten künftig nicht;
-ein alter `DOOP_AGENT_MODEL`-Override muss beim Wechsel zu Requesty ausdrücklich
-durch die geprüfte Policy ersetzt werden.
+**Upgrade bestehender Installationen:** Direkte Azure-/Anthropic-Serverprovider
+sind seit TASK-22 nicht mehr startfähig. `DOOP_AGENT_PROVIDER` entfernen oder auf
+`requesty` setzen, verbotene Keys entfernen und alte `DOOP_AGENT_MODEL`-Overrides
+durch eine geprüfte Requesty-Policy ersetzen. Es gibt keinen Legacy-Ausnahmeschalter.
 
 ## Budget, EU-Routing und Fehler
 
@@ -94,7 +93,9 @@ Nachrichten, fehlenden Key, Legacy-Defaults sowie HTTP 401/403/404/402/429/502 o
 Providerwechsel. Der Resident-Integrationstest verwendet einen simulierten
 Requesty-Router an der Fetch-Grenze; Resident, Karten, Frame-Mutationen,
 Chromium-Screenshots, Aufgabenmeter und WebSocket-Ergebnisse bleiben echt. Der
-Screenshot-Test benötigt ein vorhandenes Chromium. Ein simuliertes Budgetlimit
+Screenshot-Test benötigt ein vorhandenes Chromium und darf für M2 nicht übersprungen
+werden. Seit TASK-22 umfasst der Lauf auch beide Distiller-Aufrufe und ein unabhängig
+ausgewertetes Zieljournal; siehe [KI-/Analytics-Egress](egress-pruefung.md). Ein simuliertes Budgetlimit
 belegt die Fehlerbehandlung, nicht die tatsächlich eingerichtete Requesty-Grenze.
 
 Der [Live-Smoke-Test vom 24.10.2026](evidence/requesty-server-smoke-2026-10-24.json)
@@ -108,15 +109,14 @@ Fallback noch ein echtes Erreichen des Key-Budgets.
 TASK-18 entfernt private BYO-Auswahl vollständig. Aktuell berechtigte Creator/Admins
 behalten den Local Agent mit Vorrang vor dem Server; ein offline gewählter Local Agent
 löst keinen stillen Server-Fallback aus. [Migration und Konfiguration](model-account-removal.md).
-Explizit gewählte Legacy-Serverprovider bleiben verfügbar:
-`DOOP_AGENT_PROVIDER=anthropic` behält ohne Modell-Override `claude-opus-5`;
-Azure verwendet weiterhin sein Deployment.
+Explizit gewählte Legacy-Serverprovider sind beim Boot gesperrt. Ihre Transportmodule
+bleiben für isolierte Regressionstests erhalten; sie sind kein alternativer Betriebsweg.
 
 ## Memory-Distiller und verbleibendes Bild-Tagging (TASK-17)
 
 Beide Distiller-Aufrufe laufen über denselben EU-Transport mit
 `DOOP_DISTILL_MODEL=policy/prowin-text-gen` und ausgeschalteter Vision. Das gilt
-auch bei explizit gewähltem Azure-/Anthropic-Agent-Provider oder lokalen Agents.
+auch bei lokalen Agents; Azure-/Anthropic-Konfigurationen existieren nur noch in isolierten Tests.
 Ohne `REQUESTY_API_KEY` werden weder Zusammenfassungen noch Regelvorschläge
 angefordert. Ein vorhandener `ANTHROPIC_API_KEY` aktiviert diese Pfade nicht.
 Alte `DOOP_DISTILL_MODEL=claude-…`-Overrides müssen beim Upgrade auf eine für den

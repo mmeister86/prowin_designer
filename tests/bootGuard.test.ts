@@ -70,17 +70,33 @@ it.each([' ', '0'])('rejects a nonempty forbidden value %j', async (value) => {
   )
 })
 
-it('boots normally with Requesty and empty forbidden keys', async () => {
-  const server = await startServer({
-    ...emptyKeys,
-    DOOP_AGENT_PROVIDER: 'requesty',
-    REQUESTY_API_KEY: 'synthetic-requesty-allowed',
-    RESIDENT_TASK_LIMIT: '0',
+it.each(['azure', 'anthropic'])('rejects direct server provider %s before environment parsing', async (provider) => {
+  const output = await rejectedBoot({
+    DOOP_AGENT_PROVIDER: provider,
+    AZURE_OPENAI_ENDPOINT: 'https://synthetic-azure-endpoint.openai.azure.com',
+    AZURE_OPENAI_DEPLOYMENT: 'synthetic-deployment-secret',
+    AZURE_OPENAI_API_KEY: 'synthetic-azure-secret',
   })
-  try {
-    expect((await fetch(server.base + '/healthz')).status).toBe(200)
-  } finally {
-    server.stop()
-    await server.stopped
-  }
-}, 30_000)
+  expect(output).toContain('[prowin] DOOP_AGENT_PROVIDER must use requesty')
+  expect(output).not.toContain('invalid-port-sentinel')
+  expect(output).not.toMatch(/synthetic-azure|synthetic-deployment/)
+})
+
+it.each(['requesty', '', ' '])(
+  'boots normally with provider %j and empty forbidden keys',
+  async (provider) => {
+    const server = await startServer({
+      ...emptyKeys,
+      DOOP_AGENT_PROVIDER: provider,
+      REQUESTY_API_KEY: 'synthetic-requesty-allowed',
+      RESIDENT_TASK_LIMIT: '0',
+    })
+    try {
+      expect((await fetch(server.base + '/healthz')).status).toBe(200)
+    } finally {
+      server.stop()
+      await server.stopped
+    }
+  },
+  30_000,
+)

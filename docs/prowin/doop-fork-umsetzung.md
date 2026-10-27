@@ -176,6 +176,11 @@ Die Automations-Entscheidung ist durch TASK-12 als vorläufige Deaktivierung get
 
 ### 7.2 Requesty als Server-Provider
 
+**Betriebsstand TASK-22:** Die folgenden Skizzen behalten Legacy-Transporttypen
+bei. Beim echten Serverstart sperrt `server/prowin/guard.ts` jedoch die Auswahl
+`azure` und `anthropic`; der einzige erlaubte Serverprovider ist Requesty.
+Aktuelle Konfiguration und Grenzen: [Requesty-Server](requesty-server.md).
+
 ```ts
 // server/env.ts
 DOOP_AGENT_PROVIDER: str({ choices: ['anthropic', 'azure', 'requesty'], default: 'requesty' }),
@@ -274,7 +279,7 @@ async function complete(system: string, messages: Anthropic.MessageParam[], tool
 
 ### 7.6 DSGVO-Leitplanken (technisch erzwungen)
 
-1. **Boot-Guard:** Der Server startet **nicht**, wenn `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ARK_API_KEY` oder `POSTHOG_KEY` gesetzt sind.
+1. **Boot-Guard:** Der Server startet **nicht**, wenn `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `ARK_API_KEY`, `POSTHOG_KEY` oder `VITE_POSTHOG_KEY` gesetzt sind. Seit TASK-22 verhindert auch `DOOP_AGENT_PROVIDER=azure` oder `anthropic` den Boot; nur Requesty ist als Serverprovider zugelassen.
    ```ts
    // server/prowin/guard.ts — imported first in server/index.ts
    const FORBIDDEN = [
@@ -288,7 +293,7 @@ async function complete(system: string, messages: Anthropic.MessageParam[], tool
    const set = FORBIDDEN.filter((k) => process.env[k])
    if (set.length) throw new Error(`[prowin] non-EU model/analytics keys must stay unset: ${set.join(', ')}`)
    ```
-2. **Egress-Test:** ein Test mit `fetch`-Wrapper, der alle ausgehenden Hosts protokolliert. Ein Agent-Lauf darf nur `router.eu.requesty.ai`, die Magnific-API und (später) `api.stripe.com` erreichen.
+2. **Egress-Test (TASK-22):** gemäß Nutzerentscheidung vorerst **nur KI und Analytics**. Ein repräsentativer Agent-/Distiller-Lauf protokolliert seine Fetch-Ziele und scheitert bei unerlaubten Versuchen, auch wenn der Agent den Transportfehler abfängt. Aktuell ist nur `https://router.eu.requesty.ai/v1/chat/completions` ohne Redirects erlaubt. Magnific wird erst im separat freigegebenen Bildpfad ergänzt; Stripe erst nach späterer Aktivierung. Bild-/Icon-/Logosuche und sonstiger Nicht-KI-Verkehr bleiben unverändert. Der Test verwendet simulierte Upstream-Antworten und ist keine Produktionsfirewall oder vollständige Netzwerkmessung. [Nachweis und Grenzen](egress-pruefung.md).
 3. **Frame-CSP:** `FRAME_BOOTSTRAP` (`FrameView.tsx`) bekommt eine Content-Security-Policy, die externe Fonts, Skripte und Bilder blockiert. Erlaubt sind nur die eigene Instanz, `data:` und `blob:`. Weil `srcDoc`-Iframes ohne `allow-same-origin` die Origin `null` haben, muss die Instanz-Origin explizit drinstehen (→ Q7).
 4. **Fonts:** siehe § 8.3.
 5. **Screenshots und Kontaktdaten (→ R4.6, Q10):** Der Agent schickt **Screenshots** an ein Vision-Modell, und im Frame-HTML stehen **echte Kontaktdaten** der Beraterin. Die alte Aussage „keine personenbezogenen Daten an die KI“ gilt damit nicht mehr automatisch. **Entschieden am 25.10.2026 (Option A, Platzhalter):** E-Mail, Telefon und IBAN werden vor jedem Requesty-Request durch Platzhalter ersetzt, Screenshots werden aus der redigierten HTML-Kopie gerendert, und gespeicherte Frames behalten die Originale. Namen und freie Adressen erkennt die Regex nicht (→ TASK-29), Bildinhalte gar nicht — beides steht im UI-Hinweis. Der Hinweis erscheint einmalig im Onboarding, die Pitch-Checkliste ist angepasst. Details: [Datenfluss zur KI](datenfluss-ki.md).

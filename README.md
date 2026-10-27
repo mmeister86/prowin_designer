@@ -216,20 +216,12 @@ the task allowance is not a monetary budget.
 
 The **guideline distiller** ([`server/distill.ts`](server/distill.ts)), which proposes
 durable style rules, uses Requesty EU with `DOOP_DISTILL_MODEL=policy/prowin-text-gen`.
-It quietly turns off without `REQUESTY_API_KEY`, independently of the agent provider.
-Explicit legacy Anthropic installations can set `DOOP_AGENT_PROVIDER=anthropic`.
-
-The free tier can run on **Azure OpenAI** instead — useful when your organisation's credits or
-compliance rules live there:
-
-```bash
-DOOP_AGENT_PROVIDER=azure
-AZURE_OPENAI_ENDPOINT=https://my-resource.openai.azure.com
-AZURE_OPENAI_API_KEY=...
-AZURE_OPENAI_DEPLOYMENT=my-deployment
-```
-
-The distiller continues to use Requesty EU when the agent provider is Azure or Anthropic.
+It quietly turns off without `REQUESTY_API_KEY`, including when a Creator uses Local Agent.
+**Requesty EU is the only server model provider.** Explicit
+`DOOP_AGENT_PROVIDER=anthropic` or `azure` prevents server startup, before provider
+initialization. Legacy transports remain only for isolated tests, not deployment.
+Nonempty direct-model or PostHog keys also prevent startup; see the
+[boot guard](docs/prowin/boot-guard.md) and [AI/analytics Egress checks](docs/prowin/egress-pruefung.md).
 
 ### Central server and Local Agent
 
@@ -251,20 +243,20 @@ use only operator-configured keys until the separate image-provider migration.
 Upgrade instructions, credential deletion and rollback limits are documented in
 [BYO removal and Local Agent](docs/prowin/model-account-removal.md).
 
-| Variable                        | Default                                             | Purpose                                                               |
-| ------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------- |
-| `DOOP_AGENT_PROVIDER`           | `requesty`                                          | Server provider; explicit legacy `anthropic`/`azure` remain available |
-| `REQUESTY_API_KEY`              | unset                                               | Requesty server credentials; missing key disables that tier           |
-| `REQUESTY_CHAT_URL`             | `https://router.eu.requesty.ai/v1/chat/completions` | Pinned EU endpoint                                                    |
-| `DOOP_AGENT_MODEL`              | `policy/prowin-layout-gen`                          | Requesty agent policy                                                 |
-| `DOOP_DISTILL_MODEL`            | `policy/prowin-text-gen`                            | Requesty memory policy                                                |
-| `RESIDENT_TASK_LIMIT`           | `0`                                                 | Server-paid tasks per account; zero disables server-paid work         |
-| `ANTHROPIC_API_KEY`             | unset                                               | Explicit legacy Anthropic server provider only                        |
-| `AZURE_OPENAI_ENDPOINT`         | unset                                               | Explicit legacy Azure server resource                                 |
-| `AZURE_OPENAI_API_KEY`          | unset                                               | Azure server credential                                               |
-| `AZURE_OPENAI_DEPLOYMENT`       | unset                                               | Azure server deployment                                               |
-| `AZURE_OPENAI_API_VERSION`      | unset                                               | Optional pinned Azure API version                                     |
-| `AZURE_OPENAI_REASONING_EFFORT` | unset                                               | Optional Azure reasoning effort                                       |
+| Variable                        | Default                                             | Purpose                                                                          |
+| ------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `DOOP_AGENT_PROVIDER`           | `requesty`                                          | Only allowed server provider; direct `anthropic`/`azure` selection prevents boot |
+| `REQUESTY_API_KEY`              | unset                                               | Requesty server credentials; missing key disables that tier                      |
+| `REQUESTY_CHAT_URL`             | `https://router.eu.requesty.ai/v1/chat/completions` | Pinned EU endpoint                                                               |
+| `DOOP_AGENT_MODEL`              | `policy/prowin-layout-gen`                          | Requesty agent policy                                                            |
+| `DOOP_DISTILL_MODEL`            | `policy/prowin-text-gen`                            | Requesty memory policy                                                           |
+| `RESIDENT_TASK_LIMIT`           | `0`                                                 | Server-paid tasks per account; zero disables server-paid work                    |
+| `ANTHROPIC_API_KEY`             | unset                                               | Must remain unset; a nonempty value prevents boot                                |
+| `AZURE_OPENAI_ENDPOINT`         | unset                                               | Dormant legacy transport setting; Azure server selection is blocked              |
+| `AZURE_OPENAI_API_KEY`          | unset                                               | Dormant legacy transport credential; not a Requesty fallback                     |
+| `AZURE_OPENAI_DEPLOYMENT`       | unset                                               | Dormant legacy transport deployment                                              |
+| `AZURE_OPENAI_API_VERSION`      | unset                                               | Dormant legacy transport API version                                             |
+| `AZURE_OPENAI_REASONING_EFFORT` | unset                                               | Dormant legacy transport reasoning effort                                        |
 
 ## Accounts
 
