@@ -6,6 +6,7 @@ import * as thumbs from './thumbs.ts'
 import { colorFor } from '../shared/types.ts'
 import { DEFAULT_ROLE_ID, mentionedRole, normalizePipeline, roleByAgentName, roleName } from '../shared/agents.ts'
 import { canvasPages } from '../shared/pages.ts'
+import { MAX_GUIDELINE_CHARS } from '../shared/guidelines.ts'
 import { isCanvasComment } from '../shared/comments.ts'
 import { decodeEscapedHtml, looksEscapedHtml, repairEscapedHtml } from './escapedHtml.ts'
 import { emitCanvasEvent } from './events.ts'
@@ -1458,7 +1459,7 @@ export function renameCanvas(canvasId: string, name: string, actor: Actor) {
 /* in the Guidelines panel.                                            */
 /* ------------------------------------------------------------------ */
 
-export const MAX_GUIDELINE_CHARS = 24_000
+export { MAX_GUIDELINE_CHARS } from '../shared/guidelines.ts'
 export const MAX_GUIDELINE_DOCS = 20
 export const GUIDELINE_NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/
 export const MAX_GUIDELINE_TITLE_CHARS = 80

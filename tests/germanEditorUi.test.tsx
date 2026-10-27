@@ -6,6 +6,8 @@ import type { Canvas } from '../shared/types'
 import { Board } from '../src/components/Board'
 import { MemoryPanel } from '../src/components/MemoryPanel'
 import { useStore } from '../src/lib/store'
+import { readFileSync } from 'node:fs'
+import { api } from '../src/lib/api'
 
 vi.mock('../src/components/TeamAllowance', () => ({
   useAllowance: () => ({ allowance: null, refresh: vi.fn() }),
@@ -25,6 +27,43 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount())
   container.remove()
+  vi.restoreAllMocks()
+})
+
+it('lets the real Memory editor save the complete brand source plus local notes with a 64000-character input limit', async () => {
+  const source = readFileSync('DESIGN-prowin.md', 'utf8')
+  useStore.setState({
+    canvas: {
+      id: 'c',
+      frames: [],
+      guidelines: [
+        { name: 'prowin-brand', title: 'proWIN Brand', markdown: source, updatedAt: 1, updatedBy: 'System' },
+      ],
+    } as unknown as Canvas,
+  })
+  const save = vi.spyOn(api, 'setGuideline').mockResolvedValue(undefined)
+  act(() => root.render(<MemoryPanel />))
+  const click = (label: string) =>
+    act(() => {
+      const button = [...document.querySelectorAll<HTMLElement>('button')].find(
+        (el) => el.textContent?.trim() === label,
+      )!
+      button.click()
+    })
+  act(() => container.querySelector<HTMLButtonElement>('[data-slot="list-row"]')!.click())
+  click('Bearbeiten')
+  const editor = document.querySelector('textarea')!
+  expect(editor.maxLength).toBe(64_000)
+  expect(editor.value).toBe(source)
+  const edited = source + '\n\nMy local note.'
+  act(() => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(editor, edited)
+    editor.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    click('Speichern')
+  })
+  expect(save).toHaveBeenCalledWith('c', 'prowin-brand', edited, 'proWIN Brand')
 })
 
 it('shows German board columns and resolves legacy agent names without rewriting task text', () => {

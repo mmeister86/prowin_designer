@@ -309,20 +309,20 @@ Das Magnific Brand Kit bietet laut Doku **keinen Export** (weder MD noch JSON) u
 ```
                     ┌──▶ Magnific Brand Kit   (manuell als Text/PDF-Quelle hochladen)
 DESIGN-prowin.md ───┼──▶ Agent-Systemprompt   (resident.ts + guide.ts / get_guide)
-  + tokens.css      └──▶ Design Memory        (GuidelineDoc „prowin-brand“ auf jedem Canvas)
+  + tokens.css      └──▶ Design Memory        (GuidelineDoc „prowin-brand“ auf neuen/kopierten Canvases)
 ```
 
 **Gliederung von `DESIGN-prowin.md`:** Markenkern & Tonalität · Farben (nur Token-Namen + Hex) · Typografie (Familien, Größen-Skala, Gewichte) · Logo-Regeln (Schutzraum, Mindestgröße, nie generieren) · Bildsprache (für Magnific) · Produktnamen & Schreibweisen · Pflicht-Disclaimer · Do/Don't · Sprache (Du/Sie, „Online-Party: Do., 14. Okt., 20 Uhr“ statt „Gemeindehaus“) · Pflicht-Rollen pro Format. Die Abschnitte entsprechen den Feldern des bisherigen `BrandKit`-Interfaces (→ R4.2).
 
 ### 8.2 Einspeisung in doop
 
-- **Systemprompt:** `DESIGN-prowin.md` wird beim Boot geladen und in den Resident-Systemprompt (`resident.ts`) eingefügt, als gecachter Block. MCP-Agents bekommen es zusätzlich über `get_guide` (`guide.ts`).
-- **Design Memory:** Neue Canvases erhalten automatisch ein `GuidelineDoc` `{ name: 'prowin-brand', title: 'proWIN Brand', markdown }`. Es ist im `MemoryPanel` sichtbar und editierbar. Die globale Datei bleibt die Wahrheit.
+- **Systemprompt (TASK-24 implementiert):** `DESIGN-prowin.md` wird einmal beim Boot relativ zum Servermodul geladen, unabhängig vom Arbeitsverzeichnis. Die vollständige Quelle steckt im bestehenden gecachten Resident-Systemblock und im lokalen Harness-Systemprompt. MCP-Agents bekommen sie zusätzlich über `get_guide` (`guide.ts`). Fehlende oder leere Quellen verhindern den Start; das Docker-Runtime-Image enthält die Datei.
+- **Design Memory (TASK-24 implementiert):** Neue Canvases erhalten automatisch ein `GuidelineDoc` `{ name: 'prowin-brand', title: 'proWIN Brand', markdown }`, Kopien nur bei fehlendem Dokument. Bestehende lokale Inhalte, Titel und Positionen werden kopiert, nicht überschrieben. Das Dokument ist im `MemoryPanel` sichtbar und editierbar; UI, API und MCP erlauben bis zu 64.000 Zeichen. Die globale Datei bleibt vorrangig gegenüber widersprechenden lokalen Guidelines, Referenzen und allgemeinen Geschmacksregeln. Lokale Änderungen/Löschungen überleben Neustarts; weder Hydration noch Reads säen nach, Bestands-Canvases werden nicht migriert. Die Quellenunterscheidung zwischen CI, Beobachtungen, Vorschlägen, offenen Fragen und Projektentscheidungen bleibt erhalten.
 - **Referenz-Frames:** ein „proWIN Referenzen“-Canvas mit 6 bis 10 guten Beispielen, als Memory-Referenzen gepinnt. Ersetzt die Refero-Inspiration.
 
 ### 8.3 Tokens & Fonts
 
-`guide.ts` sagt den Agents heute wörtlich: „Google Fonts via `<link>` work.“ Das verstößt gegen die DSGVO (LG München) und widerspricht der Fontsource-Entscheidung.
+TASK-24 entfernt die frühere allgemeine Google-Fonts-Empfehlung aus `guide.ts`; der Guide verweist auf `DESIGN-prowin.md` und untersagt externe Google Fonts. Font-Hosting, Tokens und technische Durchsetzung bleiben Folgearbeit:
 
 - **Fonts:** Fontsource-Pakete einbinden. Der Server liefert sie unter `/fonts/*` aus. Im **Dockerfile** installieren, damit der Chromium-Export identisch rendert. Für iOS/Blitz prüfen, ob die Fonts per URL geladen werden (→ Q8).
 - **Guide anpassen:** Google Fonts verbieten und nur die proWIN-Fontfamilien und Tokens erlauben.

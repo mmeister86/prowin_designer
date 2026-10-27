@@ -1,5 +1,14 @@
 # DESIGN - doop
 
+## proWIN canvas content (TASK-24)
+
+- `DESIGN-prowin.md` is the authoritative source for generated canvas content, not the editor chrome below.
+- `server/prowin/brand.ts` loads it once at startup for Resident system prompts, MCP `get_guide`
+  and editable `prowin-brand` memory on new canvases. Copies retain local edits and seed only missing docs;
+  existing canvases are not retrofitted. Global brand rules outrank conflicting local memory.
+- UI/API/MCP share the 64,000-character guideline limit in `shared/guidelines.ts`; startup rejects
+  missing, empty or oversized wrapped brand sources. Font hosting and runtime tokens remain separate work.
+
 Design tokens live in `src/styles.css` as CSS custom properties, mapped into Tailwind 4 via
 `@theme`. shadcn is configured with style `radix-nova`, base color `neutral`, CSS variables on,
 icon library `lucide` (`components.json`). Generate new shadcn components with the shadcn CLI
