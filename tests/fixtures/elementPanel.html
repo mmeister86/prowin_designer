@@ -40,6 +40,8 @@
         },
         undo,
         redo,
+        currentHtml: () => useStore.getState().canvas?.frames[0]?.html,
+        clear: () => useStore.getState().setCanvas(null),
         selected: () => useStore.getState().selectedElement,
       }
       function Fixture() {

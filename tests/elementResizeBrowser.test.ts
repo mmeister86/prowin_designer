@@ -20,6 +20,8 @@ declare global {
       undo: () => Promise<void>
       geometry: (selector: string, edit: GeometryEdit) => Promise<ElementInfo | null>
       redo: () => Promise<void>
+      currentHtml: () => string | undefined
+      clear: () => void
       selected: () => { frameId: string; selector: string } | null
     }
   }

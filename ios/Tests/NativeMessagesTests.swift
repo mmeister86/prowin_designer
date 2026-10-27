@@ -8,7 +8,7 @@ enum NativeMessagesChecks {
         precondition(NativeMessages.api(status: 400, code: "EMAIL_NOT_VERIFIED").contains("bestätige"))
         precondition(NativeMessages.api(status: 400, code: "PASSWORD_TOO_SHORT").contains("8 Zeichen"))
         precondition(NativeMessages.api(status: 400, code: "SESSION_NOT_FRESH").contains("wieder an"))
-        precondition(NativeMessages.api(status: 409, code: "resident_limit").contains("Kontingent"))
+        precondition(NativeMessages.api(status: 409, code: "resident_limit").contains("Agentenkontingent"))
         precondition(NativeMessages.api(status: 429, code: nil).contains("später"))
         precondition(NativeMessages.api(status: 403, code: "BANNED_USER").contains("gesperrt"))
         precondition(NativeMessages.api(status: 400, code: "account_not_linked").contains("Anmeldemethode"))
