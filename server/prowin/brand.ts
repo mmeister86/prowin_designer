@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { MAX_GUIDELINE_CHARS } from '../../shared/guidelines.ts'
 import type { GuidelineDoc } from '../../shared/types.ts'
 
 export const PROWIN_BRAND_MARKDOWN = readFileSync(new URL('../../DESIGN-prowin.md', import.meta.url), 'utf8')
@@ -29,3 +30,6 @@ ${PROWIN_BRAND_MARKDOWN}`,
     y: 120,
   }
 }
+
+if (createBrandGuideline(0, 'System').markdown.length > MAX_GUIDELINE_CHARS)
+  throw new Error(`DESIGN-prowin.md is too large: the seeded guideline would exceed ${MAX_GUIDELINE_CHARS} characters.`)

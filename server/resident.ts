@@ -1060,8 +1060,7 @@ const ALL_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: 'set_guidelines',
-    description:
-      "Create, replace or delete a named style guide on this canvas (markdown, max 24,000 chars; empty string deletes). Write rules other designers and agents can execute directly: palette hexes, font families, spacing/radius/shadow conventions, layout recipes, do/don't lists. Also how you persist a redesign audit (binding Direction + descriptive source baseline) so every later job inherits it.",
+    description: `Create, replace or delete a named style guide on this canvas (markdown, max ${actions.MAX_GUIDELINE_CHARS.toLocaleString('en-US')} chars; empty string deletes). Write rules other designers and agents can execute directly: palette hexes, font families, spacing/radius/shadow conventions, layout recipes, do/don't lists. Also how you persist a redesign audit (binding Direction + descriptive source baseline) so every later job inherits it.`,
     input_schema: {
       type: 'object',
       properties: {

@@ -80,7 +80,7 @@ const IBAN = 'DE89 3704 0044 0532 0130 00'
 const REF_EMAIL = 'ref@example.de'
 const REF_PHONE = '030 901820'
 
-type Captured = { system: unknown; messages: unknown }
+type Captured = { system: unknown; messages: unknown; tools?: Array<{ name: string; description: string }> }
 const tool = (id: string, name: string, input: Record<string, unknown>) => ({
   content: [{ type: 'tool_use', id, name, input }],
   stop_reason: 'tool_use',
@@ -309,14 +309,16 @@ describe('resident redaction wiring', () => {
         else store.deleteGuideline(canvas.id, 'prowin-brand')
         const captured: Captured[] = []
         let harnessSystem = ''
+        let harnessTools: Captured['tools']
         const model = scriptedModel([() => ({ content: [], stop_reason: 'refusal' })], captured)
         mocks.pickModel.mockResolvedValue(
           path === 'model'
             ? model
             : {
                 ...model,
-                runHarness: async (req: { system: string }) => {
+                runHarness: async (req: { system: string; tools: Captured['tools'] }) => {
                   harnessSystem = req.system
+                  harnessTools = req.tools
                   return { success: false, text: 'Test capture only' }
                 },
               },
@@ -327,6 +329,8 @@ describe('resident redaction wiring', () => {
         const system = path === 'harness' ? harnessSystem : blocks!.map((block) => block.text).join('\n\n')
         expect(system).toContain(source)
         expect(system).toContain('Global brand rules from DESIGN-prowin.md take precedence')
+        const tools = path === 'harness' ? harnessTools : captured[0]?.tools
+        expect(tools?.find((tool) => tool.name === 'set_guidelines')?.description).toContain('max 64,000 chars')
         if (local) expect(system).toContain(local)
         if (path === 'model') expect(blocks!.find((block) => block.text.includes(source))?.cache).toBe(true)
       }

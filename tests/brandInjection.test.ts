@@ -10,10 +10,12 @@ import { Client, startServer, type Server } from './harness.ts'
 const source = readFileSync(new URL('../DESIGN-prowin.md', import.meta.url), 'utf8')
 const brandDocs = (canvas: Canvas) => canvas.guidelines?.filter((doc) => doc.name === 'prowin-brand') ?? []
 
-it('fails clearly for missing or empty brand sources in the runtime module layout', () => {
+it('fails clearly for missing, empty or oversized brand sources in the runtime module layout', () => {
   const root = mkdtempSync(join(tmpdir(), 'doop-brand-source-'))
   try {
     mkdirSync(join(root, 'server/prowin'), { recursive: true })
+    mkdirSync(join(root, 'shared'))
+    copyFileSync(new URL('../shared/guidelines.ts', import.meta.url), join(root, 'shared/guidelines.ts'))
     writeFileSync(join(root, 'package.json'), '{"type":"module"}')
     const module = join(root, 'server/prowin/brand.ts')
     copyFileSync(new URL('../server/prowin/brand.ts', import.meta.url), module)
@@ -30,6 +32,10 @@ it('fails clearly for missing or empty brand sources in the runtime module layou
     const empty = run()
     expect(empty.status).not.toBe(0)
     expect(empty.stderr).toContain('DESIGN-prowin.md must contain')
+    writeFileSync(join(root, 'DESIGN-prowin.md'), 'x'.repeat(64_000))
+    const oversized = run()
+    expect(oversized.status).not.toBe(0)
+    expect(oversized.stderr).toContain('seeded guideline would exceed 64000 characters')
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
