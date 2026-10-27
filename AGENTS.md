@@ -38,6 +38,62 @@ You don't need to fix this. It only happens in development, not in production.
 - StrictMode intentionally unmounts and remounts components to test if your `useEffect` cleanups work correctly.
 - If you absolutely want to disable it (not recommended), set `reactStrictMode: false` in your `next.config.js`.
 
+**5. Code Output Rules (ADHD Optimized):**
+
+- **Code First:** Provide the exact code solution immediately after the file path. No preamble.
+- **Strictly Minimal Context:** Do not output the entire file if you only changed a few lines. Use `// ... existing code ...` heavily to hide irrelevant parts.
+- **In-Line the "Why":** If a line of code is complex or fixes a non-obvious bug, explain it directly in a code comment (`// FIX: ...`) instead of writing a paragraph below the block.
+- **Copy-Paste Ready:** Ensure the snippet is complete enough to drop in without guessing, but trimmed of all boilerplate.
+
+---
+
+**Best Case Example (Code Fix):**
+
+_User:_ The profile name isn't updating in the database when I click save.
+
+_Assistant:_
+**The `await` was missing on the database update call.**
+
+`src/actions/updateProfile.ts`
+
+```typescript
+export async function updateProfile(data: ProfileData) {
+  // ... existing validation ...
+
+  // FIX: Added 'await' to ensure the DB write completes before returning
+  await db.user.update({
+    where: { id: data.id },
+    data: { name: data.name },
+  })
+
+  return { success: true }
+}
+```
+
+**6. Backlog & Commit Formatting (ADHD Optimized):**
+
+- **Imperative Mood Only:** Start with an action verb (e.g., "Add", "Fix", "Update"). Never use conversational phrasing like "I have added" or "This fixes".
+- **One-Line Focus:** The first line (commit subject or task title) must summarize the entire change under 50 characters.
+- **Scannable Details:** Use bullet points for additional context or acceptance criteria. Focus strictly on _what_ changed and _why_, skip the _how_ (the code already shows how).
+- **Command-Ready:** When providing `backlog` CLI commands, output the exact, copy-pasteable command immediately.
+
+---
+
+**Best Case Example (Backlog & Commits):**
+
+_User:_ Close task 42.1 (rate limiting) and generate a commit message.
+
+_Assistant:_
+**Commit Message:**
+
+```text
+feat: Add Redis rate limiting to API routes
+
+- Implements 100 req/min limit per IP on /api/*
+- Returns 429 Too Many Requests status on limit exceeded
+- Fixes issue with spam registrations
+```
+
 <!-- User -->
 
 <!-- context7 -->
@@ -104,6 +160,50 @@ To ensure transparency and high-quality reasoning, structure your response as fo
 - **Naming Subagents:** I'm a huge pop culture nerd. Please give subagents names refering to that, e.g. "Vincent Vega" (as in Pulp Fiction) or Quentin (as in Tarantino). Please do not limit the names to this director though.
 
 <!-- how to work -->
+
+<!-- tstack -->
+
+# tstack Skills (council, babysit-pr, leaving-pr-comments)
+
+Personal settings for the tstack skills. The skill files stay untouched so `git pull` in `~/tools/tstack` can update them.
+
+## Council Members
+
+When the user says "council", use exactly these three delegates at high reasoning effort:
+
+| Seat | Model                | Provider  | Harness     |
+| ---- | -------------------- | --------- | ----------- |
+| 1    | Claude Opus (latest) | Anthropic | Claude Code |
+| 2    | GPT Sol (latest)     | OpenAI    | OpenCode    |
+| 3    | Muse Wonder (latest) | Meta      | OpenCode    |
+
+- If a member is unreachable, **report it. Never substitute** another model.
+- Council reviews are **read-only**. Delegates never edit files or push.
+- Use the **real model names** in the PR "Council review" table. Pop-culture subagent names are for chat only.
+- **Fight scope creep.** Unrelated suggestions go into a new Backlog task (`To Do`), not into the current PR.
+
+## Babysitting PRs
+
+- Outside T3 Code, wait with `~/tools/tstack/skills/babysit-pr/scripts/pr-wait`. Never write your own polling loop.
+- **Never merge** unless the user explicitly says so in the current conversation. Default end state: report "PR is ready".
+- When an event needs no action, end the turn **silently**. No "still waiting" messages, no Task Breakdown structure.
+- Declined bot findings go into the Backlog task notes as follow-ups:
+
+```bash
+backlog task edit <id> --append-notes $'Follow-up: <finding> (declined: <reason>)'
+```
+
+## PR Comments
+
+- Attribution name for `leaving-pr-comments`: **Matthias** (GitHub: `mmeister86`).
+- Comments on GitHub are always in **English**.
+
+## Interplay with Backlog.md
+
+- A green or merged PR does **not** mean the Backlog task is `Done`. Only the user's explicit confirmation closes a task.
+- Reference the Backlog task ID in the PR description.
+
+<!-- tstack -->
 
 <!-- Backlog.md -->
 

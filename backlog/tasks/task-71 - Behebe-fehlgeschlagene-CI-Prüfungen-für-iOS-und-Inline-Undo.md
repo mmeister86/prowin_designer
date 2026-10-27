@@ -1,10 +1,10 @@
 ---
 id: TASK-71
 title: Behebe iOS- und Undo-CI-Fehler
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-27T11:37:00Z'
-updated_date: '2026-10-27T12:30:00Z'
+updated_date: '2026-10-27T12:49:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -19,9 +19,9 @@ Nach dem Push von ef9a37d scheitern GitHub Actions: iOS DoopCoreChecks in Native
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Die native Kontingent-Meldung und ihre Swift-Contract-Prüfung stimmen semantisch überein; DoopCoreChecks bestehen auf einem Swift-fähigen System.
+- [x] #1 Die native Kontingent-Meldung und ihre Swift-Contract-Prüfung stimmen semantisch überein; DoopCoreChecks bestehen auf einem Swift-fähigen System.
 - [x] #2 Inline-Text und Geometrie bleiben beim Scrub/Undo getrennte, datenverlustfreie Schritte; der betroffene Browsertest ist deterministisch abgesichert.
-- [ ] #3 Gezielte Regressionen, vollständige verfügbare Qualitätsprüfungen und tatsächliche GitHub-CI-Ergebnisse sind dokumentiert; native Prüfgrenzen werden offen benannt.
+- [x] #3 Gezielte Regressionen, vollständige verfügbare Qualitätsprüfungen und tatsächliche GitHub-CI-Ergebnisse sind dokumentiert; native Prüfgrenzen werden offen benannt.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -54,4 +54,17 @@ Tooling-Grenze nach Harness-Wechsel: T3-PR-/Watcher-Tools im Katalog nicht vorha
 Vollständige Suite frisch bestanden:167Dateien/1345Tests in160.67s; initialer Gesamtlauf war vom Shell-Limit120s beendet worden, danach mit ausreichender Shell-Laufzeit vollständig grün. Keine Testtimeouts verändert. Alle verbundenen History-Tests sind in der Gesamtsuite enthalten.
 Leia hat das gesamte Produktions-/Testdiff unabhängig rein lesend geprüft: keine Critical-, Important- oder Minor-Befunde. Geprüft: keine zyklische trackSave-Abhängigkeit, Snapshot/PATCH vor Undo, Legacy-no-ID-Aufrufe, Escape und Lifecycle.
 Lokaler Fix zur PR-Erstellung freigabefähig; echte GitHub-CI/native Nachweise bleiben ausstehend. TASK-71 bleibt In Progress und wird ohne ausdrückliche Nutzerabnahme nicht geschlossen.
+
+PR erstellt und Fix gepusht: https://github.com/mmeister86/prowin_designer/pull/3, Head651a79742a3d1d386321664c0b0352b2c4196e22. GitHub-CI40504394710 vollständig erfolgreich: alle vier Test-Shards, Sammelcheck, Typecheck, Lint, Build und Commit-Titel. Native CI40504394715 vollständig erfolgreich: Blitz-Bridge, Check core contracts (DoopCoreChecks), Canvas-Verbindungen und iPhone-/iPad-App-Build. Damit native Prüfung auf Swift-fähigem macOS tatsächlich belegt, nicht nur aus dem Literal abgeleitet.
+Abschlussaudit nach Watcher-Ereignis: neu abgefragter PR-Head unverändert651a797, mergeable/CLEAN,0Commits hinter frisch gefetchtem origin/main,0unaufgelöste Threads; keine neuen Review-Befunde. CodeRabbit übersprang automatisches Review (advisory, kein Gate); Leia hat unabhängig geprüft.
+T3-Link-/Listen-Tools sind im aktuellen Harness unbekannt; T3-Verknüpfung wurde NICHT bestätigt. Installiertes babysit-pr/pr-wait diente als einzelner Ersatz-Watcher. Dessen erste Ausführung scheiterte an System-gh2.46 ohne checks--json. Offizielles gh2.103.3 nur unter /tmp/opencode/task-71-gh heruntergeladen, SHA256 gegen Release-Checksummen geprüft; kein Systemupgrade. Zweiter Watcher endete erfolgreich:9pass (gleichnamige Build-Jobs zusammengefasst), CodeRabbit skipped, CLEAN,0behind.
+Alle AC technisch verifiziert; Status bleibt ausdrücklich In Progress bis zur manuellen Nutzerabnahme. Kein Merge. Diese abschließenden CLI-Task-Nachweise bleiben lokal zur Abnahme; der verifizierte Produkt-Commit wurde danach nicht verändert.
+
+Nutzerabnahme und Abschlussfreigabe erhalten. GitHub bestätigt PR #3 als MERGED, Merge-Commit adda011f490531f05402cf3081a7a8c16ff4614c. Status auf Done gesetzt; keine weiteren Produktänderungen oder erneuten Testläufe für diesen reinen Metadatenabschluss.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Beide CI-Ursachen behoben: iOS-Contract auf Agentenkontingent korrigiert; korrelierte Edit-Exit-Barriere wartet vor Undo auf Snapshot und PATCH, vermeidet redundante Writes und wird beim Unmount freigegeben. Deterministische Regressionen, 1345 lokale Tests und Web-/iOS-CI erfolgreich; unabhängiges Review ohne Befunde. PR #3 am 27.10.2026 um 12:45:25 UTC als adda011f490531f05402cf3081a7a8c16ff4614c gemergt. Nutzer hat mit „PR ist gemerged, task done“ ausdrücklich abgenommen und den Task-Abschluss freigegeben. Vereinfachung geprüft: bestehendes trackSave wiederverwendet, keine neue Abhängigkeit und keine Testtimeout-Erhöhung.
+<!-- SECTION:FINAL_SUMMARY:END -->
