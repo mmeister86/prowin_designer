@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid'
+import { createBrandGuideline } from './prowin/brand.ts'
 import { canvasPages, copyPageName, pageFrames, samePages } from '../shared/pages.ts'
 import * as persist from './db/persist.ts'
 import type {
@@ -127,7 +128,10 @@ class Store {
     if (workspaceId) canvas.workspaceId = workspaceId
     this.canvases.set(canvas.id, canvas)
     canvas.pages = canvasPages(canvas)
+    const brand = createBrandGuideline(now, 'System')
+    canvas.guidelines = [brand]
     persist.saveCanvas(canvas)
+    persist.saveGuideline(canvas.id, brand)
     return canvas
   }
 
@@ -176,6 +180,10 @@ class Store {
       ...(options.workspaceId ? { workspaceId: options.workspaceId } : {}),
       ...(guidelines?.length ? { guidelines } : {}),
       ...(references?.length ? { references } : {}),
+    }
+    if (!guidelines?.some((doc) => doc.name === 'prowin-brand')) {
+      const docs = (canvas.guidelines ??= [])
+      docs.push({ ...createBrandGuideline(now, by), ...this.placeGuideline(canvas, docs.length) })
     }
     await persist.saveCanvasCopy(canvas)
     this.canvases.set(canvas.id, canvas)

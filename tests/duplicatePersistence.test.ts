@@ -64,7 +64,10 @@ it('persists a complete canvas duplicate across a server restart', async () => {
     expect(restored.memberIds).toBeUndefined()
     expect(restored.frames).toHaveLength(1)
     expect(restored.frames[0].id).not.toBe(sourceFrame.id)
-    expect(restored.guidelines).toMatchObject([{ name: 'brand', markdown: 'Use the brand blue.', title: 'Brand' }])
+    expect(restored.guidelines).toMatchObject([
+      { name: 'brand', markdown: 'Use the brand blue.', title: 'Brand' },
+      { name: 'prowin-brand', title: 'proWIN Brand' },
+    ])
     expect(restored.references).toHaveLength(1)
     expect(restored.references[0].id).not.toBe(sourceReference.id)
     expect(restored.references[0].frameId).toBe(restored.frames[0].id)

@@ -485,8 +485,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     'set_guidelines',
     {
       title: 'Create or replace a style guide',
-      description:
-        "Create, replace or delete a named style guide on a canvas (markdown, max 24,000 chars; empty string deletes). Write rules other designers and agents can execute directly: palette hexes, font <link>s, ready-to-paste <style> blocks, logo asset URLs (upload files with upload_asset first and reference the returned URLs), layout recipes, do/don't lists.",
+      description: `Create, replace or delete a named style guide on a canvas (markdown, max ${actions.MAX_GUIDELINE_CHARS.toLocaleString('en-US')} chars; empty string deletes). Write rules other designers and agents can execute directly: palette hexes, typography compatible with DESIGN-prowin.md, ready-to-paste <style> blocks, logo asset URLs (upload files with upload_asset first and reference the returned URLs), layout recipes, do/don't lists. Global brand rules take precedence over conflicting local rules.`,
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
       inputSchema: {
         canvas_id: z.string(),

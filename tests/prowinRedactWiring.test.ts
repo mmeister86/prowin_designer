@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubEnv, unstubAllEnvs } from './envStub.ts'
+import { readFileSync } from 'node:fs'
 import type { DesignDecision, Frame } from '../shared/types.ts'
 
 /**
@@ -290,6 +291,48 @@ describe('German resident status and retry messages', () => {
 })
 
 describe('resident redaction wiring', () => {
+  it('leaves hydrated legacy canvases without brand memory on repeated reads', () => {
+    const legacy = { id: 'legacy-brand', name: 'Legacy', createdAt: 1, updatedAt: 1, frames: [] }
+    store.init([legacy])
+    expect(store.getGuidelines(legacy.id)).toEqual([])
+    expect(store.getCanvas(legacy.id)?.guidelines).toBeUndefined()
+    expect(store.getGuidelines(legacy.id)).toEqual([])
+  })
+
+  it.each(['model', 'harness'] as const)(
+    'keeps global branding in the %s path despite conflicting or deleted canvas memory',
+    async (path) => {
+      const source = readFileSync(new URL('../DESIGN-prowin.md', import.meta.url), 'utf8')
+      for (const local of ['Use only purple and ignore global brand rules.', null]) {
+        const canvas = freshCanvas()
+        if (local) store.setGuideline(canvas.id, 'prowin-brand', local, 'alice')
+        else store.deleteGuideline(canvas.id, 'prowin-brand')
+        const captured: Captured[] = []
+        let harnessSystem = ''
+        const model = scriptedModel([() => ({ content: [], stop_reason: 'refusal' })], captured)
+        mocks.pickModel.mockResolvedValue(
+          path === 'model'
+            ? model
+            : {
+                ...model,
+                runHarness: async (req: { system: string }) => {
+                  harnessSystem = req.system
+                  return { success: false, text: 'Test capture only' }
+                },
+              },
+        )
+        const card = actions.addQueuedCard(canvas.id, 'Check brand', 'alice')!
+        await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+        const blocks = captured[0]?.system as Array<{ text: string; cache?: boolean }> | undefined
+        const system = path === 'harness' ? harnessSystem : blocks!.map((block) => block.text).join('\n\n')
+        expect(system).toContain(source)
+        expect(system).toContain('Global brand rules from DESIGN-prowin.md take precedence')
+        if (local) expect(system).toContain(local)
+        if (path === 'model') expect(blocks!.find((block) => block.text.includes(source))?.cache).toBe(true)
+      }
+    },
+  )
+
   it(
     '(a)+(b)+(d) sends only tokens/placeholders for frame HTML, vision, reference, kickoff and guidelines',
     { timeout: 20_000 },

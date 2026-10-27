@@ -5,6 +5,7 @@
 
 import { AGENT_ROLES } from '../shared/agents.ts'
 import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
+import { PROWIN_BRAND_PROMPT } from './prowin/brand.ts'
 
 export const GUIDE_TOPICS = ['doop-instructions'] as const
 
@@ -77,6 +78,8 @@ mood, palette roles, typography and layout direction with set_status and save_de
 External inspiration search is temporarily disabled.`
 
 export const DOOP_GUIDE = `# Doop Agent Guide
+
+${PROWIN_BRAND_PROMPT}
 
 Respond in German by default, using friendly Du address for people. Follow explicit requests for another language. Preserve user content and technical tool contracts.
 
@@ -197,7 +200,7 @@ Viewers watch designs assemble live. Stream with append_frame_html:
 ## Frames and HTML
 
 - A frame renders a complete HTML document in a sandboxed iframe. Inline <style> and
-  <script> work; Google Fonts via <link> work.
+  <script> work. Follow DESIGN-prowin.md for typography; do not load external Google Fonts.
 - Always reset: * { margin: 0; box-sizing: border-box; } and design to the exact frame size.
 - Size frames to their content: mobile screen 390×844, desktop page 1280×800, card or
   component 480×360, square social post 640×640. Set width/height on create_frame, or
@@ -304,7 +307,7 @@ with one-line summaries; list_guidelines shows the same list on demand.
 
 - Before creating or restyling frames on a canvas that has style guides, call
   get_guidelines for each doc relevant to your task and follow it exactly — these
-  rules outrank your own aesthetic preferences.
+  rules outrank your own aesthetic preferences only where compatible with the global brand rules from DESIGN-prowin.md; global rules take precedence over conflicting local docs and references.
 - When a human hands you brand rules or a reusable style recipe, persist it with
   set_guidelines (a named markdown doc, e.g. "feature-image") so every later agent
   inherits it. Write rules others can execute directly: palette hexes, font <link>s,

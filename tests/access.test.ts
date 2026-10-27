@@ -253,7 +253,10 @@ describe('canvas access model', () => {
     expect(copy.frames).toHaveLength(2)
     expect(copy.frames.map((frame: { canvasId: string }) => frame.canvasId)).toEqual([copy.id, copy.id])
     expect(copy.frames.map((frame: { id: string }) => frame.id)).not.toContain(frameId)
-    expect(copy.guidelines).toMatchObject([{ name: 'brand', markdown: 'Use the brand blue.', title: 'Brand' }])
+    expect(copy.guidelines).toMatchObject([
+      { name: 'brand', markdown: 'Use the brand blue.', title: 'Brand' },
+      { name: 'prowin-brand', title: 'proWIN Brand' },
+    ])
     expect(copy.references).toHaveLength(1)
     expect(copy.references[0].id).not.toBe(
       (await (await owner.get(`/api/canvases/${canvasId}`)).json()).references[0].id,

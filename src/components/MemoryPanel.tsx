@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MAX_GUIDELINE_CHARS } from '../../shared/guidelines'
 import type { GuidelineDoc, MemoryReference } from '../../shared/types'
 import { useStore } from '../lib/store'
 import { api, errorMessage } from '../lib/api'
@@ -13,7 +14,6 @@ import { MarkdownBlock, Modal, ModalActions, ModalLede, ModalSpacer, ModalTitle 
 import { ConfirmDialog } from './ui/alert-dialog'
 import { DoopMark } from './Logo'
 
-const MAX_GUIDELINE_CHARS = 24_000
 const MAX_TITLE_CHARS = 80
 
 /* Timestamp/author line under a modal heading. */

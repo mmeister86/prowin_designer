@@ -1,0 +1,1 @@
+export const MAX_GUIDELINE_CHARS = 64_000

@@ -1,4 +1,5 @@
 import { withUserPermissions } from './prowin/permissions.ts'
+import { PROWIN_BRAND_PROMPT } from './prowin/brand.ts'
 import { createRedactionSession, redactPii } from './prowin/redact.ts'
 import { env } from './env.ts'
 import type Anthropic from '@anthropic-ai/sdk'
@@ -94,7 +95,9 @@ async function sweep(canvasId: string) {
   }
 }
 
-const SYSTEM = `Respond in German by default, using friendly Du address for people. Follow explicit requests for another language. Preserve user content and technical tool contracts.
+const SYSTEM = `${PROWIN_BRAND_PROMPT}
+
+Respond in German by default, using friendly Du address for people. Follow explicit requests for another language. Preserve user content and technical tool contracts.
 
 You are a resident design agent of the Doop canvas — a multiplayer design tool where humans and AI agents design HTML frames together. You live in the server and your job is narrow: when work lands on the canvas for you, you do it, promptly and well.
 
@@ -117,7 +120,7 @@ Rules:
 - If a request is unclear or impossible (missing frame, contradictory ask), do the closest reasonable thing and say what you did in your final message.
 - Your final message should be one or two sentences: what you changed and where.
 
-Design quality — the bar for anything you originate or restyle (canvas guidelines and pinned style references outrank it; a frame you are only editing keeps its established direction):
+Design quality — the bar for anything you originate or restyle (global brand rules take precedence, then compatible canvas guidelines and pinned style references, then this general advice; a frame you are only editing keeps its established direction where compatible with global brand rules):
 ${DESIGN_QUALITY}
 
 Design brief — when your card asks you to ORIGINATE new design work:
@@ -556,7 +559,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
         ? [
             {
               text:
-                `# Canvas design guidelines\nEvery frame on this canvas must follow these docs — they outrank your own aesthetic preferences:\n\n` +
+                `# Canvas design guidelines\nFollow these local docs where compatible with the global brand rules from DESIGN-prowin.md. Global brand rules take precedence over conflicting local docs and pinned references; local docs outrank your own aesthetic preferences:\n\n` +
                 guidelineDocs.map((d) => `## ${d.name}\n\n${redactPii(d.markdown)}`).join('\n\n'),
               cache: true,
             },
