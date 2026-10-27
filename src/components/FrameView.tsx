@@ -402,6 +402,8 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
      place, so updates never white-flash the frame with a full reload. */
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
   const localHtml = useRef<string | null>(null)
+  const editExitId = useRef(0)
+  const editExits = useRef(new Map<number, () => void>())
   /* where the last right-click landed, in screen coordinates: Paste drops the
      frame there, and the menu's own box is not that point once Radix has
      flipped or shifted it away from a viewport edge */
@@ -800,15 +802,19 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     setEditing(true)
     iframeRef.current?.contentWindow?.postMessage({ type: 'doop:edit', on: true }, '*')
   }
-  function exitEdit() {
-    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:edit', on: false }, '*')
+  const exitEdit = useCallback(() => {
+    const win = iframeRef.current?.contentWindow
+    if (!win) return
+    const flushId = ++editExitId.current
+    // Undo must wait for the not-yet-delivered snapshot and its PATCH, not just an ACK.
+    trackSave(new Promise<void>((resolve) => editExits.current.set(flushId, resolve)))
+    setSuspendPost(true)
+    win.postMessage({ type: 'doop:edit', on: false, flushId }, '*')
     setEditing(false)
     setActiveHit(null)
     setComposing(false)
     activeSelRef.current = null
-    setSuspendPost(true)
-    window.setTimeout(() => setSuspendPost(false), 500)
-  }
+  }, [setComposing])
 
   /* switching to Hand or Comment ends a text-edit session: both put the
      shield back over the document, and a comment click has to probe the
@@ -828,20 +834,36 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         // throttle can overwrite a newer style edit still waiting to save.
         localHtml.current = ev.data.html
         const before = useStore.getState().canvas?.frames.find((f) => f.id === frame.id)?.html
-        useStore.getState().patchFrameLocal(frame.id, { html: ev.data.html })
-        trackSave(api.updateFrame(frame.id, { html: ev.data.html }).catch(console.error))
-        if (before !== undefined)
-          recordUpdate(frame.id, { html: before }, { html: ev.data.html }, ev.data.discrete === true)
+        let save: Promise<unknown> = Promise.resolve()
+        if (before !== ev.data.html) {
+          useStore.getState().patchFrameLocal(frame.id, { html: ev.data.html })
+          save = api.updateFrame(frame.id, { html: ev.data.html }).catch(console.error)
+          trackSave(save)
+          if (before !== undefined)
+            recordUpdate(frame.id, { html: before }, { html: ev.data.html }, ev.data.discrete === true)
+        }
+        const flushId = ev.data.flushId
+        const finish = editExits.current.get(flushId)
+        if (finish) {
+          void save.then(() => {
+            editExits.current.delete(flushId)
+            finish()
+            if (!editExits.current.size) setSuspendPost(false)
+          })
+        }
       }
       if (ev.data?.type === 'doop:edit-esc') {
-        setEditing(false)
-        setSuspendPost(true)
-        window.setTimeout(() => setSuspendPost(false), 500)
+        exitEdit()
       }
     }
     window.addEventListener('message', onMsg)
-    return () => window.removeEventListener('message', onMsg)
-  }, [frame.id])
+    const exits = editExits.current
+    return () => {
+      window.removeEventListener('message', onMsg)
+      for (const finish of exits.values()) finish()
+      exits.clear()
+    }
+  }, [frame.id, exitEdit])
 
   /* deselecting the frame ends the edit session. Selection lives in the
      store and the iframe has to be told, so this is a sync with an external

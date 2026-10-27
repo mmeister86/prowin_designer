@@ -18,8 +18,14 @@ declare global {
       undo: () => Promise<void>
       geometry: (selector: string, edit: GeometryEdit) => Promise<ElementInfo | null>
       redo: () => Promise<void>
+      currentHtml: () => string | undefined
+      clear: () => void
       selected: () => { frameId: string; selector: string } | null
     }
+    holdExitReply?: boolean
+    heldExitReply?: MessageEvent | null
+    pendingExitUndo?: Promise<void>
+    exitUndoDone?: boolean
   }
 }
 
@@ -30,12 +36,22 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
   let saved: Frame
   let writes: string[] = []
   let seedId = 0
+  let holdSave = false
+  let releaseSave: (() => Promise<void>) | undefined
   const errors: string[] = []
   beforeAll(async () => {
     vite = await createServer({ server: { port: 0 }, logLevel: 'error' })
     await vite.listen()
     browser = await getBrowser()
     page = await browser.newPage()
+    await page.evaluateOnNewDocument(() => {
+      window.addEventListener('message', (event: MessageEvent) => {
+        if (!window.holdExitReply || event.data?.type !== 'doop:edited') return
+        event.stopImmediatePropagation()
+        window.holdExitReply = false
+        window.heldExitReply = event
+      })
+    })
     page.setDefaultTimeout(5_000)
     page.on('pageerror', (error) => errors.push(String(error)))
     await page.setViewport({ width: 1000, height: 900 })
@@ -46,7 +62,11 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       if (new URL(request.url()).pathname === '/api/frames/f' && request.method() === 'PATCH') {
         saved = { ...saved, ...JSON.parse(request.postData()!) }
         writes.push(saved.html)
-        await request.respond({ status: 200, contentType: 'application/json', body: JSON.stringify(saved) })
+        const response = { status: 200, contentType: 'application/json', body: JSON.stringify(saved) }
+        if (holdSave) {
+          holdSave = false
+          releaseSave = () => request.respond(response)
+        } else await request.respond(response)
       } else await request.continue()
     })
     await page.goto(`${vite.resolvedUrls!.local[0]}tests/fixtures/elementPanel.html`)
@@ -644,6 +664,25 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     if (modifier) await page.keyboard.up(modifier)
   }
 
+  async function requestExitUndo() {
+    await page.evaluate(async () => {
+      window.exitUndoDone = false
+      window.pendingExitUndo = window.elementPanelHarness.undo().then(() => {
+        window.exitUndoDone = true
+      })
+      // One task turn drains settled saves without sleeping through the race.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  async function releaseExitReply() {
+    await page.evaluate(() => {
+      const held = window.heldExitReply!
+      window.heldExitReply = null
+      window.dispatchEvent(new MessageEvent('message', { data: held.data, source: held.source }))
+    })
+  }
+
   it('scrubs negative geometry without probe animations and restores translations on cancel and undo', async () => {
     const frame = await seedPanel(
       `<!doctype html><html><head><style>
@@ -868,55 +907,146 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
     await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
   }, 20_000)
 
-  it('flushes pending inline text before scrub preview, cancels without saving width, and commits one undo step', async () => {
+  it.each([false, true])(
+    'flushes pending inline text before scrub preview and keeps Undo safe (held exit: %s)',
+    async (heldExit) => {
+      const frame = await seedScrubTarget('width:120px;height:80px')
+      const box = (await (await frame.$('#scrub'))!.boundingBox())!
+      await page.mouse.click(box.x + 20, box.y + 10, { count: 2, delay: 60 })
+      await page.waitForSelector('[title="Speichern und Bearbeitung beenden (Esc)"]')
+      await selectLayer('#scrub')
+      await page.waitForFunction(
+        () => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '120',
+      )
+      writes = []
+      await frame.click('#scrub')
+      await frame.waitForSelector('#scrub[contenteditable]')
+      await page.keyboard.press('End')
+      await page.keyboard.type(' typed')
+      // Like picking the layer in Layers, move keyboard focus back to the panel.
+      await page.click('[aria-label="Breite"]')
+      const point = await startScrub('Breite')
+      await page.mouse.move(point.x + 20, point.y)
+      await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      expect(writes).toHaveLength(1)
+      expect(writes[0]).toContain('typed')
+      expect(writes[0]).not.toContain('width: 140px')
+      const textSave = saved.html
+      await page.keyboard.press('Escape')
+      await page.mouse.up()
+      await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+      expect(saved.html).toBe(textSave)
+      expect(
+        await page.evaluate(
+          (html) =>
+            (new DOMParser().parseFromString(html, 'text/html').querySelector('#scrub') as HTMLElement).style.width,
+          saved.html,
+        ),
+      ).toBe('120px')
+      expect(writes).toHaveLength(1)
+      await page.waitForFunction(
+        () => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '120',
+      )
+      await drag('Breite', 30)
+      await expect.poll(() => saved.html).toContain('width: 150px')
+      expect(saved.html).toContain('typed')
+      expect(writes).toHaveLength(2)
+      if (heldExit) {
+        // Complete the prior PATCHes before challenging the exit-message barrier.
+        await page.evaluate(async () => {
+          await window.elementPanelHarness.undo()
+          await window.elementPanelHarness.redo()
+          window.holdExitReply = true
+          window.heldExitReply = null
+        })
+      }
+      await page.click('[title="Speichern und Bearbeitung beenden (Esc)"]')
+      await page.waitForFunction(() => !document.querySelector('[title="Speichern und Bearbeitung beenden (Esc)"]'))
+      if (heldExit) {
+        await page.waitForFunction(() => !!window.heldExitReply)
+        await requestExitUndo()
+        try {
+          expect(await page.evaluate(() => window.elementPanelHarness.currentHtml())).toContain('width: 150px')
+        } finally {
+          await releaseExitReply()
+          await page.evaluate(() => window.pendingExitUndo)
+        }
+      } else await page.evaluate(() => window.elementPanelHarness.undo())
+      await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
+      expect(saved.html).toContain('typed')
+      expect(saved.html).not.toContain('width: 150px')
+      expect(writes).toHaveLength(heldExit ? 5 : 3)
+      await page.evaluate(() => window.elementPanelHarness.undo())
+      await frame.waitForFunction(() => !document.querySelector('#scrub')!.textContent!.includes('typed'))
+      expect(saved.html).not.toContain('typed')
+    },
+    20_000,
+  )
+
+  it.each(['button', 'iframe Escape'])(
+    'waits for final text serialization and PATCH before Undo (%s)',
+    async (exit) => {
+      const frame = await seedScrubTarget('width:120px;height:80px')
+      const box = (await (await frame.$('#scrub'))!.boundingBox())!
+      await page.mouse.click(box.x + 20, box.y + 10, { count: 2, delay: 60 })
+      await page.waitForSelector('[title="Speichern und Bearbeitung beenden (Esc)"]')
+      await frame.click('#scrub')
+      await frame.waitForSelector('#scrub[contenteditable]')
+      writes = []
+      // Only the exit snapshot can serialize this live, not-yet-saved DOM edit.
+      await frame.$eval('#scrub', (element) => {
+        element.textContent += ' pending exit'
+      })
+      await page.evaluate(() => {
+        window.holdExitReply = true
+        window.heldExitReply = null
+      })
+      if (exit === 'button') await page.click('[title="Speichern und Bearbeitung beenden (Esc)"]')
+      else await page.keyboard.press('Escape')
+      await page.waitForFunction(() => !!window.heldExitReply)
+      holdSave = true
+      await requestExitUndo()
+      try {
+        expect(await page.evaluate(() => window.exitUndoDone)).toBe(false)
+      } finally {
+        await releaseExitReply()
+        await expect.poll(() => releaseSave).toBeTypeOf('function')
+        try {
+          expect(await page.evaluate(() => window.exitUndoDone)).toBe(false)
+          expect(await page.evaluate(() => window.elementPanelHarness.currentHtml())).toContain('pending exit')
+        } finally {
+          await releaseSave!()
+          releaseSave = undefined
+          await page.evaluate(() => window.pendingExitUndo)
+        }
+      }
+      await frame.waitForFunction(() => !document.querySelector('#scrub')!.textContent!.includes('pending exit'))
+      expect(saved.html).not.toContain('pending exit')
+      expect(writes).toHaveLength(2)
+    },
+    15_000,
+  )
+
+  it('releases an outstanding exit barrier when the frame unmounts', async () => {
     const frame = await seedScrubTarget('width:120px;height:80px')
     const box = (await (await frame.$('#scrub'))!.boundingBox())!
     await page.mouse.click(box.x + 20, box.y + 10, { count: 2, delay: 60 })
     await page.waitForSelector('[title="Speichern und Bearbeitung beenden (Esc)"]')
-    await selectLayer('#scrub')
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '120')
-    writes = []
-    await frame.click('#scrub')
-    await frame.waitForSelector('#scrub[contenteditable]')
-    await page.keyboard.press('End')
-    await page.keyboard.type(' typed')
-    // Like picking the layer in Layers, move keyboard focus back to the panel.
-    await page.click('[aria-label="Breite"]')
-    const point = await startScrub('Breite')
-    await page.mouse.move(point.x + 20, point.y)
-    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '140px')
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    expect(writes).toHaveLength(1)
-    expect(writes[0]).toContain('typed')
-    expect(writes[0]).not.toContain('width: 140px')
-    const textSave = saved.html
-    await page.keyboard.press('Escape')
-    await page.mouse.up()
-    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
-    expect(saved.html).toBe(textSave)
-    expect(
-      await page.evaluate(
-        (html) =>
-          (new DOMParser().parseFromString(html, 'text/html').querySelector('#scrub') as HTMLElement).style.width,
-        saved.html,
-      ),
-    ).toBe('120px')
-    expect(writes).toHaveLength(1)
-    await page.waitForFunction(() => document.querySelector<HTMLInputElement>('[aria-label="Breite"]')?.value === '120')
-    await drag('Breite', 30)
-    await expect.poll(() => saved.html).toContain('width: 150px')
-    expect(saved.html).toContain('typed')
-    expect(writes).toHaveLength(2)
+    await page.evaluate(() => {
+      window.holdExitReply = true
+      window.heldExitReply = null
+    })
     await page.click('[title="Speichern und Bearbeitung beenden (Esc)"]')
-    await page.waitForFunction(() => !document.querySelector('[title="Speichern und Bearbeitung beenden (Esc)"]'))
-    await page.evaluate(() => window.elementPanelHarness.undo())
-    await frame.waitForFunction(() => (document.querySelector('#scrub') as HTMLElement).style.width === '120px')
-    expect(saved.html).toContain('typed')
-    expect(saved.html).not.toContain('width: 150px')
-    await page.evaluate(() => window.elementPanelHarness.undo())
-    await frame.waitForFunction(() => !document.querySelector('#scrub')!.textContent!.includes('typed'))
-    expect(saved.html).not.toContain('typed')
-  }, 20_000)
+    await page.waitForFunction(() => !!window.heldExitReply)
+    await requestExitUndo()
+    expect(await page.evaluate(() => window.exitUndoDone)).toBe(false)
+    await page.evaluate(() => window.elementPanelHarness.clear())
+    await page.waitForFunction(() => !document.querySelector('iframe'))
+    await page.waitForFunction(() => window.exitUndoDone)
+    await releaseExitReply()
+    expect(await page.evaluate(() => window.elementPanelHarness.currentHtml())).toBeUndefined()
+  }, 15_000)
 
   it('keeps remote edits when a preview is cancelled', async () => {
     const frame = await seedScrubTarget('width:50%;height:80px')

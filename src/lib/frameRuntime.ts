@@ -220,14 +220,19 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
     return '<!doctype html>\\n' + root.outerHTML
   }
 
-  function postEdited(discrete) {
-    parent.postMessage({ type: 'doop:edited', html: serialize(), discrete: discrete === true }, '*')
+  function postEdited(discrete, flushId) {
+    var message = { type: 'doop:edited', html: serialize(), discrete: discrete === true }
+    if (typeof flushId === 'number') message.flushId = flushId
+    parent.postMessage(message, '*')
     /* typing can move/grow the element — keep the parent's toolbar anchored */
     if (editing && activeEl) postActive()
   }
 
-  function setEdit(on) {
-    if (on === editing) return
+  function setEdit(on, flushId) {
+    if (on === editing) {
+      if (!on && typeof flushId === 'number') postEdited(false, flushId)
+      return
+    }
     editing = on
     if (on) {
       var st = document.createElement('style')
@@ -240,7 +245,7 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       clearHover()
       var st2 = document.querySelector('style[data-v-edit]')
       if (st2 && st2.parentNode) st2.parentNode.removeChild(st2)
-      postEdited() // flush the final state before renders resume
+      postEdited(false, flushId) // flush the final state before renders resume
     }
   }
 
@@ -273,7 +278,6 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
   document.addEventListener('keydown', function (ev) {
     if (ev.key !== 'Escape') return
     if (editing) {
-      setEdit(false)
       parent.postMessage({ type: 'doop:edit-esc' }, '*')
     } else {
       parent.postMessage({ type: 'doop:esc' }, '*')
@@ -822,7 +826,7 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
       notifyFrameUpdated()
       if (d.reqId) parent.postMessage({ type: 'doop:html-result', reqId: d.reqId }, '*')
     }
-    if (d.type === 'doop:edit') setEdit(!!d.on)
+    if (d.type === 'doop:edit') setEdit(!!d.on, d.flushId)
     // Mirror the Layers eye in the live document, including during text edits.
     if (d.type === 'doop:visibility') {
       var hideEl = null
