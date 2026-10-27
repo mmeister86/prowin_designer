@@ -1,10 +1,10 @@
 ---
 id: TASK-69
 title: Untersuche den PGlite-Absturz beim Entwicklungsstart
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-25T19:50:00Z'
-updated_date: '2026-10-26T07:35:00Z'
+updated_date: '2026-10-27T10:59:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -46,4 +46,12 @@ Recovery-Versuch auf zusätzlicher Kopie /tmp/opencode/pglite-recovery-FFtDpO/pg
 Fixversuch erfolgreich im aktuellen Worktree feat-german-app bereitgestellt, ohne das defekte Original im Hauptcheckout auszutauschen. Nach Recovery kompatibles @electric-sql/pglite-tools@0.4.8 mit PGlite0.5.8 nur im privaten /tmp-Recovery-Verzeichnis installiert (keine Projektdependency geändert). SQL-Dump (105977 Bytes) in vollständig neue DB importiert; alle 39 Tabellen per Zeilenzahl und sortiertem Vollzeilen-Hash identisch, Constraints beim Import validiert, erneutes Öffnen ebenfalls identisch. Korrektur vorheriger Notiz: 39 Tabellen, 40 Journal-Einträge/Migrationen. Aktuelle Originaldateien gegen Diagnosebasis verglichen: abgesehen von postmaster.pid keine Abweichungen. Dauerhafte private Sicherung im Worktree unter data/recovery-backups/2026-10-26-pglite: original-pg (1164 Dateien mit SHA256 geprüft), recovered.sql (0600), Hashes, Recovery-Skripte und Logs; Backupordner0700. Original-PG-Control unverändert. Wiederhergestellte frische DB nach Worktree/data/pg übernommen, Assets ebenfalls kopiert, keine vorhandene Worktree-DB/Assets überschrieben. Smoke mit aktuellem Anwendungscode auf weiterer Kopie: zweimal Start/Stop; /healthz, /api/login-providers, /api/auth/get-session jeweilsHTTP200. Danach echte initDb() inklusive Migrationen auf installierter Worktree-DB erfolgreich; 4Canvases,5Frames,40Migrationen, client.close erfolgreich. Daten und Backups gitignored. Keine Anwendungscodeänderungen; fremde Übersetzungsänderungen unangetastet. Alter Hauptcheckout-Vite lauscht weiterhin4300; Nutzer muss alten bun-dev-Lauf beenden und im aktuellen Worktree neu starten. Nicht geprüft: manueller Login/Ansichten, vollständige Datenhistorie mangels Vergleichsbackup. Keine präventive Shutdown-Änderung vorgenommen; ursprünglicher Schadensauslöser nicht bewiesen. Status bleibt bis expliziter Nutzerbestätigung In Progress.
 
 26.10.2026: Nutzer autorisiert lokale main-Integration inklusive geretteter DB. Unter TASK-70 aktuelle Worktree-Daten (nach manueller Nutzung2Canvases/2Frames) offline und SHA256-geprüft übernommen. Nach während der Gates erkannter weiterer Quelländerung neue aktuelle Kopie erstellt (1161Dateien),39Tabellenfingerprints identisch nach main-initDb mit40Migrationen. Linux-atomarer Verzeichnistausch; beschädigter ursprünglicher Hauptcheckout-Stand bleibt unter data/integration-backups/2026-10-26-task70-Ou03W1/original-main-pg sowie retired-main-pg erhalten. Ursprüngliche Rettungsunterlagen samt SQL-Export ebenfalls dort unter source-recovery-backups. Zweifacher App-Start/Neustart auf isolierter Kopie des übernommenen Datenstands und3HTTP-Endpunkte jeweils200. Kein präventiver Shutdown-Umbau; ursprünglicher Schadensauslöser weiter ungeklärt. Taskstatus ohne ausdrückliche Done-Freigabe offen.
+
+27.10.2026: Ausdrückliche Nutzerfreigabe zum Abschluss: "ok, task auf done bitte. ebenso task 21, sowie Task 66ff - 69 (nice)." Die Freigabe umfasst die zugehörigen Untertasks. Dokumentierte Prüfgrenzen bleiben bestehen; dieser Abschluss behauptet keine zusätzlichen Live- oder nativen Tests. Keine weiteren Produktänderungen für den Abschluss erforderlich.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+PGlite-Absturz auf ungültigen WAL-Checkpoint eingegrenzt; Daten auf Kopie gerettet, Dump/Restore und Tabellenfingerprints verifiziert und unter TASK-70 nach main übernommen. Original und Recovery-Unterlagen gesichert. Ausdrücklich abgenommen; ursprünglicher Schadensauslöser und vollständige historische Datenvollständigkeit bleiben unbelegt.
+<!-- SECTION:FINAL_SUMMARY:END -->

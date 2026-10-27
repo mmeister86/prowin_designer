@@ -1,10 +1,10 @@
 ---
 id: TASK-68
 title: Übersetze die gesamte App ins Deutsche
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-25T19:50:00Z'
-updated_date: '2026-10-26T07:35:00Z'
+updated_date: '2026-10-27T10:59:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -50,4 +50,12 @@ Vollständige deutsche Endnutzeroberfläche für Web, Desktop und iOS einschlie�
 26.10.2026: Nutzer bestätigt im Chat, dass die Übersetzung erstmal passt, und autorisiert ausdrücklich die lokale Integration nach main inklusive geretteter Datenbank. Manuelle vorläufige Abnahme damit erfolgt. Kein Push/Deployment beauftragt. Aufgabenstatus bleibt mangels ausdrücklicher Freigabe zum Setzen auf Done unverändert; lokale Integration wird unter TASK-70 verfolgt.
 
 26.10.2026: Vom Nutzer autorisierter lokaler Merge unter TASK-70 erfolgt: Feature a1ab4cc, Merge b08c265. Frische Vollsuite vor und nach Merge165Dateien/1309Tests grün, Typecheck/Lint/Format/Build ebenfalls. Aktueller geretteter Datenstand separat nach Hauptcheckout/data/pg übernommen und verifiziert. Kein Push/Deployment. Native/externe Prüfgrenzen bleiben bestehen, keine ausdrückliche Done-Freigabe angenommen.
+
+27.10.2026: Ausdrückliche Nutzerfreigabe zum Abschluss: "ok, task auf done bitte. ebenso task 21, sowie Task 66ff - 69 (nice)." Die Freigabe umfasst die zugehörigen Untertasks. Dokumentierte Prüfgrenzen bleiben bestehen; dieser Abschluss behauptet keine zusätzlichen Live- oder nativen Tests. Keine weiteren Produktänderungen für den Abschluss erforderlich.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Deutsche App einschließlich Web, Server, Desktop-Ressourcen und iOS-Ressourcen umgesetzt, unabhängig geprüft, lokal nach main integriert und ausdrücklich zum Abschluss freigegeben. Native Builds und echte externe Abläufe bleiben gemäß Prüfprotokoll ungeprüft.
+<!-- SECTION:FINAL_SUMMARY:END -->

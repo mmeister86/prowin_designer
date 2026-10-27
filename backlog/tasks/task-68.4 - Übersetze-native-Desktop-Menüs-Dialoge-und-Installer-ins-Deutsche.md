@@ -1,10 +1,10 @@
 ---
 id: TASK-68.4
 title: Übersetze native Desktop-Menüs, Dialoge und Installer ins Deutsche
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-25T19:51:00Z'
-updated_date: '2026-10-25T23:21:00Z'
+updated_date: '2026-10-27T10:59:00Z'
 labels: []
 dependencies: []
 parent_task_id: TASK-68
@@ -38,4 +38,12 @@ Tauri-/Rust-Nutzertexte und Installationsoberflächen einschließlich DMG-Grafik
 Native Desktop-Texte, Menü/Exportpanel, deutsche Bundle-/NSIS-Ressourcen und tatsächliche DMG-PNG übersetzt. Ripley: spec compliant, quality Approved, keine wichtigen Befunde. JS-Vollsuite160Dateien/1263Tests, Typecheck/Lint/Build grün. Cargo/rustfmt/makensis/xcodebuild fehlen; native Builds und echte Installationen explizit offen. Bestehende Desktop-Remote-URL unverändert. Keine Nutzerabnahme.
 
 26.10.2026: Finale breite Prüfung plus gemeinsame Korrekturwelle und unabhängige scoped Nachprüfung abgeschlossen; keine offenen Critical-/Important-Befunde. Controller-Vollsuite165Dateien/1309Tests bestanden; Typecheck, Gesamt-Lint und Web-Build erneut grün. Produkt-/Teststand unverändert zum geprüften Snapshot. Native Builds und echte externe Dienste bleiben gemäß Prüfprotokoll offen. Keine Nutzerabnahme; Status bleibt In Progress.
+
+27.10.2026: Ausdrückliche Nutzerfreigabe zum Abschluss: "ok, task auf done bitte. ebenso task 21, sowie Task 66ff - 69 (nice)." Die Freigabe umfasst die zugehörigen Untertasks. Dokumentierte Prüfgrenzen bleiben bestehen; dieser Abschluss behauptet keine zusätzlichen Live- oder nativen Tests. Keine weiteren Produktänderungen für den Abschluss erforderlich.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implementierung, Regressionen und unabhängige Prüfung gemäß den vorhandenen Nachweisen von TASK-68.4 und TASK-68 abgeschlossen; in main enthalten. Untertask durch ausdrückliche Nutzerfreigabe für TASK-66 bis TASK-69 abgenommen. Dokumentierte Plattform- und manuelle Prüfgrenzen bleiben bestehen.
+<!-- SECTION:FINAL_SUMMARY:END -->

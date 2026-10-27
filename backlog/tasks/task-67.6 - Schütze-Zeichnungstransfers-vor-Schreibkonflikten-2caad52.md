@@ -1,10 +1,10 @@
 ---
 id: TASK-67.6
 title: Schütze Zeichnungstransfers vor Schreibkonflikten (2caad52)
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-25T12:22:00Z'
-updated_date: '2026-10-25T17:39:00Z'
+updated_date: '2026-10-27T10:59:00Z'
 labels: []
 dependencies: []
 parent_task_id: TASK-67
@@ -39,4 +39,12 @@ Teil 6 des Plans docs/superpowers/plans/2026-10-25-upstream-adoption.md. Eigenst
 WICHTIG für spätere Integration: zusätzlicher Transfer-History-Schutz1ec5dc3 beseitigt kollaborativenDatenverlust, hat laut finalemNachreview aber offenenImportantI4 im optionalenBoolvergleich (Lock/HideToggleUndo→TransferUndo führtfälschlichzuKonflikt). Gesamt-Branch nochNICHTfreigegeben; sieheTASK67 undfinal-fix-review.md.
 
 I4 durch ausdrücklich freigegebene Folgekorrektur TASK67.11/e4d38b7 behoben. Lock-/Hide-Toggle-Undo plus Transfer-Undo/Redo regressionsgeprüft; unabhängiges Review freigegeben, Versionsschutz erhalten. Historischer Blocker ist geschlossen.
+
+27.10.2026: Ausdrückliche Nutzerfreigabe zum Abschluss: "ok, task auf done bitte. ebenso task 21, sowie Task 66ff - 69 (nice)." Die Freigabe umfasst die zugehörigen Untertasks. Dokumentierte Prüfgrenzen bleiben bestehen; dieser Abschluss behauptet keine zusätzlichen Live- oder nativen Tests. Keine weiteren Produktänderungen für den Abschluss erforderlich.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implementierung, Regressionen und unabhängige Prüfung gemäß den vorhandenen Nachweisen von TASK-67.6 und TASK-67 abgeschlossen; in main enthalten. Untertask durch ausdrückliche Nutzerfreigabe für TASK-66 bis TASK-69 abgenommen. Dokumentierte Plattform- und manuelle Prüfgrenzen bleiben bestehen.
+<!-- SECTION:FINAL_SUMMARY:END -->

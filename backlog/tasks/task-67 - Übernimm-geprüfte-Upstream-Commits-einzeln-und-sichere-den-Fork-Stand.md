@@ -1,10 +1,10 @@
 ---
 id: TASK-67
 title: Übernimm geprüfte Upstream-Commits einzeln und sichere den Fork-Stand
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-25T12:19:00Z'
-updated_date: '2026-10-25T18:41:00Z'
+updated_date: '2026-10-27T10:59:00Z'
 labels: []
 dependencies: []
 priority: high
@@ -50,4 +50,12 @@ Benutzer hat I4-Fix ausdrücklich freigegeben und weitere unnötige Prozessstopp
 Abschlussfreigabe zur manuellen Abnahme: I4 in e4d38b7 korrigiert und gezielt unabhängig freigegeben (Spec/QualityPASS, keine offenen Critical/Important). Letzte vollständige4Worker-Suite147Dateien/1161Tests0, Typecheck/FULLLint/Build/DocLint0; geänderteSource- und Übergabedokumente formatiert. Alle17individuellenUpstream-Commits/Backup/main unverändert erhalten. Keine weiteren Produktänderungen, keinPush/Merge. Dokumentierte Minor-/Plattformgrenzen bleiben: Designpanel-Reopen, nativeiOS/WebKit/Clipboardnichtgeprüft. AlleACverifiziert; Status bleibtInProgress bis ausdrücklicherBestätigung nachmanuellemTest.
 
 Benutzer hat lokalenMerge nachmain und anschließendenPush ausdrücklich freigegeben. main perFast-forward2272d9d→c4c65d5 integriert; direktaufmain147Dateien/1161Tests, Typecheck/FULLLint/Build/DocLint erfolgreich. Repo-weiterFormatcheck zeigte nurCLI-Markerabstände in neuenBacklog-Dateien undFixture-Zeilenumbruch. CLI-eigene backlog/tasks/ deshalb wiebacklog/config.yml vonPrettier ausgenommen, keineTaskdatei direkteditiert; Fixture reineFormatierung. Danach globalFormatcheck/Typecheck/Lint erfolgreich und DrawingBrowser28/28. Backup unverändert; Aufgabenstatus weiterhinInProgress bismanuellerBestätigung. Pushzielorigin/main, keinForcePush.
+
+27.10.2026: Ausdrückliche Nutzerfreigabe zum Abschluss: "ok, task auf done bitte. ebenso task 21, sowie Task 66ff - 69 (nice)." Die Freigabe umfasst die zugehörigen Untertasks. Dokumentierte Prüfgrenzen bleiben bestehen; dieser Abschluss behauptet keine zusätzlichen Live- oder nativen Tests. Keine weiteren Produktänderungen für den Abschluss erforderlich.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+17 geprüfte Web-/Server-Upstream-Commits samt Fork-Schutz und dokumentierter Reviewkorrekturen übernommen, in main integriert und ausdrücklich abgenommen. Historie und externes Backup verifiziert. Dokumentierte Minor-/Plattformgrenzen und zurückgestellter iOS-Commit bleiben bestehen.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -3,8 +3,9 @@
 **Umfang: nur KI und Analytics.** Bild-/Icon-/Logosuche bleibt unverändert.
 Magnific und Stripe werden mit dieser Prüfung **nicht aktiviert**.
 
-**Stand: 27.10.2026.** Implementierung und technische Prüfung abgeschlossen; M2 und TASK-22 bleiben bis zur
-ausdrücklichen manuellen Nutzerabnahme offen. TASK-21 wartet ebenfalls auf Abnahme.
+**Stand: 27.10.2026.** Implementierung und technische Prüfung abgeschlossen.
+Der Nutzer hat TASK-21 und TASK-22 ausdrücklich abgenommen und auf **Done** setzen
+lassen. Die Umsetzung ist mit Commit `7f5a599` lokal nach `main` übernommen; kein Push.
 
 ## Was geprüft wird
 
@@ -79,13 +80,14 @@ bun run build
 bun run doc-lint
 ```
 
-## Manuelle Abnahme
+## Manuelle Abnahme – vom Nutzer bestätigt
 
 - Auf der Testinstanz einen synthetischen Frame vom Server-Agent erstellen lassen.
 - Eine dauerhafte Designpräferenz speichern; Zusammenfassung und **pending**
   Regelvorschlag prüfen. Eine Übernahme in Guidelines bleibt eine menschliche Aktion.
 - Fehlermeldungen bei Budget-/Konfigurationsproblemen dürfen keine Keys oder internen Diagnosen zeigen.
-- TASK-22/M2 erst nach ausdrücklicher Nutzerbestätigung schließen; TASK-21 separat abnehmen.
+- Der Nutzer hat den Abschluss von TASK-21 und TASK-22 ausdrücklich bestätigt.
+  Diese Abnahme ist kein zusätzlich ausgeführter Live-, Regions- oder Plattformtest.
 
 ## Umsetzungsentscheidungen
 
@@ -94,7 +96,11 @@ bun run doc-lint
 - **Gemeinsame Fixture:** Nur der M2-Consumer aktiviert das Journal; der bestehende Queue-Test bleibt unverändert und separat regressionsgeprüft.
 - **Portabilität:** Gemeinsamer Testhelfer für `tmpdir()/opencode` statt vorausgesetztem Harness-Ordner; keine Produktionsschnittstelle.
 - **Review ohne Commit:** Uncommitteter Diff und neue Dateien wurden ausdrücklich in das Review einbezogen. `.env.example` ist eine geprüfte Mustervorlage; echte `.env`-Dateien wurden nicht gelesen.
-- **Übergabe:** Extern verwalteter Worktree und ignoriertes Ausführungsledger bleiben erhalten, da kein Commit erlaubt ist. Keine Integration in `main` oder Veröffentlichung.
+- **Übergabe:** Nach ursprünglichem Commitverbot hat der Nutzer lokale Commits und
+  main-Integration ausdrücklich freigegeben. Vor der Bereinigung wurden Quellen,
+  Tasks, Daten und Ausführungsnachweise privat unter
+  `/home/matthias/code/prowin_designer-backups/cleanup-2026-10-27-qxbiwr13` gesichert.
+  Keine Veröffentlichung und kein Push.
 
 ## Grenzen des Nachweises
 
