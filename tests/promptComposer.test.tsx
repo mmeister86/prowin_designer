@@ -26,13 +26,15 @@ vi.mock('../src/lib/api', () => ({
   ApiError: class ApiError extends Error {},
 }))
 vi.mock('../src/lib/auth', () => ({ authClient: { useSession: () => ({ data: { user: { id: 'alice' } } }) } }))
-vi.mock('../src/lib/frameClipboard', () => ({ uploadImageFrames: mocks.upload }))
+vi.mock('../src/lib/frameClipboard', () => ({ uploadImageFrames: mocks.upload, hasFrameClip: () => false }))
 vi.mock('../src/components/ChatPanel', () => ({ ChatPanel: () => null }))
 vi.mock('../src/components/MemoryPanel', () => ({ MemoryPanel: () => null }))
 
 const { useStore } = await import('../src/lib/store')
 const { ActivityPanel } = await import('../src/components/ActivityPanel')
 const { TooltipProvider } = await import('../src/components/ui/tooltip')
+const { ContextMenu, ContextMenuTrigger } = await import('../src/components/ui/context-menu')
+const { FrameContextMenu } = await import('../src/components/FrameContextMenu')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -41,13 +43,21 @@ const canvas = { id: 'c1', name: 'Canvas', frames: [], pages: [] } as unknown as
 let container: HTMLDivElement
 let root: Root
 
-async function render() {
+async function render(menuFrame?: Canvas['frames'][number]) {
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
   await act(async () =>
     root.render(
       <TooltipProvider>
+        {menuFrame && (
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <button data-frame-menu>Zeichenflächenmenü</button>
+            </ContextMenuTrigger>
+            <FrameContextMenu frame={menuFrame} at={{ current: { x: 0, y: 0 } }} />
+          </ContextMenu>
+        )}
         <ActivityPanel canvasId="c1" onClose={() => {}} />
       </TooltipProvider>,
     ),
@@ -100,6 +110,26 @@ afterEach(() => {
 })
 
 describe('the Agents tab composer', () => {
+  it('keeps composer focus after the reference context menu closes', async () => {
+    const source = frameOn('c1', 'source')
+    useStore.setState({ canvas: { ...canvas, frames: [source] } })
+    await render(source)
+    const trigger = container.querySelector<HTMLButtonElement>('[data-frame-menu]')!
+    trigger.focus()
+    await act(async () => {
+      trigger.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+    })
+    const item = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      (node) => node.textContent === 'Als Referenz verwenden',
+    )!
+    expect(item).toBeTruthy()
+    await act(async () => item.click())
+    await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+    expect(useStore.getState().composerAttachments.c1).toEqual([{ kind: 'frame', frameId: source.id }])
+    await act(async () => vi.waitFor(() => expect(document.activeElement).toBe(composer()), { timeout: 200 }))
+  })
+
   it('adds the selected group through the visible composer button and suppresses source element scope', async () => {
     useStore.setState({ canvas: { ...canvas, frames: [frameOn('c1', 'a'), frameOn('c1', 'b')] } })
     useStore.setState({ selectedIds: ['b', 'a'], selectedId: 'a', selectedElement: { frameId: 'a', selector: 'p' } })
