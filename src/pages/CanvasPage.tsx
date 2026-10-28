@@ -134,6 +134,12 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
   const select = useStore((s) => s.select)
   const isMobile = useIsMobile()
   const [showActivity, setShowActivity] = useState(() => !window.matchMedia('(max-width: 900px)').matches)
+  const composerFocusAt = useStore((s) => s.composerFocusAt)
+  const [seenComposerFocus, setSeenComposerFocus] = useState(composerFocusAt)
+  if (seenComposerFocus !== composerFocusAt) {
+    setSeenComposerFocus(composerFocusAt)
+    if (Date.now() - composerFocusAt < 2000) setShowActivity(true)
+  }
   /* ?connect=1 (the "connect your agent" email) lands on the Connect AI
      modal; the flag comes off the URL once the page is up so a reload or a
      copied link does not reopen it */

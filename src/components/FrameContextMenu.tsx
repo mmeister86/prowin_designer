@@ -60,6 +60,16 @@ export function FrameContextMenu({ frame, at }: { frame: Frame; at: MutableRefOb
           if (showExport || historyOpen) event.preventDefault()
         }}
       >
+        <ContextMenuItem
+          onSelect={() =>
+            useStore.getState().addComposerReferences(
+              frame.canvasId,
+              groupFrames().map((f) => f.id),
+            )
+          }
+        >
+          Als Referenz verwenden
+        </ContextMenuItem>
         <ContextMenuItem onSelect={() => copyFrames(groupFrames())}>
           {groupSize > 1 ? `${groupSize.toLocaleString('de-DE')} Zeichenflächen kopieren` : 'Kopieren'}
           <MenuHint>{MOD_KEY}C</MenuHint>

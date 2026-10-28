@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { MAX_PROMPT_REFERENCES } from './imageFiles'
 import { canvasPages, framePageId } from '../../shared/pages'
 import type {
   ActivityItem,
@@ -24,6 +25,7 @@ export interface Viewport {
 }
 
 export type PanelTab = 'tasks' | 'comments' | 'activity' | 'memory'
+export type ComposerAttachment = { kind: 'file'; file: File; preview: string } | { kind: 'frame'; frameId: string }
 
 /** A send from the Agents tab composer: in flight, or how the last one
  *  ended. Lives in the store because the composer unmounts with its tab and
@@ -121,6 +123,7 @@ interface State {
   /** the composer's unsent text per canvas — collapsing the panel or
    *  switching tabs unmounts the field and must not eat the draft */
   composerDrafts: Record<string, string>
+  composerAttachments: Record<string, ComposerAttachment[]>
   composerSend: ComposerSend | null
   /** clientId of the peer whose camera this one is tracking (Figma-style
    *  follow); any camera move of our own lets go */
@@ -181,6 +184,8 @@ interface State {
    *  on that tab first) */
   requestComposerFocus(): void
   setComposerDraft(canvasId: string, text: string): void
+  setComposerAttachments(canvasId: string, attachments: ComposerAttachment[]): void
+  addComposerReferences(canvasId: string, frameIds: string[]): void
   setComposerSend(send: ComposerSend | null): void
   select(id: string | null): void
   /** ⇧-click: add the frame to the selection, or drop it if already in */
@@ -237,6 +242,7 @@ export const useStore = create<State>((set, get) => ({
   threadRequest: null,
   composerFocusAt: 0,
   composerDrafts: {},
+  composerAttachments: {},
   composerSend: null,
   following: null,
   selectedIds: [],
@@ -502,6 +508,32 @@ export const useStore = create<State>((set, get) => ({
       composerSend: s.composerSend?.status === 'error' ? null : s.composerSend,
     })),
   setComposerSend: (composerSend) => set({ composerSend }),
+  setComposerAttachments: (canvasId, attachments) => {
+    const previous = get().composerAttachments[canvasId] ?? []
+    const retained = new Set(attachments.flatMap((a) => (a.kind === 'file' ? [a.preview] : [])))
+    const removed = new Set(previous.flatMap((a) => (a.kind === 'file' && !retained.has(a.preview) ? [a.preview] : [])))
+    removed.forEach((url) => URL.revokeObjectURL(url))
+    set((s) => ({ composerAttachments: { ...s.composerAttachments, [canvasId]: attachments } }))
+  },
+  addComposerReferences: (canvasId, frameIds) => {
+    const s = get()
+    if (s.canvas?.id !== canvasId || (s.composerSend?.canvasId === canvasId && s.composerSend.status === 'busy')) return
+    const attachments = [...(s.composerAttachments[canvasId] ?? [])]
+    const ids = new Set(attachments.flatMap((a) => (a.kind === 'frame' ? [a.frameId] : [])))
+    let overflow = false
+    for (const frameId of frameIds) {
+      if (ids.has(frameId) || !s.canvas.frames.some((f) => f.id === frameId && f.canvasId === canvasId)) continue
+      if (attachments.length >= MAX_PROMPT_REFERENCES) {
+        overflow = true
+        continue
+      }
+      attachments.push({ kind: 'frame', frameId })
+      ids.add(frameId)
+    }
+    s.setComposerAttachments(canvasId, attachments)
+    if (overflow) s.pushNotice(`Bis zu ${MAX_PROMPT_REFERENCES} Bilder pro Anfrage`)
+    set({ panelTab: 'tasks', uiHidden: false, composerFocusAt: Math.max(Date.now(), s.composerFocusAt + 1) })
+  },
   /* selecting a different frame (or deselecting) closes the Inspector — the
      panel must not follow surface clicks, paste, or undo onto another frame.
      Re-selecting the same frame keeps an open panel open. */
