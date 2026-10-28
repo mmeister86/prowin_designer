@@ -1,10 +1,10 @@
 ---
 id: TASK-75
 title: Ergänze visuelle Canvas-Referenzen
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-28T19:16:00Z'
-updated_date: '2026-10-28T20:12:00Z'
+updated_date: '2026-10-28T20:32:00Z'
 labels: []
 dependencies: []
 priority: medium
@@ -54,4 +54,8 @@ Aktueller Aufwand ersetzt die erste Schätzung: 3–5 Entwicklertage für den vo
 
 Abschluss Council-Planreview 28.10.2026: Drei vollständige Runden, zuletzt alle Mitglieder ohne Planblocker. Zusätzlich zum äußeren Datei-Navigationsschutz nun minimalen Files-only-Defaultaktionsschutz im bestehenden FRAME_BOOTSTRAP vorsehen; direkter Drop ins Bearbeitungsiframe bleibt ohne Import und darf nicht navigieren. Bestehenden sandboxed Runtime-Harness für Tests nach HTML-Morph nutzen; echte OS-Navigation separat manuell nachweisen.
 Nur Design, Implementierungsplan und diese Backlog-Notizen geändert. Keine Produktcode-Implementierung, keine neuen Featuretests ausgeführt, keine native Auslieferung, kein Push/PR. Aufwand 3–5 Entwicklertage bleibt grober Richtwert; TASK-75 bleibt To Do bis zur ausdrücklichen Umsetzungsfreigabe.
+
+28.10.2026: Umsetzung des Council-geprüften Plans mit Subagent-Driven Development ausdrücklich beauftragt. Isolierter Worktree /home/matthias/.local/share/opencode/worktree/9d3066/task-75-canvas-references, Branch task/75-canvas-references. Frische vollständige Baseline: 175 Testdateien / 1397 Tests bestanden mit --maxWorkers=2 --testTimeout=30000; bestehende Node-localStorage-Warnungen dokumentiert.
+Preflight-Ruling: Ersetze den geplanten rein textuellen Desktop-Source-Test durch ausführbare Rust-Tests der tatsächlich verwendeten Navigationsentscheidung; Builder zusätzlich per cargo/OS-Gate prüfen. Keine neue Funktionalität, keine automatische Auslieferung.
+Ablauf: vier sequenzielle frische Implementer mit Task-Reviews, anschließend Gesamt-Review. Kein Push/Merge, Task bleibt bis zur manuellen Nutzerabnahme In Progress.
 <!-- SECTION:NOTES:END -->

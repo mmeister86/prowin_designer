@@ -1,14 +1,14 @@
 # TASK-75: Visuelle Canvas-Referenzen
 
-**Status:** Planungsentwurf vom 28.10.2026; keine Implementierung beauftragt.
+**Status:** Umsetzung am 28.10.2026 ausdrücklich mit Subagent-Driven Development freigegeben; technische Verifikation und manuelle Abnahme noch offen.
 **Codebasis:** `main`, `f732729` (`feat: add LT Kai and brush placeholder`).
-**Backlog:** TASK-75 – Ergänze visuelle Canvas-Referenzen; bleibt `To Do`.
+**Backlog:** TASK-75 – Ergänze visuelle Canvas-Referenzen; `In Progress`, kein automatisches `Done` ohne Nutzerabnahme.
 
 ## Ziel und bestätigter Umfang
 
 Nutzer können Grafiken, etwa bestehende Werbungen, auf den Canvas ziehen und ausdrücklich als visuelle Orientierung für einen KI-Auftrag verwenden. Die KI orientiert sich beispielsweise an Bildsprache, Aufbau und Stimmung. Sie zerlegt das Bild nicht in editierbare Elemente und rekonstruiert es nicht pixelgenau.
 
-Der Nutzer hat diese Abgrenzung bestätigt und eine konkrete Planung auf Basis der aktuellen App angefordert. Die folgenden Bedienungs- und Technikdetails sind **Planungsvorschläge**, keine zusätzliche Umsetzungsfreigabe.
+Der Nutzer hat diese Abgrenzung bestätigt, den Plan durch den Council prüfen lassen und anschließend dessen Umsetzung mit Subagent-Driven Development angefordert. Auslieferung und manuelle Abnahme sind davon nicht umfasst.
 
 ## Verifizierter Bestand
 
