@@ -143,8 +143,9 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
         <div className="flex flex-col gap-2 border-t border-line-soft pt-2.5">
           <p className="text-[11.5px] leading-[1.5] text-ink-faint">
             KI-Hinweis: Dein Design-HTML, die Screenshots, mit denen der Agent seine Arbeit prüft, und Deine
-            Texteingaben werden an Requesty (EU) gesendet. E-Mail-Adressen, Telefonnummern und IBANs werden durch
-            Platzhalter ersetzt, bevor eine Anfrage unseren Server verlässt. Namen und Postanschriften werden nicht
+            Texteingaben werden an Requesty (EU) gesendet. Für erkannte Textdaten (E-Mail-Adressen, Telefonnummern und
+            IBANs) werden Platzhalter verwendet, bevor eine Anfrage unseren Server verlässt. Kontaktdaten in Bildern
+            werden nicht automatisch entfernt; Bildpixel bleiben unverändert. Namen und Postanschriften werden nicht
             erkannt. Die Bilderzeugung über Magnific (geplant) wird nur durch Deinen Klick ausgeführt, ohne Kontaktdaten
             in der Eingabe.
           </p>

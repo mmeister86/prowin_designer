@@ -769,3 +769,23 @@ describe('resident visual card references', () => {
     expect(mocks.prepareServerWork).not.toHaveBeenCalled()
   })
 })
+
+describe('onboarding privacy notice', () => {
+  it('limits placeholders to detected text and discloses unchanged contact data in image pixels', async () => {
+    const { createElement } = await import('react')
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) })
+    vi.stubGlobal('location', new URL('http://localhost/'))
+    localStorage.setItem('doop:onboarding', JSON.stringify({ dismissed: true }))
+    try {
+      const { Onboarding } = await import('../src/components/Onboarding')
+      const html = renderToStaticMarkup(createElement(Onboarding, { canvasId: 'privacy-notice' }))
+      expect(html).toContain('erkannte Textdaten')
+      expect(html).toContain('Kontaktdaten in Bildern werden nicht automatisch entfernt')
+      expect(html).toContain('Namen und Postanschriften werden nicht erkannt')
+    } finally {
+      localStorage.removeItem('doop:onboarding')
+      vi.unstubAllGlobals()
+    }
+  })
+})
