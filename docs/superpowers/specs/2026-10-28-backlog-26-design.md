@@ -81,4 +81,8 @@ Die automatischen Prüfungen ersetzen keine manuelle Abnahme. Die beiden zusätz
 - Typecheck, Lint, Build und `git diff --check` bestanden. Build meldet die bestehende Chunkgrößenwarnung; doc-lint besteht mit dem Hinweis auf ältere CLAUDE-/Kontextdokumente.
 - Zwei CodeRabbit-Läufe abgeschlossen. Echte Befunde (gemeinsame Empty-Erkennung, SVG-CDATA, CSS-Import-Kommentare) korrigiert und durch Regressionstests geprüft. Fragment-/Zeichnungs-/Pfadkompatibilität ebenfalls geprüft.
 - Vollständiger Lauf mit `--maxWorkers=4 --testTimeout=30000`: 171 von 173 Dateien bestanden; 1 Browserfall fehlgeschlagen und 41 Browserfälle wegen Fixture-Start-Timeout übersprungen. Diese Fälle bestehen im gezielten Nachlauf. Der Gesamtlauf wird ausdrücklich nicht als grün behauptet. Die verbleibende Parallelitäts-/Startinstabilität ist als TASK-73 erfasst; die neuen Fonttests verwenden eigene Vite-Caches.
-- Kein Commit, Push oder PR. Branch: `task/26-brand-normalization`. TASK-26 bleibt bis zur ausdrücklichen Nutzerabnahme In Progress.
+- Zum Zeitpunkt dieser Verifikation noch kein Commit, Push oder PR. Branch: `task/26-brand-normalization`. TASK-26 bleibt bis zur ausdrücklichen Nutzerabnahme In Progress.
+
+## Integration nach main
+
+Der Nutzer hat am 28.10.2026 ausdrücklich das Zusammenführen der Ergebnisse von TASK-25 und TASK-26 nach `main` beauftragt. Die Ausgangsstände sind als `00deb31` (TASK-25) und `c8d945b` (TASK-26) gesichert. Die zusätzlichen Blitz-/iOS-Prüfungen und Dokumente aus TASK-25 werden übernommen; bei den beiden Add/Add-Konflikten bleiben die neueren Fonttests aus TASK-26 mit ihren getrennten Vite-Caches erhalten. Beide Backlog-Aufgaben bleiben In Progress; der Merge ersetzt keine Abnahme und ergänzt die zwei fehlenden Schriftarten nicht.

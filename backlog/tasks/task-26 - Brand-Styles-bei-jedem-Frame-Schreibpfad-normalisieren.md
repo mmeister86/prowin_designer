@@ -4,7 +4,7 @@ title: Brand-Styles bei jedem Frame-Schreibpfad normalisieren
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-10-28T12:33:00Z'
+updated_date: '2026-10-28T12:35:00Z'
 labels:
   - prowin
   - implementation
@@ -60,4 +60,8 @@ Quellen: Umsetzung § 8.3
 2026-10-28 Technische Verifikation abgeschlossen: 5 Dateien/84 Tests für Normalisierung, Writes, Migration, Zeichnungen und Pfade grün; 9 Dateien/26 reale HTML-, Versions-, Kopier-, Font- und Runtime-Tests grün. Browser-Nachlauf: 71 Tests grün; zunächst ausgelassene 2 Font-Paritätstests nach Setup-Korrektur separat ebenfalls grün. Neue Fonttest-Vite-Caches sind isoliert. Vollständiger Lauf mit 4 Workern/30s Testtimeout: 171/173 Dateien grün, 1343 Tests bestanden, 1 Browserfall fehlgeschlagen und 41 Browserfälle wegen Fixture-Start-Timeout ausgelassen. Diese Fälle bestehen im gezielten Nachlauf; Gesamtsuite ausdrücklich nicht als grün behauptet. Restinstabilität separat als TASK-73 (To Do) erfasst. Typecheck, Lint und Build bestanden; git diff --check sauber. AC1 technisch auf dem vorhandenen TASK-25-Kernfontvertrag geprüft; LumiosBrush-Regular und LTKai-Regular bleiben Restarbeit von TASK-25. Details und Prüfgrenzen in docs/superpowers/specs/2026-10-28-backlog-26-design.md. Kein Commit/Push/PR. TASK-26 bleibt In Progress bis zur ausdrücklichen manuellen Nutzerabnahme.
 
 2026-10-28: Nutzer hat ausdrücklich das Zusammenführen der Ergebnisse von TASK-25 und TASK-26 nach main angefordert. Arbeitsstände werden separat committed und zusammengeführt; die gegenüber TASK-25 verbesserten Fonttests mit isolierten Vite-Caches bleiben erhalten. Keine automatische Abnahme oder Statusänderung auf Done.
+
+2026-10-28 Integration: TASK-26 als Commit c8d945b gesichert. TASK-25 (00deb31) wird vollständig in denselben Integrationsstand übernommen. Zwei Add/Add-Konflikte in den Fonttests zugunsten der neueren TASK-26-Version mit isolierten Caches aufgelöst; keine offenen Merge-Konflikte. Gezielte Integrationsprüfung vor Übernahme nach main läuft. Status bleibt In Progress.
+
+2026-10-28 Merge-Verifikation: 14 Dateien/110 gezielte Tests grün; Typecheck, Lint und Build grün. Dieser geprüfte Stand wird auf ausdrücklichen Nutzerwunsch nach main übernommen. Bekannte Parallelitätsprobleme der Gesamtsuite bleiben unter TASK-73 dokumentiert; keine erneute vollständige Suite und keine automatische Abnahme.
 <!-- SECTION:NOTES:END -->
