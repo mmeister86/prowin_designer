@@ -1,4 +1,5 @@
 import { withUserPermissions } from './prowin/permissions.ts'
+import { hasFrameContent } from '../shared/frameContent.ts'
 import { env } from './env.ts'
 import { canvasPages, samePages } from '../shared/pages.ts'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -841,7 +842,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       const frame = actions.createFrame(canvas_id, { name, pageId, html, x, y, width, height }, actorFrom(agent_name))
       if (!frame) return noCanvas(canvas_id)
       const result = withEscapeNote(
-        frame.html.length > 0
+        hasFrameContent(frame.html)
           ? textWithNudge({ ok: true, frame: frameSummary(frame) }, REVIEW_NUDGE)
           : text({ ok: true, frame: frameSummary(frame) }),
         html,

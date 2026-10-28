@@ -329,6 +329,10 @@ TASK-24 entfernt die frühere allgemeine Google-Fonts-Empfehlung aus `guide.ts`;
 - **Write-Normalisierung:** Beim Speichern eines Frames stellt der Server sicher, dass genau ein Block `<style data-od-brand>` mit `@font-face` und `:root`-Tokens vorhanden ist. Externe Font-Links werden entfernt. Inline statt verlinkt, weil drei Renderer dasselbe HTML zeigen müssen (Browser-Iframe, Chromium-Export, Blitz auf iOS).
 - **Token-Änderungen** laufen per Migrationsskript, das den Block in allen Frames neu schreibt.
 
+**TASK-26 (lokale Umsetzung 28.10.2026):** `server/prowin/frameBrand.ts` normalisiert vollständige Frame-Writes, Kopien und Wiederherstellungen vor der Übernahme in den Store. Der kanonische Block enthält die 13 freigegebenen CI-Token und die zwölf vorhandenen Kernfontfaces aus TASK-25 (Sofia Sans 300/500, Sofia Sans Condensed 700, Roboto 300/500/900; jeweils Latin und Latin-Ext). Font-URLs sind absolut auf dieselbe Instanz bezogen. LumiosBrush-Regular und LTKai-Regular fehlen weiterhin in TASK-25 und werden nicht durch erfundene Fontfaces ersetzt.
+
+Streaming sammelt Rohdaten separat; geheilte, normalisierte Zwischenstände können über Chunkgrenzen geteilte Tags beim nächsten Chunk wieder korrekt zusammensetzen. `migrateFrameBrands` aktualisiert beim Boot nach Legacy-Import und vor Store-Hydration ausschließlich geändertes Frame-HTML in Batches, ohne Autor oder Zeitstempel umzuschreiben. Wiederholung und Origin-/Tokenwechsel sind vorgesehen. Historische Versionen bleiben Originale und werden beim Restore normalisiert; gepinnte Referenz-Snapshots werden nicht migriert. Bekannte externe Fontanbieter-Links/-Imports und externe Font-Preloads werden entfernt; allgemeine externe Netzwerksperren bleiben TASK-27. Nutzerabnahme von TASK-26 steht aus.
+
 ---
 
 ## 9. Phase 4: Template-Logik per `data-od-*`

@@ -1,4 +1,5 @@
 import './prowin/guard.ts'
+import { migrateFrameBrands } from './prowin/migrateFrameBrands.ts'
 import { canvasCapabilities, CreatorPermissionError, withUserPermissions } from './prowin/permissions.ts'
 import { creatorRouter, permissionIdentity } from './prowin/accounts.ts'
 import { env } from './env.ts'
@@ -9,6 +10,7 @@ import http from 'node:http'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import express from 'express'
 import { eq, inArray } from 'drizzle-orm'
 import { toNodeHandler, fromNodeHeaders } from 'better-auth/node'
@@ -86,6 +88,9 @@ let data = await persist.hydrate()
 if (data.canvases.length === 0 && (await persist.importLegacyJson())) {
   data = await persist.hydrate()
 }
+// Normalize imported and existing rows before exposing any in-memory frames.
+const normalizedFrames = await migrateFrameBrands(db)
+if (normalizedFrames) data = await persist.hydrate()
 store.init(data.canvases)
 await workspaces.hydrateWorkspaces() // before the first request: canAccessCanvas reads membership
 await webhooks.hydrateWebhooks()
@@ -1471,6 +1476,17 @@ app.get('/sitemap.xml', (_req, res) => {
       `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${env.BETTER_AUTH_URL}/</loc></url>\n</urlset>\n`,
     )
 })
+
+/* Public brand fonts also load in opaque-origin srcDoc frames, which require
+   CORS even though the bytes come from this same instance. */
+app.use(
+  '/fonts',
+  express.static(fileURLToPath(new URL(env.isProduction ? '../dist/fonts' : '../public/fonts', import.meta.url)), {
+    setHeaders(res) {
+      res.setHeader('Access-Control-Allow-Origin', '*')
+    },
+  }),
+)
 
 app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (error instanceof CreatorPermissionError) return res.status(403).json({ error: error.message })

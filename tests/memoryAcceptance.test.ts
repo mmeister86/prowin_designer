@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
+import { normalizeFrameHtml } from '../server/prowin/frameBrand.ts'
 import { Client, startServer, type Server } from './harness.ts'
 
 it('keeps human Memory decisions, reference controls and their persistence intact', async () => {
@@ -10,9 +11,13 @@ it('keeps human Memory decisions, reference controls and their persistence intac
     await new Client(server).signUp('memory-stranger@test.dev', 'Memory Stranger')
     const canvas = await (await owner.post('/api/canvases', { name: 'M1 Memory' })).json()
     const frame = await (await owner.post(`/api/canvases/${canvas.id}/frames`, { name: 'Reference' })).json()
-    expect((await owner.patch(`/api/frames/${frame.id}`, { html: '<p>Preserved Memory reference</p>' })).status).toBe(
-      200,
-    )
+    expect(
+      (
+        await owner.patch(`/api/frames/${frame.id}`, {
+          html: normalizeFrameHtml('<p>Preserved Memory reference</p>', server.base),
+        })
+      ).status,
+    ).toBe(200)
     const base = `/api/canvases/${canvas.id}`
     const dataDir = server.dataDir
 
@@ -62,7 +67,10 @@ it('keeps human Memory decisions, reference controls and their persistence intac
     const keepResponse = await owner.post(`${base}/references`, { frameId: frame.id })
     expect(keepResponse.status).toBe(200)
     const keptReference = await keepResponse.json()
-    expect(keptReference).toMatchObject({ frameId: frame.id, html: '<p>Preserved Memory reference</p>' })
+    expect(keptReference).toMatchObject({
+      frameId: frame.id,
+      html: normalizeFrameHtml('<p>Preserved Memory reference</p>', server.base),
+    })
 
     const accepted = await owner.post(`${base}/proposals/accept-me`, { accept: true })
     expect(accepted.status).toBe(200)

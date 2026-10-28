@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as actions from '../server/actions.ts'
 import * as persist from '../server/db/persist.ts'
+import { withoutBrandStyle } from '../server/prowin/frameBrand.ts'
 import { store } from '../server/store.ts'
 import type { Canvas } from '../shared/types.ts'
 
@@ -26,7 +27,7 @@ const doc = (body: string) => `<!doctype html><html><head>${STYLE}</head><body>$
 const agent = actions.resolveActor({ name: 'Claude', kind: 'agent' })
 
 function filed(): string[] {
-  return vi.mocked(persist.saveFrameVersion).mock.calls.map(([version]) => version.html)
+  return vi.mocked(persist.saveFrameVersion).mock.calls.map(([version]) => withoutBrandStyle(version.html))
 }
 
 describe('frame history bursts', () => {

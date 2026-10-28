@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { normalizeFrameHtml } from '../server/prowin/frameBrand.ts'
 import { Client, startServer, type Server } from './harness.ts'
 
 /**
@@ -37,7 +38,9 @@ describe('escaped HTML never reaches a frame', () => {
     await client.patch(`/api/frames/${id}`, {
       html: '&lt;!doctype html&gt;&lt;html&gt;&lt;body&gt;&lt;h1&gt;Hi&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;',
     })
-    expect(await htmlOf(id)).toBe('<!doctype html><html><body><h1>Hi</h1></body></html>')
+    expect(await htmlOf(id)).toBe(
+      normalizeFrameHtml('<!doctype html><html><body><h1>Hi</h1></body></html>', server.base),
+    )
   })
 
   it('decodes every chunk of a stream whose opening chunk was escaped', async () => {
@@ -48,7 +51,9 @@ describe('escaped HTML never reaches a frame', () => {
     await client.post(`/api/frames/${id}/append`, { html_chunk: '&lt;body class=&quot;p&quot;&gt;' })
     await client.post(`/api/frames/${id}/append`, { html_chunk: 'plain text' })
     await client.post(`/api/frames/${id}/append`, { html_chunk: '&lt;/body&gt;&lt;/html&gt;', done: true })
-    expect(await htmlOf(id)).toBe('<!doctype html><html><body class="p">plain text</body></html>')
+    expect(await htmlOf(id)).toBe(
+      normalizeFrameHtml('<!doctype html><html><body class="p">plain text</body></html>', server.base),
+    )
   })
 
   it('leaves a raw stream untouched, escaped code samples included', async () => {
@@ -56,6 +61,6 @@ describe('escaped HTML never reaches a frame', () => {
     const doc = '<!doctype html><html><body><code>&lt;div class="card"&gt;</code></body></html>'
     await client.post(`/api/frames/${id}/append`, { html_chunk: doc.slice(0, 30), start: true })
     await client.post(`/api/frames/${id}/append`, { html_chunk: doc.slice(30), done: true })
-    expect(await htmlOf(id)).toBe(doc)
+    expect(await htmlOf(id)).toBe(normalizeFrameHtml(doc, server.base))
   })
 })

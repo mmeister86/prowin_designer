@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Canvas, Frame } from '../shared/types'
+import { normalizeFrameHtml } from '../server/prowin/frameBrand.ts'
 
 vi.mock('../src/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/api')>()),
@@ -38,6 +39,21 @@ const source: PathEditSource = {
   layoutMatrix: [1, 0, 0, 1, 0, 0],
   paint: { fill: 'none', stroke: 'black', strokeWidth: '2px' },
 }
+
+it('loads an editable path from branded HTML with a leading style block', async () => {
+  const bridge = await import('../src/lib/frameBridge')
+  const reply = vi.spyOn(bridge, 'requestFrame').mockResolvedValue({ hit: { ...source, data } })
+  try {
+    const { loadPathEdit } = await import('../src/lib/pathEditing')
+    const branded = { ...frame, html: normalizeFrameHtml(frame.html) }
+    const loaded = await loadPathEdit(branded, { selector: '#pen' })
+    expect(loaded?.selector).toBe('#pen')
+    expect(loaded?.markup).toBe(markup)
+    expect(reply).toHaveBeenCalledWith(frame.id, 'doop:path', { selector: '#pen', standalone: true })
+  } finally {
+    reply.mockRestore()
+  }
+})
 
 beforeEach(() => {
   vi.resetAllMocks()

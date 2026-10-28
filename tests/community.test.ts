@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, expect, it } from 'vitest'
+import { normalizeFrameHtml } from '../server/prowin/frameBrand.ts'
 import { Client, startServer, type Server } from './harness.ts'
 
 let server: Server
@@ -78,7 +79,7 @@ it('lists a published canvas for others to copy without opening the source', asy
   expect(copy.id).not.toBe(canvas.id)
   expect(copy.name).toBe('Launch page')
   expect(copy.frames).toHaveLength(1)
-  expect(copy.frames[0].html).toBe('<h1>hello</h1>')
+  expect(copy.frames[0].html).toBe(normalizeFrameHtml('<h1>hello</h1>', server.base))
   expect(copy.publishedAt).toBeUndefined()
 
   /* the copy is the visitor's own private canvas now */

@@ -1,5 +1,6 @@
-import { memo, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { hasFrameContent } from '../../shared/frameContent'
 import type { ElementComment, Frame } from '../../shared/types'
 import { useStore } from '../lib/store'
 import { isCanvasElement } from '../lib/drawing'
@@ -396,6 +397,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
   }
 
   const html = useThrottledValue(frame.html, 150)
+  const hasContent = useMemo(() => hasFrameContent(frame.html), [frame.html])
   const remoteEditor = editors[0]
 
   /* The iframe loads a bootstrap once; HTML is posted in and DOM-morphed in
@@ -522,7 +524,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
      cancels it instead of flashing the toolbar; a comment click has no
      double-click to wait out, so it probes at once */
   function probeAt(x: number, y: number, intent: 'toolbar' | 'comment' = 'toolbar') {
-    if (!frame.html || editing) return
+    if (!hasContent || editing) return
     /* the current pick stays until the probe answers: clearing it here would
        close the element panel and reopen it a beat later on the next
        element. A probe that hits nothing clears it then. */
@@ -766,10 +768,10 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
   }, [selected]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---- inline text editing ---- */
-  const canEdit = !!frame.html && !stream && !frame.locked && !/<script/i.test(frame.html)
+  const canEdit = hasContent && !stream && !frame.locked && !/<script/i.test(frame.html)
 
   async function enterElementEdit(where: Record<string, unknown>) {
-    if (!frame.html || stream || frame.locked || editing || pathEdit || useStore.getState().tool !== 'select') return
+    if (!hasContent || stream || frame.locked || editing || pathEdit || useStore.getState().tool !== 'select') return
     const request = ++editRequest.current
     const canvasId = useStore.getState().canvas?.id
     const pageId = useStore.getState().activePageId
@@ -999,7 +1001,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                 dragging ||
                 resizing ||
                 frame.locked ||
-                !frame.html ||
+                !hasContent ||
                 !runtimeReady ||
                 tool === 'hand'
               )
@@ -1033,7 +1035,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                 transformOrigin: '0 0',
               }}
             />
-            {!frame.html && (
+            {!hasContent && (
               <div className="absolute inset-0 grid place-items-center bg-[repeating-linear-gradient(45deg,transparent_0_10px,rgba(28,26,21,0.025)_10px_20px)] text-[13px] text-ink-faint">
                 Leere Zeichenfläche – füge HTML hinzu
               </div>

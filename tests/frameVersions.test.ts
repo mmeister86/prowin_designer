@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { normalizeFrameHtml } from '../server/prowin/frameBrand.ts'
 import { Client, startServer, type Server } from './harness.ts'
 
 /**
@@ -8,10 +9,10 @@ import { Client, startServer, type Server } from './harness.ts'
  * history is as private as the canvas.
  */
 
-const DOC_A = '<!doctype html><html><body><h1>Alpha</h1><p>the first design, by hand</p></body></html>'
-const DOC_B =
+let DOC_A = '<!doctype html><html><body><h1>Alpha</h1><p>the first design, by hand</p></body></html>'
+let DOC_B =
   '<!doctype html><html><body><main><h2>Beta</h2><section>a completely different design</section></main></body></html>'
-const DOC_C =
+let DOC_C =
   '<!doctype html><html><head><style>body{margin:0}</style></head><body><article>Gamma</article></body></html>'
 
 interface VersionRow {
@@ -28,6 +29,9 @@ let server: Server
 
 beforeAll(async () => {
   server = await startServer()
+  DOC_A = normalizeFrameHtml(DOC_A, server.base)
+  DOC_B = normalizeFrameHtml(DOC_B, server.base)
+  DOC_C = normalizeFrameHtml(DOC_C, server.base)
 }, 70_000)
 
 afterAll(() => server?.stop())

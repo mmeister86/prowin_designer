@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid'
+import { normalizeFrameHtml } from './prowin/frameBrand.ts'
 import { createBrandGuideline } from './prowin/brand.ts'
 import { canvasPages, copyPageName, pageFrames, samePages } from '../shared/pages.ts'
 import * as persist from './db/persist.ts'
@@ -155,6 +156,7 @@ class Store {
     const frameIds = new Map(sourceFrames.map((frame) => [frame.id, nanoid(10)]))
     const frames = sourceFrames.map((frame) => ({
       ...frame,
+      html: normalizeFrameHtml(frame.html),
       id: frameIds.get(frame.id)!,
       canvasId,
       createdAt: now,
@@ -222,6 +224,7 @@ class Store {
     const page: CanvasPageInfo = { id: nanoid(10), name: copyPageName(source.name, names(pages)) }
     const frames: Frame[] = pageFrames(canvas, pageId).map((frame) => ({
       ...frame,
+      html: normalizeFrameHtml(frame.html),
       id: nanoid(10),
       pageId: page.id,
       createdAt: now,
@@ -549,7 +552,7 @@ class Store {
       y,
       width: input.width ?? 640,
       height: input.height ?? 480,
-      html: input.html ?? '',
+      html: normalizeFrameHtml(input.html ?? ''),
       createdAt: now,
       updatedAt: now,
       updatedBy: by,
@@ -578,6 +581,7 @@ class Store {
     )
       return undefined
     Object.assign(frame, patch)
+    frame.html = normalizeFrameHtml(frame.html)
     // Also serves as the optimistic-save version, including writes in the same millisecond.
     frame.updatedAt = Math.max(Date.now(), frame.updatedAt + 1)
     frame.updatedBy = by

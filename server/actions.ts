@@ -1,5 +1,6 @@
 import { assertCanChangeLock } from './prowin/permissions.ts'
 import { nanoid } from 'nanoid'
+import { normalizeFrameHtml, withoutBrandStyle } from './prowin/frameBrand.ts'
 import { store } from './store.ts'
 import * as persist from './db/persist.ts'
 import * as thumbs from './thumbs.ts'
@@ -1041,7 +1042,7 @@ function noteHtmlChange(prior: PriorState, actor: Actor, tweak: boolean) {
     open.actor.kind === actor.kind &&
     now - open.lastAt < BURST_IDLE_MS
   bursts.set(prior.id, { actor, lastAt: now })
-  if (joins || !prior.html) return
+  if (joins || !withoutBrandStyle(prior.html).trim()) return
   /* the open burst wrote this state; without one (first write since boot)
      the frame's own stamp is the best attribution there is, even though a
      move or rename since may have refreshed it */
@@ -1079,11 +1080,11 @@ export async function restoreFrameVersion(
   const before = store.getFrame(frameId)
   if (!before) return undefined
   const replaced = { html: before.html, width: before.width, height: before.height }
-  if (before.html === version.html && before.width === version.width && before.height === version.height)
-    return { frame: before, replaced }
-  /* whoever restores takes over: any live stream or playback ends */
+  version.html = normalizeFrameHtml(version.html)
   finishStream(frameId, false)
   finishReveal(frameId)
+  if (before.html === version.html && before.width === version.width && before.height === version.height)
+    return { frame: before, replaced }
   const prior = priorState(before)
   const patch = { html: version.html, width: version.width, height: version.height }
   const frame = store.updateFrame(frameId, patch, actor.name)
@@ -1119,6 +1120,8 @@ interface StreamState {
   /** the opening chunk was HTML-escaped: decode every chunk of this stream */
   escaped: boolean
   lastActivity: number
+  /** Raw chunks never include generated CSS or repairs from intermediate renders. */
+  rawHtml: string
 }
 
 const streams = new Map<string, StreamState>() // frameId -> state
@@ -1170,11 +1173,14 @@ function commonPrefixLen(a: string, b: string): number {
  *  leaves nearly everything shared however early in the document it sits;
  *  only a rewrite scores low. */
 function sharedSpan(a: string, b: string): { prefix: number; shared: number } {
+  const revealPrefix = commonPrefixLen(a, b)
+  a = withoutBrandStyle(a)
+  b = withoutBrandStyle(b)
   const prefix = commonPrefixLen(a, b)
   const room = Math.min(a.length, b.length) - prefix
   let suffix = 0
   while (suffix < room && a[a.length - 1 - suffix] === b[b.length - 1 - suffix]) suffix++
-  return { prefix, shared: prefix + suffix }
+  return { prefix: revealPrefix, shared: prefix + suffix }
 }
 
 function startReveal(frame: Frame, actor: Actor, shown: number) {
@@ -1247,21 +1253,22 @@ export function appendFrameHtml(
      sample) and must never be sniffed on its own */
   const escaped = starting ? looksEscapedHtml(chunk) : (streams.get(frameId)?.escaped ?? false)
   const piece = escaped ? decodeEscapedHtml(chunk) : chunk
-  const html = opts.start ? piece : before.html + piece
+  const html = opts.start ? piece : (streams.get(frameId)?.rawHtml ?? withoutBrandStyle(before.html)) + piece
   const prior = priorState(before)
-  const frame = store.updateFrame(frameId, { html }, actor.name)!
+  const frame = store.updateFrame(frameId, { html: healPartialHtml(html) }, actor.name)!
   /* the opening chunk replaces the design; every later one extends this burst */
   noteHtmlChange(prior, actor, !starting)
 
   if (starting) {
     finishReveal(frameId) /* a live stream overrides any one-shot playback in flight */
-    streams.set(frameId, { actor, escaped, lastActivity: Date.now() })
+    streams.set(frameId, { actor, escaped, rawHtml: html, lastActivity: Date.now() })
     broadcast(frame.canvasId, { type: 'frame:streaming', frameId, active: true, actor })
     logActivity(frame.canvasId, actor, `gestaltet “${frame.name}” live …`, frameId)
     autoTask(frame.canvasId, actor, `Gestaltet “${frame.name}”`, frameId)
   }
   const s = streams.get(frameId)!
   s.lastActivity = Date.now()
+  s.rawHtml = html
   s.escaped = escaped
 
   /* the chunk renders the moment it arrives — viewers see the agent's real progress */
@@ -1320,7 +1327,7 @@ export function createFrame(
   const frame = store.createFrame(canvasId, input, actor.name)
   if (!frame) return undefined
   bursts.set(frame.id, { actor, lastAt: frame.createdAt })
-  if (actor.kind === 'agent' && frame.html.length > 0) {
+  if (actor.kind === 'agent' && withoutBrandStyle(frame.html).trim().length > 0) {
     /* agent one-shot creation still plays back as a reveal */
     broadcast(canvasId, { type: 'frame:created', frame: { ...frame, html: '' }, actor })
     startReveal(frame, actor, 0)
@@ -1349,7 +1356,11 @@ export function updateFrame(
   const canvas = store.getCanvas(before.canvasId)
   if (!canvas) return undefined
   assertCanChangeLock(canvas, !!before.locked, patch.locked)
-  if (patch.html !== undefined) patch = { ...patch, html: repairEscapedHtml(patch.html) }
+  if (patch.html !== undefined) {
+    patch = { ...patch, html: normalizeFrameHtml(repairEscapedHtml(patch.html)) }
+    // A complete save takes over even when it equals the normalized stream snapshot.
+    finishStream(frameId, false)
+  }
   const prevName = before.name
   const prevHtml = before.html
   const prevHidden = !!before.hidden
@@ -1363,7 +1374,10 @@ export function updateFrame(
   /* mostly-unchanged replace (small tweak): the client morphs the live DOM
      in place, so a reveal would only add churn — and the design history
      files one version per burst of tweaks, not one per keystroke */
-  const smallTweak = htmlChanged && shared >= frame.html.length * 0.5 && shared >= prevHtml.length * 0.5
+  const smallTweak =
+    htmlChanged &&
+    shared >= withoutBrandStyle(frame.html).length * 0.5 &&
+    shared >= withoutBrandStyle(prevHtml).length * 0.5
   if (htmlChanged) noteHtmlChange(prior, actor, smallTweak && !opts.replace)
   if (htmlChanged && actor.kind === 'agent') {
     finishStream(frameId, false) /* a full replace ends an open append stream */
@@ -1432,6 +1446,8 @@ export function deleteCanvas(canvasId: string): boolean {
   const c = store.deleteCanvas(canvasId)
   if (!c) return false
   for (const f of c.frames) {
+    streams.delete(f.id)
+    reveals.delete(f.id)
     thumbs.purge(f.id)
     bursts.delete(f.id)
   }

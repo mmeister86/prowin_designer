@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Canvas, Frame } from '../shared/types'
+import { normalizeFrameHtml } from '../server/prowin/frameBrand.ts'
 
 vi.mock('../src/lib/api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/api')>()),
@@ -39,6 +40,14 @@ const shape: Frame = {
 }
 let db: Map<string, Frame>
 const frames = () => useStore.getState().canvas!.frames
+
+it('keeps a branded standalone drawing movable and fragment layers intact', () => {
+  const branded = { ...shape, html: normalizeFrameHtml(shape.html) }
+  expect(movableDrawing(branded)?.getAttribute('data-doop-drawing')).toBe('circle')
+  const fragment = normalizeFrameHtml('<svg id="art" data-doop-drawing="path"><path d="M 0 0 L 10 10"></path></svg>')
+  expect(parse(fragment).body.querySelector('#art path')?.getAttribute('d')).toBe('M 0 0 L 10 10')
+  expect(parse(fragment).querySelectorAll('style[data-od-brand]')).toHaveLength(1)
+})
 
 function checkVersion(id: string, expectedUpdatedAt?: number) {
   const current = db.get(id)

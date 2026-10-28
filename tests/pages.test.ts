@@ -1,5 +1,6 @@
 import WebSocket from 'ws'
 import { afterAll, beforeAll, expect, it } from 'vitest'
+import { normalizeFrameHtml } from '../server/prowin/frameBrand.ts'
 import { Client, startServer, type Server } from './harness.ts'
 
 let server: Server
@@ -133,13 +134,18 @@ it('duplicates a page with its frames right after the source, numbering the name
       y: 20,
       width: 300,
       height: 200,
-      html: '<h1>Hero</h1>',
+      html: normalizeFrameHtml('<h1>Hero</h1>', server.base),
       hidden: true,
       locked: true,
     })
   ).json()
   const card = await (
-    await owner.post(`/api/canvases/${canvas.id}/frames`, { name: 'Card', x: 400, y: 20, html: '<p>Card</p>' })
+    await owner.post(`/api/canvases/${canvas.id}/frames`, {
+      name: 'Card',
+      x: 400,
+      y: 20,
+      html: normalizeFrameHtml('<p>Card</p>', server.base),
+    })
   ).json()
   await owner.post(`/api/canvases/${canvas.id}/frames`, { name: 'Elsewhere', pageId: second.id })
   const url = `/api/canvases/${canvas.id}/pages/${first.id}/duplicate`
@@ -182,7 +188,7 @@ it('duplicates a page with its frames right after the source, numbering the name
     y: 20,
     width: 300,
     height: 200,
-    html: '<h1>Hero</h1>',
+    html: normalizeFrameHtml('<h1>Hero</h1>', server.base),
     hidden: true,
     locked: true,
   })
@@ -190,7 +196,7 @@ it('duplicates a page with its frames right after the source, numbering the name
   expect(copy.frames.find((f) => f.name === 'Card')).toMatchObject({
     pageId: copy.page.id,
     x: 400,
-    html: '<p>Card</p>',
+    html: normalizeFrameHtml('<p>Card</p>', server.base),
   })
   expect(copy.frames.every((f) => f.id !== card.id)).toBe(true)
   expect(seen.find((m) => m.type === 'canvas:pages')?.pages).toEqual(copy.pages)
