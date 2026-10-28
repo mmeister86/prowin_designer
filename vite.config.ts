@@ -45,6 +45,7 @@ export default defineConfig({
       /* frame images only — a bare '/i' prefix would swallow /integrations */
       '/i/': { target: api },
       '/a/': { target: api },
+      '/fonts/': { target: api },
       '/u/': { target: api },
       '/blog': { target: api },
       '/robots.txt': { target: api },

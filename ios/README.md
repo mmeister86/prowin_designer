@@ -32,9 +32,11 @@ HTML/CSS engine (Stylo + Taffy + Parley), compiled into the app as a static libr
   side, about two screens of pixels per frame), re-renders when fonts and images
   arrive, and re-parses when an agent streams new HTML. Off-screen frames keep a
   small bitmap and, after a few seconds, release their document; on-screen frames
-  keep theirs, so zooming into a fitted board never waits on a re-parse. Google
-  Fonts via `<link>` and network images work; scripts do not run (frames show their
-  static HTML).
+  keep theirs, so zooming into a fitted board never waits on a re-parse. Self-hosted
+  WOFF2 fonts load through absolute same-instance URLs and network images work;
+  no iOS font bundle is needed. Third-party font CDNs are not part of the proWIN
+  frame pipeline (general request enforcement is TASK-27). Scripts do not run
+  (frames show their static HTML).
 - **Deep zoom tiles**: a base bitmap is capped at 3 bitmap pixels per CSS pixel and
   about two screens of pixels. When the screen density exceeds what the base bitmap
   holds, the part of the frame on screen (plus a 30% margin) is painted as a tile at
@@ -108,7 +110,10 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim           # build.sh a
 
 The library is arm64 only (Apple Silicon simulators and devices); the project
 excludes the x86_64 simulator slice. `cargo test --release` in `BlitzKit/rust` runs
-the ABI against a real frame.
+the ABI against a real frame. The `prowin_brand_font` test serves the checked-in
+WOFF2 files from a loopback HTTP server and compares the settled render with a
+missing-font control. That host-side check proves URL fetching and WOFF2 painting;
+Apple TLS/ATS and simulator/device presentation still need a macOS/iOS check.
 
 Painting uses Blitz's **Skia** backend (`anyrender_skia`, prebuilt Skia binaries pulled
 by `skia-bindings` at build time), which renders `filter`, `backdrop-filter` and

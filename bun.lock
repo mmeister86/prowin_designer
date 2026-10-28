@@ -48,6 +48,9 @@
       "devDependencies": {
         "@commitlint/cli": "^21.2.2",
         "@commitlint/config-conventional": "^21.2.2",
+        "@fontsource/roboto": "5.3.0",
+        "@fontsource/sofia-sans": "5.3.0",
+        "@fontsource/sofia-sans-condensed": "5.3.0",
         "@storybook/addon-a11y": "10.6.3",
         "@storybook/addon-docs": "10.6.3",
         "@storybook/react-vite": "10.6.3",
@@ -331,6 +334,12 @@
     "@floating-ui/react-dom": ["@floating-ui/react-dom@2.1.9", "", { "dependencies": { "@floating-ui/dom": "^1.8.0" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
+
+    "@fontsource/roboto": ["@fontsource/roboto@5.3.0", "", {}, "sha512-BapRJOWYP+LZ21zp+wBQjfpPYKRoxc4LspJ/RLuI+HSMBD5u/X4O+ESDrSvEqDSy0rAl7GwBJ+09mdc16cVQ1Q=="],
+
+    "@fontsource/sofia-sans": ["@fontsource/sofia-sans@5.3.0", "", {}, "sha512-3ozStPhvt1/8deVKJkzOzyl0uVUSaB2AEbiw3r7gxRTq8Ax3TxV2qBnPbPq8+0X00R5+qwO2yUWBLCh+on37rw=="],
+
+    "@fontsource/sofia-sans-condensed": ["@fontsource/sofia-sans-condensed@5.3.0", "", {}, "sha512-JGT4shg12OGB5duffcyG5uCSAK/AfNHzxIYUlB6DOmTE4bwGPny6fVxq1F9pZ9usJ53hl37h0mUxxmC4RqzSXw=="],
 
     "@hono/node-server": ["@hono/node-server@2.1.1", "", { "peerDependencies": { "hono": "^4" } }, "sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg=="],
 

@@ -97,7 +97,8 @@ async function loadFramePage(frame: Frame): Promise<IsolatedPage> {
   try {
     const assetOrigin = new URL(env.BETTER_AUTH_URL).origin
     await guardPublicPageRequests(page, {
-      allowUrl: (url) => url.origin === assetOrigin && url.pathname.startsWith('/a/'),
+      allowUrl: (url) =>
+        url.origin === assetOrigin && (url.pathname.startsWith('/a/') || url.pathname.startsWith('/fonts/')),
     })
     await page.setViewport({
       width: Math.max(1, Math.round(frame.width)),
@@ -114,6 +115,12 @@ async function loadFramePage(frame: Frame): Promise<IsolatedPage> {
     } catch {
       /* Slow external resources: inspect whatever has rendered. */
     }
+    /* Font loads do not consistently block the document load event. Keep the
+       existing slow-resource boundary while giving every capture the same
+       settled-font contract. */
+    await page
+      .evaluate('Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 8000))])')
+      .catch(() => {})
     await new Promise((resolve) => setTimeout(resolve, 120))
     return loaded
   } catch (error) {

@@ -411,3 +411,104 @@ fn tiles_keep_fixed_backgrounds_sized_to_the_frame() {
         doopblitz_doc_free(doc);
     }
 }
+
+fn settled_font_pixels(doc: *mut Doc) -> Vec<u8> {
+    unsafe {
+        let (mut w, mut h, mut len) = (0u32, 0u32, 0usize);
+        let started = std::time::Instant::now();
+        let mut buf = doopblitz_doc_render(doc, &mut w, &mut h, &mut len);
+        while doopblitz_doc_loading(doc) && started.elapsed().as_secs() < 30 {
+            std::thread::sleep(std::time::Duration::from_millis(25));
+            doopblitz_buffer_free(buf, len);
+            buf = doopblitz_doc_render(doc, &mut w, &mut h, &mut len);
+        }
+        doopblitz_buffer_free(buf, len);
+        buf = doopblitz_doc_render(doc, &mut w, &mut h, &mut len);
+        assert!(!doopblitz_doc_loading(doc), "font fetches did not settle");
+        assert_eq!((w, h), (640, 360));
+        let pixels = std::slice::from_raw_parts(buf, len).to_vec();
+        doopblitz_buffer_free(buf, len);
+        pixels
+    }
+}
+
+fn prowin_font_reference(origin: &str, valid_urls: bool) -> (String, Vec<String>) {
+    let families = [
+        ("Sofia Sans", "sofia-sans", &[300, 500][..]),
+        ("Sofia Sans Condensed", "sofia-sans-condensed", &[700][..]),
+        ("Roboto", "roboto", &[300, 500, 900][..]),
+    ];
+    let mut faces = String::new();
+    let mut samples = String::new();
+    let mut expected = Vec::new();
+    for (name, file, weights) in families {
+        for weight in weights {
+            for (subset, range) in [("latin", "U+0000-00FF,U+2000-206F,U+20AC,U+2122"), ("latin-ext", "U+0100-02BA,U+1E00-1E9F")] {
+                let filename = format!("{file}-{subset}-{weight}-normal.woff2");
+                let directory = if valid_urls { "fonts" } else { "missing-fonts" };
+                faces.push_str(&format!("@font-face{{font-family:'{name}';font-style:normal;font-weight:{weight};src:url('{origin}/{directory}/{filename}') format('woff2');unicode-range:{range}}}"));
+                expected.push(filename);
+            }
+            samples.push_str(&format!("<p style=\"font-family:'{name}';font-weight:{weight}\">Łódź Đ — proWIN {weight}</p>"));
+        }
+    }
+    let html = format!("<!doctype html><html><head><style>{faces}html,body{{margin:0;width:640px;height:360px;overflow:hidden;background:#fff}}body{{color:#111}}p{{margin:4px 8px;font-size:22px;line-height:1.2;white-space:nowrap}}</style></head><body>{samples}</body></html>");
+    (html, expected)
+}
+
+#[test]
+fn prowin_brand_font_urls_render_real_woff2_instead_of_fallback() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::path::Path;
+    use std::sync::{Arc, Mutex};
+
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let requests = Arc::new(Mutex::new(Vec::<String>::new()));
+    let server_requests = Arc::clone(&requests);
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            let mut request = Vec::new();
+            let mut chunk = [0u8; 1024];
+            loop {
+                match stream.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        request.extend_from_slice(&chunk[..n]);
+                        if request.windows(4).any(|bytes| bytes == b"\r\n\r\n") { break; }
+                    }
+                    Err(_) => break,
+                }
+            }
+            let request = String::from_utf8_lossy(&request);
+            let path = request.split_whitespace().nth(1).unwrap_or("").split('?').next().unwrap_or("").to_string();
+            server_requests.lock().unwrap().push(path.clone());
+            let file = path.strip_prefix("/fonts/").filter(|file| !file.is_empty() && !file.contains("..") && !file.contains('/'));
+            let body = file.and_then(|file| std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../public/fonts").join(file)).ok());
+            let (status, body) = body.map_or(("404 Not Found", Vec::new()), |body| ("200 OK", body));
+            let headers = format!("HTTP/1.1 {status}\r\nContent-Type: font/woff2\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n", body.len());
+            let _ = stream.write_all(headers.as_bytes());
+            let _ = stream.write_all(&body);
+        }
+    });
+
+    let (branded_html, expected_files) = prowin_font_reference(&origin, true);
+    let (fallback_html, _) = prowin_font_reference(&origin, false);
+    let branded_html = CString::new(branded_html).unwrap();
+    let fallback_html = CString::new(fallback_html).unwrap();
+    let base = CString::new(format!("{origin}/")).unwrap();
+    let branded = doopblitz_doc_new(branded_html.as_ptr(), base.as_ptr(), 640, 360, 1.0);
+    let branded_pixels = settled_font_pixels(branded);
+    let requested_files: Vec<String> = requests.lock().unwrap().iter().filter_map(|path| path.strip_prefix("/fonts/").map(str::to_string)).collect();
+    for file in &expected_files {
+        assert!(requested_files.contains(file), "Blitz did not fetch {file}");
+    }
+
+    let fallback = doopblitz_doc_new(fallback_html.as_ptr(), base.as_ptr(), 640, 360, 1.0);
+    let fallback_pixels = settled_font_pixels(fallback);
+    assert_ne!(branded_pixels, fallback_pixels, "successful font URLs still painted the fallback reference");
+    doopblitz_doc_free(branded);
+    doopblitz_doc_free(fallback);
+}
