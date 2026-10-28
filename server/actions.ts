@@ -825,6 +825,15 @@ function normalizeScope(canvasId: string, scope: unknown): CardScope | undefined
   return sel ? { frameId, selector: sel } : { frameId }
 }
 
+/** Normalize the reference contract without dropping live IDs that disappear
+ * during asynchronous admission. Availability is checked by the route/resident. */
+export function normalizeCardReferences(attachments: unknown): string[] | null {
+  if (attachments === undefined) return []
+  if (!Array.isArray(attachments) || attachments.some((id) => typeof id !== 'string' || !id.trim())) return null
+  const refs = [...new Set(attachments as string[])]
+  return refs.length <= 4 ? refs : null
+}
+
 export function addQueuedCard(
   canvasId: string,
   title: string,
@@ -838,12 +847,10 @@ export function addQueuedCard(
   const clean = title.trim().slice(0, MAX_CARD_CHARS)
   if (!clean || !store.getCanvas(canvasId)) return undefined
   const pipeline = normalizePipeline(agents)
-  const target = normalizeScope(canvasId, scope)
-  /* reference-image frame ids: only frames that actually live on this canvas */
-  const refs = (Array.isArray(attachments) ? attachments : [])
-    .filter((a): a is string => typeof a === 'string')
-    .filter((id, i, arr) => arr.indexOf(id) === i && store.getFrame(id)?.canvasId === canvasId)
-    .slice(0, 4)
+  const refs = normalizeCardReferences(attachments)
+  if (!refs) return undefined
+  const scoped = normalizeScope(canvasId, scope)
+  const target = scoped && !refs.includes(scoped.frameId) ? scoped : undefined
   const list = taskLog.get(canvasId) ?? []
   const duplicate = list.find(
     (t) =>
