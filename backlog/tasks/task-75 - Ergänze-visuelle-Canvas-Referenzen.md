@@ -4,7 +4,7 @@ title: Ergänze visuelle Canvas-Referenzen
 status: To Do
 assignee: []
 created_date: '2026-10-28T19:16:00Z'
-updated_date: '2026-10-28T19:30:00Z'
+updated_date: '2026-10-28T20:12:00Z'
 labels: []
 dependencies: []
 priority: medium
@@ -48,4 +48,10 @@ Baseline: bun run test --maxWorkers=2 tests/frameClipboard.test.ts tests/promptC
 Read-only Backend-Scout und frischer Builder-Check durchgeführt. Eingearbeitet: Referenz-/Scope-Konflikt, Queueing-Race bei verschwundener Quelle, Anpassung deutscher Upload-Fehlertests, Retry ohne doppelte Uploads.
 Undo bleibt wie bisher sitzungsgebunden; kein Erhalt über Canvaswechsel. Pixelinhalte werden nicht automatisch redigiert. Bereits nach gültiger Vorprüfung gebuchte Versuche werden bei späterem Quellenverlust nicht automatisch erstattet.
 Richtwert 1–2 Entwicklertage, mit Fehler-/Retryabsicherung am oberen Ende. Empfehlung: native sequenzielle Umsetzung mit unabhängigem Abschlussreview. Keine Feature-ACs abgehakt; Status To Do bis Umsetzungsfreigabe.
+
+Council-Review 28.10.2026: Vollständigen Plan nach Codeprüfung nachgeschärft (noch keine Implementierung). Desktop benötigt HTML5-Drop-Freigabe am Tauri-Builder plus aktualisierte Shell; Datei-Drops auf Panels dürfen nicht navigieren. Karten-Retry muss Referenzen ebenfalls vor Kontingentbuchung prüfen; Fehler verweist auf neuen Auftrag statt nicht vorhandenen Karteneditor. Automatisches Redesign-Preset für Referenzläufe deaktivieren. Busy-Schutz auch für Kontextmenü, interne Upload-Konversion weiterhin erlauben, Object-URLs bei Konversion freigeben. Admission- und Quellpixeltests konkreter definiert.
+Aktueller Aufwand ersetzt die erste Schätzung: 3–5 Entwicklertage für den vollständigen geplanten Umfang; Plattform-Build-/Release-Wartezeiten und manuelle OS-/Live-Modell-Abnahme separat. Ein zweiter Council-Check folgt; Status weiterhin To Do, keine Feature-ACs abgehakt.
+
+Abschluss Council-Planreview 28.10.2026: Drei vollständige Runden, zuletzt alle Mitglieder ohne Planblocker. Zusätzlich zum äußeren Datei-Navigationsschutz nun minimalen Files-only-Defaultaktionsschutz im bestehenden FRAME_BOOTSTRAP vorsehen; direkter Drop ins Bearbeitungsiframe bleibt ohne Import und darf nicht navigieren. Bestehenden sandboxed Runtime-Harness für Tests nach HTML-Morph nutzen; echte OS-Navigation separat manuell nachweisen.
+Nur Design, Implementierungsplan und diese Backlog-Notizen geändert. Keine Produktcode-Implementierung, keine neuen Featuretests ausgeführt, keine native Auslieferung, kein Push/PR. Aufwand 3–5 Entwicklertage bleibt grober Richtwert; TASK-75 bleibt To Do bis zur ausdrücklichen Umsetzungsfreigabe.
 <!-- SECTION:NOTES:END -->
