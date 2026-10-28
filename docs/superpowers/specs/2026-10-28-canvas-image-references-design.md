@@ -1,6 +1,6 @@
 # TASK-75: Visuelle Canvas-Referenzen
 
-**Status:** Umsetzung am 28.10.2026 ausdrücklich mit Subagent-Driven Development freigegeben; technische Verifikation und manuelle Abnahme noch offen.
+**Status:** Am 28.10.2026 lokal implementiert und unabhängig reviewt; 219 gezielte Controller-Tests bestanden. Letzter Gesamtlauf mit ungeklärtem Browser-Fixture-Startfehler; native/live/manuelle Abnahme offen. [Nachweise und Entscheidungen](../reports/2026-10-28-canvas-image-references.md).
 **Codebasis:** `main`, `f732729` (`feat: add LT Kai and brush placeholder`).
 **Backlog:** TASK-75 – Ergänze visuelle Canvas-Referenzen; `In Progress`, kein automatisches `Done` ohne Nutzerabnahme.
 
@@ -98,4 +98,4 @@ Die sieben ACs stehen in TASK-75. Die Implementierung braucht gezielte Nachweise
 
 Korrigierter Richtwert nach Council-Review: **3–5 Entwicklertage** für den vollständigen hier geplanten Umfang einschließlich Fehler-/Retryabsicherung und automatisierter Tests. Die erste Schätzung von 1–2 Tagen hat den Store-/Testumbau und die Desktop-Anbindung unterschätzt. Kein gemessener Wert und keine Lieferzusage; plattformspezifische Build-/Release-Wartezeiten und manuelle OS-/Live-Modell-Abnahme sind gesonderte Freigabeschritte.
 
-Für die schlanke Version sind keine weiteren Produktentscheidungen zwingend. Vorgeschlagene Detailentscheidungen sind: pro Auftrag statt global, Drop zunächst nur importieren, beliebige Frames als visuelle Quelle zulassen und Entwürfe nur im Client-Speicher halten. Umsetzung erst nach Review/Freigabe dieses Plans.
+Für die schlanke Version waren keine weiteren Produktentscheidungen zwingend. Bestätigte Grenzen sind: pro Auftrag statt global, Drop zunächst nur importieren, beliebige Frames als visuelle Quelle zulassen und Entwürfe nur im Client-Speicher halten. Die Umsetzung wurde nach Review am 28.10.2026 freigegeben; Auslieferung und manuelle Abnahme bleiben gesondert.
