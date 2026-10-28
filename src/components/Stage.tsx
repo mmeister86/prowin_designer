@@ -17,7 +17,7 @@ import { SnapGuides } from './SnapGuides'
 import { isTypingTarget, MOD_KEY } from '../lib/keys'
 import { cn } from '../lib/utils'
 import { gesture } from '../lib/gesture'
-import { hasFrameClip, pasteFrameAtScreen } from '../lib/frameClipboard'
+import { hasFrameClip, pasteFrameAtScreen, uploadImageFrames } from '../lib/frameClipboard'
 import { MenuHint } from './ui/menu'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from './ui/context-menu'
 import { Toolbar, ToolbarButton, ToolbarHighlight } from './ui/toolbar'
@@ -120,6 +120,18 @@ export function Stage({
   rightInset: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const [fileDrag, setFileDrag] = useState(false)
+  useEffect(() => {
+    const reset = () => setFileDrag(false)
+    window.addEventListener('drop', reset)
+    window.addEventListener('dragend', reset)
+    window.addEventListener('blur', reset)
+    return () => {
+      window.removeEventListener('drop', reset)
+      window.removeEventListener('dragend', reset)
+      window.removeEventListener('blur', reset)
+    }
+  }, [])
   const drawing = useCanvasDrawing(ref)
   const worldRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -834,6 +846,35 @@ export function Stage({
         <ContextMenuTrigger asChild>
           <div
             ref={ref}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes('Files')) return
+              e.preventDefault()
+              setFileDrag(true)
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setFileDrag(false)
+            }}
+            onDragEnd={() => setFileDrag(false)}
+            onDrop={(e) => {
+              setFileDrag(false)
+              if (!e.dataTransfer.types.includes('Files') || !canvas || !activePageId) return
+              e.preventDefault()
+              const rect = e.currentTarget.getBoundingClientRect()
+              const vp = useStore.getState().viewport
+              const center = { x: (e.clientX - rect.left - vp.x) / vp.zoom, y: (e.clientY - rect.top - vp.y) / vp.zoom }
+              void uploadImageFrames(canvas.id, Array.from(e.dataTransfer.files), undefined, {
+                center,
+                pageId: activePageId,
+              }).then((results) => {
+                const state = useStore.getState()
+                const ids = results.flatMap((r) => ('frame' in r ? [r.frame.id] : []))
+                if (state.canvas?.id === canvas.id && state.activePageId === activePageId) state.selectMany(ids)
+                if (ids.length) state.pushNotice('Bilder eingefügt.')
+                results.forEach((r) => {
+                  if ('error' in r) state.pushNotice(r.error)
+                })
+              })
+            }}
             /* `stage` is a behaviour hook, not a style: frameClipboard.ts queries
            `.stage` to map screen coordinates into the canvas. No CSS is
            attached to it — everything visual is in the utilities beside it. */
@@ -868,6 +909,12 @@ export function Stage({
               bgAt.current = { x: e.clientX, y: e.clientY }
             }}
           >
+            {fileDrag && (
+              <div
+                className="absolute inset-0 z-50 border-2 border-blue-500 bg-blue-500/10"
+                aria-label="Bilder hier ablegen"
+              />
+            )}
             {/* dot grid on its own composited layer: panning is transform-only
             (zero paint), zooming repaints just this layer's tiny tile */}
             <div

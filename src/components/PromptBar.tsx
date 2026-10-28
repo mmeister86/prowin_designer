@@ -131,7 +131,13 @@ async function sendPrompt(args: {
        the card carries the frame ids so the agent views them before
        designing. Known-ids include them so the camera saves its flight for
        the agent's deliverable, not the user's own screenshots. */
-    const refFrames = await uploadImageFrames(canvasId, files, 'Angehängtes Bild')
+    const uploads = await uploadImageFrames(canvasId, files, 'Angehängtes Bild')
+    const failed = uploads.find((r) => 'error' in r)
+    if (failed && 'error' in failed) {
+      setSend({ canvasId, status: 'error', message: failed.error, at: Date.now() })
+      return
+    }
+    const refFrames = uploads.flatMap((r) => ('frame' in r ? [r.frame] : []))
     await api.addCard(
       canvasId,
       text,

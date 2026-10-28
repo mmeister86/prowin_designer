@@ -115,6 +115,17 @@ const STARTER_HTML = `<!doctype html>
 </html>`
 
 export function CanvasPage({ canvasId }: { canvasId: string }) {
+  useEffect(() => {
+    const preventFileNavigation = (event: DragEvent) => {
+      if (event.dataTransfer?.types.includes('Files')) event.preventDefault()
+    }
+    window.addEventListener('dragover', preventFileNavigation, true)
+    window.addEventListener('drop', preventFileNavigation, true)
+    return () => {
+      window.removeEventListener('dragover', preventFileNavigation, true)
+      window.removeEventListener('drop', preventFileNavigation, true)
+    }
+  }, [])
   useLoadCanvasCapabilities(canvasId)
   const canvas = useStore((s) => s.canvas)
   const connected = useStore((s) => s.connected)

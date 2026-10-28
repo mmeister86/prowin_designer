@@ -64,6 +64,34 @@ describe.skipIf(!findBrowserPath())('frame runtime body attributes', () => {
   const inspectBody = async () =>
     (await ask<Message>({ type: 'doop:inspect', selector: 'body' }, 'doop:inspect-result')).info
 
+  it('prevents file drops before and after HTML morphs without blocking text drags', async () => {
+    for (const html of ['<p>Before</p>', '<p>After</p>']) {
+      await render(html)
+      const parentUrl = page.url()
+      const frame = page.frames().find((f) => f !== page.mainFrame())!
+      const frameUrl = frame.url()
+      const beforeMessages = await page.evaluate(() => (window as unknown as Fixture).messages.length)
+      const result = await frame.evaluate(() => {
+        const before = document.body.innerHTML
+        const prevented = [true, false].flatMap((files) =>
+          ['dragover', 'drop'].map((type) => {
+            const dataTransfer = new DataTransfer()
+            if (files) dataTransfer.items.add(new File(['x'], 'a.png', { type: 'image/png' }))
+            else dataTransfer.setData('text/plain', 'text')
+            const event = new DragEvent(type, { dataTransfer, cancelable: true, bubbles: true })
+            document.body.dispatchEvent(event)
+            return event.defaultPrevented
+          }),
+        )
+        return { prevented, unchanged: before === document.body.innerHTML }
+      })
+      expect(result).toEqual({ prevented: [true, true, false, false], unchanged: true })
+      expect(frame.url()).toBe(frameUrl)
+      expect(page.url()).toBe(parentUrl)
+      expect(await page.evaluate(() => (window as unknown as Fixture).messages.length)).toBe(beforeMessages)
+    }
+  })
+
   it('applies styles scoped under a body class', async () => {
     await render(
       '<!doctype html><html><head><style>.glaze{background:rgb(1, 2, 3);padding:7px}</style></head>' +
