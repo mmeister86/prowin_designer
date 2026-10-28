@@ -180,21 +180,25 @@ export async function uploadImageFrames(
   const pageId = placement?.pageId ?? state.activePageId ?? `${canvasId}:page1`
   const cx = placement?.center.x ?? (window.innerWidth / 2 - vp.x) / vp.zoom
   const cy = placement?.center.y ?? (window.innerHeight / 2 - vp.y) / vp.zoom
-  const dims = await Promise.all(files.map((f) => imageSize(f)))
+  const errors = files.map(validateImageFile)
+  const dims = await Promise.all(files.map((f, i) => (errors[i] ? null : imageSize(f))))
   const scaled = dims.map((d) => {
+    if (!d) return null
     const scale = Math.min(1, MAX_PASTE_DIM / Math.max(d.width, d.height))
     return { width: Math.max(40, Math.round(d.width * scale)), height: Math.max(40, Math.round(d.height * scale)) }
   })
-  const totalW = scaled.reduce((sum, s) => sum + s.width, 0) + IMAGE_ROW_GAP * (scaled.length - 1)
+  const acceptedCount = scaled.filter((size) => size !== null).length
+  const totalW = scaled.reduce((sum, s) => sum + (s?.width ?? 0), 0) + IMAGE_ROW_GAP * Math.max(0, acceptedCount - 1)
   let x = cx - totalW / 2
   const placed = scaled.map((size) => {
+    if (!size) return null
     const slot = { ...size, x }
     x += size.width + IMAGE_ROW_GAP
     return slot
   })
   const settled = await Promise.allSettled(
     files.map(async (file, i) => {
-      const invalid = validateImageFile(file)
+      const invalid = errors[i]
       if (invalid) return { file, error: invalid }
       const slot = placed[i]
       if (!slot) throw new Error('image slot missing')
@@ -222,7 +226,11 @@ export async function uploadImageFrames(
   )
   const frames = results.flatMap((r) => ('frame' in r ? [r.frame] : []))
   if (useStore.getState().canvas?.id === canvasId) {
-    frames.forEach((f) => useStore.getState().upsertFrame(f))
+    frames.forEach((f) => {
+      const current = useStore.getState()
+      // A streamed frame may already carry edits newer than this create response.
+      if (!current.canvas?.frames.some((existing) => existing.id === f.id)) current.upsertFrame(f)
+    })
     recordCreates(frames)
   }
   return results

@@ -92,6 +92,47 @@ it.each([2, 3])('keeps and groups successful siblings after a failure (%s files)
   expect(api.deleteFrame).toHaveBeenCalledTimes(count - 1)
 })
 
+it('preserves a newer streamed sibling while inserting missing batch frames with one undo', async () => {
+  const first = file()
+  const second = file()
+  let release!: () => void
+  let created!: Frame
+  vi.mocked(api.uploadAsset).mockImplementationOnce(async () => ({ url: '/first' }) as never)
+  vi.mocked(api.uploadAsset).mockImplementationOnce(async () => {
+    await new Promise<void>((resolve) => {
+      release = resolve
+    })
+    return { url: '/second' } as never
+  })
+  vi.mocked(api.createFrame).mockImplementation(async (canvasId, data) => {
+    const frame = { ...data, canvasId, id: data.html?.includes('/first') ? 'first' : 'second', updatedAt: 1 } as Frame
+    if (frame.id === 'first') created = frame
+    return frame
+  })
+  const pending = uploadImageFrames('c1', [first, second])
+  await vi.waitFor(() => {
+    expect(release).toBeDefined()
+    expect(created).toBeDefined()
+  })
+  // The create event and a collaborator update arrive while the sibling upload waits.
+  useStore.getState().upsertFrame(created)
+  useStore.getState().upsertFrame({ ...created, html: '<p>Collaborator edit</p>', x: 777, width: 321, updatedAt: 2 })
+  release()
+  const results = await pending
+  expect(results.map((result) => result.file)).toEqual([first, second])
+  expect(useStore.getState().canvas?.frames.find((frame) => frame.id === 'first')).toMatchObject({
+    html: '<p>Collaborator edit</p>',
+    x: 777,
+    width: 321,
+    updatedAt: 2,
+  })
+  expect(useStore.getState().canvas?.frames.map((frame) => frame.id)).toEqual(['first', 'second'])
+  await undo()
+  expect(api.deleteFrame).toHaveBeenCalledTimes(2)
+  await undo()
+  expect(api.deleteFrame).toHaveBeenCalledTimes(2)
+})
+
 it('does not contaminate another canvas after navigation', async () => {
   let release!: () => void
   vi.mocked(api.uploadAsset).mockImplementationOnce(async () => {
@@ -129,4 +170,48 @@ it('keeps bitmap aspect ratio and the 900px frame cap', async () => {
   await uploadImageFrames('c1', [image])
   expect(api.uploadAsset).toHaveBeenCalledWith('c1', image)
   expect(api.createFrame).toHaveBeenCalledWith('c1', expect.objectContaining({ width: 900, height: 450 }))
+})
+
+it('rejects invalid files before decoding and keeps ordered partial results and accepted-file geometry', async () => {
+  const decoded = vi.fn()
+  vi.stubGlobal(
+    'Image',
+    class {
+      naturalWidth = 100
+      naturalHeight = 100
+      onload?: () => void
+      constructor() {
+        decoded()
+      }
+      set src(_: string) {
+        this.onload?.()
+      }
+    },
+  )
+  const unsupported = new File(['pdf'], 'bad.pdf', { type: 'application/pdf' })
+  const oversized = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'huge.png', { type: 'image/png' })
+  const first = file(),
+    failed = file(),
+    last = file()
+  vi.mocked(api.uploadAsset)
+    .mockResolvedValueOnce({ url: '/first' } as never)
+    .mockRejectedValueOnce(new Error('upload unavailable'))
+    .mockResolvedValueOnce({ url: '/last' } as never)
+  const files = [unsupported, first, oversized, failed, last]
+  const results = await uploadImageFrames('c1', files, undefined, { center: { x: 300, y: 200 }, pageId: 'p2' })
+  expect(decoded).toHaveBeenCalledTimes(3)
+  expect(vi.mocked(URL.createObjectURL).mock.calls.map(([blob]) => blob)).toEqual([first, failed, last])
+  results.forEach((result, index) => expect(result.file).toBe(files[index]))
+  expect(results.map((result) => ('error' in result ? result.error : result.frame.x))).toEqual([
+    'Nicht unterstützter Dateityp. Erlaubt sind PNG, JPG, WebP, GIF und SVG.',
+    110,
+    'Das Bild überschreitet die Grenze von 5 MB.',
+    'Das Bild konnte nicht hochgeladen werden. Versuche es erneut.',
+    390,
+  ])
+  expect(api.uploadAsset).toHaveBeenCalledTimes(3)
+  expect(api.createFrame).toHaveBeenCalledTimes(2)
+  expect(useStore.getState().canvas?.frames).toHaveLength(2)
+  await undo()
+  expect(api.deleteFrame).toHaveBeenCalledTimes(2)
 })

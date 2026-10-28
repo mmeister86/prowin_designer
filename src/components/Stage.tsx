@@ -911,7 +911,7 @@ export function Stage({
           >
             {fileDrag && (
               <div
-                className="absolute inset-0 z-50 border-2 border-blue-500 bg-blue-500/10"
+                className="absolute inset-0 z-30 border-2 border-blue-500 bg-blue-500/10"
                 aria-label="Bilder hier ablegen"
               />
             )}

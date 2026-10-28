@@ -111,6 +111,13 @@ async function sendPrompt(args: {
   const { canvasId, text, attachments, scope, allowance } = args
   const store = useStore.getState()
   if (store.composerSend?.status === 'busy') return
+  const placement = {
+    pageId: store.activePageId ?? `${canvasId}:page1`,
+    center: {
+      x: (window.innerWidth / 2 - store.viewport.x) / store.viewport.zoom,
+      y: (window.innerHeight / 2 - store.viewport.y) / store.viewport.zoom,
+    },
+  }
   setSend({ canvasId, status: 'busy' })
   /* known-doomed send: no free tasks and no model account. Open the wall
      up front instead of uploading attachments only to 403 — but confirm
@@ -131,7 +138,7 @@ async function sendPrompt(args: {
        designing. Known-ids include them so the camera saves its flight for
        the agent's deliverable, not the user's own screenshots. */
     const files = attachments.flatMap((a) => (a.kind === 'file' ? [a.file] : []))
-    const uploads = files.length ? await uploadImageFrames(canvasId, files, 'Angehängtes Bild') : []
+    const uploads = files.length ? await uploadImageFrames(canvasId, files, 'Angehängtes Bild', placement) : []
     const converted = attachments.map((a) => {
       if (a.kind !== 'file') return a
       const result = uploads.find((r) => r.file === a.file && 'frame' in r)

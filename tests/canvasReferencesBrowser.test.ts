@@ -207,10 +207,10 @@ describe('real canvas image reference workflows', { timeout: 30_000 }, () => {
     return card
   }
 
-  async function drag(selector: string, type: string, file = true, x = 600, y = 320, pdf = false) {
+  async function drag(selector: string, type: string, file = true, x = 600, y = 320, pdf = false, hitTest = false) {
     return page.evaluate(
-      ({ selector, type, file, x, y, pdf }) => {
-        const el = document.querySelector(selector)
+      ({ selector, type, file, x, y, pdf, hitTest }) => {
+        const el = hitTest ? document.elementFromPoint(x, y) : document.querySelector(selector)
         if (!el) throw new Error(`Missing drop target ${selector}`)
         const dataTransfer = new DataTransfer()
         if (file)
@@ -239,7 +239,7 @@ describe('real canvas image reference workflows', { timeout: 30_000 }, () => {
         if (!reachedTarget) throw new Error('Drag capture stopped event propagation')
         return event.defaultPrevented
       },
-      { selector, type, file, x, y, pdf },
+      { selector, type, file, x, y, pdf, hitTest },
     )
   }
 
@@ -526,8 +526,21 @@ describe('real canvas image reference workflows', { timeout: 30_000 }, () => {
           const r = el.getBoundingClientRect()
           return { x: Math.trunc(r.x + r.width / 2), y: Math.trunc(r.y + r.height / 2) }
         })
-        expect(await drag(selector, 'dragover', true, point.x, point.y)).toBe(true)
-        expect(await drag(selector, 'drop', true, point.x, point.y)).toBe(true)
+        // Enter the Stage first, then move over a panel with the overlay active.
+        expect(await drag('.stage', 'dragover', true, 620, 520, false, true)).toBe(true)
+        await page.waitForSelector(overlay)
+        expect(
+          await page.evaluate(
+            ({ selector, point }) => {
+              const panel = document.querySelector(selector)
+              return panel?.contains(document.elementFromPoint(point.x, point.y))
+            },
+            { selector, point },
+          ),
+        ).toBe(true)
+        expect(await drag(selector, 'dragover', true, point.x, point.y, false, true)).toBe(true)
+        expect(await drag(selector, 'drop', true, point.x, point.y, false, true)).toBe(true)
+        await page.waitForSelector(overlay, { hidden: true })
         expect(await drag(selector, 'dragover', false)).toBe(false)
         expect(await drag(selector, 'drop', false)).toBe(false)
       }
