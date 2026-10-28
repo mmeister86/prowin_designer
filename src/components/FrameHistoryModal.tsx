@@ -4,6 +4,7 @@ import { api, errorMessage } from '../lib/api'
 import { recordUpdate } from '../lib/history'
 import { useStore } from '../lib/store'
 import { timeAgo } from '../lib/time'
+import { frameSrcDoc } from '../lib/framePolicy'
 import { AgentIcon } from './AgentIcon'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
@@ -199,7 +200,7 @@ function VersionPreview({ title, version }: { title: string; version: Shown }) {
       <iframe
         className="pointer-events-none origin-top-left border-0"
         title={title}
-        srcDoc={version.html}
+        srcDoc={frameSrcDoc(version.html)}
         sandbox=""
         tabIndex={-1}
         style={{ width: version.width, height: version.height, transform: `scale(${scale})` }}

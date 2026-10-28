@@ -11,6 +11,7 @@ import {
   type DrawingRect,
 } from '../lib/drawingMove'
 import { requestFrame } from '../lib/frameBridge'
+import { frameSrcDoc } from '../lib/framePolicy'
 import { gesture } from '../lib/gesture'
 import { FRAME_DOCUMENTS_TAKE_ZOOM_AS_DENSITY, counterZoom } from '../lib/layoutZoom'
 import { useStore } from '../lib/store'
@@ -199,7 +200,7 @@ export function useDrawingMove(frame: Frame, layoutZoom: number) {
             <iframe
               title="Zeichnung wird verschoben"
               sandbox=""
-              srcDoc={preview.html}
+              srcDoc={frameSrcDoc(preview.html)}
               className="block border-0 bg-transparent"
               style={{
                 width: preview.rect.width,

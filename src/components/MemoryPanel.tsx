@@ -4,6 +4,7 @@ import type { GuidelineDoc, MemoryReference } from '../../shared/types'
 import { useStore } from '../lib/store'
 import { api, errorMessage } from '../lib/api'
 import { timeAgo } from '../lib/time'
+import { frameSrcDoc } from '../lib/framePolicy'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Input } from './ui/input'
@@ -202,7 +203,7 @@ function RefThumb({ reference }: { reference: MemoryReference }) {
       <iframe
         className="pointer-events-none origin-top-left border-0"
         title={reference.title}
-        srcDoc={reference.html}
+        srcDoc={frameSrcDoc(reference.html)}
         sandbox=""
         tabIndex={-1}
         style={{ width: reference.width, height: reference.height, transform: `scale(${scale})` }}
@@ -256,7 +257,7 @@ function RefModal({
           <iframe
             className="pointer-events-none origin-top-left border-0"
             title={reference.title}
-            srcDoc={reference.html}
+            srcDoc={frameSrcDoc(reference.html)}
             sandbox=""
             tabIndex={-1}
             style={{ width: reference.width, height: reference.height, transform: `scale(${scale})` }}

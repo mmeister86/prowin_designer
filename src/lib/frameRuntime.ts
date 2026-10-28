@@ -1,10 +1,12 @@
+import { frameSrcDoc } from './framePolicy'
+
 /**
  * Bootstrap document loaded once per frame iframe. The parent posts HTML in
  * via postMessage and the runtime morphs the live DOM to match — only changed
  * elements are touched, so updates render in place with no white reload flash.
  * Works inside sandbox="allow-scripts" (no same-origin access needed).
  */
-export const FRAME_BOOTSTRAP = `<!doctype html>
+export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
 <html><head></head><body><script data-v-boot>
 (function () {
   /* horizontal overscroll inside a frame must not chain to the parent page,
@@ -903,4 +905,4 @@ export const FRAME_BOOTSTRAP = `<!doctype html>
   })
   parent.postMessage({ type: 'doop:frame-ready' }, '*')
 })()
-</script></body></html>`
+</script></body></html>`)

@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <body>
+    <script type="module">
+      import { FRAME_BOOTSTRAP } from '/src/lib/frameRuntime.ts'
+      import { frameSrcDoc } from '/src/lib/framePolicy.ts'
+      window.messages = []
+      window.addEventListener('message', (event) => window.messages.push({ ...event.data, origin: event.origin }))
+      const frame = document.createElement('iframe')
+      frame.id = 'runtime'
+      frame.sandbox = 'allow-scripts'
+      frame.srcdoc = FRAME_BOOTSTRAP
+      document.body.appendChild(frame)
+      window.addPreview = async (html) => {
+        document.querySelector('#preview')?.remove()
+        const preview = document.createElement('iframe')
+        preview.id = 'preview'
+        preview.sandbox = ''
+        preview.srcdoc = frameSrcDoc(html)
+        const loaded = new Promise((resolve) => (preview.onload = resolve))
+        document.body.appendChild(preview)
+        await loaded
+      }
+    </script>
+  </body>
+</html>
