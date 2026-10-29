@@ -12,7 +12,7 @@
 
 **Aufwand:** Nach Council-Gegenprüfung **3–5 Entwicklertage** für den vollständigen Plan statt der ursprünglichen 1–2 Tage. Plattform-Build-/Release-Wartezeiten und manuelle OS-/Live-Modell-Abnahme bleiben gesonderte Freigabeschritte.
 
-**Ausführungsstand 28.10.2026:** Tasks 1–4 lokal implementiert und unabhängig reviewt; ein konsolidierter Gesamt-Review-Fix mit scoped Nachprüfung abgeschlossen. 219 gezielte Controller-Tests bestanden; letzter Gesamtlauf mit ungeklärtem Browser-Fixture-Startfehler, native/live/manuelle Abnahme offen. Die folgenden Schritte bleiben die freigegebene Ausführungsanleitung; tatsächliche Nachweise und Entscheidungen stehen im [Umsetzungsbericht](../reports/2026-10-28-canvas-image-references.md).
+**Ausführungsstand / PR-Preflight 29.10.2026:** Tasks 1–4 lokal implementiert und unabhängig reviewt; ein konsolidierter Gesamt-Review-Fix mit scoped Nachprüfung abgeschlossen. 219 gezielte Controller-Tests und der frische vollständige PR-Preflight mit 179 Dateien / 1464 Tests bestanden, keine Skips. Frühere ungeklärte Browser-Fixture-Startfehler bleiben dokumentiert; native/live/manuelle Abnahme offen. Die folgenden Schritte bleiben die freigegebene Ausführungsanleitung; tatsächliche Nachweise und Entscheidungen stehen im [Umsetzungsbericht](../reports/2026-10-28-canvas-image-references.md).
 
 ## Global Constraints
 
@@ -187,4 +187,4 @@ Tasks sequenziell ausführen. Sie teilen Upload-/Entwurfsverträge; parallele Im
 - [x] Erneute unabhängige Council-Checks ausgewertet: alle drei Mitglieder sehen im finalen Plan keine Blocker. Iframe-Defaultaktionsschutz ist konkret eingeplant; synthetischer Nachweis ausdrücklich von OS-Navigation getrennt. Bewertungen ausschließlich in der Review-Antwort, nicht als Testergebnis ausgeben.
 - [x] Nutzer hat die Umsetzung mit **Subagent-Driven Development** freigegeben: vier sequenzielle Implementierungen mit Task-Reviews und unabhängigem Gesamt-Review.
 
-**Nicht durchgeführt:** Live-KI-, native Build-/OS-Drop- und manuelle Nutzerabnahme; kein Push/Merge/Release. Implementierung und automatisierte Nachweise sind im verlinkten Umsetzungsbericht dokumentiert, einschließlich des fehlgeschlagenen letzten Gesamtlaufs. **Bekannte Grenzen:** Live-Frame-Verweise statt Snapshots, promptbasierter Quellschutz statt neuer Schreibsperre, unredigierte Bildpixel und unbekannte Vision-Fähigkeit eines Requesty-Policy-Fallbacks.
+**Offen:** Live-KI-, native Build-/OS-Drop- und manuelle Nutzerabnahme; kein Merge/Release. Push und PR gegen `main` am 29.10.2026 ausdrücklich beauftragt. Implementierung und automatisierte Nachweise sind im verlinkten Umsetzungsbericht dokumentiert, einschließlich historischer fehlgeschlagener und neuer bestandener Gesamtläufe. **Bekannte Grenzen:** Live-Frame-Verweise statt Snapshots, promptbasierter Quellschutz statt neuer Schreibsperre, unredigierte Bildpixel und unbekannte Vision-Fähigkeit eines Requesty-Policy-Fallbacks.

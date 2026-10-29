@@ -2,13 +2,17 @@
 
 **Stand: 28.10.2026 — lokal implementiert und unabhängig reviewt, nicht manuell abgenommen oder ausgeliefert.**
 
+**Nachtrag / PR-Preflight am 29.10.2026:** Am unveränderten Code-HEAD `43d3e69` bestand der frische Gesamtlauf mit **179 Dateien / 1464 Tests, keinen Skips, Exit 0** (325,48 s). Typecheck, vollständiger Lint, Build, Formatprüfung aller getrackten Dateien und Doc-Lint ebenfalls Exit 0. Baseline-localStorage-/ECONNREFUSED-/AbortError-, Chunkgrößen- und Doc-Freshness-Warnungen bleiben dokumentiert. Der neuere grüne Lauf hebt die unten festgehaltenen fehlgeschlagenen Läufe nicht rückwirkend auf. Push und PR gegen `main` wurden jetzt ausdrücklich beauftragt; Merge, Release und Nutzerabnahme nicht.
+
+**PR-Basis:** `origin/main` enthält den bereits vor TASK-75 vorhandenen lokalen Font-Commit `f732729` noch nicht; der PR nimmt diese unveränderte Historie transparent mit auf. Der vollständige `origin/main...HEAD`-Whitespace-Check meldet dessen originale `public/fonts/lt-kai-LICENSE` (CRLF/Whitespace); die Fremdlizenz bleibt unverändert und dieser Gesamtcheck wird nicht als bestanden ausgegeben. TASK-75-Range und neue Dokumentationsänderungen bestehen den Whitespace-Check. `.env`, lokale Datenbanken, Backup und ignorierte Rohlogs gehören nicht zum PR.
+
 - **Branch:** `task/75-canvas-references`.
 - **Worktree:** `/home/matthias/.local/share/opencode/worktree/9d3066/task-75-canvas-references`.
 - **Code-HEAD:** `43d3e6934cd09c4db67950529ec008ad5cd2b23a`.
 - **Branch-Basis:** `277aa2403db51098bfdc145d3e73eaba6e3b8524`.
-- **Letzter Controller-Gesamtlauf: fehlgeschlagen.** 1463 Tests bestanden; eine unveränderte Browser-Fixture scheiterte beim Start, ein Test wurde deshalb übersprungen. Ein gezielter Nachlauf ersetzt diesen Befund nicht.
+- **Controller-Gesamtlauf vom 28.10.2026: fehlgeschlagen.** 1463 Tests bestanden; eine unveränderte Browser-Fixture scheiterte beim Start, ein Test wurde deshalb übersprungen. Ein gezielter Nachlauf ersetzt diesen Befund nicht; der vollständige neue Lauf vom 29.10.2026 ist separat oben dokumentiert.
 - **Eigenständiges Feature-Gate:** 17 Dateien / 219 Tests bestanden, keine Skips. Typecheck, Lint, Build und Doc-Lint bestanden mit den unten dokumentierten Warnungen.
-- **TASK-75 bleibt `In Progress`.** Kein Push, PR, Merge, Release, produktiver Zugang oder bezahlter Modellaufruf wurde durchgeführt.
+- **TASK-75 bleibt `In Progress`.** Bis zur Übergabe am 28.10.2026 kein Push, PR, Merge, Release, produktiver Zugang oder bezahlter Modellaufruf. Der PR-Auftrag vom 29.10.2026 schließt den Task nicht und erlaubt keinen Merge/Release.
 
 Grundlagen: [Design](../specs/2026-10-28-canvas-image-references-design.md), [freigegebener Plan](../plans/2026-10-28-canvas-image-references.md). Historische Baselines und damalige Planungsgrenzen in diesen Dateien sind keine aktuellen Testergebnisse; dieser Bericht beschreibt den Umsetzungsstand.
 
@@ -124,5 +128,7 @@ Alle Berichte, RED-/GREEN-Ausgaben, Reviewpakete und das vollständige Ledger li
 ```
 
 Relevante Abschlussdateien: `final-review.md`, `final-fix-report.md`, `controller-final-suite.log`, `controller-frame-local-diagnostic.log`, `controller-reference-gate.log`, `controller-typecheck.log`, `controller-lint.log`, `controller-build.log`, `controller-doc-lint-before-report.log`, `progress.md`.
+
+Der neue PR-Preflight vom 29.10.2026 steht separat in `pr-preflight-suite-2026-10-29.log` und den gleich datierten `pr-preflight-{typecheck,lint,build,format,doc-lint}-2026-10-29.log`-Dateien. Lokale `.env`, `data/` und das unversionierte Datenbank-Backup werden nicht veröffentlicht.
 
 Dieses Verzeichnis ist bewusst git-ignoriert und nicht transportabel garantiert. **Dieser versionierte Bericht bleibt der dauerhafte Entscheidungs- und Nachweisüberblick**, auch wenn die lokalen Rohdaten später entfernt werden.

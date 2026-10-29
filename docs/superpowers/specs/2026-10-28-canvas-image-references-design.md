@@ -1,6 +1,6 @@
 # TASK-75: Visuelle Canvas-Referenzen
 
-**Status:** Am 28.10.2026 lokal implementiert und unabhängig reviewt; 219 gezielte Controller-Tests bestanden. Letzter Gesamtlauf mit ungeklärtem Browser-Fixture-Startfehler; native/live/manuelle Abnahme offen. [Nachweise und Entscheidungen](../reports/2026-10-28-canvas-image-references.md).
+**Status:** Lokal implementiert und unabhängig reviewt; frischer PR-Preflight am 29.10.2026: 179 Dateien / 1464 Tests bestanden, keine Skips. Frühere Browser-Fixture-Startfehler bleiben dokumentiert; native/live/manuelle Abnahme offen. [Nachweise und Entscheidungen](../reports/2026-10-28-canvas-image-references.md).
 **Codebasis:** `main`, `f732729` (`feat: add LT Kai and brush placeholder`).
 **Backlog:** TASK-75 – Ergänze visuelle Canvas-Referenzen; `In Progress`, kein automatisches `Done` ohne Nutzerabnahme.
 

@@ -4,7 +4,7 @@ title: Ergänze visuelle Canvas-Referenzen
 status: In Progress
 assignee: []
 created_date: '2026-10-28T19:16:00Z'
-updated_date: '2026-10-28T22:13:00Z'
+updated_date: '2026-10-29T09:52:00Z'
 labels: []
 dependencies: []
 priority: medium
@@ -65,4 +65,9 @@ Frischer Controller-Featurelauf: 17 Dateien / 219 Tests bestanden, keine Skips; 
 WICHTIG: Neuerer Controller-Gesamtlauf ist NICHT grün: 178 Dateien bestanden / 1 Suite fehlgeschlagen, 1463 Tests bestanden / 1 Skip. Unveränderte tests/frameLocalEdits.test.ts:32-Fixture wartete beim Start 30000 ms auf elementPanelHarness. Unveränderter diagnostischer Nachlauf 1/1 bestanden; ursprüngliche Ursache unbewiesen. Vorherigen Port-39347-Startfehler ebenfalls nicht umdeuten. Start-/Baseline-Runtime-Diagnosen unter bestehender TASK-73 dokumentiert; Bundle-Bewertung als TASK-76 To Do, keine ungefragte Optimierung. Warnungen nicht unterdrückt.
 AC 2–7 anhand automatisierter Nachweise/Dokumentation abgehakt; AC 7 behauptet keinen grünen Gesamtlauf. AC 1 bleibt für eingeschlossene native/echte Drop-Abnahme offen: Cargo fehlt, kein Rust-Build/Test und keine neue Shell-/OS-Prüfung möglich. Keine Live-Modell-/ästhetische oder manuelle Nutzerabnahme. Entwürfe bleiben live/client-memory, Bildpixel unredigiert, Quellschutz anweisungsbasiert. Acht reversible Rulings vollständig im versionierten Umsetzungsbericht. Rohlogs vorerst bewusst behalten.
 Kein Push, PR, Merge, Release oder bezahlter Modellaufruf. Status bleibt In Progress; nur ausdrückliche manuelle Nutzerabnahme darf schließen.
+
+29.10.2026: Push und Pull Request des bestehenden Branches gegen main ausdrücklich beauftragt; kein Merge oder Release. Frischer PR-Preflight am unveränderten Code-HEAD 43d3e69: bun run test --maxWorkers=2 --testTimeout=30000 — 179 Dateien / 1464 Tests bestanden, keine Skips, Exit 0, 325,48 s. Typecheck, vollständiger Lint, Build, Formatprüfung aller getrackten Dateien und Doc-Lint ebenfalls Exit 0. Frühere fehlgeschlagene Browser-Fixture-Gesamtläufe bleiben historisch dokumentiert und TASK-73 offen; Warnungen nicht unterdrückt.
+PR-Ziel ausdrücklich mmeister86/prowin_designer:main, nicht das GitHub-CLI-Default kgoedecke/doop. Branch enthält zusätzlich den bereits vorhandenen, noch nicht auf origin/main liegenden Font-Basiscommit f732729; Historie unverändert und im PR transparent ausweisen. .env, lokale Datenbanken, Nutzer-Backup und ignorierte Rohlogs sind nicht im PR-Diff. Neuer grüner Lauf im versionierten Bericht ergänzt. TASK-75 bleibt In Progress, AC 1/native/volle manuelle Abnahme weiter offen.
+
+PR-Preflight-Zusatz: git diff --check origin/main...HEAD meldet ausschließlich die unveränderte originale public/fonts/lt-kai-LICENSE aus dem bereits vorhandenen Basiscommit f732729 (CRLF/Whitespace). Datei gegenüber f732729 bytegleich; keine ungefragte Umformatierung der Fremdlizenz. TASK-75-Range und gestagte Dokumentation bestehen den Whitespace-Check; den gesamten PR-Whitespace-Check nicht als grün ausgeben. Im PR ausdrücklich dokumentiert.
 <!-- SECTION:NOTES:END -->
