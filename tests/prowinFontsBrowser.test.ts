@@ -12,9 +12,11 @@ import { freePort, startServer, type Server } from './harness.ts'
 const WIDTH = 640
 const HEIGHT = 360
 const FAMILIES = [
-  { name: 'Sofia Sans', file: 'sofia-sans', weights: [300, 500] },
-  { name: 'Sofia Sans Condensed', file: 'sofia-sans-condensed', weights: [700] },
-  { name: 'Roboto', file: 'roboto', weights: [300, 500, 900] },
+  { name: 'Sofia Sans', file: 'sofia-sans', weights: [300, 500], subsets: ['latin', 'latin-ext'] },
+  { name: 'Sofia Sans Condensed', file: 'sofia-sans-condensed', weights: [700], subsets: ['latin', 'latin-ext'] },
+  { name: 'Roboto', file: 'roboto', weights: [300, 500, 900], subsets: ['latin', 'latin-ext'] },
+  { name: 'LT Kai', file: 'lt-kai', weights: [400], subsets: ['latin'] },
+  { name: 'Kaushan Script', file: 'kaushan-script', weights: [400], subsets: ['latin', 'latin-ext'] },
 ] as const
 const LATIN = 'U+0000-00FF,U+2000-206F,U+20AC,U+2122'
 const LATIN_EXT = 'U+0100-02BA,U+1E00-1E9F'
@@ -22,14 +24,11 @@ const LATIN_EXT = 'U+0100-02BA,U+1E00-1E9F'
 type Fixture = { testReady: boolean; messages: Array<{ type: string; reqId?: string }> }
 
 function referenceHTML(origin: string): string {
-  const faces = FAMILIES.flatMap(({ name, file, weights }) =>
+  const faces = FAMILIES.flatMap(({ name, file, weights, subsets }) =>
     weights.flatMap((weight) =>
-      [
-        { subset: 'latin', range: LATIN },
-        { subset: 'latin-ext', range: LATIN_EXT },
-      ].map(
-        ({ subset, range }) =>
-          `@font-face{font-family:'${name}';font-style:normal;font-display:swap;font-weight:${weight};src:url('${origin}/fonts/${file}-${subset}-${weight}-normal.woff2') format('woff2');unicode-range:${range}}`,
+      subsets.map(
+        (subset) =>
+          `@font-face{font-family:'${name}';font-style:normal;font-display:swap;font-weight:${weight};src:url('${origin}/fonts/${file}-${subset}-${weight}-normal.woff2') format('woff2');unicode-range:${subset === 'latin' ? LATIN : LATIN_EXT}}`,
       ),
     ),
   ).join('\n')
@@ -139,7 +138,7 @@ describe.skipIf(!findBrowserPath())('proWIN browser and Chromium font parity', (
     const exportPNG = await renderFrame(frame(html))
 
     const fontRequests = [...new Set(requests.filter((url) => url.includes('/fonts/')))]
-    expect(fontRequests).toHaveLength(12)
+    expect(fontRequests).toHaveLength(15)
     expect(fontRequests.some((url) => url.includes('-latin-'))).toBe(true)
     expect(fontRequests.some((url) => url.includes('-latin-ext-'))).toBe(true)
     expect(

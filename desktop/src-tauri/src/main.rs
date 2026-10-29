@@ -60,6 +60,42 @@ fn focus_main_window(app: &AppHandle) {
     }
 }
 
+// (allow in webview, forward to external opener). Files do neither.
+fn navigation_decision(url: &tauri::Url, app_hosts: &[String]) -> (bool, bool) {
+    if url.scheme() == "file" {
+        return (false, false);
+    }
+    let in_app = match (url.scheme(), url.host_str()) {
+        ("mailto" | "tel", _) => false,
+        (_, Some(host)) => app_hosts.iter().any(|h| h == host),
+        (_, None) => true,
+    };
+    (in_app, !in_app)
+}
+
+#[cfg(test)]
+mod file_navigation_tests {
+    #[test]
+    fn preserves_navigation_and_blocks_files_before_external_opening() {
+        let hosts = vec!["app.example".to_string()];
+        for (url, expected) in [
+            ("file:///tmp/a.png", (false, false)),
+            ("file://app.example/a.png", (false, false)),
+            ("https://app.example/canvas", (true, false)),
+            ("https://other.example/", (false, true)),
+            ("mailto:a@example.com", (false, true)),
+            ("tel:123", (false, true)),
+            ("about:blank", (true, false)),
+        ] {
+            assert_eq!(
+                super::navigation_decision(&tauri::Url::parse(url).unwrap(), &hosts),
+                expected,
+                "{url}"
+            );
+        }
+    }
+}
+
 /// The hosted app this shell wraps. Self-hosters can point release builds at
 /// their own instance without patching the source:
 ///   DOOP_APP_URL=https://doop.example.com npm run build
@@ -296,6 +332,7 @@ fn main() {
                 Mutex::new(HashMap::new());
             let builder =
                 WebviewWindowBuilder::new(app, "main", WebviewUrl::External(entry.parse()?))
+                    .disable_drag_drop_handler()
                     .initialization_script(&desktop_marker)
                     .on_download(move |_webview, event| {
                         match event {
@@ -344,12 +381,8 @@ fn main() {
                     .inner_size(1440.0, 900.0)
                     .min_inner_size(900.0, 600.0)
                     .on_navigation(move |url| {
-                        let in_app = match (url.scheme(), url.host_str()) {
-                            ("mailto" | "tel", _) => false,
-                            (_, Some(host)) => app_hosts.iter().any(|h| h == host),
-                            (_, None) => true,
-                        };
-                        if !in_app {
+                        let (in_app, open_external) = navigation_decision(url, &app_hosts);
+                        if open_external {
                             let _ = handle.opener().open_url(url.as_str(), None::<String>);
                         }
                         in_app

@@ -1,7 +1,8 @@
 import type { Frame } from '../../shared/types'
-import { api } from './api'
+import { api, errorMessage } from './api'
+import { validateImageFile } from './imageFiles'
 import { useStore } from './store'
-import { recordCreate, recordCreates } from './history'
+import { recordCreates } from './history'
 
 /** Same-origin frame clipboard: survives canvas switches and browser tabs. */
 const CLIP_KEY = 'doop:frame-clipboard'
@@ -165,33 +166,46 @@ const IMAGE_ROW_GAP = 40
 /** Upload images and drop them as frames laid out in a row, centered as a
  *  group in the current view (one image lands dead-center). Sizes are read
  *  first so differently-sized images sit side by side, never stacked. */
+export type ImageFrameUpload = { file: File; frame: Frame } | { file: File; error: string }
+
 export async function uploadImageFrames(
   canvasId: string,
   files: File[],
   fallbackName = 'Eingefügtes Bild',
-): Promise<Frame[]> {
-  const dims = await Promise.all(files.map((f) => imageSize(f)))
+  placement?: { center: { x: number; y: number }; pageId: string },
+): Promise<ImageFrameUpload[]> {
+  if (!files.length) return []
+  const state = useStore.getState()
+  const vp = state.viewport
+  const pageId = placement?.pageId ?? state.activePageId ?? `${canvasId}:page1`
+  const cx = placement?.center.x ?? (window.innerWidth / 2 - vp.x) / vp.zoom
+  const cy = placement?.center.y ?? (window.innerHeight / 2 - vp.y) / vp.zoom
+  const errors = files.map(validateImageFile)
+  const dims = await Promise.all(files.map((f, i) => (errors[i] ? null : imageSize(f))))
   const scaled = dims.map((d) => {
+    if (!d) return null
     const scale = Math.min(1, MAX_PASTE_DIM / Math.max(d.width, d.height))
     return { width: Math.max(40, Math.round(d.width * scale)), height: Math.max(40, Math.round(d.height * scale)) }
   })
-  const vp = useStore.getState().viewport
-  const cx = (window.innerWidth / 2 - vp.x) / vp.zoom
-  const cy = (window.innerHeight / 2 - vp.y) / vp.zoom
-  const totalW = scaled.reduce((sum, s) => sum + s.width, 0) + IMAGE_ROW_GAP * (scaled.length - 1)
+  const acceptedCount = scaled.filter((size) => size !== null).length
+  const totalW = scaled.reduce((sum, s) => sum + (s?.width ?? 0), 0) + IMAGE_ROW_GAP * Math.max(0, acceptedCount - 1)
   let x = cx - totalW / 2
   const placed = scaled.map((size) => {
+    if (!size) return null
     const slot = { ...size, x }
     x += size.width + IMAGE_ROW_GAP
     return slot
   })
-  return Promise.all(
+  const settled = await Promise.allSettled(
     files.map(async (file, i) => {
+      const invalid = errors[i]
+      if (invalid) return { file, error: invalid }
       const slot = placed[i]
       if (!slot) throw new Error('image slot missing')
       const { url } = await api.uploadAsset(canvasId, file)
       const name = file.name.replace(/\.[a-z0-9]+$/i, '').trim() || fallbackName
-      return api.createFrame(canvasId, {
+      const frame = await api.createFrame(canvasId, {
+        pageId,
         name,
         html: imageFrameHtml(url, name),
         width: slot.width,
@@ -199,15 +213,38 @@ export async function uploadImageFrames(
         x: Math.round(slot.x),
         y: Math.round(cy - slot.height / 2),
       })
+      return { file, frame }
     }),
   )
+  const results: ImageFrameUpload[] = settled.map((r, i) =>
+    r.status === 'fulfilled'
+      ? r.value
+      : {
+          file: files[i]!,
+          error: errorMessage(r.reason, 'Das Bild konnte nicht hochgeladen werden. Versuche es erneut.'),
+        },
+  )
+  const frames = results.flatMap((r) => ('frame' in r ? [r.frame] : []))
+  if (useStore.getState().canvas?.id === canvasId) {
+    frames.forEach((f) => {
+      const current = useStore.getState()
+      // A streamed frame may already carry edits newer than this create response.
+      if (!current.canvas?.frames.some((existing) => existing.id === f.id)) current.upsertFrame(f)
+    })
+    recordCreates(frames)
+  }
+  return results
 }
 
 export async function pasteImagesCentered(canvasId: string, files: File[]) {
-  const frames = await uploadImageFrames(canvasId, files)
-  frames.forEach(recordCreate)
-  const last = frames[frames.length - 1]
-  if (last) useStore.getState().select(last.id)
+  const pageId = useStore.getState().activePageId
+  const results = await uploadImageFrames(canvasId, files)
+  const state = useStore.getState()
+  if (state.canvas?.id === canvasId && state.activePageId === pageId)
+    state.selectMany(results.flatMap((r) => ('frame' in r ? [r.frame.id] : [])))
+  results.forEach((r) => {
+    if ('error' in r) state.pushNotice(r.error)
+  })
 }
 
 /** Duplicate frames 40px down-right of the originals, keeping their layout;

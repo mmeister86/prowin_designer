@@ -12,6 +12,7 @@ vi.mock('../server/db/persist.ts', () => ({
   saveCanvas: () => {},
   saveGuideline: () => {},
   saveFrame: () => {},
+  deleteFrame: () => {},
 }))
 
 const actions = await import('../server/actions.ts')
@@ -96,5 +97,71 @@ describe('addQueuedCard', () => {
     expect(card?.scope).toBeUndefined()
     const junk = actions.addQueuedCard(canvasId, 'tidy up again', 'kevin', undefined, undefined, undefined, 'nope')
     expect(junk?.scope).toBeUndefined()
+  })
+})
+
+// A bad reference must never turn into an unrelated, reference-free task.
+describe('card references', () => {
+  it.each([
+    [undefined, []],
+    [
+      ['one', 'two', 'one'],
+      ['one', 'two'],
+    ],
+    [
+      ['one', 'two', 'three', 'four'],
+      ['one', 'two', 'three', 'four'],
+    ],
+    [null, null],
+    ['one', null],
+    [{}, null],
+    [[1], null],
+    [[''], null],
+    [['  '], null],
+    [['one', 'two', 'three', 'four', 'five'], null],
+  ])('normalizes %j to %j', (input, expected) => {
+    expect(actions.normalizeCardReferences(input)).toEqual(expected)
+  })
+
+  it('rejects malformed references without creating a card', () => {
+    expect(actions.addQueuedCard(canvasId, 'design', 'kevin', undefined, [1])).toBeUndefined()
+    expect(actions.getTasks(canvasId)).toHaveLength(0)
+  })
+
+  it('treats the same prompt with different references as different cards', () => {
+    const a = store.createFrame(canvasId, { name: 'A' }, 'kevin')!
+    const b = store.createFrame(canvasId, { name: 'B' }, 'kevin')!
+    const first = actions.addQueuedCard(canvasId, 'design', 'kevin', undefined, [a.id])!
+    const second = actions.addQueuedCard(canvasId, 'design', 'kevin', undefined, [b.id])!
+    expect(second.id).not.toBe(first.id)
+    expect(second.attachments).toEqual([b.id])
+  })
+
+  it('drops an edit scope that is also a reference', () => {
+    const source = store.createFrame(canvasId, { name: 'Source' }, 'kevin')!
+    const card = actions.addQueuedCard(canvasId, 'design', 'kevin', undefined, [source.id], undefined, {
+      frameId: source.id,
+      selector: 'h1',
+    })!
+    expect(card.scope).toBeUndefined()
+    expect(card.attachments).toEqual([source.id])
+  })
+
+  it('keeps a distinct edit target with references', () => {
+    const source = store.createFrame(canvasId, { name: 'Source' }, 'kevin')!
+    const target = store.createFrame(canvasId, { name: 'Target' }, 'kevin')!
+    const card = actions.addQueuedCard(canvasId, 'design', 'kevin', undefined, [source.id], undefined, {
+      frameId: target.id,
+      selector: 'h1',
+    })!
+    expect(card.scope).toEqual({ frameId: target.id, selector: 'h1' })
+  })
+
+  it('preserves an attachment deleted during admission for runtime failure', async () => {
+    const source = store.createFrame(canvasId, { name: 'Source' }, 'kevin')!
+    const checkedIds = [source.id]
+    await Promise.resolve().then(() => store.deleteFrame(source.id))
+    const card = actions.addQueuedCard(canvasId, 'design', 'kevin', undefined, checkedIds)!
+    expect(card.attachments).toEqual([source.id])
   })
 })

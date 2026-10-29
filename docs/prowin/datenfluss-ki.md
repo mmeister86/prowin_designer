@@ -4,9 +4,9 @@ TASK-21 · entschieden am 25.10.2026 · Verantwortlicher: Matthias Meister
 
 ## Entscheidung
 
-**Option A: Platzhalter.** E-Mail-Adressen, Telefonnummern und IBANs verlassen den
-Server nicht im Klartext Richtung Requesty; nur diese drei Formen deckt das
-Verfahren ab (Namen und Postadressen nicht, siehe unten). `server/prowin/redact.ts`
+**Option A: Platzhalter für erkannte Textdaten.** Erkannte E-Mail-Adressen,
+Telefonnummern und IBANs in Text werden vor dem Versand Richtung Requesty ersetzt;
+nur diese drei Textformen deckt das Verfahren ab (Namen und Postadressen nicht, siehe unten). `server/prowin/redact.ts`
 ersetzt sie vor jedem Request. Zwei Betriebsarten:
 
 - **Einweg** (`redactPii`): Freitexte, Kommentare, Guidelines, Distiller. Treffer
@@ -21,6 +21,8 @@ ersetzt sie vor jedem Request. Zwei Betriebsarten:
 Der UI-Hinweis bleibt trotzdem nötig, weil Designs, Screenshots und Freitexte
 weiterhin an ein Modell gehen (Art. 13 DSGVO). Er erscheint einmalig im
 Onboarding (`src/components/Onboarding.tsx`, LocalStorage `doop:onboarding`).
+Bei einem Referenzentwurf erscheint zusätzlich im Composer ein wiederholter
+Hinweis, auch wenn das Onboarding bereits geschlossen wurde.
 
 ## Datenfluss je Kategorie
 
@@ -38,6 +40,39 @@ Kopie Richtung Modell. Zurücksetzen passiert in `create_frame`,
 `set_frame_html`, `edit_frame_html` (auf `find` **und** `replace`) und
 `commit_frame_rewrite` (beim Commit des Drafts). Schreibt der Agent Tokens, die
 er nicht von uns hat, bleiben sie unverändert.
+
+## Auftragsbezogene visuelle Referenzen
+
+Bilder auf der Arbeitsfläche werden als normale HTML-Frames mit einem Bildasset
+importiert. Erst „Auswahl als Referenz“ oder „Als Referenz verwenden“ ordnet
+bestehende Frames dem nächsten Auftrag zu. Bis zu vier Referenzen sind möglich,
+bestehende Frames und neue Dateianhänge gemeinsam. Der Entwurf bleibt pro Canvas
+nur im Client-Speicher erhalten, auch beim Panel- oder Tabwechsel; er wird weder
+in LocalStorage noch in Datenbank oder WebSocket gespeichert.
+
+Nach erfolgreichem Queueing wird der Entwurf geleert. Die Karte behält die
+Referenz-IDs in `attachments`; nachfolgende Aufträge erben sie nicht. Die Quellen
+bleiben auf der Arbeitsfläche. Entfernen einer Zuordnung löscht keinen Frame.
+Referenzen sind Live-Verweise, keine eingefrorenen Kopien und keine dauerhaften
+Canvas-Referenzen oder Memory-Pins.
+
+Quelle und Bearbeitungsziel bleiben getrennt: Ein Referenzframe wird nicht
+zugleich zum Bearbeitungsziel desselben Auftrags. Ein anderes ausgewähltes Ziel
+kann weiterhin bearbeitet werden; ohne anderes Ziel soll ein separates Design
+entstehen. Die Agent-Anweisung verlangt unveränderte Quellen, schafft aber keine
+neue technische Schreibsperre.
+
+Der Server-Agent liest Referenzframes über die vorhandenen Tools und sendet ihre
+Screenshots über den bestehenden Vision-Pfad an Requesty (EU). **Bildpixel bleiben
+unverändert.** Gedruckte Telefonnummern, E-Mail-Adressen oder andere
+personenbezogene Angaben können deshalb im Screenshot beim Modell ankommen.
+HTML-Redaktion und EU-Region entfernen diese Angaben nicht. Es gibt keine OCR
+oder automatische Unkenntlichmachung. Nur Bilder verwenden, die für diesen Zweck
+freigegeben sind; die Modellleistung ist keine Zusage pixelgenauer Rekonstruktion.
+
+Der Composer zeigt bei vorhandenen Referenzen:
+
+> Referenzbilder werden vom KI-Agenten visuell ausgewertet; beim Server-Agenten über Requesty (EU). Kontaktdaten im Bild werden nicht automatisch entfernt. Lade nur Bilder hoch, die Du dafür verwenden darfst.
 
 ## Ausnahme: MCP und Local Agent
 

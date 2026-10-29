@@ -1,5 +1,5 @@
 import { useCanvasCapabilities } from '../prowin/canvasPermissions'
-import { useState, type MutableRefObject } from 'react'
+import { useRef, useState, type MutableRefObject } from 'react'
 import type { Frame } from '../../shared/types'
 import { errorMessage } from '../lib/api'
 import { copyFrames, duplicateFrames, hasFrameClip, pasteFrameAtScreen } from '../lib/frameClipboard'
@@ -28,6 +28,7 @@ async function copyImageUrl(frame: Frame) {
 export function FrameContextMenu({ frame, at }: { frame: Frame; at: MutableRefObject<{ x: number; y: number }> }) {
   const [showExport, setShowExport] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const focusComposerOnClose = useRef(false)
   /* a right-click inside a multi-selection acts on the whole group */
   const groupSize = useStore((s) => (s.selectedIds.includes(frame.id) ? s.selectedIds.length : 1))
   /* Hide/Show reads as one item: the group shows when every frame in it is hidden */
@@ -56,10 +57,30 @@ export function FrameContextMenu({ frame, at }: { frame: Frame; at: MutableRefOb
     <>
       <ContextMenuContent
         onCloseAutoFocus={(event) => {
+          if (focusComposerOnClose.current) {
+            event.preventDefault()
+            focusComposerOnClose.current = false
+            // Wait until Radix has removed its modal focus trap.
+            requestAnimationFrame(() => {
+              const store = useStore.getState()
+              if (store.canvas?.id === frame.canvasId) store.requestComposerFocus()
+            })
+          }
           // The export dialog owns focus once the menu closes.
           if (showExport || historyOpen) event.preventDefault()
         }}
       >
+        <ContextMenuItem
+          onSelect={() => {
+            focusComposerOnClose.current = true
+            useStore.getState().addComposerReferences(
+              frame.canvasId,
+              groupFrames().map((f) => f.id),
+            )
+          }}
+        >
+          Als Referenz verwenden
+        </ContextMenuItem>
         <ContextMenuItem onSelect={() => copyFrames(groupFrames())}>
           {groupSize > 1 ? `${groupSize.toLocaleString('de-DE')} Zeichenflächen kopieren` : 'Kopieren'}
           <MenuHint>{MOD_KEY}C</MenuHint>

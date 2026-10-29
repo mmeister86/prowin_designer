@@ -12,6 +12,12 @@ import type { Canvas } from '../shared/types'
 
 const mocks = vi.hoisted(() => ({
   addCard: vi.fn(() => Promise.resolve({})),
+  upload: vi.fn<(...args: unknown[]) => Promise<import('../src/lib/frameClipboard').ImageFrameUpload[]>>(() =>
+    Promise.resolve([]),
+  ),
+  uploadAsset: vi.fn(),
+  createFrame: vi.fn(),
+  deleteFrame: vi.fn(),
   agentAllowance: vi.fn(() => Promise.resolve({ used: 0, limit: 5, localAgent: false })),
 }))
 vi.mock('../src/lib/api', () => ({
@@ -19,17 +25,22 @@ vi.mock('../src/lib/api', () => ({
   api: {
     addCard: mocks.addCard,
     agentAllowance: mocks.agentAllowance,
+    uploadAsset: mocks.uploadAsset,
+    createFrame: mocks.createFrame,
+    deleteFrame: mocks.deleteFrame,
   },
   ApiError: class ApiError extends Error {},
 }))
 vi.mock('../src/lib/auth', () => ({ authClient: { useSession: () => ({ data: { user: { id: 'alice' } } }) } }))
-vi.mock('../src/lib/frameClipboard', () => ({ uploadImageFrames: () => Promise.resolve([]) }))
+vi.mock('../src/lib/frameClipboard', () => ({ uploadImageFrames: mocks.upload, hasFrameClip: () => false }))
 vi.mock('../src/components/ChatPanel', () => ({ ChatPanel: () => null }))
 vi.mock('../src/components/MemoryPanel', () => ({ MemoryPanel: () => null }))
 
 const { useStore } = await import('../src/lib/store')
 const { ActivityPanel } = await import('../src/components/ActivityPanel')
 const { TooltipProvider } = await import('../src/components/ui/tooltip')
+const { ContextMenu, ContextMenuTrigger } = await import('../src/components/ui/context-menu')
+const { FrameContextMenu } = await import('../src/components/FrameContextMenu')
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -38,13 +49,21 @@ const canvas = { id: 'c1', name: 'Canvas', frames: [], pages: [] } as unknown as
 let container: HTMLDivElement
 let root: Root
 
-async function render() {
+async function render(menuFrame?: Canvas['frames'][number]) {
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
   await act(async () =>
     root.render(
       <TooltipProvider>
+        {menuFrame && (
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <button data-frame-menu>Zeichenflächenmenü</button>
+            </ContextMenuTrigger>
+            <FrameContextMenu frame={menuFrame} at={{ current: { x: 0, y: 0 } }} />
+          </ContextMenu>
+        )}
         <ActivityPanel canvasId="c1" onClose={() => {}} />
       </TooltipProvider>,
     ),
@@ -79,10 +98,14 @@ beforeEach(() => {
     panelTab: 'tasks',
     composerFocusAt: 0,
     composerDrafts: {},
+    composerAttachments: {},
     composerSend: null,
     flyTo: null,
     selectedId: null,
+    selectedIds: [],
     selectedElement: null,
+    activePageId: 'c1:page1',
+    viewport: { x: 0, y: 0, zoom: 1 },
   })
 })
 
@@ -95,6 +118,340 @@ afterEach(() => {
 })
 
 describe('the Agents tab composer', () => {
+  it('keeps composer focus after the reference context menu closes', async () => {
+    const source = frameOn('c1', 'source')
+    useStore.setState({ canvas: { ...canvas, frames: [source] } })
+    await render(source)
+    const trigger = container.querySelector<HTMLButtonElement>('[data-frame-menu]')!
+    trigger.focus()
+    await act(async () => {
+      trigger.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))
+    })
+    const item = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find(
+      (node) => node.textContent === 'Als Referenz verwenden',
+    )!
+    expect(item).toBeTruthy()
+    await act(async () => item.click())
+    await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+    expect(useStore.getState().composerAttachments.c1).toEqual([{ kind: 'frame', frameId: source.id }])
+    await act(async () => vi.waitFor(() => expect(document.activeElement).toBe(composer()), { timeout: 200 }))
+  })
+
+  it('adds the selected group through the visible composer button and suppresses source element scope', async () => {
+    useStore.setState({ canvas: { ...canvas, frames: [frameOn('c1', 'a'), frameOn('c1', 'b')] } })
+    useStore.setState({ selectedIds: ['b', 'a'], selectedId: 'a', selectedElement: { frameId: 'a', selector: 'p' } })
+    await render()
+    await act(async () =>
+      Array.from(container.querySelectorAll('button'))
+        .find((b) => b.textContent === 'Auswahl als Referenz')!
+        .click(),
+    )
+    expect(useStore.getState().composerAttachments.c1).toEqual([
+      { kind: 'frame', frameId: 'b' },
+      { kind: 'frame', frameId: 'a' },
+    ])
+    expect(container.textContent).toContain('Kontaktdaten im Bild werden nicht automatisch entfernt')
+    expect(container.querySelector('button[aria-label="Referenz a entfernen"]')).toBeTruthy()
+    await type('create something')
+    await press('Enter')
+    expect(mocks.addCard).toHaveBeenCalledWith('c1', 'create something', ['doop'], ['b', 'a'], undefined)
+    expect(useStore.getState().canvas?.frames).toHaveLength(2)
+  })
+
+  it('keeps references across panel switches and blocks a deleted reference until explicitly removed', async () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    useStore.getState().setComposerAttachments('c1', [
+      { kind: 'frame', frameId: 'gone' },
+      { kind: 'file', file: new File(['x'], 'x.png'), preview: 'blob:x' },
+    ])
+    await render()
+    await switchTab('activity')
+    expect(revoke).not.toHaveBeenCalled()
+    await switchTab('tasks')
+    expect(container.textContent).toContain('Quelle fehlt')
+    await type('hello')
+    await press('Enter')
+    expect(mocks.addCard).not.toHaveBeenCalled()
+    expect(mocks.upload).not.toHaveBeenCalled()
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Referenz Quelle fehlt entfernen"]')!.click(),
+    )
+    expect(useStore.getState().composerAttachments.c1).toHaveLength(1)
+    revoke.mockRestore()
+  })
+
+  it('reuses successful reference uploads after partial upload and queue failures', async () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    const one = new File(['1'], 'same.png'),
+      two = new File(['2'], 'same.png')
+    useStore.getState().setComposerAttachments('c1', [
+      { kind: 'file', file: one, preview: 'blob:one' },
+      { kind: 'file', file: two, preview: 'blob:two' },
+    ])
+    mocks.upload.mockImplementationOnce(async () => {
+      useStore.setState({ canvas: { ...canvas, frames: [frameOn('c1', 'first')] } })
+      return [
+        { file: two, error: 'Upload failed' },
+        { file: one, frame: frameOn('c1', 'first') },
+      ]
+    })
+    await render()
+    await type('retry me')
+    await press('Enter')
+    expect(mocks.addCard).not.toHaveBeenCalled()
+    expect(revoke.mock.calls).toEqual([['blob:one']])
+    expect(useStore.getState().composerAttachments.c1?.[0]).toEqual({ kind: 'frame', frameId: 'first' })
+    mocks.upload.mockImplementationOnce(async () => {
+      useStore.setState({ canvas: { ...canvas, frames: [frameOn('c1', 'first'), frameOn('c1', 'second')] } })
+      return [{ file: two, frame: frameOn('c1', 'second') }]
+    })
+    mocks.addCard.mockRejectedValueOnce(new Error('queue failed'))
+    await press('Enter')
+    expect(mocks.upload).toHaveBeenLastCalledWith('c1', [two], 'Angehängtes Bild', {
+      pageId: 'c1:page1',
+      center: { x: 512, y: 384 },
+    })
+    expect(revoke.mock.calls).toEqual([['blob:one'], ['blob:two']])
+    const calls = mocks.upload.mock.calls.length
+    await press('Enter')
+    expect(mocks.upload).toHaveBeenCalledTimes(calls)
+    expect(mocks.addCard).toHaveBeenLastCalledWith('c1', 'retry me', ['doop'], ['first', 'second'], undefined)
+    expect(useStore.getState().composerAttachments.c1).toEqual([])
+    revoke.mockRestore()
+  })
+
+  it('blocks user mutations while uploading but converts internally and preserves a different canvas draft', async () => {
+    const file = new File(['x'], 'x.png')
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    let finish!: (result: import('../src/lib/frameClipboard').ImageFrameUpload[]) => void
+    mocks.upload.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    useStore.setState({ canvas: { ...canvas, frames: [frameOn('c1', 'a')] } })
+    useStore.setState({ flyTo: null })
+    useStore.getState().setComposerAttachments('c1', [{ kind: 'file', file, preview: 'blob:x' }])
+    await render()
+    await type('send')
+    await press('Enter')
+    await act(async () => {
+      useStore.getState().addComposerReferences('c1', ['a'])
+      container.querySelector<HTMLButtonElement>('button[aria-label="Referenz x.png entfernen"]')!.click()
+      const input = container.querySelector<HTMLInputElement>('input[type="file"]')!
+      Object.defineProperty(input, 'files', { value: [new File(['y'], 'y.png')] })
+      input.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    expect(useStore.getState().composerAttachments.c1).toHaveLength(1)
+    await act(async () => {
+      useStore.setState({ canvas: { ...canvas, id: 'c2' }, selectedId: 'other', selectedIds: ['other'] })
+      useStore.getState().setComposerDraft('c2', 'keep')
+      useStore.getState().setComposerAttachments('c2', [{ kind: 'frame', frameId: 'other' }])
+      finish([{ file, frame: frameOn('c1', 'uploaded') }])
+    })
+    expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:x')
+    expect(useStore.getState().composerDrafts.c2).toBe('keep')
+    expect(useStore.getState().composerAttachments.c2).toEqual([{ kind: 'frame', frameId: 'other' }])
+    expect(useStore.getState().selectedId).toBe('other')
+    expect(useStore.getState().flyTo).toBeNull()
+    revoke.mockRestore()
+  })
+
+  it('preserves a different selected element as the exact edit target', async () => {
+    useStore.setState({ canvas: { ...canvas, frames: [frameOn('c1', 'source'), frameOn('c1', 'target')] } })
+    useStore.getState().setComposerAttachments('c1', [{ kind: 'frame', frameId: 'source' }])
+    useStore.setState({ selectedElement: { frameId: 'target', selector: 'p' } })
+    await render()
+    expect(container.textContent).toContain('Bearbeitungsziel:')
+    await type('edit')
+    await press('Enter')
+    expect(mocks.addCard).toHaveBeenCalledWith('c1', 'edit', ['doop'], ['source'], { frameId: 'target', selector: 'p' })
+  })
+
+  it('keeps file previews per canvas through unmount and revokes on explicit removal', async () => {
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    useStore
+      .getState()
+      .setComposerAttachments('c1', [{ kind: 'file', file: new File(['x'], 'draft.png'), preview: 'blob:draft' }])
+    await render()
+    await act(async () => {
+      useStore.setState({ canvas: { ...canvas, id: 'c2' } })
+      root.render(
+        <TooltipProvider>
+          <ActivityPanel canvasId="c2" onClose={() => {}} />
+        </TooltipProvider>,
+      )
+    })
+    expect(container.querySelector('img[alt="Referenz: draft.png"]')).toBeNull()
+    expect(revoke).not.toHaveBeenCalled()
+    await act(async () => {
+      useStore.setState({ canvas })
+      root.render(
+        <TooltipProvider>
+          <ActivityPanel canvasId="c1" onClose={() => {}} />
+        </TooltipProvider>,
+      )
+    })
+    expect(container.querySelector('img[alt="Referenz: draft.png"]')).toBeTruthy()
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('button[aria-label="Referenz draft.png entfernen"]')!.click(),
+    )
+    expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:draft')
+    revoke.mockRestore()
+  })
+
+  it.each(['page', 'canvas'])(
+    'captures the upload destination before allowance confirmation and a %s switch',
+    async (switchTo) => {
+      const { uploadImageFrames } =
+        await vi.importActual<typeof import('../src/lib/frameClipboard')>('../src/lib/frameClipboard')
+      mocks.upload.mockImplementationOnce((...args) =>
+        uploadImageFrames(...(args as Parameters<typeof uploadImageFrames>)),
+      )
+      const first = new File(['one'], 'same.png', { type: 'image/png' })
+      const second = new File(['two'], 'same.png', { type: 'image/png' })
+      const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+      const objectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:decode')
+      vi.stubGlobal(
+        'Image',
+        class {
+          naturalWidth = 100
+          naturalHeight = 100
+          onload?: () => void
+          set src(_: string) {
+            this.onload?.()
+          }
+        },
+      )
+      const exhausted = { used: 5, limit: 5, localAgent: false }
+      let confirm!: (value: typeof exhausted) => void
+      mocks.agentAllowance.mockResolvedValueOnce(exhausted)
+      const original = {
+        ...canvas,
+        pages: [
+          { id: 'p2', name: 'Two' },
+          { id: 'p3', name: 'Three' },
+        ],
+      }
+      useStore.getState().setCanvas(original)
+      useStore.getState().setActivePage('p2')
+      useStore.getState().setViewport({ x: 40, y: 80, zoom: 2 })
+      useStore.getState().setComposerAttachments('c1', [
+        { kind: 'file', file: first, preview: 'blob:first' },
+        { kind: 'file', file: second, preview: 'blob:second' },
+      ])
+      mocks.uploadAsset.mockResolvedValueOnce({ url: '/first' }).mockRejectedValueOnce(new Error('upload failed'))
+      mocks.createFrame.mockImplementation(async (canvasId: string, data: object) => ({
+        ...data,
+        canvasId,
+        id: 'uploaded',
+      }))
+      try {
+        await render()
+        mocks.agentAllowance.mockImplementationOnce(
+          () =>
+            new Promise((resolve) => {
+              confirm = resolve
+            }),
+        )
+        await type('keep and retry')
+        await press('Enter')
+        expect(confirm).toBeDefined()
+        expect(useStore.getState().composerSend).toEqual({ canvasId: 'c1', status: 'busy' })
+        await act(async () => {
+          useStore.getState().addComposerReferences('c1', ['unexpected'])
+          if (switchTo === 'canvas') {
+            useStore.getState().setCanvas({ ...canvas, id: 'c2', frames: [frameOn('c2', 'other')] })
+            useStore.getState().setComposerDraft('c2', 'other draft')
+            useStore.getState().setComposerAttachments('c2', [{ kind: 'frame', frameId: 'other' }])
+          } else useStore.getState().setActivePage('p3')
+          useStore.setState({ selectedId: 'other', selectedIds: ['other'], flyTo: null })
+          useStore.getState().setViewport({ x: 999, y: 888, zoom: 3 })
+        })
+        const otherCanvas = useStore.getState().canvas
+        await act(async () => confirm({ used: 0, limit: 5, localAgent: false }))
+        await act(async () => vi.waitFor(() => expect(useStore.getState().composerSend?.status).toBe('error')))
+        expect(mocks.createFrame).toHaveBeenCalledExactlyOnceWith(
+          'c1',
+          expect.objectContaining({
+            pageId: 'p2',
+            x: 116,
+            y: 102,
+            width: 100,
+            height: 100,
+          }),
+        )
+        expect(mocks.uploadAsset.mock.calls[0]?.[1]).toBe(first)
+        expect(mocks.uploadAsset.mock.calls[1]?.[1]).toBe(second)
+        expect(useStore.getState().composerAttachments.c1?.[0]).toEqual({ kind: 'frame', frameId: 'uploaded' })
+        expect(useStore.getState().composerAttachments.c1?.[1]).toMatchObject({ kind: 'file', preview: 'blob:second' })
+        expect(useStore.getState().composerDrafts.c1).toBe('keep and retry')
+        expect(revoke.mock.calls.filter(([url]) => url === 'blob:first')).toHaveLength(1)
+        expect(revoke.mock.calls.filter(([url]) => url === 'blob:second')).toHaveLength(0)
+        expect(mocks.addCard).not.toHaveBeenCalled()
+        expect(useStore.getState().selectedIds).toEqual(['other'])
+        expect(useStore.getState().viewport).toEqual({ x: 999, y: 888, zoom: 3 })
+        expect(useStore.getState().flyTo).toBeNull()
+        if (switchTo === 'canvas') {
+          expect(useStore.getState().canvas).toBe(otherCanvas)
+          expect(useStore.getState().composerDrafts.c2).toBe('other draft')
+          expect(useStore.getState().composerAttachments.c2).toEqual([{ kind: 'frame', frameId: 'other' }])
+        }
+        await act(async () => useStore.getState().setCanvas({ ...original, frames: [frameOn('c1', 'uploaded')] }))
+        mocks.upload.mockImplementationOnce((...args) =>
+          uploadImageFrames(...(args as Parameters<typeof uploadImageFrames>)),
+        )
+        mocks.uploadAsset.mockResolvedValueOnce({ url: '/second' })
+        mocks.createFrame.mockImplementationOnce(async (canvasId: string, data: object) => ({
+          ...data,
+          canvasId,
+          id: 'retried',
+        }))
+        await press('Enter')
+        expect(mocks.uploadAsset).toHaveBeenCalledTimes(3)
+        expect(mocks.uploadAsset.mock.calls[2]?.[1]).toBe(second)
+        expect(mocks.addCard).toHaveBeenCalledExactlyOnceWith(
+          'c1',
+          'keep and retry',
+          ['doop'],
+          ['uploaded', 'retried'],
+          undefined,
+        )
+        expect(useStore.getState().composerAttachments.c1).toEqual([])
+        expect(revoke.mock.calls.filter(([url]) => url === 'blob:second')).toHaveLength(1)
+      } finally {
+        revoke.mockRestore()
+        objectUrl.mockRestore()
+        vi.unstubAllGlobals()
+      }
+    },
+  )
+
+  it('keeps the send locked throughout a delayed allowance confirmation', async () => {
+    const exhausted = { used: 5, limit: 5, localAgent: false }
+    let confirm!: (value: typeof exhausted) => void
+    mocks.agentAllowance.mockResolvedValueOnce(exhausted)
+    await render()
+    mocks.agentAllowance.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          confirm = resolve
+        }),
+    )
+    await type('check allowance')
+    await press('Enter')
+    expect(useStore.getState().composerSend).toEqual({ canvasId: 'c1', status: 'busy' })
+    await act(async () => useStore.getState().addComposerReferences('c1', ['anything']))
+    expect(useStore.getState().composerAttachments.c1).toBeUndefined()
+    await act(async () => confirm(exhausted))
+    expect(mocks.upload).not.toHaveBeenCalled()
+    expect(mocks.addCard).not.toHaveBeenCalled()
+    expect(useStore.getState().composerDrafts.c1).toBe('check allowance')
+    expect(useStore.getState().composerSend).toBeNull()
+    useStore.setState({ limitWall: false })
+  })
   it('is docked in the tasks tab with its send button', async () => {
     await render()
     const send = Array.from(container.querySelectorAll('button')).find((b) => b.getAttribute('aria-label') === 'Senden')

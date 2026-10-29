@@ -9,6 +9,11 @@ import { frameSrcDoc } from './framePolicy'
 export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
 <html><head></head><body><script data-v-boot>
 (function () {
+  function preventFileNavigation(event) {
+    if (event.dataTransfer && Array.from(event.dataTransfer.types).includes('Files')) event.preventDefault()
+  }
+  document.addEventListener('dragover', preventFileNavigation, true)
+  document.addEventListener('drop', preventFileNavigation, true)
   /* horizontal overscroll inside a frame must not chain to the parent page,
      where the browser turns it into a history back/forward swipe. Adopted
      sheet, not a <style> tag — the morph would wipe a tag from <head>. */

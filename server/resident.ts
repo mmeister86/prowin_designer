@@ -234,8 +234,8 @@ function completeHtml(value: unknown): string | undefined {
 const REDESIGN_RE =
   /\b(redesign|re-?style|same style|match (?:the )?(?:style|design)|copy (?:the )?(?:style|design)|design of)\b/i
 
-function strategyFor(text: string, frames: NonNullable<ReturnType<typeof store.getCanvas>>['frames']): string {
-  const isRedesign = REDESIGN_RE.test(text)
+function strategyFor(text: string, frames: Frame[], hasVisualReferences = false): string {
+  const isRedesign = !hasVisualReferences && REDESIGN_RE.test(text)
   const redesignNote = isRedesign
     ? ' For the redesign itself, work audit-first and deliver TWO drafts:' +
       ' (1) Audit the source — inspect_frame on a source frame for its computed palette, type, spacing, radii and shadows, plus a screenshot for layout.' +
@@ -329,6 +329,19 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
   let claimed = actions.takeFeedbackFor(canvasId, role.name, payer)
   let comments = actions.takeAgentCommentsFor(canvasId, role.name, payer)
   let allCards = actions.takeQueuedCardsFor(canvasId, role.name, payer)
+  function validateReferences(card: AgentTask): boolean {
+    const refs = actions.normalizeCardReferences(card.attachments)
+    let reason: string | undefined
+    if (!refs || refs.some((id) => store.getFrame(id)?.canvasId !== canvasId)) {
+      reason = 'Eine Referenz ist nicht mehr verfügbar. Erstelle den Auftrag mit verfügbaren Referenzen neu.'
+    } else if (refs.length > 0 && model!.vision === false) {
+      reason = 'Das konfigurierte KI-Modell kann keine Bildreferenzen auswerten. Wende Dich an die Administration.'
+    }
+    if (!reason) return true
+    actions.failCard(canvasId, card.id, reason)
+    return false
+  }
+  allCards = allCards.filter(validateReferences)
   if (model.provider !== 'claude-local') {
     const userId = payer || canvasOwner
     // Flush ordered snapshots before the admission transaction locks each row.
@@ -362,6 +375,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     }
     const admittedCards = []
     for (const item of allCards) {
+      if (!validateReferences(item)) continue
       if (
         await prepareServerWork(
           userId,
@@ -378,6 +392,8 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     comments = admittedComments
     allCards = admittedCards
   }
+  // Admission awaits may outlive a source; never silently run without it.
+  allCards = allCards.filter(validateReferences)
   if (claimed.length === 0 && comments.length === 0 && allCards.length === 0) {
     /* nothing actually claimable for this payer — do not re-pick them */
     stalled.add(payer)
@@ -466,8 +482,12 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
               const refs =
                 attached.length > 0
                   ? `\n  Attached reference images, already on the canvas as frames: ${attached.join(', ')}. ` +
-                    `Call screenshot_frame on each BEFORE designing and build from what you see. ` +
-                    `They are source material — leave them as they are and deliver in a separate frame.`
+                    `These references belong only to this card and provide visual orientation, not pixel-perfect reconstruction or permission to copy old prices or claims. ` +
+                    `Call screenshot_frame on each BEFORE designing. They are sources — leave them unchanged. ` +
+                    `Brand rules take precedence; do not automatically save these references as guidelines or memory pins. ` +
+                    (c.scope
+                      ? `Use the distinct edit target described above for the result.`
+                      : `Create the result separately — deliver in a separate frame.`)
                   : ''
               const scoped = redactPii(describeScope(c.scope))
               return `- from ${c.queuedBy}: "${redactPii(c.status)}"${route}${scoped}${refs}`
@@ -517,7 +537,11 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
       sections.join('\n\n') +
       `\n\nFrames currently on the canvas:\n${frameList}` +
       referenceList +
-      `\n\nExecution strategy selected by the harness:\n${strategyFor(workText, visibleFrames)}` +
+      `\n\nExecution strategy selected by the harness:\n${strategyFor(
+        workText,
+        visibleFrames,
+        cards.some((card) => (card.attachments?.length ?? 0) > 0),
+      )}` +
       `\n\nAddress everything above now.` +
       (comments.length > 0
         ? ` For element comments, use the selector and HTML excerpt to find the exact element in the frame's HTML — the live document may have drifted since the comment was left, so match on content, not position. A canvas comment is about the frames around its point, not about one element.`

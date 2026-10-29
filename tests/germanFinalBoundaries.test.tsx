@@ -5,6 +5,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { Webhooks } from '../src/components/Webhooks'
 import { api, errorMessage } from '../src/lib/api'
 import { uploadImageFrames, pasteImagesCentered } from '../src/lib/frameClipboard'
+import { useStore } from '../src/lib/store'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 afterEach(() => {
@@ -91,14 +92,12 @@ it.each([
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
     const file = new File(['test'], 'My English image.png', { type: 'image/png' })
-    for (const upload of [
-      () => api.uploadAsset('c', file),
-      () => uploadImageFrames('c', [file]),
-      () => pasteImagesCentered('c', [file]),
-    ]) {
-      const error = await upload().catch((error: unknown) => error)
-      expect(errorMessage(error, 'Deine Anfrage konnte nicht gesendet werden. Versuche es erneut.')).toBe(want)
-    }
+    const error = await api.uploadAsset('c', file).catch((error: unknown) => error)
+    expect(errorMessage(error, 'Deine Anfrage konnte nicht gesendet werden. Versuche es erneut.')).toBe(want)
+    expect(await uploadImageFrames('c', [file])).toEqual([{ file, error: want }])
+    const notice = vi.spyOn(useStore.getState(), 'pushNotice')
+    await pasteImagesCentered('c', [file])
+    expect(notice).toHaveBeenCalledWith(want)
   },
 )
 

@@ -31,6 +31,31 @@ describe('proWIN core font assets', () => {
       expect(license).toContain('SIL OPEN FONT LICENSE')
     }
   })
+
+  it('ships the user-supplied LT Kai WOFF2 next to its OFL license', () => {
+    const bytes = readFileSync(path.join(ROOT, 'public', 'fonts', 'lt-kai-latin-400-normal.woff2'))
+    expect(bytes.subarray(0, 4).toString('ascii')).toBe('wOF2')
+    expect(readFileSync(path.join(ROOT, 'public', 'fonts', 'lt-kai-LICENSE'), 'utf8')).toContain(
+      'SIL OPEN FONT LICENSE',
+    )
+  })
+
+  it('ships the Kaushan Script placeholder with byte-identical Fontsource files', () => {
+    for (const subset of ['latin', 'latin-ext']) {
+      const file = `kaushan-script-${subset}-400-normal.woff2`
+      const publicBytes = readFileSync(path.join(ROOT, 'public', 'fonts', file))
+      expect(publicBytes.subarray(0, 4).toString('ascii'), file).toBe('wOF2')
+      expect(
+        publicBytes.equals(
+          readFileSync(path.join(ROOT, 'node_modules', '@fontsource', 'kaushan-script', 'files', file)),
+        ),
+        file,
+      ).toBe(true)
+    }
+    expect(readFileSync(path.join(ROOT, 'public', 'fonts', 'kaushan-script-LICENSE'), 'utf8')).toContain(
+      'SIL OPEN FONT LICENSE',
+    )
+  })
 })
 
 describe('proWIN font delivery', () => {

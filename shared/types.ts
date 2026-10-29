@@ -344,7 +344,7 @@ export interface AgentTask {
   /** board cards: ordered agent-role ids the card walks through, one at a time.
    *  Absent on status tasks and on cards queued before pipelines existed. */
   pipeline?: string[]
-  /** board cards: ids of reference image frames uploaded with the prompt */
+  /** board cards: live frame IDs for visual references belonging to this request, separate from its edit scope */
   attachments?: string[]
   /** index into pipeline of the stage that is queued or running right now */
   stage?: number

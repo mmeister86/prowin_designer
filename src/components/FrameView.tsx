@@ -164,6 +164,9 @@ interface HoverHit {
 export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame: Frame; layoutZoom: number }) {
   const drawingMove = useDrawingMove(frame, layoutZoom)
   const labelLayer = useContext(FrameLabelLayer)
+  const isReference = useStore((s) =>
+    (s.composerAttachments[frame.canvasId] ?? []).some((a) => a.kind === 'frame' && a.frameId === frame.id),
+  )
   const [pathEdit, setPathEdit] = useState<PathEditSource | null>(null)
   const editRequest = useRef(0)
   const closePathEdit = useCallback(() => {
@@ -950,6 +953,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                   </Tooltip>
                 )}
                 <span className="overflow-hidden text-ellipsis">{frame.name}</span>
+                {isReference && <span className="text-[10px]">Referenz</span>}
                 <span className="flex gap-1">
                   {stream && (
                     <span className={EDITOR_CHIP} style={{ background: stream.color }}>

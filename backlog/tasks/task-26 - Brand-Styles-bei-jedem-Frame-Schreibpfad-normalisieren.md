@@ -1,10 +1,10 @@
 ---
 id: TASK-26
 title: Brand-Styles bei jedem Frame-Schreibpfad normalisieren
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-10-28T12:35:00Z'
+updated_date: '2026-10-28T13:08:00Z'
 labels:
   - prowin
   - implementation
@@ -64,4 +64,16 @@ Quellen: Umsetzung § 8.3
 2026-10-28 Integration: TASK-26 als Commit c8d945b gesichert. TASK-25 (00deb31) wird vollständig in denselben Integrationsstand übernommen. Zwei Add/Add-Konflikte in den Fonttests zugunsten der neueren TASK-26-Version mit isolierten Caches aufgelöst; keine offenen Merge-Konflikte. Gezielte Integrationsprüfung vor Übernahme nach main läuft. Status bleibt In Progress.
 
 2026-10-28 Merge-Verifikation: 14 Dateien/110 gezielte Tests grün; Typecheck, Lint und Build grün. Dieser geprüfte Stand wird auf ausdrücklichen Nutzerwunsch nach main übernommen. Bekannte Parallelitätsprobleme der Gesamtsuite bleiben unter TASK-73 dokumentiert; keine erneute vollständige Suite und keine automatische Abnahme.
+
+2026-10-28 Abschluss nach TASK-25-Abschluss auf ausdrücklichen Nutzerwunsch:
+- Der kanonische Brand-Block enthält jetzt 15 Fontfaces statt 12: zusätzlich LT Kai 400 (Latin) und Kaushan Script 400 (Latin/Latin-Ext). Die 13 CI-Tokens bleiben unverändert.
+- Kaushan Script ist der dokumentierte Platzhalter für die Brush-Rolle; die echte LumiosBrush-Lizenz läuft in TASK-74. Kein Face trägt einen fremden Markennamen.
+- Erneut verifiziert in diesem Stand: tests/prowinFrameBrand.test.ts und tests/prowinFonts.test.ts 17/17 grün, tests/prowinFontsBrowser.test.ts 2/2 grün, bun run build grün (dist/fonts enthält lt-kai-* und kaushan-script-*), typecheck und oxlint sauber.
+- Die Migrationslogik ist von der Fontanzahl unabhängig; sie schreibt den Block bei Inhaltsänderung neu. Bestehende Frames erhalten die neuen Faces beim nächsten Schreib- oder Boot-Migrationslauf.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Zentrale, byte-erhaltende Brand-Normalisierung an allen Frame-Schreibpfaden: Create, Update, Canvas- und Seitenkopie, Restore und Streaming normalisieren auf genau einen style-Block data-od-brand mit 13 CI-Tokens und 15 Fontfaces (Sofia Sans, Sofia Sans Condensed, Roboto, LT Kai, Kaushan Script als Platzhalter für die LumiosBrush-Rolle). Boot-Migration in Batches vor der Hydration, externe Font-Links und -Imports werden entfernt. LumiosBrush-Lizenz offen in TASK-74; Apple-Simulatorabnahme der Blitz-URL-Lösung bleibt manuell.
+<!-- SECTION:FINAL_SUMMARY:END -->

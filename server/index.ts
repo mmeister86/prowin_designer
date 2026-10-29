@@ -1347,6 +1347,10 @@ app.post('/api/canvases/:id/cards', async (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
   const title = String(req.body?.title ?? '').trim()
   if (!title) return res.status(400).json({ error: 'Bitte gib einen Titel ein.' })
+  const refs = actions.normalizeCardReferences(req.body?.attachments)
+  if (!refs || refs.some((id) => store.getFrame(id)?.canvasId !== req.params.id)) {
+    return res.status(400).json({ error: 'Bitte verwende höchstens vier verfügbare Referenzen dieser Arbeitsfläche.' })
+  }
   const gate = await allowance.consumeResidentTask(req.user!.id)
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })
@@ -1356,7 +1360,7 @@ app.post('/api/canvases/:id/cards', async (req, res) => {
     title,
     req.user!.name,
     req.body?.agents,
-    req.body?.attachments,
+    refs,
     req.user!.id,
     req.body?.scope,
     !gate.localAgent,
@@ -1374,6 +1378,14 @@ app.post('/api/canvases/:canvasId/cards/:id/done', (req, res) => {
 
 app.post('/api/canvases/:canvasId/cards/:id/retry', async (req, res) => {
   if (!requireCanvas(req, res, req.params.canvasId)) return
+  const existing = actions.getTasks(req.params.canvasId).find((task) => task.id === req.params.id && task.queuedBy)
+  if (!existing) return res.status(404).json({ error: 'Aufgabenkarte nicht gefunden' })
+  const refs = actions.normalizeCardReferences(existing.attachments)
+  if (!refs || refs.some((id) => store.getFrame(id)?.canvasId !== req.params.canvasId)) {
+    return res.status(400).json({
+      error: 'Eine Referenz ist nicht mehr verfügbar. Erstelle den Auftrag mit verfügbaren Referenzen neu.',
+    })
+  }
   const gate = await allowance.consumeResidentTask(req.user!.id)
   if (!gate.ok) {
     return res.status(403).json({ error: 'resident_limit', used: gate.used, limit: gate.limit })

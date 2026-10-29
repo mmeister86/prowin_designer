@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import WebSocket from 'ws'
+import sharp from 'sharp'
 import { Client, startServer, type Server } from './harness.ts'
 import { createEgressDirectory } from './egressJournal.ts'
 import { findBrowserPath } from '../server/screenshot.ts'
@@ -16,6 +17,7 @@ const decisions = new Map<string, DesignDecision>()
 const proposals = new Map<string, MemoryProposal>()
 const directory = createEgressDirectory()
 const journal = join(directory, 'requests.jsonl')
+const referenceScreenshot = join(directory, 'reference-screenshot.png')
 
 beforeAll(async () => {
   writeFileSync(journal, '')
@@ -29,6 +31,7 @@ beforeAll(async () => {
     SMTP_HOST: '',
     CHROME_NO_SANDBOX: 'true',
     PROWIN_TEST_EGRESS_JOURNAL: journal,
+    PROWIN_TEST_REFERENCE_SCREENSHOT: referenceScreenshot,
     NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${new URL('./fixtures/requesty-router.mjs', import.meta.url).href}`,
   })
   owner = await new Client(server).signUp('requesty-resident@test.dev', 'Requesty Tester')
@@ -69,14 +72,61 @@ afterAll(async () => {
 
 it('completes a real resident card with EU-only screenshot, summary and pending rule proposal', async () => {
   expect(findBrowserPath(), 'The M2 smoke requires Chrome/Chromium; set CHROME_PATH').not.toBeNull()
-  const res = await owner.post(`/api/canvases/${canvas.id}/cards`, { title: 'Create an EU integration frame' })
+  const pixels = Buffer.alloc(64 * 32 * 3)
+  for (let y = 0; y < 32; y++) {
+    for (let x = 0; x < 64; x++) {
+      const offset = (y * 64 + x) * 3
+      pixels[offset] = x < 32 ? 255 : 0
+      pixels[offset + 1] = x < 32 ? 0 : 255
+      pixels[offset + 2] = x < 32 ? 255 : 0
+    }
+  }
+  const png = await sharp(pixels, { raw: { width: 64, height: 32, channels: 3 } })
+    .png()
+    .toBuffer()
+  const upload = await owner.req(`/api/canvases/${canvas.id}/assets`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/png' },
+    body: new Uint8Array(png),
+  })
+  expect(upload.status).toBe(200)
+  const asset = await upload.json()
+  const frameResponse = await owner.post(`/api/canvases/${canvas.id}/frames`, {
+    name: 'Requesty reference fixture',
+    width: 64,
+    height: 32,
+    html: `<!doctype html><html><head><style>html,body{margin:0;padding:0;width:64px;height:32px;overflow:hidden}img{display:block;width:64px;height:32px;border:0}</style></head><body><img src="${asset.url}"></body></html>`,
+  })
+  expect(frameResponse.status).toBe(200)
+  const source = await frameResponse.json()
+  const res = await owner.post(`/api/canvases/${canvas.id}/cards`, {
+    title: 'Create an EU integration frame',
+    attachments: [source.id],
+  })
   expect(res.status).toBe(200)
   const card: AgentTask = await res.json()
   await vi.waitFor(() => expect(tasks.get(card.id)?.endedAt).toBeTypeOf('number'), { timeout: 20_000 })
   expect(tasks.get(card.id)?.failedAt).toBeUndefined()
   const updated: Canvas = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
-  expect(updated.frames).toHaveLength(1)
-  expect(updated.frames[0]?.html).toContain('EU integration')
+  expect(updated.frames).toHaveLength(2)
+  expect(updated.frames.find((frame) => frame.id === source.id)).toEqual(source)
+  expect(updated.frames.find((frame) => frame.id !== source.id)?.html).toContain('EU integration')
+  // This is the image_url immediately following the source screenshot result,
+  // captured at the deterministic EU router boundary, not the result screenshot.
+  const { data, info } = await sharp(readFileSync(referenceScreenshot))
+    .removeAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  expect([info.width, info.height, info.channels]).toEqual([64, 32, 3])
+  for (const [x, expected] of [
+    [16, [255, 0, 255]],
+    [48, [0, 255, 0]],
+  ] as const) {
+    const offset = (16 * info.width + x) * info.channels
+    for (let channel = 0; channel < 3; channel++) {
+      expect(Math.abs(data[offset + channel]! - expected[channel]!)).toBeLessThanOrEqual(5)
+    }
+  }
   await vi.waitFor(() => {
     expect([...decisions.values()]).toMatchObject([{ summary: 'Prefer blue accents' }])
     expect([...proposals.values()]).toMatchObject([{ status: 'pending', rule: '- Use blue accents' }])
@@ -85,8 +135,8 @@ it('completes a real resident card with EU-only screenshot, summary and pending 
     .trim()
     .split('\n')
     .map((line) => JSON.parse(line))
-  // Four layout turns plus the two Distiller calls must pass the same boundary.
-  expect(entries).toHaveLength(6)
+  // Five layout turns plus the two Distiller calls pass the same boundary.
+  expect(entries).toHaveLength(7)
   expect(entries.every((entry) => entry.allowed && entry.pathname === '/v1/chat/completions')).toBe(true)
 }, 25_000)
 

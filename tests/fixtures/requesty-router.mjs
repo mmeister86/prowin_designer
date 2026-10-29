@@ -2,6 +2,8 @@
 // loop; replace the paid upstream boundary with deterministic EU responses.
 import { installAiEgress } from './ai-egress.mjs'
 import process from 'node:process'
+import { writeFileSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
 
 const originalFetch = globalThis.fetch
 const routerFetch = async (url, init) => {
@@ -41,12 +43,12 @@ const routerFetch = async (url, init) => {
       model: 'bedrock/claude-sonnet-5-5@eu-central-1',
       choices: [{ finish_reason, message }],
     })
-  const call = (name, input) =>
+  const call = (name, input, id = `call-${name}`) =>
     result({
       content: null,
       tool_calls: [
         {
-          id: `call-${name}`,
+          id,
           type: 'function',
           function: { name, arguments: JSON.stringify(input) },
         },
@@ -63,7 +65,28 @@ const routerFetch = async (url, init) => {
   }
   if (body.model !== 'policy/prowin-layout-gen') throw new Error('Incorrect Requesty layout policy')
   const tools = body.messages.filter((message) => message.role === 'tool')
-  if (!tools.length)
+  // Only this fixture marker opts into reference reading. Shared consumers
+  // without it keep the existing create -> screenshot -> decision flow.
+  const kickoff = body.messages.find(
+    (message) => typeof message.content === 'string' && message.content.includes('Requesty reference fixture'),
+  )?.content
+  const referenceId = kickoff?.match(/id=([^,\s]+), name="Requesty reference fixture"/)?.[1]
+  if (referenceId) {
+    const sourceIndex = body.messages.findIndex(
+      (message) => message.role === 'tool' && message.tool_call_id === 'call-reference-screenshot',
+    )
+    if (sourceIndex < 0) return call('screenshot_frame', { frame_id: referenceId }, 'call-reference-screenshot')
+    const following = body.messages[sourceIndex + 1]
+    const image =
+      following?.role === 'user' && Array.isArray(following.content)
+        ? following.content.find((part) => part.type === 'image_url')
+        : undefined
+    const encoded = image?.image_url.url.match(/^data:image\/png;base64,(.+)$/)?.[1]
+    if (!encoded) throw new Error('Reference screenshot did not reach Requesty immediately after its tool result')
+    if (!process.env.PROWIN_TEST_REFERENCE_SCREENSHOT) throw new Error('Missing reference screenshot capture path')
+    writeFileSync(process.env.PROWIN_TEST_REFERENCE_SCREENSHOT, Buffer.from(encoded, 'base64'))
+  }
+  if (!tools.some((message) => message.tool_call_id === 'call-create_frame'))
     return call('create_frame', {
       name: 'Requesty integration frame',
       width: 320,
@@ -73,11 +96,19 @@ const routerFetch = async (url, init) => {
   const created = tools.find((message) => message.tool_call_id === 'call-create_frame')
   const frameId = created?.content.match(/created frame (\S+)/)?.[1]
   if (!frameId) throw new Error('Resident did not create the requested frame')
-  if (!tools.some((message) => message.tool_call_id === 'call-screenshot_frame')) {
-    return call('screenshot_frame', { frame_id: frameId })
+  const resultScreenshotId = referenceId ? 'call-result-screenshot' : 'call-screenshot_frame'
+  if (!tools.some((message) => message.tool_call_id === resultScreenshotId)) {
+    return call('screenshot_frame', { frame_id: frameId }, resultScreenshotId)
   }
-  const images = body.messages.flatMap((message) => (Array.isArray(message.content) ? message.content : []))
-  if (!images.some((part) => part.type === 'image_url' && part.image_url.url.startsWith('data:image/png;base64,'))) {
+  const resultIndex = body.messages.findIndex(
+    (message) => message.role === 'tool' && message.tool_call_id === resultScreenshotId,
+  )
+  const followingResult = body.messages[resultIndex + 1]
+  const resultImages =
+    followingResult?.role === 'user' && Array.isArray(followingResult.content) ? followingResult.content : []
+  if (
+    !resultImages.some((part) => part.type === 'image_url' && part.image_url.url.startsWith('data:image/png;base64,'))
+  ) {
     throw new Error('Resident screenshot did not reach Requesty as an image')
   }
   if (!tools.some((message) => message.tool_call_id === 'call-save_decision')) {

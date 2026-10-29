@@ -15,7 +15,7 @@ describe('frame brand normalization', () => {
       expect(normalizeFrameHtml(result, origin)).toBe(result)
       expect(result).toContain('--prowin-ci-hellblau:#19b4e9')
       expect(result).toContain(`${origin}/fonts/sofia-sans-latin-300-normal.woff2`)
-      expect(result.match(/@font-face/g)).toHaveLength(12)
+      expect(result.match(/@font-face/g)).toHaveLength(15)
     },
   )
 
@@ -28,7 +28,7 @@ describe('frame brand normalization', () => {
     for (const [, file] of css.matchAll(/\/fonts\/([^']+)/g)) {
       expect(readFileSync(`public/fonts/${file}`).subarray(0, 4).toString()).toBe('wOF2')
     }
-    expect(css).not.toMatch(/Lumios|LTKai/)
+    expect(css).not.toMatch(/Lumios/)
   })
 
   it('replaces all old blocks and removes font links and imports, preserving unrelated HTML', () => {

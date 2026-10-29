@@ -98,14 +98,14 @@ Keine Schatten-, Radius-, Abstands- oder Preisrot-Tokens aus dieser Stichprobe a
 
 ## 4. Typografie: Medium bewusst zuordnen
 
-| Status       | Familie / Schnitte                                 | Einsatz und Grenze                                                                   |
-| ------------ | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| 1 · CI S. 13 | Sofia Sans; gezeigt: Light, Medium, Condensed Bold | Print: Headlines, Auszeichnungen und Mengentexte                                     |
-| 1 · CI S. 13 | Roboto; gezeigt: Light, Medium, Black              | Webauftritt: Headlines und Mengentexte                                               |
-| 1 · CI S. 14 | Arial/Helvetica                                    | Genannte Sofia-Sans-Ersatzschriften, nicht bevorzugter neuer Markenstil              |
-| 1 · CI S. 14 | Times New Roman/Times                              | Genannte Serifenschriftalternativen; keine eindeutig benannte primäre Serifenschrift |
-| 2 · Magazine | Sofia Sans Condensed, verschiedene Schnitte        | PDF-Ressourcen und Textspans in Reinigung S. 1/8/9 und Wellness S. 1/4/5             |
-| 2 · Magazine | LTKai-Regular / LumiosBrush-Regular                | Brush-Befunde in Reinigung / Wellness; Lizenzstatus offen                            |
+| Status       | Familie / Schnitte                                 | Einsatz und Grenze                                                                                                                                                      |
+| ------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 · CI S. 13 | Sofia Sans; gezeigt: Light, Medium, Condensed Bold | Print: Headlines, Auszeichnungen und Mengentexte                                                                                                                        |
+| 1 · CI S. 13 | Roboto; gezeigt: Light, Medium, Black              | Webauftritt: Headlines und Mengentexte                                                                                                                                  |
+| 1 · CI S. 14 | Arial/Helvetica                                    | Genannte Sofia-Sans-Ersatzschriften, nicht bevorzugter neuer Markenstil                                                                                                 |
+| 1 · CI S. 14 | Times New Roman/Times                              | Genannte Serifenschriftalternativen; keine eindeutig benannte primäre Serifenschrift                                                                                    |
+| 2 · Magazine | Sofia Sans Condensed, verschiedene Schnitte        | PDF-Ressourcen und Textspans in Reinigung S. 1/8/9 und Wellness S. 1/4/5                                                                                                |
+| 2 · Magazine | LTKai-Regular / LumiosBrush-Regular                | Brush-Befunde in Reinigung / Wellness. LTKai: OFL 1.1, selbst gehostet. LumiosBrush: kommerziell, im Editor nicht lizenziert → Platzhalter **Kaushan Script** (OFL 1.1) |
 
 Quellen: [CI S. 13–14](https://prowin.net/files/prowin-data/downloads/texte/proWIN-Corporate-Guideline-de.pdf#page=13), [Katalognotiz mit Messmethode](research_notes/proWIN%20Design%20aus%20Werbemitteln/kataloge%20und%20broschueren.md).
 **Projektentscheidung (Status 5):** CI als Gestaltungsbasis, Sofia Sans für Print und Roboto für Web übernehmen. Beispiele dienen als Inspiration, nicht jede beobachtete Abweichung als neue Norm.

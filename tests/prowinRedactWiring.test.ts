@@ -14,6 +14,7 @@ import type { DesignDecision, Frame } from '../shared/types.ts'
 
 const mocks = vi.hoisted(() => ({
   pickModel: vi.fn(),
+  prepareServerWork: vi.fn(),
   renderFrame: vi.fn(),
   inspectFrame: vi.fn(),
   rendered: [] as string[],
@@ -56,6 +57,8 @@ vi.mock('../server/db/persist.ts', () => ({
   hydrate: async () => ({}),
   importLegacyJson: async () => null,
 }))
+
+vi.mock('../server/residentAdmission.ts', () => ({ prepareServerWork: mocks.prepareServerWork }))
 
 vi.mock('../server/agentModel.ts', () => ({
   pickModel: mocks.pickModel,
@@ -134,6 +137,7 @@ beforeEach(() => {
   mocks.rendered.length = 0
   mocks.inspected.length = 0
   mocks.pickModel.mockReset()
+  mocks.prepareServerWork.mockReset().mockResolvedValue(true)
   mocks.residentLimit = 1
   mocks.renderFrame.mockReset()
   mocks.renderFrame.mockImplementation(async (f: Frame) => {
@@ -596,5 +600,192 @@ describe('distiller redaction wiring', () => {
     expect(String(fetcher.mock.calls[0]![1]!.body)).toContain('[E-Mail entfernt]')
     expect(String(fetcher.mock.calls[0]![1]!.body)).toContain('[Telefon entfernt]')
     expect(decision.summary).toBe('Footer-Kontakt zeigen')
+  })
+})
+
+describe('resident visual card references', () => {
+  const missing = 'Eine Referenz ist nicht mehr verfügbar. Erstelle den Auftrag mit verfügbaren Referenzen neu.'
+  const noVision = 'Das konfigurierte KI-Modell kann keine Bildreferenzen auswerten. Wende Dich an die Administration.'
+
+  it.each(['redesign', 'match the style'])(
+    'suppresses the entire automatic preset for %s references and preserves a distinct target',
+    async (prompt) => {
+      const canvas = freshCanvas()
+      const source = addFrame(canvas.id, 'Source ref@example.de', '<p>Old price</p>')
+      const original = source.html
+      const target = addFrame(canvas.id, 'Target', '<h1>New content</h1>')
+      const captured: Captured[] = []
+      mocks.pickModel.mockResolvedValue(scriptedModel([], captured))
+      const card = actions.addQueuedCard(canvas.id, prompt, 'alice', undefined, [source.id], undefined, {
+        frameId: target.id,
+        selector: 'h1',
+      })!
+      await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+      const kickoff = JSON.stringify(captured[0]!.messages)
+      expect(kickoff).toContain(source.id)
+      expect(kickoff).toContain('visual orientation')
+      expect(kickoff).toContain('leave them unchanged')
+      expect(kickoff).toContain('Brand rules take precedence')
+      expect(kickoff).toContain('not pixel-perfect')
+      expect(kickoff).toContain('prices or claims')
+      expect(kickoff).toContain('screenshot_frame on each BEFORE designing')
+      expect(kickoff).toContain(target.id)
+      expect(kickoff).toContain('only what it needs')
+      expect(kickoff).not.toContain('deliver in a separate frame')
+      expect(kickoff).not.toContain('set_guidelines')
+      expect(kickoff).not.toContain('TWO new frames')
+      expect(kickoff).not.toContain("keep the source's real copy")
+      expect(kickoff).not.toContain('ref@example.de')
+      expect(kickoff).toContain('[E-Mail entfernt]')
+      expect(store.getFrame(source.id)?.html).toBe(original)
+    },
+  )
+
+  it('requests a separate result when the reference is the selected target', async () => {
+    const canvas = freshCanvas()
+    const source = addFrame(canvas.id, 'Source', '<p>source</p>')
+    const captured: Captured[] = []
+    mocks.pickModel.mockResolvedValue(scriptedModel([], captured))
+    const card = actions.addQueuedCard(canvas.id, 'design', 'alice', undefined, [source.id], undefined, {
+      frameId: source.id,
+    })!
+    await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+    expect(JSON.stringify(captured[0]!.messages)).toContain('deliver in a separate frame')
+    expect(JSON.stringify(captured[0]!.messages)).not.toContain('Edit it in place')
+  })
+
+  it.each([false, true])(
+    'preserves the no-reference preset but suppresses it for a mixed batch (mixed=%s)',
+    async (mixed) => {
+      const canvas = freshCanvas()
+      const source = addFrame(canvas.id, 'Source', '<p>source</p>')
+      const captured: Captured[] = []
+      mocks.pickModel.mockResolvedValue(scriptedModel([], captured))
+      const plain = actions.addQueuedCard(canvas.id, 'redesign the page', 'alice')!
+      if (mixed) actions.addQueuedCard(canvas.id, 'match the style', 'alice', undefined, [source.id])
+      await vi.waitFor(() => expect(plain.failedAt).toBeTypeOf('number'))
+      const kickoff = JSON.stringify(captured[0]!.messages)
+      if (mixed) {
+        expect(kickoff).not.toContain('set_guidelines')
+        expect(kickoff).not.toContain('TWO new frames')
+        expect(kickoff).toContain('Standard HTML strategy')
+      } else {
+        expect(kickoff).toContain('set_guidelines')
+        expect(kickoff).toContain('TWO new frames')
+      }
+    },
+  )
+
+  it.each(['deleted', 'foreign', 'no-vision'])(
+    'pauses a %s reference before server admission while executing its valid neighbor',
+    async (mode) => {
+      const canvas = freshCanvas()
+      const source = addFrame(canvas.id, 'Source', '<p>source</p>')
+      const target = addFrame(canvas.id, 'Target', '<h1>before</h1>')
+      const captured: Captured[] = []
+      const model = {
+        ...scriptedModel(
+          [
+            () =>
+              tool('edit', 'edit_frame_html', {
+                frame_id: target.id,
+                find: '<h1>before</h1>',
+                replace: '<h1>after</h1>',
+              }),
+            () => tool('shot', 'screenshot_frame', { frame_id: target.id }),
+            () => done(),
+          ],
+          captured,
+        ),
+        provider: 'requesty',
+        vision: mode !== 'no-vision',
+      }
+      mocks.pickModel.mockImplementation(async () => {
+        if (mode === 'deleted') store.deleteFrame(source.id)
+        if (mode === 'foreign') source.canvasId = store.createCanvas('Foreign').id
+        return model
+      })
+      const broken = actions.addQueuedCard(canvas.id, 'broken visual request', 'alice', undefined, [source.id])!
+      const good = actions.addQueuedCard(canvas.id, 'valid neighbor', 'alice')!
+      await vi.waitFor(() => expect(good.endedAt).toBeTypeOf('number'))
+      expect(broken.failureReason).toBe(mode === 'no-vision' ? noVision : missing)
+      expect(broken.endedAt).toBeUndefined()
+      expect(broken.attachments).toEqual([source.id])
+      expect(mocks.prepareServerWork.mock.calls.map((args) => args[2].id)).toEqual([good.id])
+      expect(JSON.stringify(captured[0]!.messages)).not.toContain('broken visual request')
+      expect(store.getFrame(target.id)?.html).toContain('<h1>after</h1>')
+    },
+  )
+
+  it('checks a reference again before its own admission after awaiting a neighboring card', async () => {
+    const canvas = freshCanvas()
+    const source = addFrame(canvas.id, 'Source', '<p>source</p>')
+    const captured: Captured[] = []
+    mocks.pickModel.mockResolvedValue({ ...scriptedModel([], captured), provider: 'requesty' })
+    mocks.prepareServerWork.mockImplementation(async () => {
+      await Promise.resolve()
+      store.deleteFrame(source.id)
+      return true
+    })
+    const broken = actions.addQueuedCard(canvas.id, 'reference queued first', 'alice', undefined, [source.id])!
+    const neighbor = actions.addQueuedCard(canvas.id, 'neighbor admitted first', 'alice')!
+    await vi.waitFor(() => expect(broken.failedAt).toBeTypeOf('number'))
+    expect(broken.failureReason).toBe(missing)
+    expect(mocks.prepareServerWork.mock.calls.map((args) => args[2].id)).toEqual([neighbor.id])
+    expect(JSON.stringify(captured[0]!.messages)).not.toContain('reference queued first')
+  })
+
+  it.each(['deleted', 'foreign'])('revalidates a source made %s during asynchronous server admission', async (mode) => {
+    const canvas = freshCanvas()
+    const source = addFrame(canvas.id, 'Source', '<p>source</p>')
+    const captured: Captured[] = []
+    mocks.pickModel.mockResolvedValue({ ...scriptedModel([], captured), provider: 'requesty' })
+    mocks.prepareServerWork.mockImplementation(async () => {
+      await Promise.resolve()
+      if (mode === 'deleted') store.deleteFrame(source.id)
+      else source.canvasId = store.createCanvas('Other').id
+      return true
+    })
+    const card = actions.addQueuedCard(canvas.id, 'design using source', 'alice', undefined, [source.id])!
+    await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+    expect(card.failureReason).toBe(missing)
+    expect(card.endedAt).toBeUndefined()
+    expect(captured).toHaveLength(0)
+    expect(mocks.prepareServerWork).toHaveBeenCalledTimes(1)
+  })
+
+  it('pauses a missing local reference without invoking its model', async () => {
+    const canvas = freshCanvas()
+    const source = addFrame(canvas.id, 'Source', '<p>source</p>')
+    const captured: Captured[] = []
+    mocks.pickModel.mockImplementation(async () => {
+      store.deleteFrame(source.id)
+      return scriptedModel([], captured)
+    })
+    const card = actions.addQueuedCard(canvas.id, 'local reference', 'alice', undefined, [source.id])!
+    await vi.waitFor(() => expect(card.failedAt).toBeTypeOf('number'))
+    expect(card.failureReason).toBe(missing)
+    expect(captured).toHaveLength(0)
+    expect(mocks.prepareServerWork).not.toHaveBeenCalled()
+  })
+})
+
+describe('onboarding privacy notice', () => {
+  it('limits placeholders to detected text and discloses unchanged contact data in image pixels', async () => {
+    const { createElement } = await import('react')
+    const { renderToStaticMarkup } = await import('react-dom/server')
+    vi.stubGlobal('window', { matchMedia: () => ({ matches: false }) })
+    vi.stubGlobal('location', new URL('http://localhost/'))
+    localStorage.setItem('doop:onboarding', JSON.stringify({ dismissed: true }))
+    try {
+      const { Onboarding } = await import('../src/components/Onboarding')
+      const html = renderToStaticMarkup(createElement(Onboarding, { canvasId: 'privacy-notice' }))
+      expect(html).toContain('erkannte Textdaten')
+      expect(html).toContain('Kontaktdaten in Bildern werden nicht automatisch entfernt')
+      expect(html).toContain('Namen und Postanschriften werden nicht erkannt')
+    } finally {
+      localStorage.removeItem('doop:onboarding')
+      vi.unstubAllGlobals()
+    }
   })
 })
