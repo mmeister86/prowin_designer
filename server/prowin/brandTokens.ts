@@ -112,18 +112,4 @@ export const BRAND_FONTS = [
   },
 ] as const
 
-export const BRAND_TOKENS = {
-  '--prowin-ci-dunkelgrau': '#383f48',
-  '--prowin-ci-hellblau': '#19b4e9',
-  '--prowin-ci-blau': '#2492d1',
-  '--prowin-ci-orange': '#f7a412',
-  '--prowin-ci-dunkelgruen': '#0d9240',
-  '--prowin-ci-hellgruen': '#4cb04d',
-  '--prowin-ci-reinigung-gruen': '#4faf4d',
-  '--prowin-ci-reinigung-blau': '#15679d',
-  '--prowin-ci-wellness-orange': '#f7a412',
-  '--prowin-ci-yourday-gelb': '#f7d03f',
-  '--prowin-ci-schwarz': '#000000',
-  '--prowin-ci-pro-nature': '#4aa055',
-  '--prowin-ci-akademie-warmgrau': '#847973',
-} as const
+export { BRAND_TOKENS } from '../../shared/prowin/brandTokens.ts'
