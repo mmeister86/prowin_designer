@@ -46,6 +46,14 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
   `data-od-max-length`, `data-od-allowed-colors`) — im Client gegated,
   auf dem regulären Frame-Write serverseitig geprüft (`actions.updateFrame`).
 
+## Durchsetzung
+
+- Task 29 prüft nur `actions.updateFrame` (`PATCH /api/frames/:id`), nur Metadaten:
+  doppelte `data-od-id` und ungültige Werte → 400 für alle; geänderte Metadaten
+  ohne `manageLocks` → 403.
+- Bis TASK-30 offen: `createFrame`, Append-Stream (`appendFrameHtml`), Restore,
+  Inhalts-/Längen-/Farb-Nutzung und Löschschutz.
+
 ## Offen
 
 - Font-/Size-Locks (`data-od-lock="font,size"` laut R1.4) sind offen.

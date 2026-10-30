@@ -1,4 +1,5 @@
 import { assertCanChangeLock } from './prowin/permissions.ts'
+import { assertCanChangeTemplateMeta } from './prowin/templateMeta.ts'
 import { nanoid } from 'nanoid'
 import { normalizeFrameHtml, withoutBrandStyle } from './prowin/frameBrand.ts'
 import { store } from './store.ts'
@@ -1364,7 +1365,9 @@ export function updateFrame(
   if (!canvas) return undefined
   assertCanChangeLock(canvas, !!before.locked, patch.locked)
   if (patch.html !== undefined) {
-    patch = { ...patch, html: normalizeFrameHtml(repairEscapedHtml(patch.html)) }
+    const nextHtml = normalizeFrameHtml(repairEscapedHtml(patch.html))
+    assertCanChangeTemplateMeta(canvas, before.html, nextHtml)
+    patch = { ...patch, html: nextHtml }
     // A complete save takes over even when it equals the normalized stream snapshot.
     finishStream(frameId, false)
   }
