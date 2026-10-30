@@ -26,6 +26,7 @@ export interface LayerNode {
 import {
   mintTemplateId,
   parseTemplateField,
+  TEMPLATE_ATTRS,
   validateTemplateField,
   type TemplateField,
 } from '../../shared/prowin/templateAttributes'
@@ -378,15 +379,7 @@ export function unmarkTemplateField(html: string, selector: string): string | nu
   const doc = parse(html)
   const el = find(doc, selector)
   if (!el) return null
-  for (const attr of [
-    'data-od-id',
-    'data-od-role',
-    'data-od-label',
-    'data-od-locked',
-    'data-od-max-length',
-    'data-od-allowed-colors',
-  ])
-    el.removeAttribute(attr)
+  for (const attr of TEMPLATE_ATTRS) el.removeAttribute(attr)
   return serialize(doc)
 }
 

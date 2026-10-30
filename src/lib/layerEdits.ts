@@ -26,9 +26,18 @@ import type { TemplateField } from '../../shared/prowin/templateAttributes'
 /* ---- element edits shared by the Layers rail and the element panel ---- */
 
 export function saveFrameHtml(frame: Frame, html: string) {
-  recordUpdate(frame.id, { html: frame.html }, { html })
+  const before = frame.html
+  recordUpdate(frame.id, { html: before }, { html })
   useStore.getState().patchFrameLocal(frame.id, { html })
-  api.updateFrame(frame.id, { html }).catch(console.error)
+  /* a save the server refused is rolled back, so the rail shows what
+     everyone else sees */
+  trackSave(
+    api.updateFrame(frame.id, { html }).catch((err: unknown) => {
+      const s = useStore.getState()
+      s.patchFrameLocal(frame.id, { html: before })
+      s.pushNotice(errorMessage(err, 'Die Ebene konnte nicht gespeichert werden'))
+    }),
+  )
 }
 
 /* ---- locks ---- */
@@ -155,6 +164,9 @@ export function applyTemplateField(frame: Frame, selector: string, field: Templa
         const s = useStore.getState()
         s.patchFrameLocal(frame.id, { html: before })
         s.pushNotice(errorMessage(err, 'Template-Feld konnte nicht gespeichert werden'))
+        /* mirror the rollback to the live document: it already got the new
+           field, and the next text save serializes it */
+        void requestFrame(frame.id, 'doop:template', { selector, field: templateFieldOf(before, selector) })
       }),
     )
   }

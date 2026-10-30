@@ -88,8 +88,11 @@ describe('template metadata guard on frame updates', () => {
   it('duplicate data-od-id is rejected with 400 even for the creator', async () => {
     const frame = await newFrame(`<div>${FIELD}${LOCKED}</div>`)
     const next = (await storedHtml(frame.id)).replace('</div>', `${FIELD}</div>`)
-    expect((await owner.patch(`/api/frames/${frame.id}`, { html: next })).status).toBe(400)
-    expect((await mate.patch(`/api/frames/${frame.id}`, { html: next })).status).toBe(400)
+    for (const client of [owner, mate]) {
+      const res = await client.patch(`/api/frames/${frame.id}`, { html: next })
+      expect(res.status).toBe(400)
+      expect(((await res.json()) as { error: string }).error).toContain('Doppelte Template-ID "titel"')
+    }
   })
 
   it('invalid role, unknown color token and max-length 0 are rejected with 400', async () => {
@@ -98,12 +101,20 @@ describe('template metadata guard on frame updates', () => {
     const badRole = before.replace('data-od-role="body"', 'data-od-role="hero"')
     const badColor = before.replace('data-od-allowed-colors="prowin-ci-blau"', 'data-od-allowed-colors="neon-pink"')
     const badLength = before.replace('data-od-max-length="60"', 'data-od-max-length="0"')
+    const expected = [
+      'Ungültige Template-Rolle "hero"',
+      'Ungültige Template-Farben: neon-pink',
+      'Ungültige Template-Maximallänge',
+    ]
+    let i = 0
     for (const [name, html] of [
       ['role', badRole],
       ['color', badColor],
       ['length', badLength],
     ] as const) {
-      expect((await owner.patch(`/api/frames/${frame.id}`, { html })).status, name).toBe(400)
+      const res = await owner.patch(`/api/frames/${frame.id}`, { html })
+      expect(res.status, name).toBe(400)
+      expect(((await res.json()) as { error: string }).error, name).toContain(expected[i++]!)
     }
   })
 

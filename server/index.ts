@@ -1,6 +1,7 @@
 import './prowin/guard.ts'
 import { migrateFrameBrands } from './prowin/migrateFrameBrands.ts'
 import { canvasCapabilities, CreatorPermissionError, withUserPermissions } from './prowin/permissions.ts'
+import { TemplateMetaError } from './prowin/templateMeta.ts'
 import { creatorRouter, permissionIdentity } from './prowin/accounts.ts'
 import { env } from './env.ts'
 import { canvasPages, samePages } from '../shared/pages.ts'
@@ -1502,6 +1503,7 @@ app.use(
 
 app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (error instanceof CreatorPermissionError) return res.status(403).json({ error: error.message })
+  if (error instanceof TemplateMetaError) return res.status(error.status).json({ error: error.message })
   if (res.headersSent) return next(error)
   console.error('[api] request failed', error)
   const status =

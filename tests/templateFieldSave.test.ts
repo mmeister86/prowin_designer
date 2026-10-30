@@ -13,7 +13,7 @@ vi.mock('../src/lib/frameBridge', () => ({
 }))
 
 const { useStore } = await import('../src/lib/store')
-const { applyTemplateField, markTemplateField } = await import('../src/lib/layerEdits')
+const { applyTemplateField, duplicateLayer, markTemplateField, saveFrameHtml } = await import('../src/lib/layerEdits')
 
 const page = (body: string) => `<!doctype html><html><head></head><body>${body}</body></html>`
 const SECTION = 'body:nth-of-type(1) > section:nth-of-type(1)'
@@ -78,11 +78,49 @@ describe('applyTemplateField', () => {
     expect(useStore.getState().notice?.text).toBe('Template-Feld konnte nicht gespeichert werden')
   })
 
+  it('re-mirrors the previous field to the live document when the save is rejected', async () => {
+    applyTemplateField(frame(liveHtml()), SECTION, field)
+    requestFrame.mockClear()
+    const before = liveHtml()
+    updateFrame.mockRejectedValueOnce(new Error('Offline'))
+    expect(applyTemplateField(frame(before), SECTION, null)).toBe(true)
+    expect(liveHtml()).not.toContain('data-od-id')
+    await Promise.resolve()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(liveHtml()).toBe(before)
+    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:template', { selector: SECTION, field })
+  })
+
   it('marks with a fresh id', () => {
     expect(markTemplateField(frame(liveHtml()), SECTION)).toBe(true)
     expect(requestFrame).toHaveBeenCalledWith('f1', 'doop:template', {
       selector: SECTION,
       field: expect.objectContaining({ id: expect.any(String) }),
     })
+  })
+})
+
+describe('saveFrameHtml', () => {
+  async function flush() {
+    await Promise.resolve()
+    await new Promise((r) => setTimeout(r, 0))
+  }
+
+  it('rolls back local html and pushes a notice when a duplicate save is rejected', async () => {
+    const before = liveHtml()
+    updateFrame.mockRejectedValueOnce(new Error('Forbidden'))
+    duplicateLayer(frame(before), SECTION)
+    expect(liveHtml()).not.toBe(before)
+    await flush()
+    expect(liveHtml()).toBe(before)
+    expect(useStore.getState().notice?.text).toBe('Die Ebene konnte nicht gespeichert werden')
+  })
+
+  it('keeps the saved html when the server accepts it', async () => {
+    const before = liveHtml()
+    saveFrameHtml(frame(before), before.replace('<p>A</p>', '<p>B</p>'))
+    await flush()
+    expect(liveHtml()).toContain('<p>B</p>')
+    expect(useStore.getState().notice).toBeNull()
   })
 })
