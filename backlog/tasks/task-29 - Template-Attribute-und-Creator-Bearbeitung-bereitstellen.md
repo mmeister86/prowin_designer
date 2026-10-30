@@ -4,7 +4,7 @@ title: Template-Attribute und Creator-Bearbeitung bereitstellen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-10-30T19:42:00Z'
+updated_date: '2026-10-30T20:24:00Z'
 labels:
   - prowin
   - implementation
@@ -28,13 +28,10 @@ Quellen: Umsetzung §§ 9.1, 9.3; Referenz R1.3–R1.4
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
-
 <!-- AC:BEGIN -->
-
-- [ ] #1 data-od-id, role, label, locked, max-length und allowed-colors sind dokumentiert und vom Creator bearbeitbar.
-- [ ] #2 IDs sind innerhalb eines Frames eindeutig und bleiben bei Bearbeitung stabil; beim Duplizieren entstehen konfliktfreie IDs.
-- [ ] #3 Nur berechtigte Rollen ändern Sperren und Constraints; optionale font/size-Locks werden nicht als beschlossen vorausgesetzt.
-
+- [x] #1 data-od-id, role, label, locked, max-length und allowed-colors sind dokumentiert und vom Creator bearbeitbar.
+- [x] #2 IDs sind innerhalb eines Frames eindeutig und bleiben bei Bearbeitung stabil; beim Duplizieren entstehen konfliktfreie IDs.
+- [x] #3 Nur berechtigte Rollen ändern Sperren und Constraints; optionale font/size-Locks werden nicht als beschlossen vorausgesetzt.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -50,4 +47,6 @@ Quellen: Umsetzung §§ 9.1, 9.3; Referenz R1.3–R1.4
 
 <!-- SECTION:NOTES:BEGIN -->
 Council 30.10.2026 (Claude Opus, GPT-6.1 Sol, Muse Wonder, je high): agree-with-changes. Enge Server-Metadatenpruefung in TASK-29, voller Guard bleibt TASK-30, Beraterinnen-Sichtbarkeit TASK-31. Ruling Controller: data-od-id nur explizit umbenennbar (validiert), nie implizit; Tokenformat ohne --, z. B. prowin-ci-blau; max-length >= 1, leer = ungesetzt.
+
+Implementierung 30.10.2026: Shared Attributmodell, Creator-Feld-UI im ElementPanel (manageLocks), schmale Server-Metadatenpruefung in actions.updateFrame (403/400), ID-Remint bei Element-Duplikat/Drawing-Transfer. Council einstimmig agree-with-changes. Gesamtsuite: 185 Dateien / 1496 Tests PASS, Typecheck PASS. Branch task/29-template-attributes, HEAD 705e477. ACs anhand Tests geprueft; Done erst nach Nutzerabnahme. Rest: TASK-30 voller Guard, TASK-31 Beraterinnen-Sicht.
 <!-- SECTION:NOTES:END -->
