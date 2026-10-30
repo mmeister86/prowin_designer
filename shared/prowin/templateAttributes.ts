@@ -126,7 +126,7 @@ export function mintTemplateId(
   return id
 }
 
-/** Semantic metadata diff: changed compares signatures per ID (content edits ignored); invalid lists IDs of invalid fields in nextHtml. */
+/** Semantic metadata diff: changed compares signatures per ID (content edits ignored); invalid holds flattened German validation messages from nextHtml. */
 export function diffTemplateMeta(
   prevHtml: string,
   nextHtml: string,
@@ -149,8 +149,6 @@ export function diffTemplateMeta(
   }
   const nextFields = extractTemplateFields(nextHtml)
   const invalid: string[] = []
-  for (const field of nextFields) {
-    if (validateTemplateField(field).length > 0 && !invalid.includes(field.id)) invalid.push(field.id)
-  }
+  for (const field of nextFields) invalid.push(...validateTemplateField(field))
   return { changed, duplicates: findDuplicateTemplateIds(nextFields), invalid }
 }

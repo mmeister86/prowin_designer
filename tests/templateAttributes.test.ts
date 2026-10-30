@@ -61,4 +61,13 @@ describe('templateAttributes', () => {
     const ids = ['aaaaaaaa', 'bbbbbbbb']
     expect(mintTemplateId(taken, () => ids.shift()!)).toBe('feld-bbbbbbbb')
   })
+
+  it('returns validation messages, not ids, for invalid fields', () => {
+    const prev = `<h1 data-od-id="titel">Alt</h1>`
+    const next = `<h1 data-od-id="titel" data-od-role="admin" data-od-allowed-colors="primary">Neu</h1>`
+    const result = diffTemplateMeta(prev, next)
+    expect(result.invalid.length).toBeGreaterThan(0)
+    expect(result.invalid[0]).toContain('admin')
+    expect(result.invalid.some((message) => message.includes('primary'))).toBe(true)
+  })
 })
