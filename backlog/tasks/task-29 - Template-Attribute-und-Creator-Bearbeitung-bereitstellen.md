@@ -1,9 +1,10 @@
 ---
 id: TASK-29
 title: Template-Attribute und Creator-Bearbeitung bereitstellen
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
+updated_date: '2026-10-30T19:42:00Z'
 labels:
   - prowin
   - implementation
@@ -21,7 +22,6 @@ ordinal: 29000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-
 Creator benötigen stabile, semantische HTML-Felder, damit dieselbe Vorlage später sicher durch Beraterinnen personalisiert werden kann.
 
 Quellen: Umsetzung §§ 9.1, 9.3; Referenz R1.3–R1.4
@@ -36,3 +36,18 @@ Quellen: Umsetzung §§ 9.1, 9.3; Referenz R1.3–R1.4
 - [ ] #3 Nur berechtigte Rollen ändern Sperren und Constraints; optionale font/size-Locks werden nicht als beschlossen vorausgesetzt.
 
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Shared Attributmodell + Validierung + Doku
+2. Creator-Feld-UI + ID-Stabilität/Duplikate (Client)
+3. Schmale Server-Metadatenprüfung in updateFrame
+4. Reviews pro Task + Whole-Branch-Review
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Council 30.10.2026 (Claude Opus, GPT-6.1 Sol, Muse Wonder, je high): agree-with-changes. Enge Server-Metadatenpruefung in TASK-29, voller Guard bleibt TASK-30, Beraterinnen-Sichtbarkeit TASK-31. Ruling Controller: data-od-id nur explizit umbenennbar (validiert), nie implizit; Tokenformat ohne --, z. B. prowin-ci-blau; max-length >= 1, leer = ungesetzt.
+<!-- SECTION:NOTES:END -->
