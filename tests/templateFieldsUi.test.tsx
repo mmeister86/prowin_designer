@@ -1,14 +1,22 @@
 // @vitest-environment happy-dom
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
 import { expect, it, vi, afterEach } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { Frame } from '../shared/types'
 
-const mocks = vi.hoisted(() => ({ manageLocks: false }))
+const mocks = vi.hoisted(() => ({ manageLocks: false, apply: vi.fn(), mark: vi.fn() }))
 vi.mock('../src/prowin/canvasPermissions', () => ({
   useCanvasCapabilities: () => ({ manageLocks: mocks.manageLocks }),
 }))
+vi.mock('../src/lib/layerEdits', () => ({
+  applyTemplateField: (...args: unknown[]) => mocks.apply(...args),
+  markTemplateField: (...args: unknown[]) => mocks.mark(...args),
+}))
 
 const { TemplateFieldsSection } = await import('../src/prowin/TemplateFieldsSection')
+const { setTemplateField: realSetTemplateField } = await import('../src/lib/layers')
+const { validateTemplateField } = await import('../shared/prowin/templateAttributes.ts')
 
 const frame = (html: string): Frame => ({
   id: 'f1',
@@ -32,6 +40,8 @@ const MARKED = page(
 
 afterEach(() => {
   mocks.manageLocks = false
+  mocks.apply.mockClear()
+  mocks.mark.mockClear()
 })
 
 it('renders nothing without manageLocks', () => {
@@ -55,4 +65,27 @@ it('shows id, role, label, lock, max length and allowed colors for a marked fiel
   expect(html).toContain('Gesperrt')
   expect(html).toContain('Max. Zeichen')
   expect(html).toContain('Erlaubte Farben')
+})
+
+it('clears Max. Zeichen back to unset and saves without data-od-max-length', async () => {
+  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+  mocks.manageLocks = true
+  const container = document.createElement('div')
+  const root = createRoot(container)
+  try {
+    await act(async () => root.render(<TemplateFieldsSection frame={frame(MARKED)} selector={SECTION} />))
+    const clear = container.querySelector('button[aria-label="Maximallänge entfernen"]') as HTMLButtonElement | null
+    expect(clear).not.toBeNull()
+    await act(async () => clear!.click())
+    expect(mocks.apply).toHaveBeenCalledWith(
+      frame(MARKED),
+      SECTION,
+      expect.objectContaining({ id: 'hero-title', maxLength: null }),
+    )
+    const saved = mocks.apply.mock.calls[0]![2] as Parameters<typeof realSetTemplateField>[2]
+    expect(validateTemplateField(saved)).toEqual([])
+    expect(realSetTemplateField(MARKED, SECTION, saved)).not.toContain('data-od-max-length')
+  } finally {
+    await act(async () => root.unmount())
+  }
 })

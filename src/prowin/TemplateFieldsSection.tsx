@@ -112,6 +112,20 @@ export function TemplateFieldsSection({ frame, selector }: { frame: Frame; selec
           placeholder="∞"
           onCommit={(maxLength) => commit({ ...draft, maxLength })}
         />
+        {/* NumberField never commits an empty input, so clearing back to
+            unset (leer = ungesetzt) needs its own affordance. */}
+        {draft.maxLength !== null && (
+          <Button
+            variant="bare"
+            size="icon-sm"
+            className="h-[26px] w-[26px] flex-none rounded-[7px] bg-sub text-[13px] text-ink-faint hover:bg-paper-deep hover:text-ink"
+            aria-label="Maximallänge entfernen"
+            title="Maximallänge entfernen (unbegrenzt)"
+            onClick={() => commit({ ...draft, maxLength: null })}
+          >
+            ×
+          </Button>
+        )}
       </PropertyRow>
       <div className="mt-1.5">
         <span className="text-[11.5px] text-ink-faint">Erlaubte Farben</span>
