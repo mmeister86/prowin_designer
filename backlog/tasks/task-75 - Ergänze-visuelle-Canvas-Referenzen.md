@@ -1,10 +1,10 @@
 ---
 id: TASK-75
 title: Ergänze visuelle Canvas-Referenzen
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-28T19:16:00Z'
-updated_date: '2026-10-29T09:52:00Z'
+updated_date: '2026-10-29T15:00:00Z'
 labels: []
 dependencies: []
 priority: medium
@@ -14,12 +14,12 @@ ordinal: 91000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-Ermögliche Bilddatei-Drops auf der aktuellen Canvas-Seite und die ausdrückliche Auswahl vorhandener Frames als visuelle Orientierung für einen einzelnen KI-Auftrag. Verwende den bestehenden Upload-, Karten- und Requesty-EU-Vision-Pfad. Keine editierbare Rekonstruktion und keine globale Referenzbibliothek. Umsetzung am 28.10.2026 ausdrücklich freigegeben und lokal implementiert; native/live/manuelle Abnahme und gesonderte Integration bleiben offen.
+Ermögliche Bilddatei-Drops auf der aktuellen Canvas-Seite und die ausdrückliche Auswahl vorhandener Frames als visuelle Orientierung für einen einzelnen KI-Auftrag. Verwende den bestehenden Upload-, Karten- und Requesty-EU-Vision-Pfad. Keine editierbare Rekonstruktion und keine globale Referenzbibliothek. PR #5 ist nach main integriert; Nutzerabnahme aller sieben ACs und ausdrücklicher Taskabschluss am 29.10.2026. Technische Grenzen und tatsächlich ausgeführte Nachweise bleiben im Umsetzungsbericht dokumentiert.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Bilddateien in den vorhandenen Formaten landen per Drop an der Mausposition unter Berücksichtigung von Pan, Zoom und der beim Drop aktiven Seite; Größenlimit und Fehlermeldungen bleiben erhalten.
+- [x] #1 Bilddateien in den vorhandenen Formaten landen per Drop an der Mausposition unter Berücksichtigung von Pan, Zoom und der beim Drop aktiven Seite; Größenlimit und Fehlermeldungen bleiben erhalten.
 - [x] #2 Vorhandene Frames lassen sich über eine sichtbare Tastatur-bedienbare Aktion und das Kontextmenü als Referenz vormerken; Vorschau und Entfernen sind vorhanden, insgesamt höchstens vier Referenzen inklusive neuer Dateianhänge.
 - [x] #3 Referenzen und Bearbeitungsziel sind getrennt: Eine Referenz wird nicht zugleich automatisch Scope; ein anderes ausdrücklich ausgewähltes Ziel bleibt erhalten.
 - [x] #4 Referenzentwurf übersteht Panelwechsel und Fehler; erfolgreich hochgeladene Bilder werden bei erneutem Senden nicht doppelt angelegt, erfolgreiche Teilimporte bleiben gruppiert rückgängig machbar.
@@ -70,4 +70,17 @@ Kein Push, PR, Merge, Release oder bezahlter Modellaufruf. Status bleibt In Prog
 PR-Ziel ausdrücklich mmeister86/prowin_designer:main, nicht das GitHub-CLI-Default kgoedecke/doop. Branch enthält zusätzlich den bereits vorhandenen, noch nicht auf origin/main liegenden Font-Basiscommit f732729; Historie unverändert und im PR transparent ausweisen. .env, lokale Datenbanken, Nutzer-Backup und ignorierte Rohlogs sind nicht im PR-Diff. Neuer grüner Lauf im versionierten Bericht ergänzt. TASK-75 bleibt In Progress, AC 1/native/volle manuelle Abnahme weiter offen.
 
 PR-Preflight-Zusatz: git diff --check origin/main...HEAD meldet ausschließlich die unveränderte originale public/fonts/lt-kai-LICENSE aus dem bereits vorhandenen Basiscommit f732729 (CRLF/Whitespace). Datei gegenüber f732729 bytegleich; keine ungefragte Umformatierung der Fremdlizenz. TASK-75-Range und gestagte Dokumentation bestehen den Whitespace-Check; den gesamten PR-Whitespace-Check nicht als grün ausgeben. Im PR ausdrücklich dokumentiert.
+
+29.10.2026: Nutzer nimmt TASK-75 ausdrücklich vollständig ab und beauftragt Done mit allen sieben Acceptance Criteria. AC 1 deshalb ebenfalls auf ausdrückliche Nutzerfreigabe abgehakt; keine zusätzlichen nativen OS-/Live-Modelltests durch den Agenten behauptet. Bereits dokumentierte technische Grenzen bleiben als Nachweis erhalten. PR #5 ist nach main gemergt (e35684f); letzter Main-Testlauf: 179 Dateien / 1464 Tests bestanden, keine Skips. Taskabschluss nach ausdrücklicher Abnahme, nicht allein wegen Merge oder grüner CI.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Ergänze visuelle Canvas-Referenzen
+
+- Ermögliche Bild-Drops und auftragsbezogene Referenzvorschauen mit sicheren Uploads und wiederholbarem Senden.
+- Trenne Quellreferenzen und Bearbeitungsziel; bewahre Brand-, Berechtigungs- und Datenschutzgrenzen.
+- Sichere Import, Composer, Karten, Vision-Transport und Browserbedienung durch Regressionstests ab.
+- Übernimm PR #5 nach main; dokumentiere die ausdrückliche Nutzerabnahme aller sieben ACs am 29.10.2026.
+<!-- SECTION:FINAL_SUMMARY:END -->
