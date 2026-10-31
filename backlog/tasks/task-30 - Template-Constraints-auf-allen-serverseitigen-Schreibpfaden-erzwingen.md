@@ -1,9 +1,10 @@
 ---
 id: TASK-30
 title: Template-Constraints auf allen serverseitigen Schreibpfaden erzwingen
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
+updated_date: '2026-10-31T18:54:00Z'
 labels:
   - prowin
   - implementation
@@ -20,7 +21,6 @@ ordinal: 30000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-
 UI-Sperren und Agent-Prompts reichen nicht aus. Serverprüfungen müssen die ursprünglichen Regeln auch gegen manipulierte HTML- und Metadaten-Änderungen schützen.
 
 Quellen: Umsetzung § 9.2; Referenz R1.3–R1.4
@@ -35,3 +35,18 @@ Quellen: Umsetzung § 9.2; Referenz R1.3–R1.4
 - [ ] #3 Tests decken gültige Edits, entfernte Constraints, doppelte/geänderte IDs, direkte API/MCP-Edits und unberechtigte Rollen ab; abgelehnte Edits verändern den gespeicherten Frame nicht.
 
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Vollstaendigen HTML-Guard mit Parser und Tests implementieren
+2. Alle Frame-Schreibpfade und atomare Append-Commits absichern
+3. REST/MCP/Resident sowie Regressionen testen und dokumentieren
+4. Task-Reviews und abschliessendes Branch-Review durch Muse Spark 1.3
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Umsetzung vom Nutzer am 31.10.2026 freigegeben: SDD mit Muse Spark 1.3; TASK-29 laut Nutzer abgeschlossen. Isolierter Branch task/30-template-constraints. TASK-31-UI bleibt ausserhalb Scope.
+<!-- SECTION:NOTES:END -->
