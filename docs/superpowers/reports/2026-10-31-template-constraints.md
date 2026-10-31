@@ -13,11 +13,11 @@ Keep TASK-30 **In Progress**, pending user acceptance. Do not push, open a PR or
 
 ## Verification
 
-Final production commit: `6772c12`.
+Final production commit: `d560519` (four own-review fixes after initial implementation at `6772c12`).
 
 | Check                         | Verified result                                  |
 | ----------------------------- | ------------------------------------------------ |
-| `bun run test --maxWorkers=4` | 190 files / **1585 tests PASS**, 205.59 seconds  |
+| `bun run test --maxWorkers=4` | 190 files / **1601 tests PASS**, 192.88 seconds  |
 | `bun run typecheck`           | PASS                                             |
 | `bun run lint`                | PASS                                             |
 | `bun run build`               | PASS; existing large-chunk notice                |
@@ -31,7 +31,7 @@ Manual browser testing was not performed. A happy-dom save regression and real M
 
 ## Review and correction record
 
-All implementers and independent reviewers used **Muse Spark 1.3**, as requested.
+All delegated implementers and independent reviewers used **Muse Spark 1.3**, as requested. The subsequent own-review fixes were implemented inline by the controller.
 
 - Task 1: parser guard; initial review found dropped document wrappers/doctype, fixed and independently re-reviewed.
 - Task 2: action guards and atomic streams; independent review approved without Important/Critical issues.
@@ -39,6 +39,13 @@ All implementers and independent reviewers used **Muse Spark 1.3**, as requested
 - Broad branch review: found an existing-event-handler mutation bypass; controller also reproduced a constrained-color removal bypass that the reviewer had incorrectly dismissed. One combined fix wave and scoped re-review addressed both.
 - Final scoped re-review at `b218ff6`: all findings addressed, no new Important/Critical issues.
 - Controller subsequently verified the deferred shorthand observation with four failing regression cases: legacy background/border/outline removal and text-decoration color injection. Fixed locally in `6772c12` under the harness instruction to handle small review findings directly. This small follow-up received TDD/self-review and full verification, **not another independent review round**.
+
+### Own-review follow-up approved by the user
+
+- The controller's requested independent read of the final code reproduced four missed cases: existing script/style editing in open fields, duplicate CSS properties hiding `!important`, SVG attribute-namespace collisions and rejected ordinary fragment saves.
+- Fixed in `d560519`, only in the existing shared guard. Legacy non-editable subtrees and script/style roots stay frozen, changed duplicate-property styles fail closed, attribute keys include namespace/prefix/local name, and only an additive standard editor doctype is permitted for stored documents without one.
+- TDD: 15 expected failures before production changes, then 2 files /71 focused tests PASS. Sixteen new tests include real HTTP PATCH/append denials with unchanged frame snapshots/versions, accepted DOM fragment saves, creator overrides and unchanged legacy/namespace resaves.
+- Final verification: 190 files /1601 tests PASS; typecheck/lint/build/format/diff checks PASS. Doc-lint PASS with the existing stale `.context` warning; Node localStorage and Vite chunk notices remain. No new delegate or manual browser test.
 
 ## Limits and accepted non-blocking observations
 
@@ -63,6 +70,8 @@ Chronological record, including the cost if wrong:
 9. Include source provenance in existing MCP/Resident create schemas — caller completeness for Task 2's contract, no new workflow — risk: two small schema additions might be unnecessary.
 10. Reject the reviewer's claim that color removals are inherently safe — a real allowed-color-to-red reproduction disproved it — cost: some formatting removals require Creator action.
 11. Fix the final deferred CSS-shorthand observation locally — harness instructions require small review fixes without another delegate; four RED cases proved actual bypasses — cost: additional legacy formatting removals fail closed; this last small hardening has no extra independent review round.
+12. Execute the user's approved own-review fixes inline without a new delegate — harness instructions require small review fixes to be handled directly — cost: self-review/TDD/full verification rather than another independent reviewer.
+13. Allow only an additive standard HTML doctype on a stored no-doctype document — production editor always emits it; existing doctypes and wrapper attributes remain protected — cost: a legacy no-doctype document can acquire standards-mode markup, matching its existing editor rendering.
 
 ## References
 

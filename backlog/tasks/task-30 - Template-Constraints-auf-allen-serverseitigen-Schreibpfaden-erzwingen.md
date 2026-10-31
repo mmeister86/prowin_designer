@@ -4,7 +4,7 @@ title: Template-Constraints auf allen serverseitigen Schreibpfaden erzwingen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-10-31T20:23:00Z'
+updated_date: '2026-10-31T21:12:00Z'
 labels:
   - prowin
   - implementation
@@ -51,4 +51,10 @@ Implementierung und automatische AC-Pruefung am 31.10.2026: gemeinsamer parse5-G
 SDD mit Muse Spark 1.3: drei Task-Reviews und abschliessendes Branch-Review/Nachreview. Event-Handler- und Farbentfernungs-Luecken korrigiert; kleine anschliessende CSS-Kurzform-Haertung lokal per TDD und Gesamtsuite verifiziert.
 Finale Verifikation auf Produktionsstand 6772c12: 190 Dateien / 1585 Tests PASS; Typecheck, Lint, Build und diff-check PASS. Doc-lint PASS mit einem Stale-.context-Hinweis; bekannte Node-localStorage-/Build-Chunk-Hinweise.
 Details und Entscheidungen: docs/superpowers/reports/2026-10-31-template-constraints.md. Kein manueller Browser-Test, Push, PR oder Merge. TASK-30 bleibt In Progress bis Nutzerabnahme; TASK-31-UI bleibt Folgearbeit.
+
+Eigenes Abschlussreview auf f9b9bc2: vier reproduzierte Luecken/Regressionen (bestehende script/style-Inhalte in offenen Feldern, doppelte CSS-Deklarationen mit !important, namespace-kollidierende SVG-Attribute, Doctype beim Editor-Save von Bestandsfragmenten). Nutzer hat Korrekturen freigegeben. AC1/3 bis erneuter Verifikation wieder offen; gemeinsamer Schreibpfad-Guard AC2 bleibt bestehen. Umsetzung inline mit RED/GREEN-Regressionstests, ohne Push/Merge/Done.
+
+Eigenreview-Korrekturen in d560519 umgesetzt und verifiziert: bestehende nicht editierbare Teilbaeume/script-style-Feldwurzeln eingefroren; doppelte CSS-Properties vor Map-Zusammenfassung abgelehnt; SVG-Attributidentitaet inklusive Namespace/Praefix; additiver Standard-Doctype fuer Bestandsfragmente erlaubt, bestehende Doctypes/Dokumentattribute weiter geschuetzt.
+TDD: 15 erwartete RED-Fehler, danach 71 fokussierte Tests PASS; 16 neue Regressionstests inklusive realer PATCH-/Append-Ablehnungen mit unveraenderten Frames/Versionen und erfolgreichem DOM-Fragment-Save.
+Finaler Gesamtlauf: 190 Dateien /1601 Tests PASS; Typecheck, Lint, Build, Formatierung und Diff-Check PASS. Doc-lint PASS mit bekanntem Stale-.context-Hinweis, bekannte localStorage-/Chunk-Warnungen. Bericht aktualisiert. Keine neuen Subagenten, kein manueller Browser-Test, Push oder Merge. Status bleibt In Progress bis Nutzerabnahme.
 <!-- SECTION:NOTES:END -->

@@ -32,4 +32,6 @@
 - [x] Reject duplicate property names in changed styles before Map insertion; keep unchanged legacy styles resavable.
 - [x] Compare namespace/prefix/local-name attribute identities consistently; accept legitimate reordering and preserve canonical lock presence.
 - [x] Accept the additive standard doctype for stored no-doctype documents without relaxing wrapper checks or existing doctypes; run focused tests GREEN.
-- [ ] Self-review connected callers, run the full suite with `--maxWorkers=4`, typecheck/lint/build/format/diff checks, update docs and Backlog evidence, commit. Keep TASK-30 In Progress.
+- [x] Self-review connected callers, run the full suite with `--maxWorkers=4`, typecheck/lint/build/format/diff checks, update docs and Backlog evidence, commit. Keep TASK-30 In Progress.
+
+**Verification:** 15 expected RED failures, then 71 focused tests PASS. Final suite: 190 files /1601 tests PASS; typecheck, lint, build, formatting and diff checks PASS. Production fix commit: `d560519`. No push, merge or manual browser test.
