@@ -50,7 +50,8 @@ describe('task frames', () => {
     ['create', 'Gestaltet “English Hero”'],
     ['tweak', 'Verfeinert “English Hero”'],
     ['redesign', 'Gestaltet “English Hero” neu'],
-    ['stream', 'Gestaltet “English Hero”'],
+    /* a committed stream lands as one full replace, like a redesign */
+    ['stream', 'Gestaltet “English Hero” neu'],
   ])('infers a German task for %s while preserving the frame name', (mode, status) => {
     const human: Actor = { name: 'Alice', kind: 'user', color: '#000' }
     const frame = actions.createFrame(

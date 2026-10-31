@@ -617,7 +617,10 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                 content: 'This task has been stopped.',
                 is_error: true,
               }
-            return withUserPermissions(payer || canvasOwner, () => execTool(block, canvasId, actor, runState))
+            /* write authority binds to the initiating user only: a missing
+               initiator never borrows the canvas owner's privileges (billing
+               still falls back via pickModel/payerId, not here) */
+            return withUserPermissions(payer || undefined, () => execTool(block, canvasId, actor, runState))
           },
         })
         finished = result.success
@@ -691,7 +694,8 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
                   console.log(
                     `[resident] tool canvas=${canvasId} name=${block.name}${typeof target === 'string' ? ` frame=${target}` : ''}`,
                   )
-                  const result = await withUserPermissions(payer || canvasOwner, () =>
+                  /* same fail-closed write authority as above: no owner fallback */
+                  const result = await withUserPermissions(payer || undefined, () =>
                     execTool(block, canvasId, actor, runState),
                   )
                   return result

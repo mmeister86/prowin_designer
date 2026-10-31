@@ -13,6 +13,12 @@ export async function withUserPermissions<T>(userId: string | undefined, action:
   return await scope.run(await permissionIdentity(userId), action)
 }
 
+/** Trusted user id for the current permission scope, or undefined outside one.
+ *  Draft ownership and write authority bind to this — never to actor names. */
+export function currentPermissionUserId(): string | undefined {
+  return scope.getStore()?.userId
+}
+
 export function canCreateTemplates(identity: PermissionIdentity | undefined, canvas: Canvas): boolean {
   if (!identity?.creator) return false
   if (identity.admin) return canAccessCanvas(identity.userId, canvas)
