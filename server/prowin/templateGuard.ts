@@ -163,12 +163,22 @@ const SAFE_TYPOGRAPHY = new Set([
   'font-size',
   'font-weight',
   'font-style',
-  'text-decoration',
   'text-align',
   'line-height',
   'letter-spacing',
 ])
 const COLOR_PROPS = new Set(['color', 'background-color', 'fill', 'stroke', 'border-color'])
+
+function isTypographyOnly(prop: string, value: string): boolean {
+  if (SAFE_TYPOGRAPHY.has(prop)) return true
+  // text-decoration is a color-bearing shorthand; allow its non-color keywords only.
+  return (
+    prop === 'text-decoration' &&
+    value
+      .split(/\s+/)
+      .every((part) => /^(none|underline|overline|line-through|solid|double|dotted|dashed|wavy)$/.test(part))
+  )
+}
 
 interface EditCtx {
   chain: TemplateField[]
@@ -179,9 +189,8 @@ function isConstrained(ctx: EditCtx): boolean {
   return ctx.chain.some((field) => field.allowedColors.length > 0)
 }
 
-/** True when an element subtree carries presentation that a frozen stylesheet
- *  could resolve into color: an explicit color declaration (or an
- *  unevaluable style, fail-closed) or a class/id hook. */
+/** Unknown presentation, including legacy CSS shorthands, may carry color;
+ *  only typography-only styles are provably removable without a cascade. */
 function subtreeHasProtectedColor(node: TreeNode): boolean {
   if (!isElement(node)) return false
   const element = node as TreeElement
@@ -189,8 +198,8 @@ function subtreeHasProtectedColor(node: TreeNode): boolean {
     if (attr.name === 'style') {
       const declarations = parseStyle(attr.value)
       if (!declarations) return true
-      for (const prop of declarations.keys()) {
-        if (COLOR_PROPS.has(prop) || prop.startsWith('--')) return true
+      for (const [prop, value] of declarations) {
+        if (!isTypographyOnly(prop, value)) return true
       }
     } else if (attr.name === 'class' || attr.name === 'id') {
       return true
@@ -226,7 +235,7 @@ function assertColorAllowed(value: string, ctx: EditCtx): void {
 function assertStyleDeclaration(prop: string, value: string, ctx: EditCtx): void {
   if (prop.startsWith('--')) throw new CreatorPermissionError()
   if (/!important/i.test(value) || /url\s*\(/i.test(value)) throw new CreatorPermissionError()
-  if (SAFE_TYPOGRAPHY.has(prop)) return
+  if (isTypographyOnly(prop, value) || (prop === 'text-decoration' && !isConstrained(ctx))) return
   if (COLOR_PROPS.has(prop)) {
     assertColorAllowed(value, ctx)
     return
@@ -243,10 +252,9 @@ function assertStyleChange(oldStyle: string | undefined, newStyle: string, ctx: 
     // a color constraint is fail-closed: the cascade cannot be evaluated.
     if (isConstrained(ctx)) throw new CreatorPermissionError()
   } else {
-    for (const prop of prev.keys()) {
-      // Dropping a constrained color (or custom-property) declaration exposes
-      // an unvalidated inherited value; typography-only removals stay allowed.
-      if (!next.has(prop) && (COLOR_PROPS.has(prop) || prop.startsWith('--')) && isConstrained(ctx)) {
+    for (const [prop, value] of prev) {
+      // Unknown legacy properties may include color-bearing shorthands.
+      if (!next.has(prop) && !isTypographyOnly(prop, value) && isConstrained(ctx)) {
         throw new CreatorPermissionError()
       }
     }
@@ -303,7 +311,7 @@ function assertSameTagChange(run: TemplateRun, prev: TreeElement, next: TreeElem
       if (nextAttrs.has(attr.name)) continue
       if (attr.name === 'style') {
         const declarations = parseStyle(attr.value)
-        if (!declarations || [...declarations.keys()].some((prop) => COLOR_PROPS.has(prop) || prop.startsWith('--'))) {
+        if (!declarations || [...declarations].some(([prop, value]) => !isTypographyOnly(prop, value))) {
           throw new CreatorPermissionError()
         }
       } else if (

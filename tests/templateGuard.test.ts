@@ -360,10 +360,47 @@ describe('templateGuard constrained color removal (F2)', () => {
     expect(await writeError('creator', classed, classed.replace(' class="frozen"', ''))).toBeNull()
   })
 
+  it.each([
+    'background:var(--prowin-ci-blau)',
+    'border:1px solid var(--prowin-ci-blau)',
+    'outline:1px solid var(--prowin-ci-blau)',
+  ])('preserves existing color-bearing shorthand %s under constraints', async (declaration) => {
+    const style = `${declaration};font-size:20px`
+    const wrapper = `<span style="${style}">Text</span>`
+    const before = `<style>span{background:red;border:1px solid red;outline:1px solid red}</style><p data-od-id="a" data-od-allowed-colors="prowin-ci-blau">${wrapper}</p>`
+    for (const after of [
+      before.replace(` style="${style}"`, ''),
+      before.replace(`${declaration};`, ''),
+      before.replace(wrapper, 'Text'),
+    ]) {
+      expect((await writeError('member', before, after))?.status).toBe(403)
+      expect(await writeError('creator', before, after)).toBeNull()
+    }
+    expect(await writeError('member', before, before.replace('font-size:20px', 'font-size:24px'))).toBeNull()
+  })
+
   it('preserves legitimate edits: text, unconstrained removals and safe typography', async () => {
     expect(await writeError('member', FROZEN, FROZEN.replace('>Text<', '>Neuer Text<'))).toBeNull()
     const free = wrap('<p data-od-id="a" data-od-role="body" class="x" style="font-size:20px">Hallo</p>')
     expect(await writeError('member', free, free.replace(' style="font-size:20px"', ''))).toBeNull()
     expect(await writeError('member', free, free.replace(' class="x"', ''))).toBeNull()
+  })
+
+  it('allows decoration typography without smuggling an unapproved decoration color', async () => {
+    const before = FROZEN.replace('>Text<', '><span style="text-decoration:underline">Text</span><')
+    expect(
+      (await writeError('member', before, before.replace('text-decoration:underline', 'text-decoration:underline red')))
+        ?.status,
+    ).toBe(403)
+    expect(
+      await writeError(
+        'member',
+        before,
+        before.replace('text-decoration:underline', 'text-decoration:line-through dotted'),
+      ),
+    ).toBeNull()
+    expect(
+      await writeError('creator', before, before.replace('text-decoration:underline', 'text-decoration:underline red')),
+    ).toBeNull()
   })
 })

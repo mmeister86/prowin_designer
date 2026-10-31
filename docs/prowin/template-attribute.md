@@ -64,6 +64,12 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
   `var(--token)` aus `allowed-colors`; sichere Typografie in offenen Feldern bleibt
   erlaubt. Manueller Browser-Test steht aus; eine happy-dom
   Serialisierungs-Regression liegt in `tests/templateTransports.test.ts`.
+- Vorhandene CSS-Kurzformen wie `background`, `border` oder `outline` und andere
+  nicht sicher auswertbare Deklarationen bleiben unter `allowed-colors` erhalten;
+  nur reine Typografie-Deklarationen dürfen entfernt werden. Neue Kurzformen
+  bleiben für Nicht-Creator verboten.
+- `text-decoration` erlaubt unter `allowed-colors` nur Linien-/Stil-Schlüsselwörter
+  wie `underline` oder `line-through dotted`, keine eingeschleusten Farbangaben.
 - Unter `allowed-colors` können Nicht-Creator farb-/class-/id-tragende Wrapper
   (inkl. eigenem `style`-Farbwert) nicht entfernen, ersetzen oder auspacken, weil
   die Kaskade ohne CSS-Engine nicht beweisbar ist — Text leeren oder Creator
