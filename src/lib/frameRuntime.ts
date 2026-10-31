@@ -876,6 +876,38 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       }
       parent.postMessage({ type: 'doop:lock-result', reqId: d.reqId, ok: !!lockEl }, '*')
     }
+    /* a template field set from the element panel lands on the live element
+       too: while editing, the parent withholds html, and the next text save
+       serializes this document — the attributes have to be here or the save
+       drops them. Null removes the mark. */
+    if (d.type === 'doop:template') {
+      var tplEl = null
+      try { tplEl = d.selector ? document.querySelector(d.selector) : null } catch (e) { /* bad selector */ }
+      if (tplEl) {
+        var field = d.field
+        if (field) {
+          tplEl.setAttribute('data-od-id', String(field.id))
+          if (field.role != null && field.role !== '') tplEl.setAttribute('data-od-role', String(field.role))
+          else tplEl.removeAttribute('data-od-role')
+          if (field.label != null && field.label !== '') tplEl.setAttribute('data-od-label', String(field.label))
+          else tplEl.removeAttribute('data-od-label')
+          if (field.locked) tplEl.setAttribute('data-od-locked', 'true')
+          else tplEl.removeAttribute('data-od-locked')
+          if (field.maxLength != null) tplEl.setAttribute('data-od-max-length', String(field.maxLength))
+          else tplEl.removeAttribute('data-od-max-length')
+          if (field.allowedColors && field.allowedColors.length) tplEl.setAttribute('data-od-allowed-colors', field.allowedColors.join(','))
+          else tplEl.removeAttribute('data-od-allowed-colors')
+        } else {
+          tplEl.removeAttribute('data-od-id')
+          tplEl.removeAttribute('data-od-role')
+          tplEl.removeAttribute('data-od-label')
+          tplEl.removeAttribute('data-od-locked')
+          tplEl.removeAttribute('data-od-max-length')
+          tplEl.removeAttribute('data-od-allowed-colors')
+        }
+      }
+      parent.postMessage({ type: 'doop:template-result', reqId: d.reqId, ok: !!tplEl }, '*')
+    }
     if (d.type === 'doop:probe') {
       parent.postMessage({ type: 'doop:probe-result', reqId: d.reqId, hit: probe(d.x, d.y) }, '*')
     }

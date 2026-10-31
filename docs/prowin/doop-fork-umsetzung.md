@@ -346,7 +346,9 @@ Streaming sammelt Rohdaten separat; geheilte, normalisierte Zwischenstände kön
 | `data-od-label`          | z. B. „Dein Foto“                                                                    | Anzeigename im Formular/Panel                   |
 | `data-od-locked`         | vorhanden = gesperrt                                                                 | Nur Creator dürfen ändern                       |
 | `data-od-max-length`     | Zahl                                                                                 | Max. Zeichen für Text                           |
-| `data-od-allowed-colors` | Token-Liste, z. B. `primary,cream`                                                   | Erlaubte Farben (nur Tokens)                    |
+| `data-od-allowed-colors` | Token-Liste, z. B. `prowin-ci-blau,prowin-ci-orange`                                 | Erlaubte Farben (nur Tokens)                    |
+
+Details: [Template-Attribute](template-attribute.md).
 
 Ersetzt `EditableFieldMeta`. Die Zuordnung alt → neu steht in R1.4. Rollen und Berechtigungen → R1.2, R1.3.
 

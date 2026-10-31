@@ -2,6 +2,7 @@ import type { Frame } from '../../shared/types'
 import { framePageId } from '../../shared/pages'
 import { api, ApiError, UserFacingError } from './api'
 import { drawingDocument, isCanvasElement, queueDrawingSave, type Point } from './drawing'
+import { remintTemplateIds } from './layers'
 import { recordDrawingTransfer, recordUpdates } from './history'
 import { currentPageCanvas } from './pages'
 import { useStore } from './store'
@@ -180,6 +181,13 @@ export function moveDrawing(
       destinationDoc.body.style.background = ''
       destinationDoc.body.setAttribute('data-doop-canvas-element', 'true')
     }
+    /* a moved template id must stay unique: remint the subtree before
+       appending when one of its ids already lives in the destination */
+    const movedIds = [el, ...el.querySelectorAll('[data-od-id]')]
+      .map((node) => node.getAttribute('data-od-id'))
+      .filter((id): id is string => !!id)
+    if (movedIds.some((id) => destinationDoc.querySelector(`[data-od-id="${CSS.escape(id)}"]`)))
+      remintTemplateIds(destinationDoc, el)
     destinationDoc.body.append(el)
     const html = serialize(destinationDoc)
     const destination = target

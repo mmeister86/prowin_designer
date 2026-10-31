@@ -23,6 +23,14 @@ export interface LayerNode {
   children: LayerNode[]
 }
 
+import {
+  mintTemplateId,
+  parseTemplateField,
+  TEMPLATE_ATTRS,
+  validateTemplateField,
+  type TemplateField,
+} from '../../shared/prowin/templateAttributes'
+
 /** The attribute a locked layer carries in the frame's HTML. It travels with
  *  the markup, so every collaborator (and agent) sees the same lock. */
 export const LOCK_ATTR = 'data-doop-locked'
@@ -301,8 +309,98 @@ export function duplicateElement(html: string, selector: string): string | null 
   if (!el) return null
   const copy = el.cloneNode(true) as Element
   renameIds(doc, copy)
+  remintTemplateIds(doc, copy)
   el.after(copy)
   return serialize(doc)
+}
+
+/* ---- template fields (prowin creator editing) ----
+   Six attributes mark an element as an editable template field; the shared
+   contract (parse/validate/mint) lives in shared/prowin/templateAttributes. */
+
+/** The element's template field, or null when it carries none of the six attributes. */
+export function templateFieldOf(html: string, selector: string): TemplateField | null {
+  const el = find(parse(html), selector)
+  if (!el) return null
+  const attrs = new Map<string, string>()
+  for (const { name, value } of [...el.attributes]) attrs.set(name, value)
+  return parseTemplateField(attrs)
+}
+
+function writeTemplateField(el: Element, field: TemplateField) {
+  el.setAttribute('data-od-id', field.id)
+  if (field.role !== null) el.setAttribute('data-od-role', field.role)
+  else el.removeAttribute('data-od-role')
+  if (field.label !== null) el.setAttribute('data-od-label', field.label)
+  else el.removeAttribute('data-od-label')
+  if (field.locked) el.setAttribute('data-od-locked', 'true')
+  else el.removeAttribute('data-od-locked')
+  if (field.maxLength !== null) el.setAttribute('data-od-max-length', String(field.maxLength))
+  else el.removeAttribute('data-od-max-length')
+  if (field.allowedColors.length) el.setAttribute('data-od-allowed-colors', field.allowedColors.join(','))
+  else el.removeAttribute('data-od-allowed-colors')
+}
+
+/** The frame's HTML with the element's template field set, or null when the
+ *  selector is stale, the field is invalid, or its id is taken by another element. */
+export function setTemplateField(html: string, selector: string, field: TemplateField): string | null {
+  if (validateTemplateField(field).length) return null
+  const doc = parse(html)
+  const el = find(doc, selector)
+  if (!el) return null
+  for (const other of doc.querySelectorAll('[data-od-id]')) {
+    if (other !== el && other.getAttribute('data-od-id') === field.id) return null
+  }
+  writeTemplateField(el, field)
+  return serialize(doc)
+}
+
+/** The frame's HTML with a fresh frame-unique id set on an unmarked element —
+ *  the input itself when it already carries a field, null on a stale selector. */
+export function mintTemplateField(html: string, selector: string): string | null {
+  const doc = parse(html)
+  const el = find(doc, selector)
+  if (!el) return null
+  const attrs = new Map<string, string>()
+  for (const { name, value } of [...el.attributes]) attrs.set(name, value)
+  if (parseTemplateField(attrs)) return html
+  const taken = new Set<string>()
+  for (const other of doc.querySelectorAll('[data-od-id]')) {
+    const id = other.getAttribute('data-od-id')
+    if (id) taken.add(id)
+  }
+  el.setAttribute('data-od-id', mintTemplateId(taken))
+  return serialize(doc)
+}
+
+/** The frame's HTML with all six template attributes removed, or null when
+ *  the selector no longer resolves. */
+export function unmarkTemplateField(html: string, selector: string): string | null {
+  const doc = parse(html)
+  const el = find(doc, selector)
+  if (!el) return null
+  for (const attr of TEMPLATE_ATTRS) el.removeAttribute(attr)
+  return serialize(doc)
+}
+
+/** Give `root` and its descendants fresh template ids, collision-free against
+ *  the rest of the document. `root` need not be attached to `doc` yet (the
+ *  drawing move remints before appending). */
+export function remintTemplateIds(doc: Document, root: Element): void {
+  const inSubtree = new Set<Element>([root, ...root.querySelectorAll('[data-od-id]')])
+  const taken = new Set<string>()
+  for (const node of doc.querySelectorAll('[data-od-id]')) {
+    if (!inSubtree.has(node)) {
+      const id = node.getAttribute('data-od-id')
+      if (id) taken.add(id)
+    }
+  }
+  for (const node of inSubtree) {
+    if (!node.hasAttribute('data-od-id')) continue
+    const fresh = mintTemplateId(taken)
+    node.setAttribute('data-od-id', fresh)
+    taken.add(fresh)
+  }
 }
 
 /** Where a moved element lands relative to its target: as its previous or

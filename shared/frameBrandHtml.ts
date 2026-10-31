@@ -103,3 +103,55 @@ export function rewriteFrameHtml(
 export function withoutBrandStyle(html: string): string {
   return rewriteFrameHtml(html).html
 }
+
+/**
+ * Collect real opening tags in document order.
+ * Same walk as rewriteFrameHtml (comments, CDATA, declarations and raw-text
+ * content are skipped); reuses readTag, no second tokenizer.
+ */
+export function collectFrameTags(html: string): HtmlTag[] {
+  const tags: HtmlTag[] = []
+  let cursor = 0
+  while (cursor < html.length) {
+    const start = html.indexOf('<', cursor)
+    if (start < 0) break
+    if (html.startsWith('<!--', start)) {
+      const end = html.indexOf('-->', start + 4)
+      cursor = end < 0 ? html.length : end + 3
+      continue
+    }
+    if (html.startsWith('<![CDATA[', start)) {
+      const end = html.indexOf(']]>', start + 9)
+      cursor = end < 0 ? html.length : end + 3
+      continue
+    }
+    const tag = readTag(html, start)
+    if (!tag) {
+      // Declarations are opaque, including quoted > or tag-shaped strings.
+      const declaration = /^<![a-z]/i.test(html.slice(start))
+      let end = start + 1
+      if (declaration) {
+        let quote = ''
+        while (end < html.length) {
+          const ch = html[end++]
+          if (quote) {
+            if (ch === quote) quote = ''
+          } else if (ch === '"' || ch === "'") quote = ch
+          else if (ch === '>') break
+        }
+      }
+      cursor = end
+      continue
+    }
+    cursor = tag.end
+    if (tag.closing) continue
+    tags.push(tag)
+    if (tag.name === 'style' || RAW_TEXT.has(tag.name)) {
+      const close = tag.name === 'plaintext' ? null : new RegExp(`</${tag.name}\\s*>`, 'gi')
+      if (close) close.lastIndex = cursor
+      const match = close?.exec(html)
+      cursor = match ? match.index + match[0].length : html.length
+    }
+  }
+  return tags
+}

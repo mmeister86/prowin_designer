@@ -8,22 +8,36 @@ import {
   duplicateElement,
   isElementHidden,
   isElementLocked,
+  mintTemplateField,
   moveElement,
   removeElement,
   replaceElement,
   setElementHidden,
   setElementLocked,
+  setTemplateField,
   shiftElement,
+  templateFieldOf,
+  unmarkTemplateField,
   type DropTarget,
   type MovedElement,
 } from './layers'
+import type { TemplateField } from '../../shared/prowin/templateAttributes'
 
 /* ---- element edits shared by the Layers rail and the element panel ---- */
 
 export function saveFrameHtml(frame: Frame, html: string) {
-  recordUpdate(frame.id, { html: frame.html }, { html })
+  const before = frame.html
+  recordUpdate(frame.id, { html: before }, { html })
   useStore.getState().patchFrameLocal(frame.id, { html })
-  api.updateFrame(frame.id, { html }).catch(console.error)
+  /* a save the server refused is rolled back, so the rail shows what
+     everyone else sees */
+  trackSave(
+    api.updateFrame(frame.id, { html }).catch((err: unknown) => {
+      const s = useStore.getState()
+      s.patchFrameLocal(frame.id, { html: before })
+      s.pushNotice(errorMessage(err, 'Die Ebene konnte nicht gespeichert werden'))
+    }),
+  )
 }
 
 /* ---- locks ---- */
@@ -127,6 +141,45 @@ export function deleteSelection(): boolean {
 export function duplicateLayer(frame: Frame, selector: string) {
   const html = duplicateElement(frame.html, selector)
   if (html !== null) saveFrameHtml(frame, html)
+}
+
+/* ---- template fields (prowin creator editing) ---- */
+
+/** Set (or with null: remove) the element's template field; false when the
+ *  selector is stale, the field invalid, or its id taken. The live document
+ *  gets the same field: FrameView withholds html from a frame in text-edit
+ *  mode, and that mode's next save serializes the live document. */
+export function applyTemplateField(frame: Frame, selector: string, field: TemplateField | null): boolean {
+  const html =
+    field === null ? unmarkTemplateField(frame.html, selector) : setTemplateField(frame.html, selector, field)
+  if (html === null) return false
+  if (html !== frame.html) {
+    const before = frame.html
+    recordUpdate(frame.id, { html: before }, { html })
+    useStore.getState().patchFrameLocal(frame.id, { html })
+    /* a save the server refused is rolled back, so the panel shows what
+       everyone else sees */
+    trackSave(
+      api.updateFrame(frame.id, { html }).catch((err: unknown) => {
+        const s = useStore.getState()
+        s.patchFrameLocal(frame.id, { html: before })
+        s.pushNotice(errorMessage(err, 'Template-Feld konnte nicht gespeichert werden'))
+        /* mirror the rollback to the live document: it already got the new
+           field, and the next text save serializes it */
+        void requestFrame(frame.id, 'doop:template', { selector, field: templateFieldOf(before, selector) })
+      }),
+    )
+  }
+  void requestFrame(frame.id, 'doop:template', { selector, field })
+  return true
+}
+
+/** Mark an unmarked element with a fresh frame-unique id; false when the
+ *  selector no longer resolves. Already marked elements keep their field. */
+export function markTemplateField(frame: Frame, selector: string): boolean {
+  const html = mintTemplateField(frame.html, selector)
+  if (html === null) return false
+  return applyTemplateField(frame, selector, templateFieldOf(html, selector))
 }
 
 /* ---- the eye: hiding and showing, frames and elements alike ---- */

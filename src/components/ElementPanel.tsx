@@ -13,6 +13,7 @@ import {
 } from '../lib/frameBridge'
 import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '../lib/layers'
 import { replaceLayerHtml } from '../lib/layerEdits'
+import { TemplateFieldsSection } from '../prowin/TemplateFieldsSection'
 import {
   aspectRatio,
   borderSummary,
@@ -222,6 +223,7 @@ export function ElementPanel({
         </div>
         <PanelTabPanel value="design">
           <PanelBody>
+            <TemplateFieldsSection frame={frame} selector={selector} />
             {info ? (
               <PropertyScrubContext.Provider
                 value={{ onStart: () => scrub('begin'), onEnd: (cancel) => scrub(cancel ? 'cancel' : 'commit') }}

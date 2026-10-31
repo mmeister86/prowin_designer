@@ -597,4 +597,20 @@ describe('moving drawings between frames and canvas', () => {
     await moveDrawing(source, selector, { ...rect, x: 260 }, source.id)
     expect(db.get(source.id)).toEqual(remote)
   })
+
+  it('remints a moved template id that already exists in the destination', async () => {
+    const marked = { ...shape, html: shape.html.replace('data-doop-drawing=', 'data-od-id="titel" data-doop-drawing=') }
+    db.set(shape.id, marked)
+    useStore.getState().upsertFrame(marked)
+    const dest = { ...base, html: '<h1 data-od-id="titel">Keep me</h1>' }
+    db.set(base.id, dest)
+    useStore.getState().upsertFrame(dest)
+    await moveDrawing(marked, undefined, rect, base.id)
+    const doc = parse(frames().find((f) => f.id === base.id)!.html)
+    expect(doc.querySelector('h1')!.getAttribute('data-od-id')).toBe('titel')
+    const copy = doc.querySelector('[data-doop-drawing]')!.getAttribute('data-od-id')!
+    expect(copy).not.toBe('titel')
+    expect(copy).toMatch(/^feld-/)
+    expect(doc.querySelectorAll('[data-od-id]')).toHaveLength(2)
+  })
 })
