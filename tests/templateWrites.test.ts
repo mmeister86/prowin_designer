@@ -154,6 +154,20 @@ describe('guarded frame writes', () => {
     expect(await versionCount(frame.id)).toBe(1)
   })
 
+  it('member source-backed copy with unnormalized html validates the normalized candidate', async () => {
+    const raw = `<link href="https://fonts.googleapis.com/css2?family=Roboto" rel="stylesheet">${TEMPLATE}`
+    const source = await newFrame(raw)
+    const sourceHtml = (await snapshot(source.id)).html
+    expect(sourceHtml).not.toContain('fonts.googleapis.com')
+    const res = await mate.post(`/api/canvases/${canvas.id}/frames`, {
+      name: 'Copy',
+      html: raw,
+      sourceFrameId: source.id,
+    })
+    expect(res.status).toBe(200)
+    expect(((await res.json()) as Frame).html).toBe(sourceHtml)
+  })
+
   it('member valid text edit still succeeds', async () => {
     const frame = await newFrame(TEMPLATE)
     const next = (await snapshot(frame.id)).html.replace('>Hallo<', '>Hallo Welt<')

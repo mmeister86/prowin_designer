@@ -297,3 +297,73 @@ describe('templateGuard deletion', () => {
     expect(await attempt('member', '<div><p>Hallo</p></div>')).toBeNull()
   })
 })
+
+describe('templateGuard event handler and metadata value freeze (F1)', () => {
+  const HANDLER = wrap('<p data-od-id="a" data-od-role="body">Hallo <span onclick="legacy()">Klick</span></p>')
+
+  it('rejects changing an existing handler value for members but allows creators', async () => {
+    const changed = HANDLER.replace('onclick="legacy()"', 'onclick="evil()"')
+    expect((await writeError('member', HANDLER, changed))?.status).toBe(403)
+    expect(await writeError('creator', HANDLER, changed)).toBeNull()
+  })
+
+  it('resaves unchanged legacy handlers with text edits and allows handler removal', async () => {
+    expect(await writeError('member', HANDLER, HANDLER.replace('>Hallo <', '>Hallo Welt <'))).toBeNull()
+    expect(await writeError('member', HANDLER, HANDLER.replace(' onclick="legacy()"', ''))).toBeNull()
+  })
+
+  it('freezes data-od-* value changes in editable interiors', async () => {
+    const tagged = wrap('<p data-od-id="a" data-od-role="body">Hallo <span data-od-foo="a">X</span></p>')
+    expect((await writeError('member', tagged, tagged.replace('data-od-foo="a"', 'data-od-foo="b"')))?.status).toBe(403)
+    expect(await writeError('member', tagged, tagged.replace('>Hallo <', '>Hallo Welt <'))).toBeNull()
+  })
+})
+
+describe('templateGuard constrained color removal (F2)', () => {
+  const FROZEN =
+    '<style>p{color:red}</style><p data-od-id="a" data-od-role="body" data-od-allowed-colors="prowin-ci-blau" style="color:var(--prowin-ci-blau)">Text</p>'
+  const MIXED =
+    '<style>p{color:red}</style><p data-od-id="a" data-od-role="body" data-od-allowed-colors="prowin-ci-blau" style="color:var(--prowin-ci-blau);font-size:20px">Text</p>'
+
+  it('rejects dropping the whole style attribute to expose a frozen forbidden color', async () => {
+    const dropped = FROZEN.replace(' style="color:var(--prowin-ci-blau)"', '')
+    expect((await writeError('member', FROZEN, dropped))?.status).toBe(403)
+    expect(await writeError('creator', FROZEN, dropped)).toBeNull()
+  })
+
+  it('rejects dropping only the constrained color property but allows typography-only removal', async () => {
+    const droppedColor = MIXED.replace('color:var(--prowin-ci-blau);', '')
+    expect((await writeError('member', MIXED, droppedColor))?.status).toBe(403)
+    const droppedType = MIXED.replace(';font-size:20px', '')
+    expect(await writeError('member', MIXED, droppedType)).toBeNull()
+  })
+
+  it('rejects unwrapping, replacing and removing a nested color-bearing wrapper', async () => {
+    const nested = wrap(
+      '<section data-od-id="s" data-od-role="body" data-od-allowed-colors="prowin-ci-blau"><p data-od-id="a" data-od-role="body">Rest <span style="color:var(--prowin-ci-blau)">Farbe</span></p></section>',
+    )
+    const unwrapped = nested.replace('<span style="color:var(--prowin-ci-blau)">Farbe</span>', 'Farbe')
+    expect((await writeError('member', nested, unwrapped))?.status).toBe(403)
+    const replaced = nested.replace('<span style="color:var(--prowin-ci-blau)">Farbe</span>', '<b>Farbe</b>')
+    expect((await writeError('member', nested, replaced))?.status).toBe(403)
+    const stripped = nested.replace('<span style="color:var(--prowin-ci-blau)">', '<span>')
+    expect((await writeError('member', nested, stripped))?.status).toBe(403)
+    const removed = nested.replace(' <span style="color:var(--prowin-ci-blau)">Farbe</span>', '')
+    expect((await writeError('member', nested, removed))?.status).toBe(403)
+    expect(await writeError('creator', nested, unwrapped)).toBeNull()
+  })
+
+  it('rejects dropping class/id attributes under a color constraint', async () => {
+    const classed = FROZEN.replace('<p data-od-id', '<p class="frozen" id="x" data-od-id')
+    expect((await writeError('member', classed, classed.replace(' class="frozen"', '')))?.status).toBe(403)
+    expect((await writeError('member', classed, classed.replace(' id="x"', '')))?.status).toBe(403)
+    expect(await writeError('creator', classed, classed.replace(' class="frozen"', ''))).toBeNull()
+  })
+
+  it('preserves legitimate edits: text, unconstrained removals and safe typography', async () => {
+    expect(await writeError('member', FROZEN, FROZEN.replace('>Text<', '>Neuer Text<'))).toBeNull()
+    const free = wrap('<p data-od-id="a" data-od-role="body" class="x" style="font-size:20px">Hallo</p>')
+    expect(await writeError('member', free, free.replace(' style="font-size:20px"', ''))).toBeNull()
+    expect(await writeError('member', free, free.replace(' class="x"', ''))).toBeNull()
+  })
+})

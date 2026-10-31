@@ -1417,8 +1417,8 @@ export function createFrame(
   const canvas = store.getCanvas(canvasId)
   if (!canvas) return undefined
   assertCanChangeLock(canvas, false, input.locked)
-  /* repair once, then validate exactly that candidate before any side effect */
-  const candidate = input.html !== undefined ? repairEscapedHtml(input.html) : ''
+  /* normalize once, then validate exactly that candidate before any side effect */
+  const candidate = input.html !== undefined ? normalizeFrameHtml(repairEscapedHtml(input.html)) : ''
   if (input.html !== undefined || input.sourceFrameId !== undefined) {
     let baseline = ''
     if (input.sourceFrameId !== undefined) {
@@ -1490,7 +1490,6 @@ export function updateFrame(
     shared >= withoutBrandStyle(prevHtml).length * 0.5
   if (htmlChanged) noteHtmlChange(prior, actor, smallTweak && !opts.replace)
   if (htmlChanged && actor.kind === 'agent') {
-    takeOverDraft(frameId) /* a full replace ends the author's open append stream */
     const openReveal = reveals.get(frameId)
     if (openReveal) {
       /* new content mid-playback: rewind to the divergence and re-arm the deadline */
@@ -1509,8 +1508,7 @@ export function updateFrame(
     }
   } else {
     if (htmlChanged) {
-      /* a human takes over: cancel their own live stream or playback */
-      takeOverDraft(frameId)
+      /* a human take-over cancels their own playback (streams were taken over pre-write) */
       finishReveal(frameId)
     }
     broadcast(frame.canvasId, { type: 'frame:updated', frame, actor })

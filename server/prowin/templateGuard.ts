@@ -175,6 +175,30 @@ interface EditCtx {
   image: boolean
 }
 
+function isConstrained(ctx: EditCtx): boolean {
+  return ctx.chain.some((field) => field.allowedColors.length > 0)
+}
+
+/** True when an element subtree carries presentation that a frozen stylesheet
+ *  could resolve into color: an explicit color declaration (or an
+ *  unevaluable style, fail-closed) or a class/id hook. */
+function subtreeHasProtectedColor(node: TreeNode): boolean {
+  if (!isElement(node)) return false
+  const element = node as TreeElement
+  for (const attr of element.attrs) {
+    if (attr.name === 'style') {
+      const declarations = parseStyle(attr.value)
+      if (!declarations) return true
+      for (const prop of declarations.keys()) {
+        if (COLOR_PROPS.has(prop) || prop.startsWith('--')) return true
+      }
+    } else if (attr.name === 'class' || attr.name === 'id') {
+      return true
+    }
+  }
+  return childrenOf(node).some(subtreeHasProtectedColor)
+}
+
 function parseStyle(style: string): Map<string, string> | null {
   // Comments, backslash escapes and malformed declarations never validate as changed styles.
   if (style.includes('/*') || style.includes('*/') || style.includes('\\')) return null
@@ -214,6 +238,19 @@ function assertStyleChange(oldStyle: string | undefined, newStyle: string, ctx: 
   const next = parseStyle(newStyle)
   if (!next) throw new CreatorPermissionError()
   const prev = oldStyle === undefined ? new Map<string, string>() : parseStyle(oldStyle)
+  if (!prev) {
+    // A legacy malformed style stays resavable unchanged, but any change under
+    // a color constraint is fail-closed: the cascade cannot be evaluated.
+    if (isConstrained(ctx)) throw new CreatorPermissionError()
+  } else {
+    for (const prop of prev.keys()) {
+      // Dropping a constrained color (or custom-property) declaration exposes
+      // an unvalidated inherited value; typography-only removals stay allowed.
+      if (!next.has(prop) && (COLOR_PROPS.has(prop) || prop.startsWith('--')) && isConstrained(ctx)) {
+        throw new CreatorPermissionError()
+      }
+    }
+  }
   for (const [prop, value] of next) {
     // Unchanged declarations are preserved rather than newly forbidden.
     if (prev?.get(prop) !== value) assertStyleDeclaration(prop, value, ctx)
@@ -245,11 +282,40 @@ function assertSameTagChange(run: TemplateRun, prev: TreeElement, next: TreeElem
     } else if (attr.name === 'src' || attr.name === 'alt') {
       if (!(ctx.image && next.tagName === 'img')) throw new CreatorPermissionError()
     } else if (attr.name.startsWith('on') || attr.name.startsWith('data-od-')) {
-      // Event attributes and nested metadata are never added; removals are safe.
-      if (old === undefined) throw new CreatorPermissionError()
+      // Event attributes and nested metadata are frozen: additions and value
+      // changes are rejected (lock-presence spellings compare canonically),
+      // removals shrink attack surface and stay allowed.
+      if (old === undefined || canonAttrValue(attr.name, old) !== canonAttrValue(attr.name, attr.value)) {
+        throw new CreatorPermissionError()
+      }
     } else {
       // Added or changed classes/ids/etc. could smuggle overlay styling; removals are safe.
       throw new CreatorPermissionError()
+    }
+  }
+  if (isConstrained(ctx)) {
+    // Without a cascade engine, dropping presentation that could resolve into
+    // color exposes an unvalidated inherited value: fail-closed under an
+    // allowed-colors constraint. Handler/metadata and src/alt removals stay
+    // allowed (field-root metadata removal is already rejected upstream).
+    const nextAttrs = new Map(next.attrs.map((attr) => [attr.name, attr.value]))
+    for (const attr of prev.attrs) {
+      if (nextAttrs.has(attr.name)) continue
+      if (attr.name === 'style') {
+        const declarations = parseStyle(attr.value)
+        if (!declarations || [...declarations.keys()].some((prop) => COLOR_PROPS.has(prop) || prop.startsWith('--'))) {
+          throw new CreatorPermissionError()
+        }
+      } else if (
+        attr.name === 'src' ||
+        attr.name === 'alt' ||
+        attr.name.startsWith('on') ||
+        attr.name.startsWith('data-od-')
+      ) {
+        continue
+      } else {
+        throw new CreatorPermissionError()
+      }
     }
   }
   compareEditableChildren(run, prev, next, ctx)
@@ -273,6 +339,9 @@ function compareEditableChildren(
     if (!b) {
       // Deleting non-field content is safe; field roots must be retained.
       if (fieldOf(a)) throw new CreatorPermissionError()
+      // Deleting a color-bearing wrapper under a color constraint is
+      // fail-closed even with its text: the cascade is not evaluated.
+      if (isConstrained(ctx) && subtreeHasProtectedColor(a)) throw new CreatorPermissionError()
       continue
     }
     compareEditableNode(run, a, b, ctx)
@@ -292,6 +361,9 @@ function compareEditableNode(run: TemplateRun, a: TreeNode, b: TreeNode, ctx: Ed
     assertSameTagChange(run, a, b, ctx)
     return
   }
+  // Replacing or unwrapping a color-bearing wrapper under a color constraint
+  // leaves surviving content on unvalidated inheritance: fail-closed.
+  if (isConstrained(ctx) && subtreeHasProtectedColor(a)) throw new CreatorPermissionError()
   if (isElement(b)) assertSafeNew(b, ctx)
 }
 
