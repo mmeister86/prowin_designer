@@ -31,7 +31,7 @@ type Entry =
       discrete?: boolean
       expected?: Frame
     }
-  | { type: 'create'; frameId: string; snapshot: Snapshot; expected?: Frame }
+  | { type: 'create'; frameId: string; snapshot: Snapshot; expected?: Frame; sourceFrameId?: string }
   | { type: 'delete'; frameId: string; snapshot: Snapshot; expected?: Frame }
   /* Destination first, then source removal; reverse that order on undo so
      a failed request can never remove the only copy of a drawing. */
@@ -148,8 +148,8 @@ export function recordPages(
   })
 }
 
-export function recordCreate(frame: Frame) {
-  push({ type: 'create', frameId: frame.id, snapshot: snapshot(frame) })
+export function recordCreate(frame: Frame, sourceFrameId?: string) {
+  push({ type: 'create', frameId: frame.id, snapshot: snapshot(frame), ...(sourceFrameId ? { sourceFrameId } : {}) })
 }
 
 export function recordDrawingTransfer(
@@ -200,10 +200,16 @@ export function recordPageCopy(
   })
 }
 
-/** Several frames created together (a multi-frame paste): one undo step. */
-export function recordCreates(frames: Frame[]) {
+/** Several frames created together (a multi-frame paste): one undo step.
+ *  `sourceIds` replays copy provenance on redo, parallel to `frames`. */
+export function recordCreates(frames: Frame[], sourceIds?: (string | undefined)[]) {
   if (!frames.length) return
-  const entries: Entry[] = frames.map((f) => ({ type: 'create', frameId: f.id, snapshot: snapshot(f) }))
+  const entries: Entry[] = frames.map((f, i) => ({
+    type: 'create',
+    frameId: f.id,
+    snapshot: snapshot(f),
+    ...(sourceIds?.[i] ? { sourceFrameId: sourceIds[i] } : {}),
+  }))
   const [first] = entries
   push(entries.length === 1 && first ? first : { type: 'group', entries })
 }
@@ -235,13 +241,16 @@ function remapId(oldId: string, newId: string) {
   for (const e of [...undoStack, ...redoStack]) visit(e)
 }
 
-async function recreate(e: { frameId: string; snapshot: Snapshot; expected?: Frame }) {
+async function recreate(e: { frameId: string; snapshot: Snapshot; expected?: Frame; sourceFrameId?: string }) {
   const { canvasId, ...rest } = e.snapshot
   const canvas = useStore.getState().canvas
   if (!canvas || canvas.id !== canvasId) throw new UserFacingError('Die Arbeitsfläche wurde geändert')
   const pages = canvasPages(canvas)
   if (!rest.pageId || !pages.some((p) => p.id === rest.pageId)) rest.pageId = pages[0]!.id
-  const f = await api.createFrame(canvasId, rest)
+  const f = await api.createFrame(canvasId, {
+    ...rest,
+    ...(e.sourceFrameId ? { sourceFrameId: e.sourceFrameId } : {}),
+  })
   useStore.getState().upsertFrame(f)
   remapId(e.frameId, f.id)
   e.frameId = f.id

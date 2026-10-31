@@ -74,6 +74,7 @@
 **Files:**
 
 - Modify: `src/lib/api.ts`, `src/lib/frameClipboard.ts`, `src/components/FrameView.tsx` (locate actual path before editing), client request types/callers if required
+- Modify: `server/mcp.ts`, `server/resident.ts` (pass `sourceFrameId` through the existing create tool schemas/arguments; no new tool)
 - Create: `tests/templateTransports.test.ts` and focused clipboard/duplicate tests if existing suites lack coverage
 - Modify: existing MCP/Resident/brand/copy tests and fixtures impacted by permission/stream semantics
 - Modify: `docs/prowin/template-attribute.md`, `docs/prowin/doop-fork-umsetzung.md`, `.context/TECHSTACK.md` if its dependency list is affected

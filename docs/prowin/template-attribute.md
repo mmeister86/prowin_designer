@@ -44,20 +44,29 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
 
 - Nur Rollen mit `manageLocks` ändern Sperren und Constraints (`data-od-locked`,
   `data-od-max-length`, `data-od-allowed-colors`) — im Client gegated,
-  auf dem regulären Frame-Write serverseitig geprüft (`actions.updateFrame`).
+  auf allen Frame-Schreibpfaden serverseitig geprüft.
 
 ## Durchsetzung
 
-- Task 29 prüft nur `actions.updateFrame` (`PATCH /api/frames/:id`), nur Metadaten:
-  doppelte `data-od-id` und ungültige Werte → 400 für alle; geänderte Metadaten
-  ohne `manageLocks` → 403.
-- Bis TASK-30 offen: `createFrame`, Append-Stream (`appendFrameHtml`), Restore,
-  Inhalts-/Längen-/Farb-Nutzung und Löschschutz.
+- TASK-30 ist umgesetzt (`server/prowin/templateGuard.ts`, Parser: `parse5`):
+  Gespeichertes HTML ist die vertraute Constraint-Basis; `manageLocks` kommt aus
+  dem vertrauten Server-Permission-Kontext, nie aus Actor-Namen oder Request-Flags.
+- Ungültige/doppelte Template-Metadaten → 400 für alle; unbefugte Änderungen → 403.
+- Update, Append-Commit, Restore, Create/Import und Frame-Delete sind geprüft;
+  Größenänderung und Löschen eines Template-Frames sind für Nicht-Creator 403.
+- Append-Streams puffern alle Rollen bis `done=true`; erst der finale Commit wird
+  geprüft und gespeichert (409 bei konkurrierender Änderung, Berechtigung erneut geprüft).
+- Kopien mit `sourceFrameId` (Zwischenablage, Duplizieren, MCP-/Resident-`create_frame`
+  mit `source_frame_id`) validieren gegen die gespeicherte Quelle; frische
+  Template-Erstellung ohne Quelle ist für Nicht-Creator 403, fehlende/unzugängliche
+  Quellen scheitern geschlossen (404/403) — nie mit still entferntem Schutz.
+- `max-length` zählt Unicode-Codepoints im dekodierten Text; Farben nur als
+  `var(--token)` aus `allowed-colors`; sichere Typografie in offenen Feldern bleibt
+  erlaubt. Manueller Browser-Test steht aus; eine happy-dom
+  Serialisierungs-Regression liegt in `tests/templateTransports.test.ts`.
 
 ## Offen
 
 - Font-/Size-Locks (`data-od-lock="font,size"` laut R1.4) sind offen.
-- Inhalts-Guard auf allen Schreibpfaden (Locked-`outerHTML`, Längen-/Farb-Nutzung,
-  Löschschutz, `appendFrameHtml`, Restore, `createFrame`) → TASK-30.
 - Beraterinnen-Sichtbarkeit (Schloss-Badges, Auswahl-/Farb-/Text-Begrenzung,
   Agent-/MCP-Guide) → TASK-31.

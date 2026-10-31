@@ -834,12 +834,31 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
         y: z.number().optional(),
         width: z.number().optional().describe('Default 640'),
         height: z.number().optional().describe('Default 480'),
+        source_frame_id: z
+          .string()
+          .optional()
+          .describe(
+            'Copy provenance: the id of the frame this HTML was copied from. Pass it when duplicating a frame so template fields stay editable under a non-Creator account; the server validates against the stored source, never this id alone.',
+          ),
         agent_name: agentName,
       },
     },
-    async ({ canvas_id, pageId, name, html, x, y, width, height, agent_name }) => {
+    async ({ canvas_id, pageId, name, html, x, y, width, height, source_frame_id, agent_name }) => {
       if (!canvasFor(canvas_id)) return noCanvas(canvas_id)
-      const frame = actions.createFrame(canvas_id, { name, pageId, html, x, y, width, height }, actorFrom(agent_name))
+      const frame = actions.createFrame(
+        canvas_id,
+        {
+          name,
+          pageId,
+          html,
+          x,
+          y,
+          width,
+          height,
+          ...(source_frame_id ? { sourceFrameId: source_frame_id } : {}),
+        },
+        actorFrom(agent_name),
+      )
       if (!frame) return noCanvas(canvas_id)
       const result = withEscapeNote(
         hasFrameContent(frame.html)

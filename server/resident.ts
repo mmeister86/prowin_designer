@@ -202,7 +202,15 @@ export function placeBeside(
 /** What the create_frame tool asks for, placed: the model's own x/y win,
  *  otherwise the run's placement (the comment's page, and beside its pin). */
 export function createFrameInput(
-  raw: { name?: string; width?: number; height?: number; html: string; x?: number; y?: number },
+  raw: {
+    name?: string
+    width?: number
+    height?: number
+    html: string
+    x?: number
+    y?: number
+    source_frame_id?: string
+  },
   placement: FramePlacement | undefined,
   canvas: Canvas | undefined,
 ) {
@@ -218,6 +226,9 @@ export function createFrameInput(
     html: raw.html,
     ...(placement ? { pageId: placement.pageId } : {}),
     ...(chosen ?? beside ?? {}),
+    /* copy provenance for template frames: the server validates the html
+       against the stored source and the run's permission context */
+    ...(typeof raw.source_frame_id === 'string' && raw.source_frame_id ? { sourceFrameId: raw.source_frame_id } : {}),
   }
 }
 
@@ -853,6 +864,11 @@ const ALL_TOOLS: Anthropic.Tool[] = [
         width: { type: 'number', description: 'px, e.g. 1200' },
         height: { type: 'number', description: 'px, e.g. 630' },
         html: { type: 'string', description: 'Complete HTML document with inline CSS' },
+        source_frame_id: {
+          type: 'string',
+          description:
+            'Copy provenance: the id of the frame this HTML was copied from. Pass it when duplicating a frame so template fields stay valid under a non-Creator account.',
+        },
         x: {
           type: 'number',
           description:
@@ -1188,6 +1204,7 @@ async function execTool(
           html?: string
           x?: number
           y?: number
+          source_frame_id?: string
         }
         const html = completeHtml(typeof raw.html === 'string' ? runState.redaction.restore(raw.html) : raw.html)
         if (!html) return fail('create_frame requires a complete non-empty HTML document ending in </html>')
