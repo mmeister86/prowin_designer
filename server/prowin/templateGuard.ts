@@ -1,4 +1,4 @@
-import { parseFragment } from 'parse5'
+import { parse as parseDocument } from 'parse5'
 import type { Canvas } from '../../shared/types.ts'
 import {
   findDuplicateTemplateIds,
@@ -33,10 +33,16 @@ interface TreeNode extends TreeParent {
   nodeName: string
   value?: string
   data?: string
+  name?: string
+  publicId?: string
+  systemId?: string
 }
 
+// Full-document parse: html/head/body wrappers and the doctype survive, so their
+// changes compare unequal. Fragments are wrapped symmetrically (empty
+// html/head/body), keeping fragment saves equivalent.
 function parse(html: string): TreeParent {
-  return parseFragment(html) as unknown as TreeParent
+  return parseDocument(html) as unknown as TreeParent
 }
 
 function isElement(node: TreeNode): node is TreeNode & TreeElement {
@@ -141,6 +147,9 @@ function equalNodes(a: TreeNode, b: TreeNode): boolean {
   if (a.nodeName !== b.nodeName) return false
   if (a.nodeName === '#text') return (a.value ?? '') === (b.value ?? '')
   if (a.nodeName === '#comment') return (a.data ?? '') === (b.data ?? '')
+  if (a.nodeName === '#documentType') {
+    return a.name === b.name && (a.publicId ?? '') === (b.publicId ?? '') && (a.systemId ?? '') === (b.systemId ?? '')
+  }
   if (!isElement(a) || !isElement(b)) return a.nodeName === b.nodeName
   if (a.tagName !== b.tagName || a.namespaceURI !== b.namespaceURI || !attrsEqual(a, b)) return false
   const aChildren = childrenOf(a)
@@ -340,6 +349,8 @@ export function assertTemplateWrite(canvas: Canvas, prevHtml: string, nextHtml: 
   const prevFields = collectFields(parse(prevHtml))
   const nextFields = collectFields(parse(nextHtml))
   assertValidTemplateMeta(nextFields)
+  // No template fields on either side: free edit for everyone, no capability lookup.
+  if (prevFields.length === 0 && nextFields.length === 0) return
   if (!canvasCapabilities(canvas).manageLocks) {
     if (prevFields.length === 0) {
       if (nextFields.length > 0) throw new CreatorPermissionError()

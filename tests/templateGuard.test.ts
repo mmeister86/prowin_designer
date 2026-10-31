@@ -225,6 +225,63 @@ describe('templateGuard write constraints', () => {
   })
 })
 
+describe('templateGuard document wrappers', () => {
+  const doc = (bodyInner: string, htmlAttrs = 'lang="en"', bodyAttrs = 'class="x"') =>
+    `<!DOCTYPE html><html ${htmlAttrs}><head><title>T</title></head><body ${bodyAttrs}>${bodyInner}</body></html>`
+  const docPrev = doc(wrap(`${UNLOCKED}${LOCKED}`))
+
+  it('rejects html lang changes for members but allows creators', async () => {
+    const next = docPrev.replace('<html lang="en">', '<html lang="fr">')
+    expect((await writeError('member', docPrev, next))?.status).toBe(403)
+    expect(await writeError('creator', docPrev, next)).toBeNull()
+  })
+
+  it('rejects body class and style changes for members', async () => {
+    expect((await writeError('member', docPrev, docPrev.replace('<body class="x">', '<body class="y">')))?.status).toBe(
+      403,
+    )
+    expect(
+      (await writeError('member', docPrev, docPrev.replace('<body class="x">', '<body class="x" style="color:red">')))
+        ?.status,
+    ).toBe(403)
+  })
+
+  it('rejects head attribute changes for members', async () => {
+    const next = docPrev.replace('<head>', '<head data-brand="v2">')
+    expect((await writeError('member', docPrev, next))?.status).toBe(403)
+  })
+
+  it('rejects doctype name, publicId and systemId changes for members', async () => {
+    const qualified = docPrev.replace(
+      '<!DOCTYPE html>',
+      '<!DOCTYPE html PUBLIC "-//Example//EN" "https://example.com/dtd">',
+    )
+    expect((await writeError('member', docPrev, qualified))?.status).toBe(403)
+    const publicChanged = qualified.replace('-//Example//EN', '-//Other//EN')
+    expect((await writeError('member', qualified, publicChanged))?.status).toBe(403)
+    const systemChanged = qualified.replace('https://example.com/dtd', 'https://example.com/other')
+    expect((await writeError('member', qualified, systemChanged))?.status).toBe(403)
+    expect(await writeError('creator', docPrev, qualified)).toBeNull()
+  })
+
+  it('accepts identical full-document saves and unlocked text edits inside documents', async () => {
+    expect(await writeError('member', docPrev, docPrev)).toBeNull()
+    expect(await writeError('member', docPrev, docPrev.replace('>Hallo<', '>Hallo Welt<'))).toBeNull()
+  })
+
+  it('accepts a browser-built full-document reserialization', async () => {
+    const { Window } = await import('happy-dom')
+    const window = new Window()
+    window.document.documentElement.setAttribute('lang', 'en')
+    window.document.title = 'T'
+    window.document.body.setAttribute('class', 'x')
+    window.document.body.innerHTML = wrap(`${UNLOCKED}${LOCKED}`)
+    const reserialized = `<!DOCTYPE html>${window.document.documentElement.outerHTML}`
+    await window.close()
+    expect(await writeError('member', docPrev, reserialized)).toBeNull()
+  })
+})
+
 describe('templateGuard deletion', () => {
   it('forbids member deletion of template-bearing frames, allows creators and plain frames', async () => {
     const attempt = async (user: string, html: string) => {
