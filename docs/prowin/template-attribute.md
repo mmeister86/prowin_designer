@@ -76,6 +76,17 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
   verwenden; reine Text- und Typografie-Änderungen bleiben erlaubt.
 - Bestehende `on*`-Werte sind eingefroren (unveränderte Legacy-Handler bleiben
   speicherbar, Entfernen bleibt erlaubt); Wertänderungen sind 403.
+- Nicht editierbare Legacy-Teilbäume in offenen Feldern, insbesondere `script`
+  und `style`, bleiben unverändert; auch Ersetzen und Entfernen ist 403. Als Feld
+  markierte `script`-/`style`-Elemente sind ebenfalls keine offenen Code-Editoren.
+- Geänderte Inline-Styles mit doppelten Eigenschaftsnamen werden abgelehnt
+  (auch bei anderer Großschreibung), damit keine `!important`-Deklaration bei der
+  Prüfung verschwindet. Unveränderte Legacy-Styles bleiben speicherbar.
+- SVG-Attribute werden mit Namespace und Präfix verglichen: `href` und
+  `xlink:href` sind unterschiedliche Attribute, auch auf gesperrten Elementen.
+- Beim Speichern eines Bestandsfragments darf der Editor einmalig den üblichen
+  `<!doctype html>` ergänzen. Vorhandene Doctypes samt Public-/System-ID sowie
+  Dokumentattribute bleiben geschützt.
 
 ## Offen
 

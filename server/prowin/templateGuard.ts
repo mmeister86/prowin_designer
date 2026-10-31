@@ -18,6 +18,8 @@ export class TemplateMetaError extends Error {
 interface TreeAttr {
   name: string
   value: string
+  namespace?: string
+  prefix?: string
 }
 interface TreeParent {
   childNodes: TreeNode[]
@@ -59,7 +61,11 @@ function childrenOf(parent: TreeParent | TreeNode): TreeNode[] {
 }
 
 function attrMap(element: TreeElement): Map<string, string> {
-  return new Map(element.attrs.map((attr) => [attr.name, attr.value]))
+  return new Map(element.attrs.filter((attr) => !attr.namespace).map((attr) => [attr.name, attr.value]))
+}
+
+function attrKey(attr: TreeAttr): string {
+  return `${attr.namespace ?? ''}\0${attr.prefix ?? ''}\0${attr.name}`
 }
 
 function fieldOf(node: TreeNode): { field: TemplateField; element: TreeElement } | null {
@@ -135,9 +141,9 @@ function canonAttrValue(name: string, value: string): string {
 
 function attrsEqual(a: TreeElement, b: TreeElement): boolean {
   if (a.attrs.length !== b.attrs.length) return false
-  const right = new Map(b.attrs.map((attr) => [attr.name, attr.value]))
+  const right = new Map(b.attrs.map((attr) => [attrKey(attr), attr.value]))
   return a.attrs.every((attr) => {
-    const value = right.get(attr.name)
+    const value = right.get(attrKey(attr))
     return value !== undefined && canonAttrValue(attr.name, value) === canonAttrValue(attr.name, attr.value)
   })
 }
@@ -185,6 +191,13 @@ interface EditCtx {
   image: boolean
 }
 
+function isEditableInline(element: TreeElement, ctx: EditCtx): boolean {
+  return (
+    element.namespaceURI === 'http://www.w3.org/1999/xhtml' &&
+    (SAFE_INLINE.has(element.tagName) || (ctx.image && element.tagName === 'img'))
+  )
+}
+
 function isConstrained(ctx: EditCtx): boolean {
   return ctx.chain.some((field) => field.allowedColors.length > 0)
 }
@@ -217,7 +230,10 @@ function parseStyle(style: string): Map<string, string> | null {
     if (text === '') continue
     const colon = text.indexOf(':')
     if (colon < 0) return null
-    declarations.set(text.slice(0, colon).trim().toLowerCase(), text.slice(colon + 1).trim())
+    const prop = text.slice(0, colon).trim().toLowerCase()
+    // Keep priority/fallback declarations from disappearing in the Map.
+    if (declarations.has(prop)) return null
+    declarations.set(prop, text.slice(colon + 1).trim())
   }
   return declarations
 }
@@ -267,7 +283,7 @@ function assertStyleChange(oldStyle: string | undefined, newStyle: string, ctx: 
 
 function assertSafeNew(node: TreeNode, ctx: EditCtx): void {
   if (!isElement(node)) return
-  if (!(SAFE_INLINE.has(node.tagName) || (ctx.image && node.tagName === 'img'))) {
+  if (!isEditableInline(node, ctx)) {
     throw new CreatorPermissionError()
   }
   for (const attr of node.attrs) {
@@ -281,9 +297,9 @@ function assertSafeNew(node: TreeNode, ctx: EditCtx): void {
 
 /** Same-tag element pair in an editable region: attrs diffed, children recursed. */
 function assertSameTagChange(run: TemplateRun, prev: TreeElement, next: TreeElement, ctx: EditCtx): void {
-  const prevAttrs = new Map(prev.attrs.map((attr) => [attr.name, attr.value]))
+  const prevAttrs = new Map(prev.attrs.map((attr) => [attrKey(attr), attr.value]))
   for (const attr of next.attrs) {
-    const old = prevAttrs.get(attr.name)
+    const old = prevAttrs.get(attrKey(attr))
     if (old === attr.value) continue
     if (attr.name === 'style') {
       assertStyleChange(old, attr.value, ctx)
@@ -306,9 +322,9 @@ function assertSameTagChange(run: TemplateRun, prev: TreeElement, next: TreeElem
     // color exposes an unvalidated inherited value: fail-closed under an
     // allowed-colors constraint. Handler/metadata and src/alt removals stay
     // allowed (field-root metadata removal is already rejected upstream).
-    const nextAttrs = new Map(next.attrs.map((attr) => [attr.name, attr.value]))
+    const nextAttrs = new Map(next.attrs.map((attr) => [attrKey(attr), attr.value]))
     for (const attr of prev.attrs) {
-      if (nextAttrs.has(attr.name)) continue
+      if (nextAttrs.has(attrKey(attr))) continue
       if (attr.name === 'style') {
         const declarations = parseStyle(attr.value)
         if (!declarations || [...declarations].some(([prop, value]) => !isTypographyOnly(prop, value))) {
@@ -347,6 +363,7 @@ function compareEditableChildren(
     if (!b) {
       // Deleting non-field content is safe; field roots must be retained.
       if (fieldOf(a)) throw new CreatorPermissionError()
+      if (isElement(a) && !isEditableInline(a, ctx)) throw new CreatorPermissionError()
       // Deleting a color-bearing wrapper under a color constraint is
       // fail-closed even with its text: the cascade is not evaluated.
       if (isConstrained(ctx) && subtreeHasProtectedColor(a)) throw new CreatorPermissionError()
@@ -365,7 +382,10 @@ function compareEditableNode(run: TemplateRun, a: TreeNode, b: TreeNode, ctx: Ed
     return
   }
   if (equalNodes(a, b)) return
-  if (isElement(a) && isElement(b) && a.tagName === b.tagName) {
+  // Existing legacy scripts/styles (and other non-editable elements) are frozen,
+  // not made writable merely because their tag existed in the baseline.
+  if (isElement(a) && !isEditableInline(a, ctx)) throw new CreatorPermissionError()
+  if (isElement(a) && isElement(b) && a.tagName === b.tagName && a.namespaceURI === b.namespaceURI) {
     assertSameTagChange(run, a, b, ctx)
     return
   }
@@ -383,7 +403,7 @@ function compareField(
   next: TreeElement,
   ancestors: TemplateField[],
 ): void {
-  if (field.locked) {
+  if (field.locked || prev.tagName === 'script' || prev.tagName === 'style') {
     if (!equalNodes(prev, next)) throw new CreatorPermissionError()
     return
   }
@@ -426,8 +446,10 @@ interface TemplateRun {
  * metadata is 400 for everyone; unauthorized modifications are 403.
  */
 export function assertTemplateWrite(canvas: Canvas, prevHtml: string, nextHtml: string): void {
-  const prevFields = collectFields(parse(prevHtml))
-  const nextFields = collectFields(parse(nextHtml))
+  const prevDocument = parse(prevHtml)
+  const nextDocument = parse(nextHtml)
+  const prevFields = collectFields(prevDocument)
+  const nextFields = collectFields(nextDocument)
   assertValidTemplateMeta(nextFields)
   // No template fields on either side: free edit for everyone, no capability lookup.
   if (prevFields.length === 0 && nextFields.length === 0) return
@@ -458,7 +480,15 @@ export function assertTemplateWrite(canvas: Canvas, prevHtml: string, nextHtml: 
       if (text !== entry.text && [...text].length > entry.field.maxLength) throw new CreatorPermissionError()
     }
     const run: TemplateRun = { ancestors: new Map(prevFields.map((entry) => [entry.field.id, entry.ancestors])) }
-    compareStrictChildren(run, parse(prevHtml), parse(nextHtml))
+    if (!prevDocument.childNodes.some((node) => node.nodeName === '#documentType')) {
+      const doctype = nextDocument.childNodes.find((node) => node.nodeName === '#documentType')
+      // The production editor adds this to stored fragments; only that additive
+      // standard doctype is equivalent, not removal/replacement of an existing one.
+      if (doctype?.name === 'html' && !doctype.publicId && !doctype.systemId) {
+        nextDocument.childNodes = nextDocument.childNodes.filter((node) => node !== doctype)
+      }
+    }
+    compareStrictChildren(run, prevDocument, nextDocument)
   }
 }
 

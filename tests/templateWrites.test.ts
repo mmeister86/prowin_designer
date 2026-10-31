@@ -176,6 +176,63 @@ describe('guarded frame writes', () => {
     expect(((await res.json()) as Frame).html).toContain('Hallo Welt')
   })
 
+  it.each([
+    [
+      'script',
+      '<div data-od-id="edit"><script>console.log("safe")</script></div>',
+      'console.log("safe")',
+      'alert("changed")',
+    ],
+    ['style', '<div data-od-id="edit"><style>.locked{color:blue}</style></div>', 'color:blue', 'color:red'],
+    [
+      'CSS priority',
+      '<p data-od-id="edit" data-od-allowed-colors="prowin-ci-blau" style="color:var(--prowin-ci-blau)">Text</p>',
+      'color:var(',
+      'color:red!important;color:var(',
+    ],
+    [
+      'SVG namespace',
+      '<svg xmlns:xlink="http://www.w3.org/1999/xlink"><image data-od-id="logo" data-od-locked href="/safe.png" xlink:href="/safe.png"/></svg>',
+      ' href="/safe.png"',
+      ' href="/changed.png"',
+    ],
+  ])('rejects the %s review bypass over PATCH and append without saving', async (_name, html, find, replace) => {
+    const frame = await newFrame(html)
+    const before = await snapshot(frame.id)
+    const versions = await versionCount(frame.id)
+    const candidate = before.html.replace(find, replace)
+    expect((await mate.patch(`/api/frames/${frame.id}`, { html: candidate })).status).toBe(403)
+    expect(await snapshot(frame.id)).toEqual(before)
+    expect(await versionCount(frame.id)).toBe(versions)
+
+    expect(
+      (await mate.post(`/api/frames/${frame.id}/append`, { html_chunk: candidate.slice(0, 20), start: true })).status,
+    ).toBe(200)
+    expect(
+      (await mate.post(`/api/frames/${frame.id}/append`, { html_chunk: candidate.slice(20), done: true })).status,
+    ).toBe(403)
+    expect(await snapshot(frame.id)).toEqual(before)
+    expect(await versionCount(frame.id)).toBe(versions)
+  })
+
+  it('member saves a DOM-edited fragment with the production editor doctype', async () => {
+    const { Window } = await import('happy-dom')
+    const frame = await newFrame(TEMPLATE)
+    const before = await snapshot(frame.id)
+    const window = new Window()
+    try {
+      window.document.write(before.html)
+      window.document.querySelector('[data-od-id="titel"]')!.textContent = 'Hallo Welt'
+      const html = '<!doctype html>\n' + window.document.documentElement.outerHTML
+      const res = await mate.patch(`/api/frames/${frame.id}`, { html })
+      expect(res.status).toBe(200)
+      expect(((await res.json()) as Frame).html).toContain('Hallo Welt')
+      expect((await snapshot(frame.id)).html).toContain('data-od-locked="true"')
+    } finally {
+      await window.close()
+    }
+  })
+
   it('revoked member cannot commit a started stream', async () => {
     const frame = await newFrame('<p>Stream Basis</p>')
     expect((await mate.post(`/api/frames/${frame.id}/append`, { html_chunk: '<p>Neu ', start: true })).status).toBe(200)

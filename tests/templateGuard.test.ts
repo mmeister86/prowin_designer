@@ -404,3 +404,89 @@ describe('templateGuard constrained color removal (F2)', () => {
     ).toBeNull()
   })
 })
+
+describe('templateGuard own-review regressions', () => {
+  it.each([
+    ['script', 'console.log("safe")', 'document.querySelector("[data-od-locked]").textContent="changed"'],
+    ['style', '.locked{color:blue}', '.locked{color:red}'],
+  ])('freezes existing %s descendants of an editable field', async (tag, original, injected) => {
+    const element = `<${tag}>${original}</${tag}>`
+    const before = `<div data-od-id="edit">${element}<span>Hallo</span></div>${LOCKED}`
+    for (const after of [
+      before.replace(original, injected),
+      before.replace(element, '<span>Replacement</span>'),
+      before.replace(element, ''),
+    ]) {
+      expect((await writeError('member', before, after))?.status).toBe(403)
+      expect(await writeError('creator', before, after)).toBeNull()
+    }
+    expect(await writeError('member', before, before.replace('>Hallo<', '>Hallo Welt<'))).toBeNull()
+  })
+
+  it.each(['script', 'style'])('does not expose a %s field root as a code editor', async (tag) => {
+    const before = `<${tag} data-od-id="code">original</${tag}>${LOCKED}`
+    expect((await writeError('member', before, before.replace('original', 'changed')))?.status).toBe(403)
+    expect(await writeError('member', before, before)).toBeNull()
+    expect(await writeError('creator', before, before.replace('original', 'changed'))).toBeNull()
+  })
+
+  it.each([
+    ['color:var(--prowin-ci-blau)', 'color:red!important;color:var(--prowin-ci-blau)'],
+    ['color:var(--prowin-ci-blau)', 'COLOR:red!important;color:var(--prowin-ci-blau)'],
+    ['font-size:20px', 'font-size:9000px!important;font-size:20px'],
+  ])('rejects duplicate CSS declarations hiding priority: %s', async (style, injected) => {
+    const before = `<p data-od-id="edit" data-od-allowed-colors="prowin-ci-blau" style="${style}">Text</p>`
+    const after = before.replace(style, injected)
+    expect((await writeError('member', before, after))?.status).toBe(403)
+    expect(await writeError('creator', before, after)).toBeNull()
+    // Unchanged legacy declarations stay resavable while their text is edited.
+    expect(await writeError('member', after, after.replace('>Text<', '>Neuer Text<'))).toBeNull()
+  })
+
+  it('compares locked SVG attribute namespaces without href/xlink:href collisions', async () => {
+    const before =
+      '<svg xmlns:xlink="http://www.w3.org/1999/xlink"><image data-od-id="logo" data-od-locked href="/safe.png" xlink:href="/safe.png"/></svg>'
+    const changed = before.replace(' href="/safe.png"', ' href="/changed.png"')
+    expect((await writeError('member', before, changed))?.status).toBe(403)
+    expect(await writeError('creator', before, changed)).toBeNull()
+
+    const plainHref = before.replace(' xlink:href="/safe.png"', '')
+    const namespacedHref = plainHref.replace(' href="/safe.png"', ' xlink:href="/safe.png"')
+    expect((await writeError('member', plainHref, namespacedHref))?.status).toBe(403)
+  })
+
+  it('resaves and reorders distinct href/xlink:href values on a locked SVG', async () => {
+    const before =
+      '<svg xmlns:xlink="http://www.w3.org/1999/xlink"><image data-od-id="logo" data-od-locked href="/primary.png" xlink:href="/fallback.png"/></svg>'
+    const reordered = before.replace(
+      'href="/primary.png" xlink:href="/fallback.png"',
+      'xlink:href="/fallback.png" href="/primary.png"',
+    )
+    expect(await writeError('member', before, before)).toBeNull()
+    expect(await writeError('member', before, reordered)).toBeNull()
+  })
+
+  it('accepts the actual editor doctype when saving a stored fragment', async () => {
+    const { Window } = await import('happy-dom')
+    const window = new Window()
+    try {
+      window.document.write(prev)
+      window.document.querySelector('[data-od-id="a"]')!.textContent = 'Hallo Welt'
+      const serialized = '<!doctype html>\n' + window.document.documentElement.outerHTML
+      expect(await writeError('member', prev, serialized)).toBeNull()
+      expect((await writeError('member', prev, serialized.replace('<body>', '<body class="injected">')))?.status).toBe(
+        403,
+      )
+    } finally {
+      await window.close()
+    }
+  })
+
+  it('retains existing doctype protection when allowing an additive standard doctype', async () => {
+    const standard = `<!doctype html>${prev}`
+    const custom = `<!doctype html PUBLIC "-//Example//EN" "https://example.com/dtd">${prev}`
+    expect((await writeError('member', prev, custom))?.status).toBe(403)
+    expect((await writeError('member', standard, prev))?.status).toBe(403)
+    expect((await writeError('member', standard, custom))?.status).toBe(403)
+  })
+})
