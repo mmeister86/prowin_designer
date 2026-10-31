@@ -64,6 +64,12 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
   `var(--token)` aus `allowed-colors`; sichere Typografie in offenen Feldern bleibt
   erlaubt. Manueller Browser-Test steht aus; eine happy-dom
   Serialisierungs-Regression liegt in `tests/templateTransports.test.ts`.
+- Unter `allowed-colors` können Nicht-Creator farb-/class-/id-tragende Wrapper
+  (inkl. eigenem `style`-Farbwert) nicht entfernen, ersetzen oder auspacken, weil
+  die Kaskade ohne CSS-Engine nicht beweisbar ist — Text leeren oder Creator
+  verwenden; reine Text- und Typografie-Änderungen bleiben erlaubt.
+- Bestehende `on*`-Werte sind eingefroren (unveränderte Legacy-Handler bleiben
+  speicherbar, Entfernen bleibt erlaubt); Wertänderungen sind 403.
 
 ## Offen
 
