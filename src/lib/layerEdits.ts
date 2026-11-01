@@ -1,4 +1,10 @@
 import { canManageFrameLocks } from '../prowin/canvasPermissions'
+import {
+  TEMPLATE_LOCKED_NOTICE,
+  TEMPLATE_READONLY_NOTICE,
+  selectionBlockReason,
+  templatePolicyOf,
+} from '../prowin/templatePolicy'
 import type { Frame } from '../../shared/types'
 import { useStore } from './store'
 import { api, errorMessage } from './api'
@@ -47,6 +53,18 @@ export function saveFrameHtml(frame: Frame, html: string) {
  *  unlocked) and nothing else. */
 export function isLayerLocked(frame: Frame, selector: string): boolean {
   return isElementLocked(frame.html, selector)
+}
+
+/* Template policy (TASK-31): for non-creators, locked subtrees and frozen
+   frame areas take no content edits. Creators keep full access; legacy
+   locks are checked separately and keep their behavior. Stale selectors
+   fall through (the HTML helpers return null for those). */
+function refuseTemplateBlocked(frame: Frame, selector: string): boolean {
+  if (canManageFrameLocks(frame.canvasId)) return false
+  const policy = templatePolicyOf(frame.html, selector, false)
+  if (!policy || (!policy.locked && !policy.readOnly)) return false
+  useStore.getState().pushNotice(policy.locked ? TEMPLATE_LOCKED_NOTICE : TEMPLATE_READONLY_NOTICE)
+  return true
 }
 
 /** Set or clear the element's own lock; false when the selector no longer
@@ -107,7 +125,7 @@ export function toggleLockSelection(): boolean {
  *  pick is dropped so it cannot stand in for a frame selection. A locked
  *  element stays, and stays picked, so it can be unlocked. */
 export function deleteLayer(frame: Frame, selector: string): boolean {
-  if (isLayerLocked(frame, selector)) return false
+  if (isLayerLocked(frame, selector) || refuseTemplateBlocked(frame, selector)) return false
   const html = removeElement(frame.html, selector)
   const store = useStore.getState()
   store.setSelectedElement(null)
@@ -139,6 +157,7 @@ export function deleteSelection(): boolean {
 }
 
 export function duplicateLayer(frame: Frame, selector: string) {
+  if (isLayerLocked(frame, selector) || refuseTemplateBlocked(frame, selector)) return
   const html = duplicateElement(frame.html, selector)
   if (html !== null) saveFrameHtml(frame, html)
 }
@@ -180,6 +199,20 @@ export function markTemplateField(frame: Frame, selector: string): boolean {
   const html = mintTemplateField(frame.html, selector)
   if (html === null) return false
   return applyTemplateField(frame, selector, templateFieldOf(html, selector))
+}
+
+/** Drop a pick the template policy no longer permits (locked after an HTML
+ *  or capability change), with German feedback. Only template locks clear
+ *  here — stale picks stay with the select-result path, where the live
+ *  document (scripts included) is authoritative. True when a pick was
+ *  dropped. */
+export function dropTemplateBlockedSelection(frame: Frame, manageLocks: boolean): boolean {
+  const sel = useStore.getState().selectedElement
+  if (!sel || sel.frameId !== frame.id) return false
+  if (selectionBlockReason(frame.html, sel.selector, manageLocks) !== 'locked') return false
+  useStore.getState().pickElement(null)
+  useStore.getState().pushNotice(TEMPLATE_LOCKED_NOTICE)
+  return true
 }
 
 /* ---- the eye: hiding and showing, frames and elements alike ---- */
@@ -244,7 +277,7 @@ export function toggleSelectionHidden(): boolean {
 
 /** Swap one element's markup; false when the selector no longer resolves or the element is locked. */
 export function replaceLayerHtml(frame: Frame, selector: string, outerHtml: string): boolean {
-  if (isLayerLocked(frame, selector)) return false
+  if (isLayerLocked(frame, selector) || refuseTemplateBlocked(frame, selector)) return false
   const html = replaceElement(frame.html, selector, outerHtml)
   if (html === null) return false
   saveFrameHtml(frame, html)
@@ -264,7 +297,7 @@ function commitMove(frame: Frame, moved: MovedElement | null): boolean {
 
 /** Drop the element next to, or into, another; false when nothing moved. */
 export function moveLayer(frame: Frame, selector: string, target: DropTarget): boolean {
-  if (isLayerLocked(frame, selector)) return false
+  if (isLayerLocked(frame, selector) || refuseTemplateBlocked(frame, selector)) return false
   return commitMove(frame, moveElement(frame.html, selector, target))
 }
 
@@ -282,6 +315,6 @@ export function dropLayer(pressed: Frame, selector: string, target: DropTarget):
 
 /** Step the element one layer up (-1) or down (1) among its siblings. */
 export function shiftLayer(frame: Frame, selector: string, dir: -1 | 1): boolean {
-  if (isLayerLocked(frame, selector)) return false
+  if (isLayerLocked(frame, selector) || refuseTemplateBlocked(frame, selector)) return false
   return commitMove(frame, shiftElement(frame.html, selector, dir))
 }

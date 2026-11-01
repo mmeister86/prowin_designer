@@ -13,6 +13,13 @@ import {
 } from '../lib/frameBridge'
 import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '../lib/layers'
 import { replaceLayerHtml } from '../lib/layerEdits'
+import { useCanvasCapabilities } from '../prowin/canvasPermissions'
+import {
+  TEMPLATE_LOCKED_NOTICE,
+  TEMPLATE_READONLY_NOTICE,
+  TEMPLATE_STALE_NOTICE,
+  templatePolicyOf,
+} from '../prowin/templatePolicy'
 import { TemplateFieldsSection } from '../prowin/TemplateFieldsSection'
 import {
   aspectRatio,
@@ -124,6 +131,16 @@ export function ElementPanel({
   const node = useMemo(() => findLayer(tree, selector), [tree, selector])
   const parentNode = useMemo(() => ancestorsOf(tree, selector)?.at(-1) ?? null, [tree, selector])
 
+  /* template status for non-creators (TASK-31): locked subtrees and frozen
+     areas show German feedback and offer no free design/HTML editing —
+     constrained inputs arrive in step 2. Direct calls stay guarded too. */
+  const caps = useCanvasCapabilities(frame.canvasId)
+  const policy = useMemo(
+    () => templatePolicyOf(frame.html, selector, caps.manageLocks),
+    [frame.html, selector, caps.manageLocks],
+  )
+  const blocked = !policy || (!caps.manageLocks && (policy.locked || policy.readOnly))
+
   /* re-read after every html change — remote edits and our own saves alike —
      and when the runtime finishes rendering or loading fonts */
   useEffect(() => {
@@ -157,15 +174,15 @@ export function ElementPanel({
   }
 
   function apply(styles: StylePatch) {
-    if (info) updateRead(styleElement(frame.id, selector, styles))
+    if (!blocked && info) updateRead(styleElement(frame.id, selector, styles))
   }
 
   function editGeometry(edit: GeometryEdit) {
-    if (info) updateRead(editElementGeometry(frame.id, selector, edit))
+    if (!blocked && info) updateRead(editElementGeometry(frame.id, selector, edit))
   }
 
   function scrub(phase: 'begin' | 'commit' | 'cancel') {
-    updateRead(styleGesture(frame.id, selector, phase))
+    if (!blocked) updateRead(styleGesture(frame.id, selector, phase))
   }
 
   function selectTab(next: Tab) {
@@ -221,6 +238,20 @@ export function ElementPanel({
             </Tooltip>
           )}
         </div>
+        {/* template status: locked subtrees and frozen areas explain
+            themselves; stale picks say where they went */}
+        {!policy ? (
+          <p role="status" className="flex-none border-b border-line-soft px-3 py-2 text-[11.5px] text-ink-soft">
+            {TEMPLATE_STALE_NOTICE}
+          </p>
+        ) : (
+          !caps.manageLocks &&
+          (policy.locked || policy.readOnly) && (
+            <p role="status" className="flex-none border-b border-line-soft px-3 py-2 text-[11.5px] text-ink-soft">
+              {policy.locked ? TEMPLATE_LOCKED_NOTICE : TEMPLATE_READONLY_NOTICE}
+            </p>
+          )
+        )}
         <PanelTabPanel value="design">
           <PanelBody>
             <TemplateFieldsSection frame={frame} selector={selector} />
@@ -228,7 +259,13 @@ export function ElementPanel({
               <PropertyScrubContext.Provider
                 value={{ onStart: () => scrub('begin'), onEnd: (cancel) => scrub(cancel ? 'cancel' : 'commit') }}
               >
-                <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
+                {blocked ? (
+                  <div aria-disabled="true" className="pointer-events-none opacity-50">
+                    <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
+                  </div>
+                ) : (
+                  <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
+                )}
               </PropertyScrubContext.Provider>
             ) : stale ? (
               <div aria-busy className="pointer-events-none opacity-50" title="Element wird gelesen…">
@@ -240,7 +277,7 @@ export function ElementPanel({
           </PanelBody>
         </PanelTabPanel>
         <PanelTabPanel value="html">
-          <HtmlTab key={selector} frame={frame} selector={selector} />
+          <HtmlTab key={selector} frame={frame} selector={selector} disabled={blocked} />
         </PanelTabPanel>
       </PanelTabsRoot>
     </Panel>
@@ -767,7 +804,7 @@ function DesignTab({
 
 /* ---- HTML tab ---- */
 
-function HtmlTab({ frame, selector }: { frame: Frame; selector: string }) {
+function HtmlTab({ frame, selector, disabled }: { frame: Frame; selector: string; disabled?: boolean }) {
   const source = useMemo(() => elementHtml(frame.html, selector) ?? '', [frame.html, selector])
   const [draft, setDraft] = useState(source)
   const [typing, setTyping] = useState(false)
@@ -790,6 +827,7 @@ function HtmlTab({ frame, selector }: { frame: Frame; selector: string }) {
   }
 
   function onChange(value: string) {
+    if (disabled) return
     setDraft(value)
     if (pendingSave.current) window.clearTimeout(pendingSave.current.timer)
     const run = () => {
@@ -806,6 +844,7 @@ function HtmlTab({ frame, selector }: { frame: Frame; selector: string }) {
       className="min-h-[320px] flex-1"
       value={draft}
       spellCheck={false}
+      disabled={disabled}
       onFocus={() => setTyping(true)}
       onBlur={() => setTyping(false)}
       onChange={(e) => onChange(e.target.value)}

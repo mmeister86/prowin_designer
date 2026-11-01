@@ -95,4 +95,14 @@ describe('pickElement', () => {
     useStore.getState().pickElement(null)
     expect(useStore.getState()).toBe(cleared)
   })
+
+  /* TASK-31: template gating lives with the callers (Layers rail, frame
+     surface), which know the frame HTML and capabilities — the store stays
+     capability-agnostic, so picks without a loaded frame keep working. */
+  it('picks without a loaded canvas: gating stays with the callers, not the store', () => {
+    useStore.setState({ canvas: null, selectedId: null, selectedIds: [] })
+    useStore.getState().pickElement({ frameId: 'ghost', selector: '#hero' })
+    expect(useStore.getState().selectedElement).toEqual({ frameId: 'ghost', selector: '#hero' })
+    expect(useStore.getState().elementPanelOpen).toBe(true)
+  })
 })

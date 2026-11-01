@@ -166,3 +166,19 @@ describe('⌘⇧L', () => {
     expect(updateFrame).not.toHaveBeenCalled()
   })
 })
+
+/* TASK-31: template marks ride the same HTML but never change what the
+   legacy lock means — data-od-locked is invisible to it, and toggling a
+   legacy lock keeps every template attribute in place. */
+describe('legacy locks beside template marks', () => {
+  it('ignores data-od-locked and preserves template attributes on toggle', () => {
+    const html = page('<section data-od-id="hero" data-od-locked="true"><p>A</p></section>')
+    expect(isElementLocked(html, SECTION)).toBe(false)
+    expect(isElementLocked(html, INNER)).toBe(false)
+    const locked = setElementLocked(html, SECTION, true)!
+    expect(locked).toContain('data-doop-locked')
+    expect(locked).toContain('data-od-id="hero"')
+    expect(locked).toContain('data-od-locked')
+    expect(isElementLocked(locked, INNER)).toBe(true)
+  })
+})

@@ -36,6 +36,82 @@ function send(selector: string, field: typeof FIELD | null, reqId: string) {
   )
 }
 
+describe('frame runtime template policy (doop:policy)', () => {
+  const seen: Array<Record<string, unknown>> = []
+  function install(): void {
+    const src = new DOMParser()
+      .parseFromString(FRAME_BOOTSTRAP, 'text/html')
+      .querySelector('script[data-v-boot]')!.textContent!
+    ;(document as unknown as { fonts: unknown }).fonts = { addEventListener: () => {}, forEach: () => {} }
+    ;(globalThis as unknown as { parent: unknown }).parent = window
+    window.addEventListener('message', (ev: MessageEvent) => {
+      if (typeof ev.data?.type === 'string' && ev.data.type.endsWith('-result')) seen.push(ev.data)
+      if (ev.data?.type === 'doop:active') seen.push(ev.data)
+    })
+    ;(0, eval)(src)
+  }
+  function send(data: Record<string, unknown>) {
+    window.dispatchEvent(new MessageEvent('message', { data, source: window }))
+  }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const results = (reqId: string) => seen.filter((m) => m.reqId === reqId)
+
+  it('fail-closes: locked and frozen elements take no style/select until the parent sends capabilities', async () => {
+    install()
+    document.body.innerHTML =
+      '<section data-od-id="hero" data-od-locked="true"><p id="s">Hi</p></section>' +
+      '<section data-od-id="free"><p id="fld">A</p></section><p id="frz">B</p>'
+    seen.length = 0
+    send({ type: 'doop:style', selector: '#s', styles: { color: 'red' }, reqId: 'locked-style' })
+    send({ type: 'doop:select', selector: '#s', reqId: 'locked-select' })
+    send({ type: 'doop:style', selector: '#frz', styles: { color: 'red' }, reqId: 'frozen-style' })
+    send({ type: 'doop:style', selector: '#fld', styles: { color: 'red' }, reqId: 'field-style' })
+    await tick()
+    expect(results('locked-style').length).toBeGreaterThan(0)
+    expect(results('locked-style').every((m) => m.ok === false)).toBe(true)
+    expect(results('locked-select').every((m) => m.hit == null)).toBe(true)
+    expect(results('frozen-style').every((m) => m.ok === false)).toBe(true)
+    expect(results('field-style').some((m) => m.ok === true)).toBe(true)
+  })
+
+  it('opens locked elements for creators once capabilities arrive', async () => {
+    seen.length = 0
+    send({ type: 'doop:policy', manageLocks: true, reqId: 'policy-on' })
+    await tick()
+    send({ type: 'doop:style', selector: '#s', styles: { color: 'red' }, reqId: 'creator-style' })
+    send({ type: 'doop:select', selector: '#s', reqId: 'creator-select' })
+    await tick()
+    expect(results('creator-style').some((m) => m.ok === true)).toBe(true)
+    expect(results('creator-select').some((m) => m.hit != null)).toBe(true)
+    send({ type: 'doop:policy', manageLocks: false, reqId: 'policy-off' })
+    await tick()
+  })
+
+  it('ends an active edit on a locked element when capabilities are revoked', async () => {
+    document.body.innerHTML = '<section data-od-id="hero" data-od-locked="true"><p id="t">Hi</p></section>'
+    seen.length = 0
+    send({ type: 'doop:policy', manageLocks: true, reqId: 'edit-creator' })
+    await tick()
+    send({ type: 'doop:edit', on: true })
+    await tick()
+    document
+      .querySelector('#t')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }))
+    await tick()
+    const active = seen.filter((m) => m.type === 'doop:active')
+    expect(active.length).toBeGreaterThan(0)
+    expect(active.some((m) => (m.hit as { selector?: string } | null)?.selector === '#t')).toBe(true)
+    expect(document.querySelector('#t')!.hasAttribute('data-v-active')).toBe(true)
+    send({ type: 'doop:policy', manageLocks: false, reqId: 'edit-revoked' })
+    await tick()
+    const after = seen.filter((m) => m.type === 'doop:active')
+    expect(after.at(-1)?.hit).toBeNull()
+    expect(document.querySelector('#t')!.hasAttribute('data-v-active')).toBe(false)
+    send({ type: 'doop:edit', on: false })
+    await tick()
+  })
+})
+
 describe('frame runtime doop:template handler', () => {
   it('sets all six attributes on the live element and removes them when field is null', async () => {
     const { replies } = installRuntime()

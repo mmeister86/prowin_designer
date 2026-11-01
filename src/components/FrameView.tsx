@@ -10,6 +10,14 @@ import { PathEditor } from './PathEditor'
 import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
 import { registerFrameWindow, unregisterFrameWindow } from '../lib/frameBridge'
+import { dropTemplateBlockedSelection } from '../lib/layerEdits'
+import { useCanvasCapabilities } from '../prowin/canvasPermissions'
+import {
+  TEMPLATE_LOCKED_NOTICE,
+  TEMPLATE_STALE_NOTICE,
+  selectionBlockReason,
+  templatePolicyOf,
+} from '../prowin/templatePolicy'
 import { api } from '../lib/api'
 import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
@@ -174,6 +182,9 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     setPathEdit(null)
   }, [])
   const selected = useStore((s) => s.selectedIds.includes(frame.id))
+  /* template capability for this canvas: drives the runtime's lock
+     enforcement and the toolbar's lock hints (fail-closed until loaded) */
+  const manageLocks = useCanvasCapabilities(frame.canvasId).manageLocks
   /* space held: the shield stays up even in edit mode, so the press reaches
      the Stage and pans instead of vanishing into the editable iframe */
   const panMode = useStore((s) => s.panMode)
@@ -430,6 +441,12 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     registerFrameWindow(frame.id, win)
     return () => unregisterFrameWindow(frame.id, win)
   }, [runtimeReady, frame.id])
+  /* the runtime's template enforcement runs on trusted parent state,
+     fail-closed until this arrives and whenever it changes */
+  useEffect(() => {
+    if (!runtimeReady) return
+    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:policy', manageLocks }, '*')
+  }, [runtimeReady, manageLocks, frame.id])
   useEffect(() => {
     if (!runtimeReady || editing || suspendPost || html !== frame.html || html === localHtml.current) return
     localHtml.current = null
@@ -668,6 +685,24 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     )
   }, [runtimeReady, wantedSel, probeSel, frame.id, html, frame.html])
 
+  /* a pick that HTML or capability changes have template-locked is dropped
+     with German feedback, so it cannot stand in for selection. Stale picks
+     stay with the select-result path: the live document (scripts included)
+     is authoritative for whether a selector still resolves, and that path
+     keeps the legacy inspector contract. */
+  useEffect(() => {
+    dropTemplateBlockedSelection(frame, manageLocks)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- frame.html + frame.id cover every used field
+  }, [frame.html, manageLocks, frame.id])
+
+  /* lock hint for the element toolbar's anchor */
+  const toolbarAnchorSel = (editing ? activeHit : probe)?.selector ?? null
+  const toolbarPolicy = useMemo(
+    () => (toolbarAnchorSel ? templatePolicyOf(frame.html, toolbarAnchorSel, manageLocks) : null),
+    [frame.html, toolbarAnchorSel, manageLocks],
+  )
+  const anchorBlocked = !manageLocks && (!toolbarPolicy || toolbarPolicy.locked || toolbarPolicy.readOnly)
+
   useEffect(() => {
     function onMsg(ev: MessageEvent) {
       if (ev.source !== iframeRef.current?.contentWindow) return
@@ -694,11 +729,17 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
           setProbe(hit)
         } else {
           /* The live document is authoritative for linked elements and
-             Layers picks, including nodes created or removed by scripts. */
+             Layers picks, including nodes created or removed by scripts. A
+             template lock explains itself instead of reporting "gone". */
           const s = useStore.getState()
+          const reason = selectionBlockReason(frame.html, selectSel.current ?? '', manageLocks)
           s.pickElement(null)
-          s.setInspectorOpen(true)
-          s.pushNotice('Dieses Element existiert nicht mehr. Stattdessen wird seine Zeichenfläche angezeigt.')
+          if (reason === 'locked') {
+            s.pushNotice(TEMPLATE_LOCKED_NOTICE)
+          } else {
+            s.setInspectorOpen(true)
+            s.pushNotice(TEMPLATE_STALE_NOTICE)
+          }
         }
       }
       if (ev.data?.type === 'doop:hover-result' && ev.data.reqId === hoverReq.current) {
@@ -750,7 +791,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [frame.id])
+  }, [frame.id, frame.html, manageLocks])
 
   /* Esc dismisses popovers (edit mode has its own Esc path inside the iframe) */
   useEffect(() => {
@@ -1192,6 +1233,14 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                           <span className="rounded-[5px] bg-paper/[0.14] px-[5px] py-px text-[11px] font-bold text-paper [font-family:ui-monospace,monospace]">
                             {anchor.tag}
                           </span>
+                          {!manageLocks && toolbarPolicy && (toolbarPolicy.locked || toolbarPolicy.readOnly) && (
+                            <span
+                              role="status"
+                              className="rounded-[5px] bg-paper/[0.14] px-[5px] py-px text-[11px] font-bold text-paper"
+                            >
+                              {toolbarPolicy.locked ? 'Template-gesperrt' : 'Schreibgeschützt'}
+                            </span>
+                          )}
                           <Button
                             variant="inverse"
                             className={EL_TOOLBAR_BTN}
@@ -1229,7 +1278,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                           >
                             Link kopieren
                           </Button>
-                          {!editing && canEdit && anchor.text !== '' && (
+                          {!editing && canEdit && !anchorBlocked && anchor.text !== '' && (
                             <Button
                               variant="inverse"
                               className={EL_TOOLBAR_BTN}

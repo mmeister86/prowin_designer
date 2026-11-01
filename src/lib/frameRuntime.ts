@@ -1,4 +1,5 @@
 import { frameSrcDoc } from './framePolicy'
+import { templatePolicyForChain } from '../prowin/templatePolicy'
 
 /**
  * Bootstrap document loaded once per frame iframe. The parent posts HTML in
@@ -137,14 +138,42 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   }
 
   /* a locked element, or anything inside a locked box, is off limits to the
-     stage: not hovered, not picked, not edited (src/lib/layers.ts LOCK_ATTR) */
+     stage: not hovered, not picked, not edited (src/lib/layers.ts LOCK_ATTR).
+     Template locks (data-od-locked, TASK-31) count the same for non-creators;
+     the parent posts its trusted capability, fail-closed until it arrives.
+     The policy core is serialized from src/prowin/templatePolicy.ts — same
+     semantics, no second logic block. */
   var LOCKED = '[data-doop-locked]'
+  var templateManageLocks = false
+  var templatePolicyForChain = ${templatePolicyForChain.toString()}
+  function templateChain(el) {
+    var chain = []
+    for (var node = el; node && node.nodeType === 1; node = node.parentElement) {
+      chain.push({
+        hasLocked: node.hasAttribute('data-od-locked'),
+        hasId: node.hasAttribute('data-od-id'),
+        colors: node.hasAttribute('data-od-allowed-colors')
+          ? (node.getAttribute('data-od-allowed-colors') || '')
+          : null,
+      })
+    }
+    return chain
+  }
+  function templatePolicy(el) {
+    return templatePolicyForChain(templateChain(el), templateManageLocks, !!document.querySelector('[data-od-id]'))
+  }
+  function templateLocked(el) {
+    return !!el && templatePolicy(el).locked
+  }
+  function templateReadOnly(el) {
+    return !!el && templatePolicy(el).readOnly
+  }
   function isLocked(el) {
-    return !!(el && el.closest && el.closest(LOCKED))
+    return !!(el && el.closest && (el.closest(LOCKED) || templateLocked(el)))
   }
 
   /* nearest ancestor (incl. self) that directly contains visible text */
-  function candidate(start) {
+  function candidateInner(start) {
     var el = start && start.nodeType === 3 ? start.parentElement : start
     if (isLocked(el)) return null
     while (el && el !== document.body && el !== document.documentElement) {
@@ -152,6 +181,12 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       el = el.parentElement
     }
     return null
+  }
+
+  /* frozen template areas stay selectable but are never inline-edited */
+  function candidate(start) {
+    var found = candidateInner(start)
+    return found && !templateReadOnly(found) ? found : null
   }
 
   function clearHover() {
@@ -452,11 +487,15 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     return el ? hitInfo(el) : null
   }
 
-  /* the Layers panel selects by selector rather than by point */
+  /* the Layers panel selects by selector rather than by point. A
+     template-locked element resolves to null (unlike a legacy lock, which
+     stays selectable so it can be unlocked) so the parent can explain the
+     template lock instead of the element. */
   function describe(selector) {
     var el = null
     try { el = selector ? document.querySelector(selector) : null } catch (e) { /* bad selector */ }
     if (!el || el === document.documentElement || el === document.body) return null
+    if (templateLocked(el)) return null
     return hitInfo(el)
   }
 
@@ -541,7 +580,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   function editGeometry(selector, edit) {
     var el = null
     try { el = selector ? document.querySelector(selector) : null } catch (e) {}
-    if (!el || el === document.documentElement || isLocked(el) || !edit) return false
+    if (!el || el === document.documentElement || isLocked(el) || templateReadOnly(el) || !edit) return false
     var geometry = elementGeometry(el)
     if (!geometry.enabled) return false
     var cs = getComputedStyle(el)
@@ -749,7 +788,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   }
   function beginStyleEdit(selector) {
     var el = styleTarget(selector)
-    if (!el || isLocked(el)) return false
+    if (!el || isLocked(el) || templateReadOnly(el)) return false
     if (styleEdit) endStyleEdit(styleEdit.selector, false)
     // Save a previous typed/slider edit before opening this separate action.
     if (styleTimer || editTimer) {
@@ -791,7 +830,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   }
   function applyStyle(selector, styles) {
     var el = styleTarget(selector)
-    if (!el || isLocked(el)) return false
+    if (!el || isLocked(el) || templateReadOnly(el)) return false
     if (styleEdit && styleEdit.selector === selector) {
       Object.assign(styleEdit.styles, styles)
       previewStyle(el, styles)
@@ -910,6 +949,13 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     }
     if (d.type === 'doop:probe') {
       parent.postMessage({ type: 'doop:probe-result', reqId: d.reqId, hit: probe(d.x, d.y) }, '*')
+    }
+    /* the parent's trusted capability: fail-closed (locked) until it arrives.
+       A revoked capability ends an edit that is no longer permitted. */
+    if (d.type === 'doop:policy') {
+      templateManageLocks = !!d.manageLocks
+      if (!templateManageLocks && activeEl && (templateLocked(activeEl) || templateReadOnly(activeEl))) deactivate()
+      if (d.reqId) parent.postMessage({ type: 'doop:policy-result', reqId: d.reqId, ok: true }, '*')
     }
     if (d.type === 'doop:drawing-hit') {
       parent.postMessage({ type: 'doop:drawing-hit-result', reqId: d.reqId, hit: drawingHit(d.x, d.y, d.standalone) }, '*')
