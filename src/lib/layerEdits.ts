@@ -248,6 +248,7 @@ export function setFrameHidden(frame: Frame, hidden: boolean) {
  *  selector no longer resolves. The mark lives in the frame's HTML, so it
  *  rides the same save as any other layer edit. */
 export function setLayerHidden(frame: Frame, selector: string, hidden: boolean): boolean {
+  if (refuseTemplateBlocked(frame, selector)) return false
   const html = setElementHidden(frame.html, selector, hidden)
   if (html === null) return false
   if (html !== frame.html) saveFrameHtml(frame, html)

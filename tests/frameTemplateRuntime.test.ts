@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { FRAME_BOOTSTRAP } from '../src/lib/frameRuntime'
 
 /* Runs the real `doop:template` branch of the frame runtime's message
@@ -56,12 +56,15 @@ describe('frame runtime template policy (doop:policy)', () => {
   const tick = () => new Promise((r) => setTimeout(r, 0))
   const results = (reqId: string) => seen.filter((m) => m.reqId === reqId)
 
-  it('fail-closes: locked and frozen elements take no style/select until the parent sends capabilities', async () => {
-    install()
+  beforeAll(install)
+  beforeEach(() => {
     document.body.innerHTML =
       '<section data-od-id="hero" data-od-locked="true"><p id="s">Hi</p></section>' +
       '<section data-od-id="free"><p id="fld">A</p></section><p id="frz">B</p>'
     seen.length = 0
+  })
+
+  it('fail-closes: locked and frozen elements take no style/select until the parent sends capabilities', async () => {
     send({ type: 'doop:style', selector: '#s', styles: { color: 'red' }, reqId: 'locked-style' })
     send({ type: 'doop:select', selector: '#s', reqId: 'locked-select' })
     send({ type: 'doop:style', selector: '#frz', styles: { color: 'red' }, reqId: 'frozen-style' })

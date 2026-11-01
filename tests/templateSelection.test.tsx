@@ -26,8 +26,16 @@ vi.mock('../src/lib/frameBridge', () => ({
 
 const { useStore } = await import('../src/lib/store')
 const { selectionBlockReason, canSelectTemplateElement } = await import('../src/prowin/templatePolicy')
-const { deleteLayer, replaceLayerHtml, moveLayer, shiftLayer, duplicateLayer, dropTemplateBlockedSelection } =
-  await import('../src/lib/layerEdits')
+const {
+  deleteLayer,
+  replaceLayerHtml,
+  moveLayer,
+  shiftLayer,
+  duplicateLayer,
+  dropTemplateBlockedSelection,
+  setLayerHidden,
+  toggleSelectionHidden,
+} = await import('../src/lib/layerEdits')
 const { LayersPanel } = await import('../src/components/LayersPanel')
 const { TooltipProvider } = await import('../src/components/ui/tooltip')
 
@@ -116,6 +124,33 @@ describe('template selection policy', () => {
     seed(page(LOCKED_BODY))
     expect(deleteLayer(frame(page(LOCKED_BODY)), SECTION)).toBe(true)
     expect(updateFrame).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([SECTION, SPAN, DIV])('refuses hiding protected template content: %s', (selector) => {
+    const html = page(LOCKED_BODY)
+    seed(html)
+    expect(setLayerHidden(frame(html), selector, true)).toBe(false)
+    expect(updateFrame).not.toHaveBeenCalled()
+    expect(requestFrame).not.toHaveBeenCalled()
+    expect(useStore.getState().canvas?.frames[0]?.html).toBe(html)
+    expect(notice()).toContain(selector === DIV ? 'schreibgeschützt' : 'gesperrt')
+  })
+
+  it('refuses the hide shortcut on a frozen picked element', () => {
+    seed(page(LOCKED_BODY))
+    useStore.getState().pickElement({ frameId: 'f1', selector: DIV })
+    expect(toggleSelectionHidden()).toBe(true)
+    expect(updateFrame).not.toHaveBeenCalled()
+    expect(requestFrame).not.toHaveBeenCalled()
+    expect(notice()).toContain('schreibgeschützt')
+  })
+
+  it('keeps Creator hiding available for template content', () => {
+    mocks.manageLocks = true
+    seed(page(LOCKED_BODY))
+    expect(setLayerHidden(frame(page(LOCKED_BODY)), SECTION, true)).toBe(true)
+    expect(updateFrame).toHaveBeenCalledTimes(1)
+    expect(requestFrame).toHaveBeenCalledTimes(1)
   })
 
   it('keeps legacy locks refusing even for creators on template-marked elements', () => {
