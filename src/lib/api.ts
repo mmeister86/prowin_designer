@@ -1,4 +1,5 @@
 import type { AccountCapabilities, CanvasCapabilities } from '../../shared/prowin/permissions'
+import { extractTemplateFields } from '../../shared/prowin/templateAttributes'
 import { useStore } from './store'
 import { authErrorMessage } from './auth'
 import type { LocalAgentPreference, LocalAgentJob, LocalAgentResult } from '../../shared/localAgent'
@@ -271,6 +272,8 @@ export const api = {
         pageId:
           useStore.getState().canvas?.id === canvasId ? (useStore.getState().activePageId ?? undefined) : undefined,
         ...input,
+        // Plain copies (including old clips and redo) never depend on a live source.
+        sourceFrameId: input.html && extractTemplateFields(input.html).length > 0 ? input.sourceFrameId : undefined,
         actor: actor(),
       }),
     }),

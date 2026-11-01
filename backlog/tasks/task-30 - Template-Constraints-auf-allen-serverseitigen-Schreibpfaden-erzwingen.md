@@ -4,7 +4,7 @@ title: Template-Constraints auf allen serverseitigen Schreibpfaden erzwingen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-10-31T21:12:00Z'
+updated_date: '2026-11-01T10:12:00Z'
 labels:
   - prowin
   - implementation
@@ -57,4 +57,12 @@ Eigenes Abschlussreview auf f9b9bc2: vier reproduzierte Luecken/Regressionen (be
 Eigenreview-Korrekturen in d560519 umgesetzt und verifiziert: bestehende nicht editierbare Teilbaeume/script-style-Feldwurzeln eingefroren; doppelte CSS-Properties vor Map-Zusammenfassung abgelehnt; SVG-Attributidentitaet inklusive Namespace/Praefix; additiver Standard-Doctype fuer Bestandsfragmente erlaubt, bestehende Doctypes/Dokumentattribute weiter geschuetzt.
 TDD: 15 erwartete RED-Fehler, danach 71 fokussierte Tests PASS; 16 neue Regressionstests inklusive realer PATCH-/Append-Ablehnungen mit unveraenderten Frames/Versionen und erfolgreichem DOM-Fragment-Save.
 Finaler Gesamtlauf: 190 Dateien /1601 Tests PASS; Typecheck, Lint, Build, Formatierung und Diff-Check PASS. Doc-lint PASS mit bekanntem Stale-.context-Hinweis, bekannte localStorage-/Chunk-Warnungen. Bericht aktualisiert. Keine neuen Subagenten, kein manueller Browser-Test, Push oder Merge. Status bleibt In Progress bis Nutzerabnahme.
+
+CodeRabbit PR #7 auf 5edd418 geprueft: bestaetigte Wrapper-Entfernung eingefrorener Nachfahren und Plain-Clipboard-Quellenabhaengigkeit werden minimal korrigiert; MCP-/Guide-Texte an atomaren Commit angepasst. Der Quellzugriffstest verwendet jetzt ein erlaubtes Ziel und eine private fremde Quelle; Mutation ohne ACL liefert 200 statt 403 und wird erkannt.
+Follow-up: tiefe HTML-Rekursion (declined: Ressourcenbudget als zusammenhaengende separate Haertung, TASK-77; depth=6000 reproduziert RangeError).
+Follow-up: kumulierte Append-Groesse (declined: bestand bereits vor diesem PR, separates Ressourcenbudget in TASK-77).
+Follow-up: Semikolon in zitiertem CSS-Fontnamen (declined: fail-closed Sonderfall ausserhalb der freigegebenen proWIN-Fonts, gezielte Kompatibilitaet in TASK-78).
+TDD laufend: 7 erwartete neue Fehler, danach 85 fokussierte Tests PASS; Source-ACL-Mutationtest nach Wiederherstellung PASS. Kein Merge und kein Done.
+
+CodeRabbit-Korrekturwelle verifiziert: Gesamtsuite mit maxWorkers=2 PASS (191 Dateien /1609 Tests, 339.54s); Caller-Regressionen 18 Tests und abschliessender MCP-Tools-Lauf 5 Tests PASS. Typecheck/Lint/Build/Format/Diff PASS; Doc-lint PASS mit bekanntem Stale-.context-Hinweis. Bekannte localStorage-/Chunk-Hinweise sowie happy-dom-Connection/Abort-Stderr ohne fehlgeschlagene Tests. Bericht aktualisiert; alle CodeRabbit-Befunde geprueft, Ressourcen-/CSS-Kompatibilitaetsarbeit in TASK-77/78 To Do. TASK-30 bleibt In Progress; kein Merge oder manuelles Browser-Testing.
 <!-- SECTION:NOTES:END -->

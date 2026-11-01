@@ -175,20 +175,17 @@ ${DESIGN_BRIEF}
 
 ## Streaming — how to write designs
 
-Viewers watch designs assemble live. Stream with append_frame_html:
+Stream complete designs with append_frame_html. Chunks are buffered until the final commit:
 
 - ONE complete section per chunk, in document order: head+styles first, then the hero,
-  then each following section — roughly 1–4 KB each. Every chunk renders on the canvas
-  the moment it arrives, so each call should leave the frame in a sensible visual state.
-- start=true on the first chunk (clears the frame), done=true on the last.
-- **Review the hero before building on it.** After streaming the first major section
-  (usually nav + hero), call get_frame_screenshot and judge it — the design system
-  (palette, type, spacing) commits there, and humans watching react to the hero first.
-  Fix direction-level problems NOW, before propagating them through the rest of the
-  page. Then continue streaming and do the full review at the end as usual.
-- End chunks at element boundaries. If one lands mid-element anyway, the server heals it
-  (closes an open <style>, trims a half-written tag, drops an unfinished <script>), so
-  never hold a chunk back to "finish" something.
+  then each following section — roughly 1–4 KB each. Viewers see a "designing…" badge;
+  the existing frame stays unchanged until done=true validates and commits the draft.
+- start=true on the first chunk begins buffering; done=true on the last commits it.
+- **Review after the commit.** Call get_frame_screenshot after done=true, judge the hero's
+  palette, type and spacing along with the rest of the page, and fix direction-level
+  problems before moving on. A mid-stream screenshot still shows the previous design.
+- Prefer element boundaries for chunks and finish the complete HTML document before
+  done=true. Abandoned drafts expire without changing the saved design.
 - For small tweaks (copy, a color, one element's spacing) use edit_frame_html — an exact
   find/replace that morphs into the rendered frame in place, with no re-render. Resending
   a whole document via set_frame_html is for genuine redesigns.

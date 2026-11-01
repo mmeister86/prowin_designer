@@ -406,6 +406,17 @@ describe('templateGuard constrained color removal (F2)', () => {
 })
 
 describe('templateGuard own-review regressions', () => {
+  it.each(['script', 'style'])('does not remove a frozen %s through an editable wrapper', async (tag) => {
+    const wrapper = `<span><em><${tag}>legacy</${tag}></em>Text</span>`
+    const before = `<p data-od-id="edit">${wrapper}<b>Other</b></p>`
+    for (const replacement of ['', 'Text', '<b>Text</b>']) {
+      const after = before.replace(wrapper, replacement)
+      expect((await writeError('member', before, after))?.status).toBe(403)
+      expect(await writeError('creator', before, after)).toBeNull()
+    }
+    expect(await writeError('member', before, before.replace('>Other<', '>Updated<'))).toBeNull()
+  })
+
   it.each([
     ['script', 'console.log("safe")', 'document.querySelector("[data-od-locked]").textContent="changed"'],
     ['style', '.locked{color:blue}', '.locked{color:red}'],

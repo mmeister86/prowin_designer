@@ -3,7 +3,7 @@
 ## Outcome
 
 Implement the approved protected-template design on branch `task/30-template-constraints`.
-Keep TASK-30 **In Progress**, pending user acceptance. Do not push, open a PR or merge.
+Keep TASK-30 **In Progress**, pending user acceptance. PR #7 is open and monitored at the user's request; do not merge.
 
 - Enforce one parser-backed contract for update, append commit, restore, create/import and frame delete/resize.
 - Preserve trusted source provenance through clipboard, duplicate, redo, REST, MCP and Resident creation.
@@ -13,7 +13,7 @@ Keep TASK-30 **In Progress**, pending user acceptance. Do not push, open a PR or
 
 ## Verification
 
-Final production commit: `d560519` (four own-review fixes after initial implementation at `6772c12`).
+Pre-PR production commit: `d560519` (four own-review fixes after initial implementation at `6772c12`).
 
 | Check                         | Verified result                                  |
 | ----------------------------- | ------------------------------------------------ |
@@ -54,6 +54,21 @@ All delegated implementers and independent reviewers used **Muse Spark 1.3**, as
 - Append no longer publishes partial frame HTML, including for Creators.
 - Inert comments inside editable interiors remain allowed; no production undefined-identity draft collision was found; deadline-bound version-settle test polling remains.
 - This is structural template enforcement, not pixel invariance, HTML copy protection or a general HTML/CSS sanitizer.
+
+## CodeRabbit follow-up — 2026-11-01
+
+Review of `5edd418` in [PR #7](https://github.com/mmeister86/prowin_designer/pull/7):
+
+- Close frozen-descendant deletion/replacement through editable wrappers in the shared guard. Nested script/style regressions cover empty/text/inline replacements, Creator overrides, unrelated sibling edits, and HTTP PATCH/append rejection without stored-frame/version changes.
+- Keep plain clipboard entries independent of their sources. Store source IDs only for template-bearing clips and filter unnecessary provenance in `api.createFrame`, also covering old clips, duplicate callers and redo. Keep server-side provenance validation unchanged.
+- Correct MCP creation/replacement/append instructions and the guide to describe buffering, atomic commit, and post-commit screenshots.
+- Fix the source-access test to use an authorized destination and a private source. Disabling only the source ACL produces 200 instead of the asserted 403; restoring the ACL passes. The mutation was not retained.
+- TDD: seven expected failures before production edits; 85 focused tests pass after the fixes. An additional clipboard/API caller run passes 18 tests across three files.
+- Full verification: `bun run test --maxWorkers=2` passes **191 files /1609 tests** in 339.54 seconds. The final MCP-description-only edit also passes `tests/mcp-tools.test.ts` (5 tests); typecheck, lint, build, format and diff checks pass. Doc-lint passes with the existing stale `.context` warning. The full suite logs localStorage warnings and happy-dom connection/abort stderr without failed tests; build retains the existing chunk-size notice.
+- Defer excessive HTML depth and cumulative append-draft limits to **TASK-77** (To Do). A 6,000-level tree reproduces a `RangeError`; the missing cumulative append budget predates this PR. This availability-hardening limitation remains open.
+- Defer quote-aware CSS declarations to **TASK-78** (To Do). A `font-family:"A;B"` font-size edit fails closed with 403; unchanged legacy styles remain resavable, and approved proWIN font names do not need this compatibility case.
+
+No new subagents or manual browser testing for this correction batch. No merge or task closure.
 
 ## Rulings I made
 

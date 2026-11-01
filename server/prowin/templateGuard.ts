@@ -198,6 +198,15 @@ function isEditableInline(element: TreeElement, ctx: EditCtx): boolean {
   )
 }
 
+function subtreeHasFrozenContent(node: TreeNode, ctx: EditCtx): boolean {
+  return (
+    isElement(node) &&
+    (fieldOf(node) !== null ||
+      !isEditableInline(node, ctx) ||
+      childrenOf(node).some((child) => subtreeHasFrozenContent(child, ctx)))
+  )
+}
+
 function isConstrained(ctx: EditCtx): boolean {
   return ctx.chain.some((field) => field.allowedColors.length > 0)
 }
@@ -361,9 +370,8 @@ function compareEditableChildren(
       continue
     }
     if (!b) {
-      // Deleting non-field content is safe; field roots must be retained.
-      if (fieldOf(a)) throw new CreatorPermissionError()
-      if (isElement(a) && !isEditableInline(a, ctx)) throw new CreatorPermissionError()
+      // Removing a safe wrapper must not remove frozen descendants with it.
+      if (subtreeHasFrozenContent(a, ctx)) throw new CreatorPermissionError()
       // Deleting a color-bearing wrapper under a color constraint is
       // fail-closed even with its text: the cascade is not evaluated.
       if (isConstrained(ctx) && subtreeHasProtectedColor(a)) throw new CreatorPermissionError()
@@ -392,6 +400,7 @@ function compareEditableNode(run: TemplateRun, a: TreeNode, b: TreeNode, ctx: Ed
   // Replacing or unwrapping a color-bearing wrapper under a color constraint
   // leaves surviving content on unvalidated inheritance: fail-closed.
   if (isConstrained(ctx) && subtreeHasProtectedColor(a)) throw new CreatorPermissionError()
+  if (subtreeHasFrozenContent(a, ctx)) throw new CreatorPermissionError()
   if (isElement(b)) assertSafeNew(b, ctx)
 }
 

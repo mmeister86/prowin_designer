@@ -63,13 +63,24 @@ beforeEach(() => {
 })
 
 describe('clipboard source provenance', () => {
-  it('pastes every copied frame with its own source id', async () => {
-    clipboard.copyFrames([frame('a', 100, 100), frame('b', 300, 150)])
+  it('pastes every copied template frame with its own source id', async () => {
+    clipboard.copyFrames([frame('a', 100, 100, 100, 100, TEMPLATE), frame('b', 300, 150, 100, 100, TEMPLATE)])
     clipboard.pasteFrameCentered('c1')
     await flush()
 
     expect(api.createFrame).toHaveBeenCalledTimes(2)
     expect(payloads()).toMatchObject([{ sourceFrameId: 'a' }, { sourceFrameId: 'b' }])
+  })
+
+  it('keeps plain clipboard entries independent of the original frame', async () => {
+    clipboard.copyFrames([frame('a')])
+    const clip = JSON.parse(store.get('doop:frame-clipboard')!) as { frames: Record<string, unknown>[] }
+    expect(clip.frames[0]).not.toHaveProperty('sourceId')
+    seed()
+    clipboard.pasteFrameCentered('c1')
+    await flush()
+    expect(payloads()[0]).toMatchObject({ html: '<p>a</p>' })
+    expect(payloads()[0]).not.toHaveProperty('sourceFrameId')
   })
 
   it('keeps template metadata on a source-backed paste', async () => {

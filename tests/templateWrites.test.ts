@@ -129,15 +129,22 @@ describe('guarded frame writes', () => {
       html: '<p>Anderer</p>',
     })
     expect(other.status).toBe(200)
-    const stranger = new Client(server)
-    await stranger.signUp('writes-stranger@test.dev', 'Writes Stranger')
-    const foreign = await newFrame(TEMPLATE)
-    const denied = await stranger.post(`/api/canvases/${canvas.id}/frames`, {
+    const hiddenCanvas: Canvas = await (await owner.post('/api/canvases', { name: 'Hidden' })).json()
+    const foreign: Frame = await (
+      await owner.post(`/api/canvases/${hiddenCanvas.id}/frames`, {
+        name: 'Hidden',
+        html: TEMPLATE,
+      })
+    ).json()
+    const destinationBefore: Canvas = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
+    const denied = await mate.post(`/api/canvases/${canvas.id}/frames`, {
       name: 'Foreign',
       html: TEMPLATE,
       sourceFrameId: foreign.id,
     })
-    expect([403, 404]).toContain(denied.status)
+    expect(denied.status).toBe(403)
+    const destinationAfter: Canvas = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
+    expect(destinationAfter.frames).toEqual(destinationBefore.frames)
   })
 
   it('member restore removing a present lock is 403 and files nothing', async () => {
@@ -177,6 +184,12 @@ describe('guarded frame writes', () => {
   })
 
   it.each([
+    [
+      'nested frozen wrapper',
+      '<p data-od-id="edit"><span><script>legacy()</script>Text</span></p>',
+      '<span><script>legacy()</script>Text</span>',
+      '<b>Text</b>',
+    ],
     [
       'script',
       '<div data-od-id="edit"><script>console.log("safe")</script></div>',

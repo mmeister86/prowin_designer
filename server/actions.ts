@@ -1137,10 +1137,9 @@ export async function restoreFrameVersion(
 /* ------------------------------------------------------------------ */
 /* Live rendering of agent writes.                                     */
 /*                                                                     */
-/* Streams (append_frame_html): every chunk broadcasts the moment it   */
-/* arrives — viewers track the agent's real progress with no artificial*/
-/* pacing. Stream state only carries the "designing…" badge, the       */
-/* escape latch, and a timeout for agents that never send done=true.   */
+/* Streams (append_frame_html): chunks stay in a private draft until   */
+/* done=true validates and commits the complete design. Viewers see    */
+/* only the "designing…" badge before commit; timed-out drafts vanish. */
 /*                                                                     */
 /* One-shot writes (set_frame_html, agent create_frame with html) play */
 /* back as a short typewriter reveal so a paste reads as designing     */

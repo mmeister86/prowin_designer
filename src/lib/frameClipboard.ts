@@ -1,4 +1,5 @@
 import type { Frame } from '../../shared/types'
+import { extractTemplateFields } from '../../shared/prowin/templateAttributes'
 import { api, errorMessage } from './api'
 import { validateImageFile } from './imageFiles'
 import { useStore } from './store'
@@ -16,7 +17,7 @@ interface ClipFrame {
   y: number
   width: number
   height: number
-  /** trusted provenance: the copied frame's id, so pasting a template frame
+  /** Provenance hint: the copied frame's id, so pasting a template frame
    *  validates against the stored source instead of failing closed */
   sourceId?: string
 }
@@ -37,7 +38,7 @@ export function copyFrames(frames: Frame[]) {
       y: f.y - top,
       width: f.width,
       height: f.height,
-      sourceId: f.id,
+      ...(extractTemplateFields(f.html).length > 0 ? { sourceId: f.id } : {}),
     })),
   }
   localStorage.setItem(CLIP_KEY, JSON.stringify(clip))
