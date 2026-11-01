@@ -60,7 +60,7 @@ describe('frame runtime template policy (doop:policy)', () => {
   beforeEach(() => {
     document.body.innerHTML =
       '<section data-od-id="hero" data-od-locked="true"><p id="s">Hi</p></section>' +
-      '<section data-od-id="free"><p id="fld">A</p></section><p id="frz">B</p>'
+      '<section data-od-id="free"><span id="fld">A</span></section><p id="frz">B</p>'
     seen.length = 0
   })
 
@@ -156,6 +156,36 @@ describe('frame runtime template policy (doop:policy)', () => {
     await tick()
     const colors = results('inspect-colors')[0]?.info as { policy?: { allowedColors?: unknown } } | undefined
     expect(colors?.policy?.allowedColors).toEqual(['prowin-ci-rot'])
+  })
+
+  /* Breaks caught here: the runtime offering text/style edits on arbitrary
+     field descendants the server freezes (div-field > p). Unsafe wrappers
+     and everything below them take no style and inspect read-only; safe
+     spans and field roots keep working. Hand-derived literals. */
+  it('refuses style and reports read-only for unsafe field descendants', async () => {
+    document.body.innerHTML =
+      '<div data-od-id="f" data-od-role="body"><p id="u">Text <span id="v">tief</span></p>' +
+      '<span id="ok">frei</span></div><p id="r" data-od-id="g" data-od-role="body">Wurzel</p>'
+    seen.length = 0
+    send({ type: 'doop:style', selector: '#u', styles: { color: 'red' }, reqId: 'unsafe-p' })
+    send({ type: 'doop:style', selector: '#v', styles: { color: 'red' }, reqId: 'unsafe-deep' })
+    send({ type: 'doop:style', selector: '#ok', styles: { color: 'red' }, reqId: 'safe-span' })
+    send({ type: 'doop:style', selector: '#r', styles: { color: 'red' }, reqId: 'field-root' })
+    send({ type: 'doop:inspect', selector: '#u', reqId: 'inspect-u' })
+    send({ type: 'doop:inspect', selector: '#v', reqId: 'inspect-v' })
+    send({ type: 'doop:inspect', selector: '#ok', reqId: 'inspect-ok' })
+    send({ type: 'doop:inspect', selector: '#r', reqId: 'inspect-r' })
+    await tick()
+    expect(results('unsafe-p').every((m) => m.ok === false)).toBe(true)
+    expect(results('unsafe-deep').every((m) => m.ok === false)).toBe(true)
+    expect(results('safe-span').some((m) => m.ok === true)).toBe(true)
+    expect(results('field-root').some((m) => m.ok === true)).toBe(true)
+    const policyOf = (reqId: string) =>
+      (results(reqId)[0]?.info as { policy?: { readOnly?: boolean } } | null)?.policy ?? null
+    expect(policyOf('inspect-u')).toMatchObject({ readOnly: true })
+    expect(policyOf('inspect-v')).toMatchObject({ readOnly: true })
+    expect(policyOf('inspect-ok')).toMatchObject({ readOnly: false })
+    expect(policyOf('inspect-r')).toMatchObject({ readOnly: false })
   })
 })
 

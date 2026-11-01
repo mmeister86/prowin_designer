@@ -29,26 +29,39 @@ export interface TemplateAttrLevel {
   colors: string | null
   /** raw data-od-max-length value, or null when the attribute is absent */
   maxLength: string | null
+  /** lowercase tag name of this level ('' when unknown) */
+  tag: string
+  /** namespace URI of this level ('' when unknown) */
+  ns: string
+  /** raw data-od-role value of a field root, or '' when absent/not a field */
+  role: string
 }
 
+/* Mirror of the server guard's editable interior (server/prowin/templateGuard.ts):
+   inside a field only the field root itself and SAFE_INLINE descendants may
+   change (img only in image-role fields); anything below an unsafe element —
+   including a nested field — is frozen. Script/style field roots stay frozen.
+   Self-contained (no imports, no module refs): serialized into the runtime. */
 export function templatePolicyForChain(
   chain: TemplateAttrLevel[],
   manageLocks: boolean,
   frameHasTemplate: boolean,
 ): TemplateElementPolicy {
+  const SAFE_INLINE = ['br', 'b', 'strong', 'i', 'em', 'u', 'span']
+  const XHTML = 'http://www.w3.org/1999/xhtml'
   const inField = chain.some((level) => level.hasId)
   const locked = !manageLocks && chain.some((level) => level.hasLocked)
-  const readOnly = !manageLocks && (locked || (frameHasTemplate && !inField))
-  /* nested field bounds apply together: only tokens every level permits */
+  /* nested field bounds apply together: only tokens every non-empty level permits
+     (a present-but-empty list constrains nothing, like the server guard) */
   const bounds: string[][] = []
   for (const level of chain) {
     if (level.colors === null) continue
-    bounds.push(
-      level.colors
-        .split(',')
-        .map((token) => token.trim())
-        .filter((token) => token !== ''),
-    )
+    const tokens = level.colors
+      .split(',')
+      .map((token) => token.trim())
+      .filter((token) => token !== '')
+    if (tokens.length === 0) continue
+    bounds.push(tokens)
   }
   let allowedColors: string[] | null = null
   if (bounds.length > 0) {
@@ -56,7 +69,56 @@ export function templatePolicyForChain(
     for (const next of bounds.slice(1)) joint = joint.filter((token) => next.includes(token))
     allowedColors = [...new Set(joint)]
   }
+  if (manageLocks) return { template: frameHasTemplate, locked: false, readOnly: false, allowedColors }
+  if (locked || (frameHasTemplate && !inField)) {
+    return { template: frameHasTemplate, locked, readOnly: true, allowedColors }
+  }
+  /* structural editability against every enclosing field: a field root itself
+     is editable (except script/style); below a root every non-field level up
+     to it must be safe inline in the XHTML namespace — nested field roots on
+     the way are exempt and open a segment judged with their own role */
+  let readOnly = false
+  if (inField) {
+    for (let f = 0; f < chain.length && !readOnly; f++) {
+      if (!chain[f]!.hasId) continue
+      if (f === 0) {
+        const tag = chain[0]!.tag
+        if (tag === 'script' || tag === 'style') readOnly = true
+        continue
+      }
+      let image = chain[f]!.role === 'image'
+      for (let i = f - 1; i >= 0; i--) {
+        const level = chain[i]!
+        if (level.hasId) {
+          image = level.role === 'image'
+          continue
+        }
+        const inline = level.tag === 'img' ? image : SAFE_INLINE.includes(level.tag)
+        if (level.ns !== XHTML || !inline) {
+          readOnly = true
+          break
+        }
+      }
+    }
+  }
   return { template: frameHasTemplate, locked, readOnly, allowedColors }
+}
+
+/* Fail-closed merge of the stored-HTML policy and the live runtime inspect
+   policy: a newly stricter verdict on either side wins at once instead of
+   waiting for the debounced re-read. Either side may be null (stale selector
+   or script-generated content): the other side decides alone. */
+export function stricterTemplatePolicy(a: TemplateElementPolicy, b: TemplateElementPolicy): TemplateElementPolicy {
+  let allowedColors: string[] | null
+  if (a.allowedColors === null) allowedColors = b.allowedColors
+  else if (b.allowedColors === null) allowedColors = a.allowedColors
+  else allowedColors = [...new Set(a.allowedColors.filter((token) => b.allowedColors!.includes(token)))]
+  return {
+    template: a.template || b.template,
+    locked: a.locked || b.locked,
+    readOnly: a.readOnly || b.readOnly,
+    allowedColors,
+  }
 }
 
 /* Null means the selector no longer resolves (stale pick). Presence of
@@ -79,6 +141,9 @@ export function templatePolicyOf(html: string, selector: string, manageLocks: bo
       hasId: cur.hasAttribute('data-od-id'),
       colors: cur.hasAttribute('data-od-allowed-colors') ? (cur.getAttribute('data-od-allowed-colors') ?? '') : null,
       maxLength: cur.hasAttribute('data-od-max-length') ? (cur.getAttribute('data-od-max-length') ?? '') : null,
+      tag: (cur.tagName ?? '').toLowerCase(),
+      ns: cur.namespaceURI ?? '',
+      role: cur.hasAttribute('data-od-id') ? (cur.getAttribute('data-od-role') ?? '') : '',
     })
   }
   return templatePolicyForChain(chain, manageLocks, frameHasTemplate)
@@ -144,6 +209,9 @@ export function templateMaxLengthsOf(html: string, selector: string): number[] |
       hasId: cur.hasAttribute('data-od-id'),
       colors: cur.hasAttribute('data-od-allowed-colors') ? (cur.getAttribute('data-od-allowed-colors') ?? '') : null,
       maxLength: cur.hasAttribute('data-od-max-length') ? (cur.getAttribute('data-od-max-length') ?? '') : null,
+      tag: (cur.tagName ?? '').toLowerCase(),
+      ns: cur.namespaceURI ?? '',
+      role: cur.hasAttribute('data-od-id') ? (cur.getAttribute('data-od-role') ?? '') : '',
     })
   }
   return templateMaxLengthsForChain(chain)

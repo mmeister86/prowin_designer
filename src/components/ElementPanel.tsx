@@ -15,6 +15,7 @@ import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '
 import { replaceLayerHtml } from '../lib/layerEdits'
 import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import {
+  stricterTemplatePolicy,
   TEMPLATE_LOCKED_NOTICE,
   TEMPLATE_READONLY_NOTICE,
   TEMPLATE_STALE_NOTICE,
@@ -134,22 +135,24 @@ export function ElementPanel({
   /* template status for non-creators (TASK-31): locked subtrees and frozen
      areas show German feedback and offer no free design/HTML editing —
      constrained inputs arrive in step 2. Direct calls stay guarded too.
-     The live inspect policy wins once read for this element: generated
-     content and script-added locks live outside the stored HTML. Until
-     the live read lands, the stored policy fail-closes. */
+     The live inspect policy and the stored policy merge fail-closed: a
+     newly stricter verdict on either side (capability revocation, HTML
+     change) applies at once instead of waiting for the debounced re-read,
+     while a side that cannot resolve (script-generated content, stale
+     selector) leaves the other side to decide alone. */
   const caps = useCanvasCapabilities(frame.canvasId)
   const storedPolicy = useMemo(
     () => templatePolicyOf(frame.html, selector, caps.manageLocks),
     [frame.html, selector, caps.manageLocks],
   )
-  const policy = info ? info.policy : storedPolicy
+  const policy =
+    info && storedPolicy ? stricterTemplatePolicy(info.policy, storedPolicy) : (info?.policy ?? storedPolicy)
   const blocked = !policy || (!caps.manageLocks && (policy.locked || policy.readOnly))
   /* non-creator edit inside a template field: the server only ever accepts
      typography and (where listed) exact token colors, so geometry, layout,
      appearance and HTML controls are not offered at all. Plain frames and
      creators keep the full editor. */
-  const inTemplateEdit =
-    !caps.manageLocks && !!policy && policy.template && !policy.locked && !policy.readOnly
+  const inTemplateEdit = !caps.manageLocks && !!policy && policy.template && !policy.locked && !policy.readOnly
   /* token allowlist of all enclosing fields (null = unrestricted free
      colors, [] = no color change at all) */
   const tokenColors = inTemplateEdit && policy!.allowedColors !== null ? policy!.allowedColors : null
@@ -306,7 +309,13 @@ export function ElementPanel({
               </PropertyScrubContext.Provider>
             ) : stale ? (
               <div aria-busy className="pointer-events-none opacity-50" title="Element wird gelesen…">
-                <DesignTab info={stale} apply={apply} editGeometry={editGeometry} templateEdit={false} tokenColors={null} />
+                <DesignTab
+                  info={stale}
+                  apply={apply}
+                  editGeometry={editGeometry}
+                  templateEdit={false}
+                  tokenColors={null}
+                />
               </div>
             ) : (
               <Waiting />
@@ -567,296 +576,313 @@ function DesignTab({
       {/* geometry, layout and appearance are server-rejected for
           non-creators in template fields — not offered, not just dimmed */}
       {!templateEdit && (
-      <PropertySection title="Ausrichtung">
-        <div className="flex gap-1" role="group" aria-label="Ebene im übergeordneten Element ausrichten">
-          {LAYER_ALIGNS.map(({ axis, edge, label, Icon }) => (
-            <Button
-              key={label}
-              variant="bare"
-              size="icon-sm"
-              className="h-[26px] min-w-0 flex-1 rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep"
-              aria-label={label}
-              title={`${label} im übergeordneten Element`}
-              disabled={!info.geometry.canAlign}
-              onClick={() => editGeometry({ kind: 'align', axis, edge })}
-            >
-              <Icon size="rail" />
-            </Button>
-          ))}
-        </div>
-      </PropertySection>
-      )}
-      {!templateEdit && (
-      <PropertySection title="Position">
-        <div
-          className="grid grid-cols-2 gap-1.5"
-          title="Dargestellte Position relativ zum übergeordneten Element, in Pixeln der Zeichenfläche"
-        >
-          <NumberField
-            label="X-Position"
-            min={-Infinity}
-            prefix="X"
-            value={info.geometry.x}
-            unit="px"
-            disabled={!info.geometry.enabled}
-            onCommit={(value) => editGeometry({ kind: 'position', axis: 'x', value })}
-          />
-          <NumberField
-            label="Y-Position"
-            min={-Infinity}
-            prefix="Y"
-            value={info.geometry.y}
-            unit="px"
-            disabled={!info.geometry.enabled}
-            onCommit={(value) => editGeometry({ kind: 'position', axis: 'y', value })}
-          />
-        </div>
-        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-          <NumberField
-            label="Drehung"
-            min={-Infinity}
-            prefix={<CircleDashedIcon size="rail" />}
-            value={info.geometry.rotation}
-            unit="°"
-            disabled={!info.geometry.enabled}
-            onCommit={(value) => editGeometry({ kind: 'rotate', value })}
-          />
-          <div className="grid grid-cols-2 gap-1.5">
-            {(['x', 'y'] as const).map((axis) => {
-              const Icon = axis === 'x' ? FlipHorizontal2Icon : FlipVertical2Icon
-              const label = axis === 'x' ? 'Horizontal spiegeln' : 'Vertikal spiegeln'
-              const pressed = (axis === 'x' ? info.geometry.scaleX : info.geometry.scaleY) < 0
-              return (
-                <Button
-                  key={axis}
-                  variant="bare"
-                  size="icon-sm"
-                  aria-label={label}
-                  title={label}
-                  aria-pressed={pressed}
-                  disabled={!info.geometry.enabled}
-                  className={cn(
-                    'h-[26px] w-full rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep',
-                    pressed && 'bg-paper-deep text-ink',
-                  )}
-                  onClick={() => editGeometry({ kind: 'flip', axis })}
-                >
-                  <Icon size="rail" />
-                </Button>
-              )
-            })}
-          </div>
-        </div>
-        <PropertyRow label="Typ">
-          <SelectField
-            label="Positionstyp"
-            value={info.position}
-            options={POSITIONS}
-            onChange={(v) => apply({ position: v })}
-          />
-        </PropertyRow>
-        <PropertyRow label="Reihenfolge">
-          <StaticField>
-            {info.index}
-            <FieldUnit>
-              von {info.count.toLocaleString('de-DE')}
-              {parentLayout(info) && ` · ${parentLayout(info)}`}
-            </FieldUnit>
-          </StaticField>
-        </PropertyRow>
-      </PropertySection>
-      )}
-      {!templateEdit && (
-      <PropertySection
-        title="Layout"
-        action={
-          <Tooltip
-            label={
-              ratio !== null
-                ? 'Breite und Höhe entkoppeln'
-                : canLink
-                  ? 'Breite und Höhe koppeln'
-                  : 'Lege eine positive Breite und Höhe fest, um sie zu koppeln'
-            }
-          >
-            <span>
+        <PropertySection title="Ausrichtung">
+          <div className="flex gap-1" role="group" aria-label="Ebene im übergeordneten Element ausrichten">
+            {LAYER_ALIGNS.map(({ axis, edge, label, Icon }) => (
               <Button
+                key={label}
                 variant="bare"
                 size="icon-sm"
-                className={cn(
-                  'size-5 rounded-tag',
-                  ratio !== null ? 'bg-ink text-paper hover:bg-ink/85 hover:text-paper' : 'text-ink-faint',
-                )}
-                aria-label="Breite und Höhe koppeln"
-                aria-pressed={ratio !== null}
-                disabled={ratio === null && !canLink}
-                onClick={toggleRatio}
+                className="h-[26px] min-w-0 flex-1 rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep"
+                aria-label={label}
+                title={`${label} im übergeordneten Element`}
+                disabled={!info.geometry.canAlign}
+                onClick={() => editGeometry({ kind: 'align', axis, edge })}
               >
-                {ratio !== null ? <LinkIcon size="rail" /> : <UnlinkIcon size="rail" />}
+                <Icon size="rail" />
               </Button>
-            </span>
-          </Tooltip>
-        }
-      >
-        <div className="grid grid-cols-2 gap-1.5">
-          {(['width', 'height'] as const).map((axis) => (
-            <div key={axis} className="flex min-w-0 flex-col gap-1">
-              <NumberField
-                label={axis === 'width' ? 'Breite' : 'Höhe'}
-                prefix={axis === 'width' ? 'W' : 'H'}
-                value={info[axis]}
-                unit="px"
-                onCommit={(v) => setSize(axis, 'fixed', v)}
-              />
-              <SelectField
-                label={axis === 'width' ? 'Breitenanpassung' : 'Höhenanpassung'}
-                value={modeFor(axis)}
-                options={SIZE_MODES}
-                onChange={(v) => setSize(axis, v)}
-              />
+            ))}
+          </div>
+        </PropertySection>
+      )}
+      {!templateEdit && (
+        <PropertySection title="Position">
+          <div
+            className="grid grid-cols-2 gap-1.5"
+            title="Dargestellte Position relativ zum übergeordneten Element, in Pixeln der Zeichenfläche"
+          >
+            <NumberField
+              label="X-Position"
+              min={-Infinity}
+              prefix="X"
+              value={info.geometry.x}
+              unit="px"
+              disabled={!info.geometry.enabled}
+              onCommit={(value) => editGeometry({ kind: 'position', axis: 'x', value })}
+            />
+            <NumberField
+              label="Y-Position"
+              min={-Infinity}
+              prefix="Y"
+              value={info.geometry.y}
+              unit="px"
+              disabled={!info.geometry.enabled}
+              onCommit={(value) => editGeometry({ kind: 'position', axis: 'y', value })}
+            />
+          </div>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            <NumberField
+              label="Drehung"
+              min={-Infinity}
+              prefix={<CircleDashedIcon size="rail" />}
+              value={info.geometry.rotation}
+              unit="°"
+              disabled={!info.geometry.enabled}
+              onCommit={(value) => editGeometry({ kind: 'rotate', value })}
+            />
+            <div className="grid grid-cols-2 gap-1.5">
+              {(['x', 'y'] as const).map((axis) => {
+                const Icon = axis === 'x' ? FlipHorizontal2Icon : FlipVertical2Icon
+                const label = axis === 'x' ? 'Horizontal spiegeln' : 'Vertikal spiegeln'
+                const pressed = (axis === 'x' ? info.geometry.scaleX : info.geometry.scaleY) < 0
+                return (
+                  <Button
+                    key={axis}
+                    variant="bare"
+                    size="icon-sm"
+                    aria-label={label}
+                    title={label}
+                    aria-pressed={pressed}
+                    disabled={!info.geometry.enabled}
+                    className={cn(
+                      'h-[26px] w-full rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep',
+                      pressed && 'bg-paper-deep text-ink',
+                    )}
+                    onClick={() => editGeometry({ kind: 'flip', axis })}
+                  >
+                    <Icon size="rail" />
+                  </Button>
+                )
+              })}
             </div>
-          ))}
-        </div>
-        <PropertyRow label="Min. Breite">
-          <LengthField
-            label="Mindestbreite"
-            value={info.inline['min-width'] ?? (info.minWidth === '0px' ? '' : info.minWidth)}
-            placeholder="automatisch"
-            onCommit={(v) => apply({ 'min-width': lengthValue(v) })}
-          />
-        </PropertyRow>
-        <PropertyRow label="Darstellung">
-          <SelectField
-            label="Darstellung"
-            value={displayValue(info)}
-            options={DISPLAYS}
-            onChange={(v) => apply({ display: v })}
-          />
-        </PropertyRow>
-        {!isFlex && (
-          <>
-            {info.display.includes('grid') && (
-              <PropertyRow label="Abstand">
+          </div>
+          <PropertyRow label="Typ">
+            <SelectField
+              label="Positionstyp"
+              value={info.position}
+              options={POSITIONS}
+              onChange={(v) => apply({ position: v })}
+            />
+          </PropertyRow>
+          <PropertyRow label="Reihenfolge">
+            <StaticField>
+              {info.index}
+              <FieldUnit>
+                von {info.count.toLocaleString('de-DE')}
+                {parentLayout(info) && ` · ${parentLayout(info)}`}
+              </FieldUnit>
+            </StaticField>
+          </PropertyRow>
+        </PropertySection>
+      )}
+      {!templateEdit && (
+        <PropertySection
+          title="Layout"
+          action={
+            <Tooltip
+              label={
+                ratio !== null
+                  ? 'Breite und Höhe entkoppeln'
+                  : canLink
+                    ? 'Breite und Höhe koppeln'
+                    : 'Lege eine positive Breite und Höhe fest, um sie zu koppeln'
+              }
+            >
+              <span>
+                <Button
+                  variant="bare"
+                  size="icon-sm"
+                  className={cn(
+                    'size-5 rounded-tag',
+                    ratio !== null ? 'bg-ink text-paper hover:bg-ink/85 hover:text-paper' : 'text-ink-faint',
+                  )}
+                  aria-label="Breite und Höhe koppeln"
+                  aria-pressed={ratio !== null}
+                  disabled={ratio === null && !canLink}
+                  onClick={toggleRatio}
+                >
+                  {ratio !== null ? <LinkIcon size="rail" /> : <UnlinkIcon size="rail" />}
+                </Button>
+              </span>
+            </Tooltip>
+          }
+        >
+          <div className="grid grid-cols-2 gap-1.5">
+            {(['width', 'height'] as const).map((axis) => (
+              <div key={axis} className="flex min-w-0 flex-col gap-1">
                 <NumberField
-                  label="Zeilenabstand"
-                  value={info.rowGap ?? 0}
+                  label={axis === 'width' ? 'Breite' : 'Höhe'}
+                  prefix={axis === 'width' ? 'W' : 'H'}
+                  value={info[axis]}
                   unit="px"
-                  onCommit={(v) => apply({ 'row-gap': `${Math.max(0, v)}px` })}
+                  onCommit={(v) => setSize(axis, 'fixed', v)}
                 />
-                <NumberField
-                  label="Spaltenabstand"
-                  value={info.columnGap ?? 0}
-                  unit="px"
-                  onCommit={(v) => apply({ 'column-gap': `${Math.max(0, v)}px` })}
+                <SelectField
+                  label={axis === 'width' ? 'Breitenanpassung' : 'Höhenanpassung'}
+                  value={modeFor(axis)}
+                  options={SIZE_MODES}
+                  onChange={(v) => setSize(axis, v)}
                 />
-              </PropertyRow>
-            )}
-            <PaddingControls info={info} apply={apply} />
-          </>
-        )}
-      </PropertySection>
+              </div>
+            ))}
+          </div>
+          <PropertyRow label="Min. Breite">
+            <LengthField
+              label="Mindestbreite"
+              value={info.inline['min-width'] ?? (info.minWidth === '0px' ? '' : info.minWidth)}
+              placeholder="automatisch"
+              onCommit={(v) => apply({ 'min-width': lengthValue(v) })}
+            />
+          </PropertyRow>
+          <PropertyRow label="Darstellung">
+            <SelectField
+              label="Darstellung"
+              value={displayValue(info)}
+              options={DISPLAYS}
+              onChange={(v) => apply({ display: v })}
+            />
+          </PropertyRow>
+          {!isFlex && (
+            <>
+              {info.display.includes('grid') && (
+                <PropertyRow label="Abstand">
+                  <NumberField
+                    label="Zeilenabstand"
+                    value={info.rowGap ?? 0}
+                    unit="px"
+                    onCommit={(v) => apply({ 'row-gap': `${Math.max(0, v)}px` })}
+                  />
+                  <NumberField
+                    label="Spaltenabstand"
+                    value={info.columnGap ?? 0}
+                    unit="px"
+                    onCommit={(v) => apply({ 'column-gap': `${Math.max(0, v)}px` })}
+                  />
+                </PropertyRow>
+              )}
+              <PaddingControls info={info} apply={apply} />
+            </>
+          )}
+        </PropertySection>
       )}
       {isFlex && !templateEdit && <FlexLayoutControls info={info} apply={apply} />}
       {!templateEdit && (
-      <PropertySection
-        title="Aussehen"
-        action={
-          <Button
-            variant="bare"
-            size="icon-sm"
-            className="size-5 rounded-tag text-ink-faint"
-            aria-label={visible ? 'Element ausblenden' : 'Element einblenden'}
-            title={visible ? 'Element ausblenden' : 'Element einblenden'}
-            aria-pressed={!visible}
-            onClick={() => apply({ visibility: visible ? 'hidden' : 'visible' })}
-          >
-            {visible ? <EyeIcon size="rail" /> : <EyeClosedIcon size="rail" />}
-          </Button>
-        }
-      >
-        <div className="grid grid-cols-2 gap-1.5">
-          <NumberField
-            label="Deckkraft des Elements"
-            max={100}
-            prefix={<DropletIcon size="rail" />}
-            value={info.opacity === null ? null : Math.round(info.opacity * 100)}
-            unit="%"
-            onCommit={(v) => apply({ opacity: String(Math.min(100, Math.max(0, v)) / 100) })}
-          />
-          <NumberField
-            label="Eckenradius"
-            prefix={<RadiusIcon size="rail" />}
-            value={info.borderRadius}
-            unit="px"
-            onCommit={(v) => apply({ 'border-radius': `${Math.max(0, v)}px` })}
-          />
-        </div>
-        <label className="mt-2 flex h-5 cursor-pointer items-center justify-between text-[11.5px] text-ink-soft">
-          Inhalt beschneiden
-          <Switch
-            size="sm"
-            aria-label="Inhalt beschneiden"
-            className="data-[state=checked]:bg-ink"
-            checked={info.clipsContent}
-            onCheckedChange={(on) => apply({ overflow: on ? 'hidden' : 'visible' })}
-          />
-        </label>
-      </PropertySection>
+        <PropertySection
+          title="Aussehen"
+          action={
+            <Button
+              variant="bare"
+              size="icon-sm"
+              className="size-5 rounded-tag text-ink-faint"
+              aria-label={visible ? 'Element ausblenden' : 'Element einblenden'}
+              title={visible ? 'Element ausblenden' : 'Element einblenden'}
+              aria-pressed={!visible}
+              onClick={() => apply({ visibility: visible ? 'hidden' : 'visible' })}
+            >
+              {visible ? <EyeIcon size="rail" /> : <EyeClosedIcon size="rail" />}
+            </Button>
+          }
+        >
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumberField
+              label="Deckkraft des Elements"
+              max={100}
+              prefix={<DropletIcon size="rail" />}
+              value={info.opacity === null ? null : Math.round(info.opacity * 100)}
+              unit="%"
+              onCommit={(v) => apply({ opacity: String(Math.min(100, Math.max(0, v)) / 100) })}
+            />
+            <NumberField
+              label="Eckenradius"
+              prefix={<RadiusIcon size="rail" />}
+              value={info.borderRadius}
+              unit="px"
+              onCommit={(v) => apply({ 'border-radius': `${Math.max(0, v)}px` })}
+            />
+          </div>
+          <label className="mt-2 flex h-5 cursor-pointer items-center justify-between text-[11.5px] text-ink-soft">
+            Inhalt beschneiden
+            <Switch
+              size="sm"
+              aria-label="Inhalt beschneiden"
+              className="data-[state=checked]:bg-ink"
+              checked={info.clipsContent}
+              onCheckedChange={(on) => apply({ overflow: on ? 'hidden' : 'visible' })}
+            />
+          </label>
+        </PropertySection>
       )}
       <PropertySection title="Füllung">
         {tokenColors !== null ? (
-          <TokenColorField row="Füllung" label="Füllfarbe (Vorlage)" prop="background-color" info={info} tokens={tokenColors} apply={apply} />
+          <TokenColorField
+            row="Füllung"
+            label="Füllfarbe (Vorlage)"
+            prop="background-color"
+            info={info}
+            tokens={tokenColors}
+            apply={apply}
+          />
         ) : (
-        <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
-          <ColorField
-            label="Füllfarbe"
-            value={fillAlpha === 0 && fill === '#000000' ? null : fill}
-            onCommit={(v) =>
-              apply({
-                'background-color': v
-                  ? colorWithAlpha(v, fillAlpha === 0 && (!fill || fill === '#000000') ? 1 : fillAlpha)
-                  : 'transparent',
-              })
-            }
-          />
-          <NumberField
-            label="Deckkraft der Füllung"
-            max={100}
-            value={Math.round(fillAlpha * 100)}
-            unit="%"
-            onCommit={(v) => apply({ 'background-color': colorWithAlpha(fill ?? info.backgroundColor, v / 100) })}
-          />
-        </div>
+          <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
+            <ColorField
+              label="Füllfarbe"
+              value={fillAlpha === 0 && fill === '#000000' ? null : fill}
+              onCommit={(v) =>
+                apply({
+                  'background-color': v
+                    ? colorWithAlpha(v, fillAlpha === 0 && (!fill || fill === '#000000') ? 1 : fillAlpha)
+                    : 'transparent',
+                })
+              }
+            />
+            <NumberField
+              label="Deckkraft der Füllung"
+              max={100}
+              value={Math.round(fillAlpha * 100)}
+              unit="%"
+              onCommit={(v) => apply({ 'background-color': colorWithAlpha(fill ?? info.backgroundColor, v / 100) })}
+            />
+          </div>
         )}
       </PropertySection>
       <PropertySection title="Kontur">
         {tokenColors !== null ? (
-          <TokenColorField row="Kontur" label="Rahmenfarbe (Vorlage)" prop="border-color" info={info} tokens={tokenColors} apply={apply} />
+          <TokenColorField
+            row="Kontur"
+            label="Rahmenfarbe (Vorlage)"
+            prop="border-color"
+            info={info}
+            tokens={tokenColors}
+            apply={apply}
+          />
         ) : (
-        <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
-          <ColorField
-            label="Rahmenfarbe"
-            value={borderColor}
-            onCommit={(v) =>
-              /* adding border-style alongside the color is server-rejected
+          <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
+            <ColorField
+              label="Rahmenfarbe"
+              value={borderColor}
+              onCommit={(v) =>
+                /* adding border-style alongside the color is server-rejected
                  for non-creators in template fields — color only there */
-              apply({ 'border-color': v, ...(v && info.borderStyle === 'none' && !templateEdit ? { 'border-style': 'solid' } : {}) })
-            }
-          />
-          {!templateEdit && (
-          <NumberField
-            label="Rahmenbreite"
-            value={border.width}
-            unit="px"
-            onCommit={(v) =>
-              apply({
-                'border-width': `${Math.max(0, v)}px`,
-                ...(v > 0 && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}),
-              })
-            }
-          />
-          )}
-        </div>
+                apply({
+                  'border-color': v,
+                  ...(v && info.borderStyle === 'none' && !templateEdit ? { 'border-style': 'solid' } : {}),
+                })
+              }
+            />
+            {!templateEdit && (
+              <NumberField
+                label="Rahmenbreite"
+                value={border.width}
+                unit="px"
+                onCommit={(v) =>
+                  apply({
+                    'border-width': `${Math.max(0, v)}px`,
+                    ...(v > 0 && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}),
+                  })
+                }
+              />
+            )}
+          </div>
         )}
         {border.sides && (
           <p className="mt-1 text-[10.5px] text-ink-faint">
@@ -892,7 +918,14 @@ function DesignTab({
             />
           </PropertyRow>
           {tokenColors !== null ? (
-            <TokenColorField row="Farbe" label="Textfarbe (Vorlage)" prop="color" info={info} tokens={tokenColors} apply={apply} />
+            <TokenColorField
+              row="Farbe"
+              label="Textfarbe (Vorlage)"
+              prop="color"
+              info={info}
+              tokens={tokenColors}
+              apply={apply}
+            />
           ) : (
             <PropertyRow label="Farbe">
               <ColorField value={rgbToHex(info.color)} onCommit={(v) => apply({ color: v })} />

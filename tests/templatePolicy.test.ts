@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
    access; legacy locks leaking into the template policy; frozen areas in
    template frames offered as editable; plain frames restricted; nested
    color bounds not intersected; stale selectors not reported as null. */
-import { templatePolicyOf } from '../src/prowin/templatePolicy'
+import { stricterTemplatePolicy, templatePolicyOf } from '../src/prowin/templatePolicy'
 
 const page = (body: string) => `<!doctype html><html><head></head><body>${body}</body></html>`
 const SECTION = 'body:nth-of-type(1) > section:nth-of-type(1)'
@@ -107,6 +107,72 @@ describe('templatePolicyOf', () => {
     )
     expect(templatePolicyOf(disjoint, p, false)?.allowedColors).toEqual([])
     const empty = page('<section data-od-id="a" data-od-allowed-colors=""><p>x</p></section>')
-    expect(templatePolicyOf(empty, SECTION, false)?.allowedColors).toEqual([])
+    expect(templatePolicyOf(empty, SECTION, false)?.allowedColors).toBeNull()
   })
+
+  it('freezes unsafe descendants of a field but keeps safe inline and field roots editable', () => {
+    const html = page(
+      '<div data-od-id="f" data-od-role="body"><p id="para">Text <span id="deep">tief</span></p>' +
+        '<span id="flat">flach</span></div>' +
+        '<p id="root" data-od-id="g" data-od-role="body">Wurzel</p>' +
+        '<div data-od-id="outer" data-od-role="body"><p><span id="nested" data-od-id="inner" data-od-role="body">x</span></p></div>',
+    )
+    /* unsafe wrappers and everything below them: selectable but read-only */
+    expect(templatePolicyOf(html, '#para', false)).toMatchObject({ locked: false, readOnly: true })
+    expect(templatePolicyOf(html, '#deep', false)).toMatchObject({ locked: false, readOnly: true })
+    /* a nested field behind the outer field's unsafe ancestor stays frozen */
+    expect(templatePolicyOf(html, '#nested', false)).toMatchObject({ locked: false, readOnly: true })
+    /* safe inline directly in the field and field roots stay editable */
+    expect(templatePolicyOf(html, '#flat', false)).toMatchObject({ locked: false, readOnly: false })
+    expect(templatePolicyOf(html, '#root', false)).toMatchObject({ locked: false, readOnly: false })
+    expect(templatePolicyOf(html, '#para', false)?.allowedColors).toBeNull()
+  })
+
+  it('keeps script/style field roots frozen for non-creators', () => {
+    const html = page(
+      '<div data-od-id="f" data-od-role="body"><span>x</span></div>' +
+        '<script id="js" data-od-id="s">console.log(1)</script>' +
+        '<style id="cs" data-od-id="c">p{color:red}</style>',
+    )
+    expect(templatePolicyOf(html, '#js', false)).toMatchObject({ locked: false, readOnly: true })
+    expect(templatePolicyOf(html, '#cs', false)).toMatchObject({ locked: false, readOnly: true })
+    /* creators keep full access, including script/style roots */
+    expect(templatePolicyOf(html, '#js', true)).toMatchObject({ locked: false, readOnly: false })
+  })
+
+  it('does not treat an SVG-namespaced span as safe inline', () => {
+    const html = page('<div data-od-id="f" data-od-role="body"><svg id="pic"><span id="svgspan">x</span></svg></div>')
+    expect(templatePolicyOf(html, '#svgspan', false)).toMatchObject({ locked: false, readOnly: true })
+  })
+
+  it('allows img only in image-role fields', () => {
+    const html = page(
+      '<div data-od-id="i" data-od-role="image"><img id="pic" src="a.png" alt="A"></div>' +
+        '<div data-od-id="t" data-od-role="body"><img id="pic2" src="a.png" alt="A"></div>',
+    )
+    expect(templatePolicyOf(html, '#pic', false)).toMatchObject({ locked: false, readOnly: false })
+    expect(templatePolicyOf(html, '#pic2', false)).toMatchObject({ locked: false, readOnly: true })
+  })
+
+  it('merges live and stored policy fail-closed', () => {
+    const open = { template: true, locked: false, readOnly: false, allowedColors: null as string[] | null }
+    const frozen = { template: true, locked: false, readOnly: true, allowedColors: null as string[] | null }
+    expect(stricterTemplatePolicy(open, frozen).readOnly).toBe(true)
+    expect(stricterTemplatePolicy(frozen, open).readOnly).toBe(true)
+    expect(stricterTemplatePolicy(open, open)).toEqual(open)
+    /* color bounds intersect; null is unrestricted, [] permits nothing */
+    expect(stricterTemplatePolicy({ ...open, allowedColors: null }, { ...open, allowedColors: ['a'] })).toMatchObject({
+      allowedColors: ['a'],
+    })
+    expect(stricterTemplatePolicy({ ...open, allowedColors: [] }, { ...open, allowedColors: null })).toMatchObject({
+      allowedColors: [],
+    })
+    expect(
+      stricterTemplatePolicy({ ...open, allowedColors: ['a', 'b'] }, { ...open, allowedColors: ['b', 'c'] }),
+    ).toMatchObject({ allowedColors: ['b'] })
+  })
+
+  /* Server acceptance/rejection contrast lives in
+     tests/templateClientServerAlign.test.ts (node env: the server guard
+     chain cannot load under happy-dom). */
 })

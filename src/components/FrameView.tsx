@@ -698,13 +698,16 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     // eslint-disable-next-line react-hooks/exhaustive-deps -- frame.html + frame.id cover every used field
   }, [frame.html, manageLocks, frame.id])
 
-  /* lock hint for the element toolbar's anchor */
+  /* lock hint for the element toolbar's anchor. A null stored policy means
+     the selector resolves only in the live document (script-generated) or
+     not at all (stale): neither blocks the button — the runtime judges the
+     live element on click, and a stale anchor offers nothing to act on. */
   const toolbarAnchorSel = (editing ? activeHit : probe)?.selector ?? null
   const toolbarPolicy = useMemo(
     () => (toolbarAnchorSel ? templatePolicyOf(frame.html, toolbarAnchorSel, manageLocks) : null),
     [frame.html, toolbarAnchorSel, manageLocks],
   )
-  const anchorBlocked = !manageLocks && (!toolbarPolicy || toolbarPolicy.locked || toolbarPolicy.readOnly)
+  const anchorBlocked = !manageLocks && !!toolbarPolicy && (toolbarPolicy.locked || toolbarPolicy.readOnly)
   /* geometry edits are server-rejected for non-creators anywhere in a
      template frame — the grips stay off so they cannot be attempted */
   const anchorTemplate = !manageLocks && !!toolbarPolicy && toolbarPolicy.template

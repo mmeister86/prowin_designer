@@ -30,16 +30,21 @@ function send(data: Record<string, unknown>) {
 
 function beforeInput(
   target: Element,
-  opts: { inputType?: string; data?: string | null; pasteText?: string },
+  opts: { inputType?: string; data?: string | null; pasteText?: string; targetText?: string },
 ): boolean {
   const ev = new Event('beforeinput', { bubbles: true, cancelable: true }) as Event & {
     inputType?: string
     data?: string | null
     dataTransfer?: { getData: (type: string) => string } | null
+    getTargetRanges?: () => Array<{ startContainer: Node; endContainer: Node; toString: () => string }>
   }
   ev.inputType = opts.inputType ?? 'insertText'
   ev.data = opts.data ?? null
   ev.dataTransfer = opts.pasteText !== undefined ? { getData: () => opts.pasteText! } : null
+  if (opts.targetText !== undefined) {
+    const text = target.firstChild!
+    ev.getTargetRanges = () => [{ startContainer: text, endContainer: text, toString: () => opts.targetText! }]
+  }
   target.dispatchEvent(ev)
   return ev.defaultPrevented
 }
@@ -83,7 +88,8 @@ describe('frame runtime template text guard', () => {
   }
 
   it('counts codepoints: A😀B fits a limit of 3, A😀BC does not', async () => {
-    document.body.innerHTML = '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><p id="t">A😀B</p></section>'
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><span id="t">A😀B</span></section>'
     await editMode()
     click(document.querySelector('#t')!)
     expect(beforeInput(document.querySelector('#t')!, { data: 'C' })).toBe(true)
@@ -95,7 +101,8 @@ describe('frame runtime template text guard', () => {
   })
 
   it('lets a selection replacement fit inside the limit', async () => {
-    document.body.innerHTML = '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><p id="t">ABC</p></section>'
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><span id="t">ABC</span></section>'
     await editMode()
     click(document.querySelector('#t')!)
     selectText(document.querySelector('#t')!.firstChild!, 1, 2)
@@ -105,7 +112,7 @@ describe('frame runtime template text guard', () => {
 
   it('counts the whole ancestor field including siblings', async () => {
     document.body.innerHTML =
-      '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><p id="a">AB</p><p id="b">C</p></section>'
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><span id="a">AB</span><span id="b">C</span></section>'
     await editMode()
     click(document.querySelector('#b')!)
     /* locally "C"+"D" would fit — the field "ABCD" does not */
@@ -114,7 +121,8 @@ describe('frame runtime template text guard', () => {
   })
 
   it('guards paste and composition inserts', async () => {
-    document.body.innerHTML = '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><p id="t">AB</p></section>'
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><span id="t">AB</span></section>'
     await editMode()
     click(document.querySelector('#t')!)
     expect(beforeInput(document.querySelector('#t')!, { inputType: 'insertFromPaste', pasteText: 'CD' })).toBe(true)
@@ -140,7 +148,8 @@ describe('frame runtime template text guard', () => {
   })
 
   it('never trims legacy over-limit text but rejects growth and allows a fitting replacement', async () => {
-    document.body.innerHTML = '<section data-od-id="f" data-od-role="body" data-od-max-length="1"><p id="t">viel zu lang</p></section>'
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="1"><span id="t">viel zu lang</span></section>'
     await editMode()
     click(document.querySelector('#t')!)
     await tick()
@@ -153,7 +162,8 @@ describe('frame runtime template text guard', () => {
   })
 
   it('restores the last valid text when an over-limit input slips through', async () => {
-    document.body.innerHTML = '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><p id="t">ABC</p></section>'
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><span id="t">ABC</span></section>'
     await editMode()
     click(document.querySelector('#t')!)
     document.querySelector('#t')!.textContent = 'ABCD'
@@ -166,17 +176,23 @@ describe('frame runtime template text guard', () => {
 
   it('reverts the live document on doop:revert, ending an active edit', async () => {
     document.body.innerHTML = '<section><p id="t">alt</p></section>'
-    send({ type: 'doop:revert', html: '<!doctype html><html><head></head><body><section><p id="t">neu</p></section></body></html>' })
+    send({
+      type: 'doop:revert',
+      html: '<!doctype html><html><head></head><body><section><p id="t">neu</p></section></body></html>',
+    })
     await tick()
     expect(document.querySelector('#t')!.textContent).toBe('neu')
 
     /* a rejected save mid-typing restores the stored state even though the
        edit is still open: no invalid state survives, in the store or live */
-    document.body.innerHTML = '<section data-od-id="f" data-od-role="body"><p id="t">live</p></section>'
+    document.body.innerHTML = '<section data-od-id="f" data-od-role="body"><span id="t">live</span></section>'
     await editMode()
     click(document.querySelector('#t')!)
     document.querySelector('#t')!.textContent = 'live plus invalid'
-    send({ type: 'doop:revert', html: '<!doctype html><html><head></head><body><section data-od-id="f" data-od-role="body"><p id="t">stored</p></section></body></html>' })
+    send({
+      type: 'doop:revert',
+      html: '<!doctype html><html><head></head><body><section data-od-id="f" data-od-role="body"><span id="t">stored</span></section></body></html>',
+    })
     await tick()
     expect(document.querySelector('#t')!.textContent).toBe('stored')
     expect(document.querySelector('#t')!.hasAttribute('contenteditable')).toBe(false)
@@ -191,14 +207,17 @@ describe('frame runtime template text guard', () => {
     }
     window.addEventListener('message', collect)
     try {
-      document.body.innerHTML = '<section data-od-id="f" data-od-role="body"><p id="t">live</p></section>'
+      document.body.innerHTML = '<section data-od-id="f" data-od-role="body"><span id="t">live</span></section>'
       await editMode()
       click(document.querySelector('#t')!)
       /* a valid keystroke starts the save debounce … */
       document.querySelector('#t')!.textContent = 'live!'
       document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
       /* … then the rejection wins the race and must cancel the pending save */
-      send({ type: 'doop:revert', html: '<!doctype html><html><head></head><body><section data-od-id="f" data-od-role="body"><p id="t">stored</p></section></body></html>' })
+      send({
+        type: 'doop:revert',
+        html: '<!doctype html><html><head></head><body><section data-od-id="f" data-od-role="body"><span id="t">stored</span></section></body></html>',
+      })
       await new Promise((r) => setTimeout(r, 600))
       expect(edited).toEqual([])
       expect(document.querySelector('#t')!.textContent).toBe('stored')
@@ -276,6 +295,66 @@ describe('frame runtime template text guard', () => {
     document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
     await tick()
     expect(document.querySelector('#lk')!.textContent).toBe('fix')
+    await stopEdit()
+  })
+
+  it('never activates unsafe descendants of a field, but keeps safe spans and field roots editable', async () => {
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body"><p id="u">Text <span id="v">tief</span></p>' +
+      '<span id="ok">frei</span></section><p id="r" data-od-id="g" data-od-role="body">Wurzel</p>'
+    await editMode()
+    /* unsafe wrapper and the span below it: no activation, no editable state */
+    click(document.querySelector('#u')!)
+    expect(document.querySelector('#u')!.hasAttribute('contenteditable')).toBe(false)
+    expect(document.querySelector('[data-v-active]')).toBeNull()
+    click(document.querySelector('#v')!)
+    expect(document.querySelector('#v')!.hasAttribute('contenteditable')).toBe(false)
+    expect(document.querySelector('[data-v-active]')).toBeNull()
+    /* safe span directly in the field and a p field root still activate */
+    click(document.querySelector('#ok')!)
+    expect(document.querySelector('#ok')!.getAttribute('contenteditable')).not.toBeNull()
+    click(document.querySelector('#r')!)
+    expect(document.querySelector('#r')!.getAttribute('contenteditable')).not.toBeNull()
+    await stopEdit()
+  })
+
+  it('credits composition replacement ranges instead of double-counting them', async () => {
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="5"><span id="t">AB</span></section>'
+    await editMode()
+    click(document.querySelector('#t')!)
+    /* a composition update replacing the in-progress "AB" with "ABCDE"
+       fits the limit of 5 — counted as 2 - 2 + 5, not 2 + 5 */
+    expect(
+      beforeInput(document.querySelector('#t')!, {
+        inputType: 'insertCompositionText',
+        data: 'ABCDE',
+        targetText: 'AB',
+      }),
+    ).toBe(false)
+    /* without a replacement range the same insert still overflows */
+    expect(beforeInput(document.querySelector('#t')!, { inputType: 'insertCompositionText', data: 'ABCDE' })).toBe(true)
+    await stopEdit()
+  })
+
+  it('defers the fallback restore until compositionend', async () => {
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="3"><span id="t">ABC</span></section>'
+    await editMode()
+    click(document.querySelector('#t')!)
+    document.querySelector('#t')!.dispatchEvent(new Event('compositionstart', { bubbles: true }))
+    /* an uncommitted IME change past the limit must not be restored
+       mid-composition (that would end the composition and jump the caret) */
+    document.querySelector('#t')!.textContent = 'ABCD'
+    document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+    await tick()
+    expect(document.querySelector('#t')!.textContent).toBe('ABCD')
+    expect(notices.some((n) => n.includes('3 Zeichen'))).toBe(false)
+    /* committing the over-limit text restores the last valid state once */
+    document.querySelector('#t')!.dispatchEvent(new Event('compositionend', { bubbles: true }))
+    await tick()
+    expect(document.querySelector('#t')!.textContent).toBe('ABC')
+    expect(notices.some((n) => n.includes('3 Zeichen'))).toBe(true)
     await stopEdit()
   })
 })

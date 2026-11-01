@@ -160,6 +160,9 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
         maxLength: node.hasAttribute('data-od-max-length')
           ? (node.getAttribute('data-od-max-length') || '')
           : null,
+        tag: (node.tagName || '').toLowerCase(),
+        ns: node.namespaceURI || '',
+        role: node.hasAttribute('data-od-id') ? (node.getAttribute('data-od-role') || '') : '',
       })
     }
     return chain
@@ -348,12 +351,14 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (type.indexOf('delete') === 0) return ''
     return null
   }
-  function checkGuardLimits() {
+  function checkGuardLimits(soft) {
     if (!textGuard) return
-    /* frozen descendants first: an unannounced edit that removed or
-       rewrote a lock is restored no matter what the length says, and an
-       accepted length result must never adopt it as the new baseline */
-    if (activeEl && frozenHtml(activeEl) !== textGuard.locks) {
+    /* trusted IME updates can bypass beforeinput prevention: the composition
+       owns its text until commit, so mid-composition the guard only advances
+       the last-valid baseline on valid states and never restores (restoring
+       innerHTML would end the composition and jump the caret) */
+    var frozenOk = !activeEl || frozenHtml(activeEl) === textGuard.locks
+    if (!frozenOk && !soft) {
       var oroot = textGuard.roots.length > 0 ? textGuard.roots[textGuard.roots.length - 1] : null
       try {
         if (oroot && oroot.root.isConnected) oroot.root.innerHTML = oroot.lastValidHtml
@@ -370,6 +375,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       if (!g.root.isConnected) continue
       var current = g.root.textContent || ''
       if (templateCodepoints(current) > g.max && current !== g.base) {
+        if (soft) continue
         /* restore the last valid state verbatim: the snapshot holds nested
            frozen content untouched, so this never clobbers it */
         try {
@@ -379,7 +385,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
           if (again) caretToEnd(again)
         } catch (e2) {}
         notifyEditLimit('Der Text überschreitet die Vorlagenbegrenzung von ' + g.max + ' Zeichen.')
-      } else {
+      } else if (frozenOk) {
         g.lastValid = current
         g.lastValidHtml = g.root.innerHTML
       }
@@ -502,6 +508,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     }
     editing = on
     if (on) {
+      composing = false
       var st = document.createElement('style')
       st.setAttribute('data-v-edit', '')
       st.textContent = EDIT_CSS
@@ -534,12 +541,36 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (el && el !== activeEl) el.setAttribute('data-v-hover', '1')
   }, true)
 
+  var composing = false
   document.addEventListener('input', function () {
     if (!editing) return
+    /* mid-composition only the baseline advances on valid states; the
+       restore (and the save debounce) wait for compositionend */
+    if (composing) {
+      checkGuardLimits(true)
+      return
+    }
     if (editTimer) clearTimeout(editTimer)
     /* edits the browser did not announce via beforeinput (IME, drag) are
        validated after the fact and restored, never trimmed */
     checkGuardLimits()
+    editTimer = setTimeout(function () { editTimer = null; postEdited() }, 400)
+  })
+
+  /* a composition update replaces the in-progress string instead of
+     appending: without its target ranges the new text is double-counted
+     against the not-yet-committed text. While composing, the input fallback
+     stays out (restoring innerHTML would end the composition and jump the
+     caret); compositionend validates and saves once. */
+  document.addEventListener('compositionstart', function () {
+    composing = true
+    if (editTimer) { clearTimeout(editTimer); editTimer = null }
+  })
+  document.addEventListener('compositionend', function () {
+    composing = false
+    if (!editing) return
+    checkGuardLimits()
+    if (editTimer) clearTimeout(editTimer)
     editTimer = setTimeout(function () { editTimer = null; postEdited() }, 400)
   })
 
@@ -570,10 +601,29 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       var g = textGuard.roots[i]
       if (!g.root.isConnected) continue
       var current = g.root.textContent || ''
-      var next = templateCodepoints(current) - templateCodepoints(selectionIn(g.root)) + templateCodepoints(inserted)
+      /* a composition update (or any ranged replacement) overwrites its
+         target ranges: credit the larger of selection and targets so the
+         in-progress text is not double-counted */
+      var replaced = selectionIn(g.root)
+      try {
+        if (ev.getTargetRanges) {
+          var trs = ev.getTargetRanges()
+          var t = ''
+          for (var k = 0; k < trs.length; k++) {
+            var r = trs[k]
+            if (g.root.contains(r.startContainer) && g.root.contains(r.endContainer)) t += r.toString()
+          }
+          if (templateCodepoints(t) > templateCodepoints(replaced)) replaced = t
+        }
+      } catch (e) {}
+      var next = templateCodepoints(current) - templateCodepoints(replaced) + templateCodepoints(inserted)
       if (next > g.max) {
         ev.preventDefault()
-        notifyEditLimit('Der Text überschreitet die Vorlagenbegrenzung von ' + g.max + ' Zeichen.')
+        /* a composing update cannot be stopped here (the composition owns
+           its text until commit) — notifying now would cry over limit
+           while the user is still choosing characters; the commit-time
+           fallback notifies if the result still overflows */
+        if (!ev.isComposing) notifyEditLimit('Der Text überschreitet die Vorlagenbegrenzung von ' + g.max + ' Zeichen.')
         return
       }
     }
@@ -1146,6 +1196,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (d.type === 'doop:revert' && typeof d.html === 'string') {
       if (editTimer) { clearTimeout(editTimer); editTimer = null }
       if (styleTimer) { clearTimeout(styleTimer); styleTimer = null }
+      composing = false
       deactivate()
       editing = false
       clearHover()

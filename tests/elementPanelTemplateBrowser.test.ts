@@ -108,6 +108,26 @@ describe.skipIf(!findBrowserPath())('element panel live template policy', { time
     expect(savedHtml).toBe('')
   }, 20_000)
 
+  it('shows an unsafe field descendant as read-only but keeps a safe span editable', async () => {
+    const frame = await seedFrame(
+      '<!doctype html><html><head></head><body><div data-od-id="f1" data-od-role="body"><p id="u">Text</p><span id="ok">frei</span></div></body></html>',
+    )
+    await frame.waitForSelector('[data-od-id="f1"]')
+    /* a p wrapper inside the field is selectable but read-only */
+    await page.evaluate(() => window.elementPanelHarness.select('#u'))
+    await panelReady()
+    await page.waitForFunction(() =>
+      document.querySelector('[role="status"]')?.textContent?.includes('schreibgeschützt'),
+    )
+    expect(await page.$('div[aria-disabled="true"]')).not.toBeNull()
+    /* a span directly in the same field stays editable */
+    await page.evaluate(() => window.elementPanelHarness.select('#ok'))
+    await panelReady()
+    await page.waitForFunction(() => !document.querySelector('[role="status"]'))
+    expect(await page.$('div[aria-disabled="true"]')).toBeNull()
+    expect(savedHtml).toBe('')
+  }, 20_000)
+
   it('blocks a generated element under a script-added lock', async () => {
     const frame = await seedFrame(
       '<!doctype html><html><head></head><body><div id="box" style="width:120px;height:80px">Box</div></body></html>',
