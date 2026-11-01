@@ -88,8 +88,25 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
   `<!doctype html>` ergänzen. Vorhandene Doctypes samt Public-/System-ID sowie
   Dokumentattribute bleiben geschützt.
 
+## Agent / MCP
+
+- TASK-31 ist umgesetzt (`TEMPLATE_GUIDE` in `server/guide.ts`): eine gemeinsame
+  Anleitung für Rollen und alle sechs Attribute, stabile IDs, eingefrorene
+  Teilbäume und Struktur, Tokenfarben, Textlimits und den Umgang mit
+  Ablehnungen. MCP-`get_guide` (`DOOP_GUIDE`) und Resident-Systemprompt
+  (`server/resident.ts`) binden denselben Text wörtlich ein — kein Abdriften.
+- Agenten kennen `manageLocks` nicht direkt: Ohne ausdrücklichen Auftrag zur
+  Vorlagenerstellung gelten die Nicht-Creator-Regeln. Bei explizitem
+  Authoring-Auftrag dürfen sie Änderungen versuchen; nur die serverseitig
+  geprüfte Identität autorisiert sie. Ein 403 beendet den Versuch ohne
+  Umgehung — keine Constraint-Entfernung, keine `agent_name`-Eskalation.
+- Tests: `tests/templateGuide.test.ts` weist nach, dass beide Oberflächen
+  dieselben Regeln erhalten und reale Agent-/MCP-Edits weiterhin den
+  serverseitigen Guard durchlaufen (erlaubte Edits ok, gesperrte/Längen-Edits
+  403 ohne Persistenzänderung, Creator-Authoring nur unter echter Berechtigung).
+
 ## Offen
 
 - Font-/Size-Locks (`data-od-lock="font,size"` laut R1.4) sind offen.
-- Beraterinnen-Sichtbarkeit (Schloss-Badges, Auswahl-/Farb-/Text-Begrenzung,
-  Agent-/MCP-Guide) → TASK-31.
+- Beraterinnen-Sichtbarkeit (Schloss-Badges, Auswahl-/Farb-/Text-Begrenzung)
+  → TASK-31, Tasks 1–2.
