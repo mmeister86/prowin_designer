@@ -87,8 +87,7 @@ describe('POST /api/canvases/:id/comments', () => {
 
   it('survives a restart and comes back in the room state', async () => {
     const { dataDir } = server
-    server.stop({ keepData: true })
-    await server.stopped
+    await server.stop({ keepData: true })
     server = await startServer({ RESIDENT_TASK_LIMIT: '0', PORT: String(server.port) }, dataDir)
     const ws = new WebSocket(`ws://localhost:${server.port}/ws`, { headers: { Cookie: owner.header() } })
     const init = await new Promise<{ comments: Record<string, unknown>[] }>((resolve, reject) => {

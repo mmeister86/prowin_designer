@@ -246,8 +246,7 @@ describe('workspaces behind Stripe', () => {
   })
 
   it('survives a restart with the billing state intact', async () => {
-    server.stop({ keepData: true })
-    await server.stopped
+    await server.stop({ keepData: true })
     server = await startServer(
       {
         STRIPE_SECRET_KEY: 'sk_test_doop_fake',

@@ -76,8 +76,7 @@ it('seeds fresh and missing-brand copies durably without replacing local edits o
     expect(brandDocs(await (await owner.get(base)).json())).toEqual([])
 
     const dataDir = server.dataDir
-    server.stop({ keepData: true })
-    await server.stopped
+    await server.stop({ keepData: true })
     server = await startServer({ RESIDENT_TASK_LIMIT: '0' }, dataDir)
     owner = new Client(server)
     expect(
@@ -93,8 +92,7 @@ it('seeds fresh and missing-brand copies durably without replacing local edits o
     expect(brandDocs(restored)[0]).toMatchObject({ title: 'My brand', markdown: edited.trim(), x: -420, y: 321 })
     expect(brandDocs(await (await owner.get(base)).json())).toEqual([])
   } finally {
-    server.stop()
-    await server.stopped
+    await server.stop()
   }
 }, 70_000)
 
@@ -150,7 +148,6 @@ it('serves the entire authoritative source through MCP and accepts full-source e
     const saved: Canvas = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
     expect((brandDocs(saved)[0] as GuidelineDoc).markdown).toHaveLength(64_000)
   } finally {
-    server.stop()
-    await server.stopped
+    await server.stop()
   }
 }, 70_000)

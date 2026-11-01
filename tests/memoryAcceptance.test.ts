@@ -23,8 +23,7 @@ it('keeps human Memory decisions, reference controls and their persistence intac
 
     // Seed synthetic distiller output only while this temporary server is stopped.
     // No model call or access to the developer's database is needed.
-    server.stop({ keepData: true })
-    await server.stopped
+    await server.stop({ keepData: true })
     const database = new PGlite(path.join(dataDir, 'data/pg'))
     try {
       for (const [id, rule] of [
@@ -85,8 +84,7 @@ it('keeps human Memory decisions, reference controls and their persistence intac
     expect(versions).toHaveLength(1)
     expect(versions[0].markdown).toBe('# Style Notes\n\n- Use blue accents.')
 
-    server.stop({ keepData: true })
-    await server.stopped
+    await server.stop({ keepData: true })
     server = await startServer({ RESIDENT_TASK_LIMIT: '0' }, dataDir)
     owner = new Client(server)
     expect(
@@ -109,7 +107,6 @@ it('keeps human Memory decisions, reference controls and their persistence intac
     }
     expect(await (await owner.get(`${base}/guidelines/style-notes/history`)).json()).toHaveLength(1)
   } finally {
-    server.stop()
-    await server.stopped
+    await server.stop()
   }
 }, 60_000)

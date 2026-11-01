@@ -53,8 +53,7 @@ beforeAll(async () => {
 }, 70_000)
 afterAll(async () => {
   socket?.close()
-  server?.stop()
-  await server?.stopped
+  await server?.stop()
   try {
     const entries = readFileSync(journal, 'utf8')
       .trim()

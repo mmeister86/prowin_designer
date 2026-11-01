@@ -59,8 +59,7 @@ it('invites ordinary advisors as members and requires registration for Creator g
   expect((await owner.post(`/api/workspaces/${workspaceId}/members`, { email: 'unknown@test.dev' })).status).toBe(200)
 })
 it('registration persists across restarts', async () => {
-  server.stop({ keepData: true })
-  await server.stopped
+  await server.stop({ keepData: true })
   server = await startServer({}, server.dataDir)
   expect(await (await owner.get('/api/me')).json()).toMatchObject({ creator: true, admin: false })
   const detail = await (await owner.get(`/api/workspaces/${workspaceId}`)).json()

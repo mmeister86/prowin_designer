@@ -211,8 +211,7 @@ describe('workspaces (self-hosted, billing off)', () => {
   })
 
   it('survives a restart', async () => {
-    server.stop({ keepData: true })
-    await server.stopped
+    await server.stop({ keepData: true })
     server = await startServer({}, server.dataDir)
     const detail = await (await owner.get(`/api/workspaces/${workspaceId}`)).json()
     expect(detail.name).toBe('Acme Design')

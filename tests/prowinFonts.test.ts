@@ -77,8 +77,7 @@ describe('proWIN font delivery', () => {
 
   afterAll(async () => {
     await vite?.close()
-    server?.stop()
-    await server?.stopped
+    await server?.stop()
     if (previousPort === undefined) delete process.env.PORT
     else process.env.PORT = previousPort
   })

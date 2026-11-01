@@ -143,8 +143,7 @@ it('keeps a listing across a restart', async () => {
   await visitor.post(`/api/community/${canvas.id}/copy`)
 
   const dataDir = server.dataDir
-  server.stop({ keepData: true })
-  await server.stopped
+  await server.stop({ keepData: true })
   server = await startServer({}, dataDir)
 
   const back = new Client(server)

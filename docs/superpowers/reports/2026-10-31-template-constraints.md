@@ -70,6 +70,15 @@ Review of `5edd418` in [PR #7](https://github.com/mmeister86/prowin_designer/pul
 
 No new subagents or manual browser testing for this correction batch. No merge or task closure.
 
+## CI unblock — TASK-79
+
+- The first CI attempt on `f49fd6f` failed in server startup (`pageControlsBrowser.test.ts`) and cleanup (`frameHidden.test.ts`). The startup case passed unchanged on retry; the cleanup failure repeated with `ENOTEMPTY` despite all 399 assertions in its shard passing.
+- The user requested continued babysitting until tests pass. Fix the confirmed shared-harness race as the CI blocker: `stop()` now returns a promise that waits for child exit before deleting the PGlite directory. Returned lifecycle hooks already propagate that promise; block hooks, `finally` paths and restart callers now explicitly await it. Preserve `keepData`, visible cleanup errors and all existing timeouts.
+- TDD: a real-server test deterministically failed before the fix because the directory disappeared synchronously after the kill signal. It now also verifies process exit and completed cleanup when `stop()` resolves. A second test preserves authenticated access and persisted canvas data across a `keepData` restart.
+- Focused verification: four files /9 tests pass, including the two previously failing CI suites and persistence; the strengthened shutdown regression passes separately (2 tests). Typecheck, lint, format, build and diff checks pass; doc-lint retains its existing stale `.context` warning.
+- First full verification after the harness fix: 191 files pass /1 fails; 1610 tests pass /1 fails. `elementPanelBrowser.test.ts` fails at line 903 with an already-detached Puppeteer frame during drag cancellation. This file does not use the changed server harness. Preserve this failed run; isolated reproduction and a fresh full run are pending, rather than treating the focused green tests as a green suite.
+- No production change, new dependency, weakened assertion, skipped test or increased timeout. TASK-30 and TASK-79 remain **In Progress**, pending user acceptance; no merge.
+
 ## Rulings I made
 
 Chronological record, including the cost if wrong:

@@ -30,9 +30,9 @@ beforeAll(async () => {
     })
   })
 }, 70_000)
-afterAll(() => {
+afterAll(async () => {
   socket?.close()
-  server?.stop()
+  await server?.stop()
 })
 
 it('charges local-queued work on server switch and pauses excess cards, comments and feedback', async () => {
