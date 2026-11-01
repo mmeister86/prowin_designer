@@ -1,10 +1,10 @@
 ---
 id: TASK-30
 title: Template-Constraints auf allen serverseitigen Schreibpfaden erzwingen
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-11-01T12:02:00Z'
+updated_date: '2026-11-01T20:09:00Z'
 labels:
   - prowin
   - implementation
@@ -68,3 +68,9 @@ CodeRabbit-Korrekturwelle verifiziert: Gesamtsuite mit maxWorkers=2 PASS (191 Da
 
 Babysitting bis gruene Tests: CI-Blocker in TASK-79 minimal behoben (aa19816): Stop/Cleanup wartet auf Serverende, Lifecycle-/Reboot-Caller warten auf Cleanup, zwei Realserver-Regressionen. Endgueltiger lokaler Gesamtlauf: 192 Dateien /1611 Tests PASS ohne Skips; alle vier CI-Test-Shards plus Aggregat und weitere Pflichtchecks auf aa19816 PASS. Alle fuenf CodeRabbit-Threads beantwortet und aufgeloest; TASK-77/78 bleiben To Do. TASK-30/79 bleiben In Progress; kein Merge. Fruehere CI-/Browser-Flakes sind im Bericht erhalten.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Erzwinge Template-Constraints auf allen serverseitigen Schreibpfaden. PR #7 wurde am 01.11.2026 gemerged; Nutzer hat TASK-30 ausdruecklich als done bestaetigt.
+<!-- SECTION:FINAL_SUMMARY:END -->
