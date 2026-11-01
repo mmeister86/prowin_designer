@@ -39,8 +39,7 @@ beforeAll(async () => {
 }, 70_000)
 afterAll(async () => {
   socket?.close()
-  server?.stop()
-  await server?.stopped
+  await server?.stop()
 })
 const allowance = async () => (await owner.get('/api/agent-allowance')).json()
 const createFrame = async () =>
@@ -107,8 +106,7 @@ it('rejects a foreign stored retry source without charging', async () => {
   // real server is stopped, then test its hydrated retry boundary over HTTP.
   socket.close()
   const { dataDir, port } = server
-  server.stop({ keepData: true })
-  await server.stopped
+  await server.stop({ keepData: true })
   const db = new PGlite(join(dataDir, 'data', 'pg'))
   await db.query('UPDATE tasks SET attachments = $1 WHERE id = $2', [foreign.id, card.id])
   await db.close()

@@ -67,8 +67,7 @@ describe('real canvas image reference workflows', { timeout: 30_000 }, () => {
     await page?.close()
     await browser?.close()
     await vite?.close()
-    server?.stop()
-    await server?.stopped
+    await server?.stop()
   })
 
   afterEach(async (context) => {

@@ -1,5 +1,7 @@
-import { assertCanChangeLock } from './prowin/permissions.ts'
+import { assertCanChangeLock, CreatorPermissionError, currentPermissionUserId } from './prowin/permissions.ts'
 import { assertCanChangeTemplateMeta } from './prowin/templateMeta.ts'
+import { assertTemplateDelete, hasTemplateFields } from './prowin/templateGuard.ts'
+import { canAccessCanvas } from './access.ts'
 import { nanoid } from 'nanoid'
 import { normalizeFrameHtml, withoutBrandStyle } from './prowin/frameBrand.ts'
 import { store } from './store.ts'
@@ -1075,6 +1077,22 @@ export type RestoredFrame = {
   replaced: Pick<Frame, 'html' | 'width' | 'height'>
 }
 
+/** A concurrent frame change seen at commit time — never silently overwrite it. */
+export class FrameConflictError extends Error {
+  readonly status = 409
+  constructor() {
+    super('Die Zeichenfläche wurde während Deiner Bearbeitung geändert. Versuche es erneut.')
+  }
+}
+
+/** A creation source that is missing — never invent a contract for it. */
+export class TemplateSourceError extends Error {
+  readonly status = 404
+  constructor() {
+    super('Die Quell-Zeichenfläche wurde nicht gefunden.')
+  }
+}
+
 /** Put a frame back to one of its recorded versions (HTML and size; the name
  *  and position stay). null = no such version on this frame. The state being
  *  replaced is filed as a version first, so a restore is itself reversible. */
@@ -1087,9 +1105,16 @@ export async function restoreFrameVersion(
   if (!version) return null
   const before = store.getFrame(frameId)
   if (!before) return undefined
+  const canvas = store.getCanvas(before.canvasId)
+  if (!canvas) return undefined
   const replaced = { html: before.html, width: before.width, height: before.height }
   version.html = normalizeFrameHtml(version.html)
-  finishStream(frameId, false)
+  /* validate before ALL side effects: re-read above covers the async gap,
+     so a version that strips present locks or resizes a protected frame
+     is rejected without touching streams, reveals, history or broadcasts */
+  assertCanChangeTemplateMeta(canvas, before.html, version.html)
+  assertTemplateGeometry(canvas, before, { width: version.width, height: version.height })
+  takeOverDraft(frameId)
   finishReveal(frameId)
   if (before.html === version.html && before.width === version.width && before.height === version.height)
     return { frame: before, replaced }
@@ -1112,10 +1137,9 @@ export async function restoreFrameVersion(
 /* ------------------------------------------------------------------ */
 /* Live rendering of agent writes.                                     */
 /*                                                                     */
-/* Streams (append_frame_html): every chunk broadcasts the moment it   */
-/* arrives — viewers track the agent's real progress with no artificial*/
-/* pacing. Stream state only carries the "designing…" badge, the       */
-/* escape latch, and a timeout for agents that never send done=true.   */
+/* Streams (append_frame_html): chunks stay in a private draft until   */
+/* done=true validates and commits the complete design. Viewers see    */
+/* only the "designing…" badge before commit; timed-out drafts vanish. */
 /*                                                                     */
 /* One-shot writes (set_frame_html, agent create_frame with html) play */
 /* back as a short typewriter reveal so a paste reads as designing     */
@@ -1130,9 +1154,31 @@ interface StreamState {
   lastActivity: number
   /** Raw chunks never include generated CSS or repairs from intermediate renders. */
   rawHtml: string
+  /** trusted identity that opened the draft — foreign users cannot append,
+   *  restart or cancel it; undefined matches only undefined */
+  userId: string | undefined
+  /** committed revision the draft is bound to — a concurrent save is a 409 */
+  baseUpdatedAt: number
 }
 
 const streams = new Map<string, StreamState>() // frameId -> state
+
+/** Test-only: whether an uncommitted append draft is buffered for the frame. */
+export function hasAppendDraft(frameId: string): boolean {
+  return streams.has(frameId)
+}
+
+/** Non-creator resize of a template-bearing frame is forbidden, like deletion. */
+function assertTemplateGeometry(
+  canvas: import('../shared/types.ts').Canvas,
+  before: Frame,
+  patch: { width?: number; height?: number },
+): void {
+  const changed =
+    (patch.width !== undefined && patch.width !== before.width) ||
+    (patch.height !== undefined && patch.height !== before.height)
+  if (changed && hasTemplateFields(before.html)) assertTemplateDelete(canvas, before.html)
+}
 
 interface RevealState {
   actor: Actor
@@ -1217,6 +1263,23 @@ function finishStream(frameId: string, logDone: boolean) {
   endAutoTask(frame.canvasId, s.actor)
 }
 
+/** A full save takes over its own author's draft; another author's draft
+ *  survives it, and a rejected save never reaches here (guards throw first).
+ *  Dropped drafts (conflict, invalid final, timeout) reuse finishStream
+ *  without logging: no partial HTML is ever saved. */
+function takeOverDraft(frameId: string) {
+  const draft = streams.get(frameId)
+  if (draft && draft.userId === currentPermissionUserId()) finishStream(frameId, false)
+}
+
+/** Discard drafts idle longer than STREAM_IDLE_MS without saving partial
+ *  HTML — runs on the tick; exported so tests can drive it deterministically. */
+export function discardIdleDrafts(now = Date.now()) {
+  for (const [frameId, s] of streams) {
+    if (now - s.lastActivity > STREAM_IDLE_MS) finishStream(frameId, false) // agent died mid-stream
+  }
+}
+
 setInterval(() => {
   const now = Date.now()
   for (const [frameId, r] of reveals) {
@@ -1241,9 +1304,7 @@ setInterval(() => {
     const partial = r.shown >= total ? frame.html : healPartialHtml(frame.html.slice(0, r.shown))
     broadcast(frame.canvasId, { type: 'frame:updated', frame: { ...frame, html: partial }, actor: r.actor })
   }
-  for (const [frameId, s] of streams) {
-    if (now - s.lastActivity > STREAM_IDLE_MS) finishStream(frameId, false) // agent died mid-stream
-  }
+  discardIdleDrafts(now)
 }, TICK_MS)
 
 export function appendFrameHtml(
@@ -1254,41 +1315,62 @@ export function appendFrameHtml(
 ): Frame | undefined {
   const before = store.getFrame(frameId)
   if (!before) return undefined
+  const userId = currentPermissionUserId()
 
   const starting = opts.start || !streams.has(frameId)
-  /* an agent that escapes its opening chunk escapes the whole stream, so latch
-     the verdict there: a chunk mid-design can hold a legitimate `&lt;` (a code
-     sample) and must never be sniffed on its own */
-  const escaped = starting ? looksEscapedHtml(chunk) : (streams.get(frameId)?.escaped ?? false)
-  const piece = escaped ? decodeEscapedHtml(chunk) : chunk
-  const html = opts.start ? piece : (streams.get(frameId)?.rawHtml ?? withoutBrandStyle(before.html)) + piece
-  const prior = priorState(before)
-  const frame = store.updateFrame(frameId, { html: healPartialHtml(html) }, actor.name)!
-  /* the opening chunk replaces the design; every later one extends this burst */
-  noteHtmlChange(prior, actor, !starting)
-
   if (starting) {
+    const existing = streams.get(frameId)
+    /* a foreign restart is denied and preserves the draft; an authorized
+       restart discards it */
+    if (existing && existing.userId !== userId) throw new CreatorPermissionError()
+    if (existing) finishStream(frameId, false)
+    /* an agent that escapes its opening chunk escapes the whole stream, so latch
+       the verdict there: a chunk mid-design can hold a legitimate `&lt;` (a code
+       sample) and must never be sniffed on its own */
+    const escaped = looksEscapedHtml(chunk)
+    streams.set(frameId, {
+      actor,
+      escaped,
+      rawHtml: opts.start ? '' : withoutBrandStyle(before.html),
+      userId,
+      baseUpdatedAt: before.updatedAt,
+      lastActivity: Date.now(),
+    })
     finishReveal(frameId) /* a live stream overrides any one-shot playback in flight */
-    streams.set(frameId, { actor, escaped, rawHtml: html, lastActivity: Date.now() })
-    broadcast(frame.canvasId, { type: 'frame:streaming', frameId, active: true, actor })
-    logActivity(frame.canvasId, actor, `gestaltet “${frame.name}” live …`, frameId)
-    autoTask(frame.canvasId, actor, `Gestaltet “${frame.name}”`, frameId)
+    broadcast(before.canvasId, { type: 'frame:streaming', frameId, active: true, actor })
+    logActivity(before.canvasId, actor, `gestaltet “${before.name}” live …`, frameId)
+    autoTask(before.canvasId, actor, `Gestaltet “${before.name}”`, frameId)
   }
   const s = streams.get(frameId)!
+  if (s.userId !== userId) throw new CreatorPermissionError()
+  const piece = s.escaped ? decodeEscapedHtml(chunk) : chunk
+  s.rawHtml += piece
   s.lastActivity = Date.now()
-  s.rawHtml = html
-  s.escaped = escaped
 
-  /* the chunk renders the moment it arrives — viewers see the agent's real progress */
-  broadcast(frame.canvasId, {
-    type: 'frame:updated',
-    frame: opts.done ? frame : { ...frame, html: healPartialHtml(frame.html) },
-    actor,
-  })
-  if (opts.done) finishStream(frameId, true)
+  /* buffering only: the committed frame, timestamps and history stay
+     unchanged until done — viewers see the badge, not partial HTML */
+  if (!opts.done) {
+    touch(before.canvasId, actor, frameId)
+    return before
+  }
 
-  touch(frame.canvasId, actor, frameId)
-  return frame
+  /* commit: recheck the revision and current authority against the live
+     frame, then finalize through the shared guarded action */
+  const current = store.getFrame(frameId)
+  if (!current) {
+    streams.delete(frameId)
+    return undefined
+  }
+  if (current.updatedAt !== s.baseUpdatedAt) {
+    finishStream(frameId, false)
+    throw new FrameConflictError()
+  }
+  try {
+    return updateFrame(frameId, { html: s.rawHtml }, actor, { replace: true })
+  } catch (e) {
+    finishStream(frameId, false)
+    throw e
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1325,13 +1407,29 @@ export function createFrame(
     demo?: boolean
     hidden?: boolean
     locked?: boolean
+    /** trusted provenance for template copies: validated against the stored
+     *  source frame and current source access, never trusted from the client */
+    sourceFrameId?: string
   },
   actor: Actor,
 ): Frame | undefined {
   const canvas = store.getCanvas(canvasId)
   if (!canvas) return undefined
   assertCanChangeLock(canvas, false, input.locked)
-  if (input.html !== undefined) input = { ...input, html: repairEscapedHtml(input.html) }
+  /* normalize once, then validate exactly that candidate before any side effect */
+  const candidate = input.html !== undefined ? normalizeFrameHtml(repairEscapedHtml(input.html)) : ''
+  if (input.html !== undefined || input.sourceFrameId !== undefined) {
+    let baseline = ''
+    if (input.sourceFrameId !== undefined) {
+      const source = store.getFrame(input.sourceFrameId)
+      const sourceCanvas = source ? store.getCanvas(source.canvasId) : undefined
+      if (!source || !sourceCanvas) throw new TemplateSourceError()
+      if (!canAccessCanvas(currentPermissionUserId(), sourceCanvas)) throw new CreatorPermissionError()
+      baseline = source.html
+    }
+    assertCanChangeTemplateMeta(canvas, baseline, candidate)
+    if (input.html !== undefined) input = { ...input, html: candidate }
+  }
   const frame = store.createFrame(canvasId, input, actor.name)
   if (!frame) return undefined
   bursts.set(frame.id, { actor, lastAt: frame.createdAt })
@@ -1364,12 +1462,13 @@ export function updateFrame(
   const canvas = store.getCanvas(before.canvasId)
   if (!canvas) return undefined
   assertCanChangeLock(canvas, !!before.locked, patch.locked)
+  assertTemplateGeometry(canvas, before, patch)
   if (patch.html !== undefined) {
     const nextHtml = normalizeFrameHtml(repairEscapedHtml(patch.html))
     assertCanChangeTemplateMeta(canvas, before.html, nextHtml)
     patch = { ...patch, html: nextHtml }
     // A complete save takes over even when it equals the normalized stream snapshot.
-    finishStream(frameId, false)
+    takeOverDraft(frameId)
   }
   const prevName = before.name
   const prevHtml = before.html
@@ -1390,7 +1489,6 @@ export function updateFrame(
     shared >= withoutBrandStyle(prevHtml).length * 0.5
   if (htmlChanged) noteHtmlChange(prior, actor, smallTweak && !opts.replace)
   if (htmlChanged && actor.kind === 'agent') {
-    finishStream(frameId, false) /* a full replace ends an open append stream */
     const openReveal = reveals.get(frameId)
     if (openReveal) {
       /* new content mid-playback: rewind to the divergence and re-arm the deadline */
@@ -1409,8 +1507,7 @@ export function updateFrame(
     }
   } else {
     if (htmlChanged) {
-      /* a human takes over: cancel any live stream or playback */
-      finishStream(frameId, false)
+      /* a human take-over cancels their own playback (streams were taken over pre-write) */
       finishReveal(frameId)
     }
     broadcast(frame.canvasId, { type: 'frame:updated', frame, actor })
@@ -1437,6 +1534,13 @@ export function updateFrame(
 }
 
 export function deleteFrame(frameId: string, actor: Actor): Frame | undefined {
+  const existing = store.getFrame(frameId)
+  if (!existing) return undefined
+  const canvas = store.getCanvas(existing.canvasId)
+  if (!canvas) return undefined
+  /* validate before ALL side effects: a protected frame is never deleted,
+     and a denied delete leaves streams, history and broadcasts untouched */
+  assertTemplateDelete(canvas, existing.html)
   /* close any live stream or playback while the frame still exists,
      so their auto “Designing…” tasks end with it */
   finishStream(frameId, false)

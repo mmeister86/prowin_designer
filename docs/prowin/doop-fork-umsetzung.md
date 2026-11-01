@@ -355,8 +355,16 @@ Ersetzt `EditableFieldMeta`. Die Zuordnung alt → neu steht in R1.4. Rollen und
 ### 9.2 Drei Durchsetzungsebenen
 
 1. **UI** (`FrameView.tsx`, `LayersPanel.tsx`, `ElementPanel.tsx`): Gesperrte Elemente sind für Nicht-Creator nicht auswählbar (Schloss-Hinweis). Die Farbwahl zeigt nur `allowed-colors`, und Texteingaben werden auf `max-length` begrenzt.
-2. **Server** (`actions.ts → updateFrame`, Commit von `appendFrameHtml`): vergleicht altes und neues HTML.
+2. **Server** (TASK-30, umgesetzt in `server/prowin/templateGuard.ts` mit `parse5`):
+   vergleicht normalisiertes Kandidaten-HTML gegen das gespeicherte Frame unter
+   vertrautem Permission-Kontext; Update, Append-Commit, Restore, Create/Import und
+   Delete sind geprüft, Streams committen atomar, Kopien laufen über `sourceFrameId`.
 3. **Agent** (`guide.ts`, Systemprompt): erklärt die Attribute. Gesperrte Elemente niemals ändern, editierbare nur innerhalb der Constraints.
+
+Entwurfsskizze (so nicht umgesetzt — die Umsetzung traversiert mit `parse5`
+echte Browser-Bäume inklusive SVG/`template`-Inhalten/Entities, vergleicht
+kanonisierte Knoten statt `outerHTML`-Strings und zählt Längen in
+Unicode-Codepoints):
 
 ```ts
 // server/prowin/templateGuard.ts

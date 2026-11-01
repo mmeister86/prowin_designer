@@ -94,8 +94,7 @@ it.each(['requesty', '', ' '])(
     try {
       expect((await fetch(server.base + '/healthz')).status).toBe(200)
     } finally {
-      server.stop()
-      await server.stopped
+      await server.stop()
     }
   },
   30_000,

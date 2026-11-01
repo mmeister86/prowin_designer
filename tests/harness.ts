@@ -34,7 +34,7 @@ export interface Server {
   dataDir: string
   /** Resolves after the child process exits; useful before reopening its data directory. */
   stopped: Promise<void>
-  stop(opts?: { keepData?: boolean }): void
+  stop(opts?: { keepData?: boolean }): Promise<void>
 }
 
 /** An OS-assigned port, released again so a child can bind it. */
@@ -120,8 +120,10 @@ async function boot(env: Record<string, string>, reuseDir: string | undefined, t
       port,
       dataDir,
       stopped,
-      stop({ keepData }: { keepData?: boolean } = {}) {
+      async stop({ keepData }: { keepData?: boolean } = {}) {
         proc.kill()
+        // PGlite may still write while the child is shutting down.
+        await stopped
         if (!keepData) rmSync(dataDir, { recursive: true, force: true })
       },
     }
@@ -152,8 +154,7 @@ function waitForBind(proc: ChildProcess, port: number): Promise<boolean> {
  *  applies the migration journal, and keep the resulting data directory. */
 export async function buildTemplate(dir: string): Promise<void> {
   const server = await boot({}, undefined)
-  server.stop({ keepData: true })
-  await server.stopped
+  await server.stop({ keepData: true })
   cpSync(server.dataDir, dir, { recursive: true })
   rmSync(server.dataDir, { recursive: true, force: true })
 }

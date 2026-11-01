@@ -56,24 +56,31 @@ it('does not file an empty branded placeholder as a design', () => {
   expect(persist.saveFrameVersion).not.toHaveBeenCalled()
 })
 
-it.each([10, 41, 51, 59, 83, 125])('reassembles split tags without accumulating generated CSS (%i)', (split) => {
+it.each([10, 41, 51, 59, 83, 125])('reassembles split tags without storing partial HTML (%i)', (split) => {
   const created = frame('<p>Previous</p>')
+  const previous = created.html
   actions.appendFrameHtml(created.id, RAW.slice(0, split), actor, { start: true })
-  expect(created.html.match(/<style data-od-brand>/g)).toHaveLength(1)
+  /* commit-only: chunks buffer, the committed frame stays untouched */
+  expect(store.getFrame(created.id)!.html).toBe(previous)
   actions.appendFrameHtml(created.id, RAW.slice(split), actor, { done: true })
   expect(created.html).toBe(normalizeFrameHtml(RAW))
   expect(persist.saveFrameVersion).toHaveBeenCalledTimes(1)
 })
 
-it('keeps the normalized last chunk on timeout, and never reapplies an interrupted raw stream', () => {
+it('discards an idle draft without saving partial HTML', () => {
   vi.useFakeTimers()
   const created = frame()
+  const empty = created.html
   actions.appendFrameHtml(created.id, '<style>p{color:red}', actor, { start: true })
+  expect(store.getFrame(created.id)!.html).toBe(empty)
   vi.advanceTimersByTime(30_100)
-  expect(created.html).toBe(normalizeFrameHtml('<style>p{color:red}</style>'))
+  actions.discardIdleDrafts()
+  expect(store.getFrame(created.id)!.html).toBe(empty)
+  expect(actions.hasAppendDraft(created.id)).toBe(false)
   actions.appendFrameHtml(created.id, '<p>Abandoned', actor, { start: true })
   actions.updateFrame(created.id, { html: '<main>New human content</main>' }, actor)
   vi.advanceTimersByTime(31_000)
+  actions.discardIdleDrafts()
   expect(created.html).toBe(normalizeFrameHtml('<main>New human content</main>'))
 })
 

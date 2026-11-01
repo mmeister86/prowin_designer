@@ -44,20 +44,52 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
 
 - Nur Rollen mit `manageLocks` ändern Sperren und Constraints (`data-od-locked`,
   `data-od-max-length`, `data-od-allowed-colors`) — im Client gegated,
-  auf dem regulären Frame-Write serverseitig geprüft (`actions.updateFrame`).
+  auf allen Frame-Schreibpfaden serverseitig geprüft.
 
 ## Durchsetzung
 
-- Task 29 prüft nur `actions.updateFrame` (`PATCH /api/frames/:id`), nur Metadaten:
-  doppelte `data-od-id` und ungültige Werte → 400 für alle; geänderte Metadaten
-  ohne `manageLocks` → 403.
-- Bis TASK-30 offen: `createFrame`, Append-Stream (`appendFrameHtml`), Restore,
-  Inhalts-/Längen-/Farb-Nutzung und Löschschutz.
+- TASK-30 ist umgesetzt (`server/prowin/templateGuard.ts`, Parser: `parse5`):
+  Gespeichertes HTML ist die vertraute Constraint-Basis; `manageLocks` kommt aus
+  dem vertrauten Server-Permission-Kontext, nie aus Actor-Namen oder Request-Flags.
+- Ungültige/doppelte Template-Metadaten → 400 für alle; unbefugte Änderungen → 403.
+- Update, Append-Commit, Restore, Create/Import und Frame-Delete sind geprüft;
+  Größenänderung und Löschen eines Template-Frames sind für Nicht-Creator 403.
+- Append-Streams puffern alle Rollen bis `done=true`; erst der finale Commit wird
+  geprüft und gespeichert (409 bei konkurrierender Änderung, Berechtigung erneut geprüft).
+- Kopien mit `sourceFrameId` (Zwischenablage, Duplizieren, MCP-/Resident-`create_frame`
+  mit `source_frame_id`) validieren gegen die gespeicherte Quelle; frische
+  Template-Erstellung ohne Quelle ist für Nicht-Creator 403, fehlende/unzugängliche
+  Quellen scheitern geschlossen (404/403) — nie mit still entferntem Schutz.
+- `max-length` zählt Unicode-Codepoints im dekodierten Text; Farben nur als
+  `var(--token)` aus `allowed-colors`; sichere Typografie in offenen Feldern bleibt
+  erlaubt. Manueller Browser-Test steht aus; eine happy-dom
+  Serialisierungs-Regression liegt in `tests/templateTransports.test.ts`.
+- Vorhandene CSS-Kurzformen wie `background`, `border` oder `outline` und andere
+  nicht sicher auswertbare Deklarationen bleiben unter `allowed-colors` erhalten;
+  nur reine Typografie-Deklarationen dürfen entfernt werden. Neue Kurzformen
+  bleiben für Nicht-Creator verboten.
+- `text-decoration` erlaubt unter `allowed-colors` nur Linien-/Stil-Schlüsselwörter
+  wie `underline` oder `line-through dotted`, keine eingeschleusten Farbangaben.
+- Unter `allowed-colors` können Nicht-Creator farb-/class-/id-tragende Wrapper
+  (inkl. eigenem `style`-Farbwert) nicht entfernen, ersetzen oder auspacken, weil
+  die Kaskade ohne CSS-Engine nicht beweisbar ist — Text leeren oder Creator
+  verwenden; reine Text- und Typografie-Änderungen bleiben erlaubt.
+- Bestehende `on*`-Werte sind eingefroren (unveränderte Legacy-Handler bleiben
+  speicherbar, Entfernen bleibt erlaubt); Wertänderungen sind 403.
+- Nicht editierbare Legacy-Teilbäume in offenen Feldern, insbesondere `script`
+  und `style`, bleiben unverändert; auch Ersetzen und Entfernen ist 403. Als Feld
+  markierte `script`-/`style`-Elemente sind ebenfalls keine offenen Code-Editoren.
+- Geänderte Inline-Styles mit doppelten Eigenschaftsnamen werden abgelehnt
+  (auch bei anderer Großschreibung), damit keine `!important`-Deklaration bei der
+  Prüfung verschwindet. Unveränderte Legacy-Styles bleiben speicherbar.
+- SVG-Attribute werden mit Namespace und Präfix verglichen: `href` und
+  `xlink:href` sind unterschiedliche Attribute, auch auf gesperrten Elementen.
+- Beim Speichern eines Bestandsfragments darf der Editor einmalig den üblichen
+  `<!doctype html>` ergänzen. Vorhandene Doctypes samt Public-/System-ID sowie
+  Dokumentattribute bleiben geschützt.
 
 ## Offen
 
 - Font-/Size-Locks (`data-od-lock="font,size"` laut R1.4) sind offen.
-- Inhalts-Guard auf allen Schreibpfaden (Locked-`outerHTML`, Längen-/Farb-Nutzung,
-  Löschschutz, `appendFrameHtml`, Restore, `createFrame`) → TASK-30.
 - Beraterinnen-Sichtbarkeit (Schloss-Badges, Auswahl-/Farb-/Text-Begrenzung,
   Agent-/MCP-Guide) → TASK-31.

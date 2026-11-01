@@ -37,7 +37,7 @@ You MUST call get_guide({ topic: "doop-instructions" }) once before using other 
 - Element links: /c/<canvas_id>?frame=<frame_id>&selector=<URL-encoded CSS selector> identifies a specific element. Decode selector, read get_canvas and get_frame, and locate that element in the frame HTML before applying the feedback. If it no longer matches, ask for an updated reference.
 - Identity: pick an agent_name and reuse the SAME name on every call — your presence and edits are attributed live.
 - Narrate: call set_status with a one-line summary when you start a task and whenever your focus shifts — people watching the canvas see it live next to your name.
-- Creating: create_frame, then stream the design with append_frame_html one complete section at a time (~1–4 KB chunks; start=true on the first, done=true on the last). Each chunk renders the moment it arrives — viewers watch you work.
+- Creating: create_frame, then stream the design with append_frame_html one complete section at a time (~1–4 KB chunks; start=true on the first, done=true on the last). Chunks are buffered; viewers see a "designing…" badge, and the new design appears only after done=true commits it.
 - Review: after every create or significant edit you MUST call get_frame_screenshot and fix what looks wrong before moving on.
 - Small edits: edit_frame_html (exact find/replace — the change morphs into the rendered frame in place). Full redesigns: set_frame_html or a new stream. Rename/move/resize: update_frame.
 - History: every replace and stream files the design it overwrote. list_frame_versions shows a frame's earlier states; restore_frame_version brings one back (HTML and size) when a human asks for the previous version or your rework turned out worse.
@@ -834,12 +834,31 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
         y: z.number().optional(),
         width: z.number().optional().describe('Default 640'),
         height: z.number().optional().describe('Default 480'),
+        source_frame_id: z
+          .string()
+          .optional()
+          .describe(
+            'Copy provenance: the id of the frame this HTML was copied from. Pass it when duplicating a frame so template fields stay editable under a non-Creator account; the server validates against the stored source, never this id alone.',
+          ),
         agent_name: agentName,
       },
     },
-    async ({ canvas_id, pageId, name, html, x, y, width, height, agent_name }) => {
+    async ({ canvas_id, pageId, name, html, x, y, width, height, source_frame_id, agent_name }) => {
       if (!canvasFor(canvas_id)) return noCanvas(canvas_id)
-      const frame = actions.createFrame(canvas_id, { name, pageId, html, x, y, width, height }, actorFrom(agent_name))
+      const frame = actions.createFrame(
+        canvas_id,
+        {
+          name,
+          pageId,
+          html,
+          x,
+          y,
+          width,
+          height,
+          ...(source_frame_id ? { sourceFrameId: source_frame_id } : {}),
+        },
+        actorFrom(agent_name),
+      )
       if (!frame) return noCanvas(canvas_id)
       const result = withEscapeNote(
         hasFrameContent(frame.html)
@@ -880,7 +899,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     {
       title: 'Replace a frame’s HTML',
       description:
-        'Replace the HTML design of a frame in one shot. The change renders live for everyone viewing the canvas. For new or heavily reworked designs, prefer append_frame_html so viewers can watch the design stream in.',
+        'Replace the HTML design of a frame in one shot. The change renders live for everyone viewing the canvas. For new or heavily reworked designs sent in sections, use append_frame_html to buffer chunks and commit the complete design atomically.',
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
       inputSchema: { frame_id: z.string(), html: z.string(), agent_name: agentName },
     },
@@ -1350,15 +1369,15 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
     {
       title: 'Stream HTML into a frame',
       description:
-        'Stream a design into a frame section by section — every chunk renders for viewers the moment it arrives, so they watch the design build up live. Prefer this over set_frame_html when creating or reworking a whole design. Send the HTML in document order, ONE complete section per call (head+styles first, then the hero, then each following section), roughly 1–4 KB per chunk. Set start=true on the FIRST chunk (replaces any existing content and shows a live "designing…" badge) and done=true on the LAST chunk. End chunks at element boundaries — partial HTML is healed, but a complete section paints cleanly.',
+        'Buffer a design section by section, then commit it atomically. Viewers see a "designing…" badge while chunks arrive; the existing design remains unchanged until done=true. Send the HTML in document order, ONE complete section per call (head+styles first, then the hero, then each following section), roughly 1–4 KB per chunk. Set start=true on the FIRST chunk to begin buffering and done=true on the LAST chunk to validate and replace the design. Send a complete document before done=true, and take screenshots only after the commit.',
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       inputSchema: {
         frame_id: z.string(),
         html_chunk: z
           .string()
           .describe('The next piece of HTML, appended to what has been sent so far. Raw markup — never escaped.'),
-        start: z.boolean().optional().describe('true on the first chunk — clears the frame and starts the live stream'),
-        done: z.boolean().optional().describe('true on the final chunk — ends the live stream'),
+        start: z.boolean().optional().describe('true on the first chunk — starts buffering without changing the frame'),
+        done: z.boolean().optional().describe('true on the final chunk — validates and commits the complete design'),
         agent_name: agentName,
       },
     },

@@ -325,9 +325,9 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
           const src = frames.find((f) => f.id === g.id)
           if (!src) continue
           api
-            .createFrame(src.canvasId, { name: src.name, html: src.html, ...g.orig })
+            .createFrame(src.canvasId, { name: src.name, html: src.html, sourceFrameId: src.id, ...g.orig })
             .then((f) => {
-              recordCreate(f)
+              recordCreate(f, src.id)
             })
             .catch(console.error)
         }

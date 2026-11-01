@@ -1143,21 +1143,30 @@ app.post('/api/canvases/:id/frames', (req, res) => {
     return res.status(400).json({ error: 'Seite nicht gefunden' })
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
   /* `hidden` and `locked` let undo bring a deleted frame back as it was */
-  const frame = actions.createFrame(
-    req.params.id,
-    {
-      name: String(name || 'Zeichenfläche'),
-      pageId,
-      x,
-      y,
-      width,
-      height,
-      html,
-      hidden: hidden === true,
-      locked: locked === true,
-    },
-    actor,
-  )
+  let frame
+  try {
+    frame = actions.createFrame(
+      req.params.id,
+      {
+        name: String(name || 'Zeichenfläche'),
+        pageId,
+        x,
+        y,
+        width,
+        height,
+        html,
+        hidden: hidden === true,
+        locked: locked === true,
+        ...(typeof req.body?.sourceFrameId === 'string' && req.body.sourceFrameId
+          ? { sourceFrameId: req.body.sourceFrameId }
+          : {}),
+      },
+      actor,
+    )
+  } catch (e) {
+    if (e instanceof actions.TemplateSourceError) return res.status(404).json({ error: e.message })
+    throw e
+  }
   if (!frame) return res.status(404).json({ error: 'Arbeitsfläche nicht gefunden' })
   res.json(frame)
 })
@@ -1187,10 +1196,18 @@ app.post('/api/frames/:id/append', (req, res) => {
   if (!requireFrame(req, res, req.params.id)) return
   const { html_chunk, start, done } = req.body ?? {}
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
-  const frame = actions.appendFrameHtml(req.params.id, String(html_chunk ?? ''), actor, {
-    start: !!start,
-    done: !!done,
-  })
+  let frame
+  try {
+    frame = actions.appendFrameHtml(req.params.id, String(html_chunk ?? ''), actor, {
+      start: !!start,
+      done: !!done,
+    })
+  } catch (e) {
+    if (e instanceof actions.FrameConflictError) {
+      return res.status(409).json({ error: e.message, frame: store.getFrame(req.params.id) })
+    }
+    throw e
+  }
   if (!frame) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
   res.json({ ok: true, htmlBytes: frame.html.length })
 })
@@ -1218,13 +1235,17 @@ app.get('/api/frames/:id/versions/:versionId', async (req, res) => {
   res.json(version)
 })
 
-app.post('/api/frames/:id/versions/:versionId/restore', async (req, res) => {
+app.post('/api/frames/:id/versions/:versionId/restore', async (req, res, next) => {
   if (!requireFrame(req, res, req.params.id)) return
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
-  const restored = await actions.restoreFrameVersion(req.params.id, req.params.versionId, actor)
-  if (restored === null) return res.status(404).json({ error: 'Version nicht gefunden' })
-  if (!restored) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
-  res.json(restored)
+  try {
+    const restored = await actions.restoreFrameVersion(req.params.id, req.params.versionId, actor)
+    if (restored === null) return res.status(404).json({ error: 'Version nicht gefunden' })
+    if (!restored) return res.status(404).json({ error: 'Zeichenfläche nicht gefunden' })
+    res.json(restored)
+  } catch (e) {
+    next(e)
+  }
 })
 
 app.post('/api/frames/:id/comments', async (req, res) => {

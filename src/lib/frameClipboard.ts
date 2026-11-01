@@ -1,4 +1,5 @@
 import type { Frame } from '../../shared/types'
+import { extractTemplateFields } from '../../shared/prowin/templateAttributes'
 import { api, errorMessage } from './api'
 import { validateImageFile } from './imageFiles'
 import { useStore } from './store'
@@ -16,6 +17,9 @@ interface ClipFrame {
   y: number
   width: number
   height: number
+  /** Provenance hint: the copied frame's id, so pasting a template frame
+   *  validates against the stored source instead of failing closed */
+  sourceId?: string
 }
 
 interface FrameClip {
@@ -34,6 +38,7 @@ export function copyFrames(frames: Frame[]) {
       y: f.y - top,
       width: f.width,
       height: f.height,
+      ...(extractTemplateFields(f.html).length > 0 ? { sourceId: f.id } : {}),
     })),
   }
   localStorage.setItem(CLIP_KEY, JSON.stringify(clip))
@@ -67,13 +72,17 @@ function clipBounds(frames: ClipFrame[]) {
 /** Create several frames at once. The requests are independent, so one
  *  failing must not orphan its siblings: whatever landed is still recorded
  *  in history (undoable as a group) and becomes the selection. */
-async function createFrames(requests: { canvasId: string; frame: Parameters<typeof api.createFrame>[1] }[]) {
+async function createFrames(
+  requests: { canvasId: string; frame: Parameters<typeof api.createFrame>[1]; sourceFrameId?: string }[],
+) {
   const results = await Promise.allSettled(requests.map((r) => api.createFrame(r.canvasId, r.frame)))
   const created = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
   const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
   if (failed) console.error(`${requests.length - created.length} of ${requests.length} frame(s) failed`, failed.reason)
   if (created.length) {
-    recordCreates(created)
+    /* redo replays the same provenance (results keep request order) */
+    const sources = results.flatMap((r, i) => (r.status === 'fulfilled' ? [requests[i]!.sourceFrameId] : []))
+    recordCreates(created, sources)
     useStore.getState().selectMany(created.map((f) => f.id))
   }
   return created
@@ -86,6 +95,9 @@ function createFromClip(canvasId: string, x: number, y: number) {
   void createFrames(
     frames.map((f) => ({
       canvasId,
+      /* legacy clips have no sourceId — they paste as before, and template
+         HTML in them fails closed on the server instead of losing locks */
+      sourceFrameId: f.sourceId,
       frame: {
         name: f.name,
         html: f.html,
@@ -93,6 +105,7 @@ function createFromClip(canvasId: string, x: number, y: number) {
         height: f.height,
         x: Math.round(x + f.x),
         y: Math.round(y + f.y),
+        ...(f.sourceId ? { sourceFrameId: f.sourceId } : {}),
       },
     })),
   )
@@ -254,6 +267,7 @@ export function duplicateFrames(frames: Frame[]) {
   void createFrames(
     frames.map((frame) => ({
       canvasId: frame.canvasId,
+      sourceFrameId: frame.id,
       frame: {
         name: `${frame.name} Kopie`,
         html: frame.html,
@@ -261,6 +275,7 @@ export function duplicateFrames(frames: Frame[]) {
         y: frame.y + 40,
         width: frame.width,
         height: frame.height,
+        sourceFrameId: frame.id,
       },
     })),
   )

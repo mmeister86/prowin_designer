@@ -18,7 +18,7 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  server?.stop()
+  await server?.stop()
   await new Promise<void>((resolve, reject) => upstream.close((error) => (error ? reject(error) : resolve())))
 })
 

@@ -39,8 +39,7 @@ afterAll(async () => {
   await page?.close()
   await browser?.close()
   await vite?.close()
-  server?.stop()
-  await server?.stopped
+  await server?.stop()
 })
 
 async function clickText(selector: string, text: string) {

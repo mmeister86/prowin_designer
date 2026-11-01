@@ -21,9 +21,9 @@ beforeAll(async () => {
   ])
 }, 70_000)
 
-afterAll(() => {
-  unconfigured?.stop()
-  configured?.stop()
+afterAll(async () => {
+  await unconfigured?.stop()
+  await configured?.stop()
 })
 
 describe('login providers', () => {

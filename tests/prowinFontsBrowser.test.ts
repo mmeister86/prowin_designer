@@ -111,8 +111,7 @@ describe.skipIf(!findBrowserPath())('proWIN browser and Chromium font parity', (
     await browser?.close()
     await vite?.close()
     if (fontCacheDir) rmSync(fontCacheDir, { recursive: true, force: true })
-    server?.stop()
-    await server?.stopped
+    await server?.stop()
     if (previousPort === undefined) delete process.env.PORT
     else process.env.PORT = previousPort
     vi.unstubAllEnvs()
