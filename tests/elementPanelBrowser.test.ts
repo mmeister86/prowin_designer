@@ -21,6 +21,7 @@ declare global {
       currentHtml: () => string | undefined
       clear: () => void
       selected: () => { frameId: string; selector: string } | null
+      notice: () => string | null
     }
     holdExitReply?: boolean
     heldExitReply?: MessageEvent | null

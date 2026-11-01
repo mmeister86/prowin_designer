@@ -4,6 +4,7 @@
  * page (the element properties panel) reaches the live document through
  * these calls instead of holding an iframe ref of its own.
  */
+import type { TemplateElementPolicy } from '../prowin/templatePolicy'
 
 /** The runtime's summary of one element: computed styles resolved to what
  *  the Design panel shows, plus the inline styles the element already carries.
@@ -79,6 +80,10 @@ export interface ElementInfo {
   fontFamilies: string[]
   textAlign: string
   direction: string
+  /** live template policy from the runtime's own document (TASK-31): what
+   *  the stored-HTML policy cannot see — script-generated elements and
+   *  script-added locks. Mirrors `templatePolicy()` in frameRuntime.ts. */
+  policy: TemplateElementPolicy
 }
 
 /** Inline style changes: a null or empty value removes the property. */

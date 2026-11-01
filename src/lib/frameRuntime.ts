@@ -749,6 +749,9 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       fontFamilies: fontFamilies,
       textAlign: cs.textAlign,
       direction: cs.direction,
+      /* live template policy for the parent panel: script-generated content
+         and script-added locks live outside the stored HTML (TASK-31) */
+      policy: templatePolicy(el),
     }
   }
 

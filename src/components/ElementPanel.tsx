@@ -133,16 +133,22 @@ export function ElementPanel({
 
   /* template status for non-creators (TASK-31): locked subtrees and frozen
      areas show German feedback and offer no free design/HTML editing —
-     constrained inputs arrive in step 2. Direct calls stay guarded too. */
+     constrained inputs arrive in step 2. Direct calls stay guarded too.
+     The live inspect policy wins once read for this element: generated
+     content and script-added locks live outside the stored HTML. Until
+     the live read lands, the stored policy fail-closes. */
   const caps = useCanvasCapabilities(frame.canvasId)
-  const policy = useMemo(
+  const storedPolicy = useMemo(
     () => templatePolicyOf(frame.html, selector, caps.manageLocks),
     [frame.html, selector, caps.manageLocks],
   )
+  const policy = info ? info.policy : storedPolicy
   const blocked = !policy || (!caps.manageLocks && (policy.locked || policy.readOnly))
 
   /* re-read after every html change — remote edits and our own saves alike —
-     and when the runtime finishes rendering or loading fonts */
+     when the runtime finishes rendering or loading fonts, and when the
+     capability changes: the live policy is computed under the runtime's
+     own capability flag, so a stale flag would freeze the wrong verdict */
   useEffect(() => {
     let live = true
     let timer: number | null = null
@@ -163,7 +169,7 @@ export function ElementPanel({
       off()
       if (timer) window.clearTimeout(timer)
     }
-  }, [frame.id, frame.html, selector])
+  }, [frame.id, frame.html, selector, caps.manageLocks])
 
   function updateRead(request: Promise<ElementInfo | null>) {
     request

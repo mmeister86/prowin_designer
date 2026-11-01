@@ -43,6 +43,7 @@
         currentHtml: () => useStore.getState().canvas?.frames[0]?.html,
         clear: () => useStore.getState().setCanvas(null),
         selected: () => useStore.getState().selectedElement,
+        notice: () => useStore.getState().notice?.text ?? null,
       }
       function Fixture() {
         const frame = useStore((s) => s.canvas?.frames[0])

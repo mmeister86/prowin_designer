@@ -113,6 +113,50 @@ describe('frame runtime template policy (doop:policy)', () => {
     send({ type: 'doop:edit', on: false })
     await tick()
   })
+
+  /* Breaks caught here: inspect() not reporting the live template policy,
+     so the parent panel cannot tell a script-generated element (editable in
+     plain frames, read-only in frozen areas, blocked under a script-added
+     lock) from a stale selector. Hand-derived literals, not policy helpers. */
+  it('reports the live template policy on inspect and null for stale selectors', async () => {
+    seen.length = 0
+    send({ type: 'doop:inspect', selector: '#s', reqId: 'inspect-locked' })
+    send({ type: 'doop:inspect', selector: '#fld', reqId: 'inspect-field' })
+    send({ type: 'doop:inspect', selector: '#frz', reqId: 'inspect-frozen' })
+    send({ type: 'doop:inspect', selector: '#nope', reqId: 'inspect-stale' })
+    await tick()
+    const policyOf = (reqId: string) => (results(reqId)[0]?.info as { policy?: unknown } | null)?.policy ?? null
+    expect(policyOf('inspect-locked')).toEqual({
+      template: true,
+      locked: true,
+      readOnly: true,
+      allowedColors: null,
+    })
+    expect(policyOf('inspect-field')).toEqual({
+      template: true,
+      locked: false,
+      readOnly: false,
+      allowedColors: null,
+    })
+    expect(policyOf('inspect-frozen')).toEqual({
+      template: true,
+      locked: false,
+      readOnly: true,
+      allowedColors: null,
+    })
+    expect(results('inspect-stale')[0]?.info ?? null).toBeNull()
+  })
+
+  it('intersects nested color bounds from the live document', async () => {
+    document.body.innerHTML =
+      '<section data-od-id="a" data-od-allowed-colors="prowin-ci-blau, prowin-ci-rot">' +
+      '<p id="inner" data-od-id="b" data-od-allowed-colors="prowin-ci-rot,prowin-ci-gruen">x</p></section>'
+    seen.length = 0
+    send({ type: 'doop:inspect', selector: '#inner', reqId: 'inspect-colors' })
+    await tick()
+    const colors = results('inspect-colors')[0]?.info as { policy?: { allowedColors?: unknown } } | undefined
+    expect(colors?.policy?.allowedColors).toEqual(['prowin-ci-rot'])
+  })
 })
 
 describe('frame runtime doop:template handler', () => {

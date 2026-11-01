@@ -9,7 +9,7 @@ import { FrameLabelLayer } from './FrameLabelLayer'
 import { PathEditor } from './PathEditor'
 import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
-import { registerFrameWindow, unregisterFrameWindow } from '../lib/frameBridge'
+import { registerFrameWindow, unregisterFrameWindow, inspectElement } from '../lib/frameBridge'
 import { dropTemplateBlockedSelection } from '../lib/layerEdits'
 import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import {
@@ -730,16 +730,27 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         } else {
           /* The live document is authoritative for linked elements and
              Layers picks, including nodes created or removed by scripts. A
-             template lock explains itself instead of reporting "gone". */
+             lock the stored HTML cannot see (script-added) is told apart
+             from a gone element by one live read before reporting. */
           const s = useStore.getState()
-          const reason = selectionBlockReason(frame.html, selectSel.current ?? '', manageLocks)
-          s.pickElement(null)
-          if (reason === 'locked') {
+          const selector = selectSel.current ?? ''
+          if (selectionBlockReason(frame.html, selector, manageLocks) === 'locked') {
+            s.pickElement(null)
             s.pushNotice(TEMPLATE_LOCKED_NOTICE)
-          } else {
-            s.setInspectorOpen(true)
-            s.pushNotice(TEMPLATE_STALE_NOTICE)
+            return
           }
+          s.pickElement(null)
+          void inspectElement(frame.id, selector).then((liveInfo) => {
+            const cur = useStore.getState()
+            /* a newer pick owns the feedback now */
+            if (cur.selectedElement !== null) return
+            if (liveInfo && !manageLocks && liveInfo.policy.locked) {
+              cur.pushNotice(TEMPLATE_LOCKED_NOTICE)
+            } else {
+              cur.setInspectorOpen(true)
+              cur.pushNotice(TEMPLATE_STALE_NOTICE)
+            }
+          })
         }
       }
       if (ev.data?.type === 'doop:hover-result' && ev.data.reqId === hoverReq.current) {
