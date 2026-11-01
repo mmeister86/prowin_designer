@@ -41,8 +41,7 @@ describe.skipIf(!findBrowserPath())('template save recovery', { timeout: 60_000 
   let patches: HTTPRequest[] = []
   let autoRespond: null | { status: number; body: string } = null
 
-  const ORIGINAL =
-    '<!doctype html><html><head></head><body><section><p id="t">Hello</p></section></body></html>'
+  const ORIGINAL = '<!doctype html><html><head></head><body><section><p id="t">Hello</p></section></body></html>'
 
   beforeAll(async () => {
     vite = await createServer({ server: { port: 0 }, logLevel: 'error' })
@@ -123,9 +122,7 @@ describe.skipIf(!findBrowserPath())('template save recovery', { timeout: 60_000 
   const editingOpen = (iframe: PupFrame) => iframe.$('#t[contenteditable]')
 
   async function waitPatches(n: number) {
-    await expect
-      .poll(() => patches.length, { timeout: 10_000 })
-      .toBe(n)
+    await expect.poll(() => patches.length, { timeout: 10_000 }).toBe(n)
   }
 
   function deny(request: HTTPRequest) {
@@ -143,7 +140,9 @@ describe.skipIf(!findBrowserPath())('template save recovery', { timeout: 60_000 
     await waitPatches(1)
     await deny(patches[0]!)
     /* German feedback, store rollback, live rollback, edit session ended */
-    await expect.poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 }).toContain('gespeichert')
+    await expect
+      .poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 })
+      .toContain('gespeichert')
     await expect.poll(storeHtml, { timeout: 10_000 }).toBe(ORIGINAL)
     await expect.poll(() => liveText(iframe), { timeout: 10_000 }).toBe('Hello')
     expect(await editingOpen(iframe)).toBeNull()
@@ -173,7 +172,9 @@ describe.skipIf(!findBrowserPath())('template save recovery', { timeout: 60_000 
     /* refusing the governing save walks past the refused predecessor:
        full recovery to the stored state */
     await deny(patches[1]!)
-    await expect.poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 }).toContain('gespeichert')
+    await expect
+      .poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 })
+      .toContain('gespeichert')
     await expect.poll(storeHtml, { timeout: 10_000 }).toBe(ORIGINAL)
     await expect.poll(() => liveText(iframe), { timeout: 10_000 }).toBe('Hello')
     expect(await editingOpen(iframe)).toBeNull()
@@ -204,7 +205,9 @@ describe.skipIf(!findBrowserPath())('template save recovery', { timeout: 60_000 
     await deny(patches[0]!)
     /* German feedback, but the newer remote store is preserved — and the
        rejected live session ends on exactly that content */
-    await expect.poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 }).toContain('gespeichert')
+    await expect
+      .poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 })
+      .toContain('gespeichert')
     await expect.poll(storeHtml, { timeout: 10_000 }).toBe(remote)
     await expect.poll(() => liveText(iframe), { timeout: 10_000 }).toBe('Remote')
     expect(await editingOpen(iframe)).toBeNull()

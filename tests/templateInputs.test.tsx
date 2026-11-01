@@ -21,8 +21,7 @@ vi.mock('../src/prowin/canvasPermissions', () => ({
 }))
 vi.mock('../src/lib/frameBridge', () => ({
   inspectElement: () => Promise.resolve(mocks.info),
-  styleElement: (...args: unknown[]) =>
-    (mocks.style as (...a: unknown[]) => unknown)(...args) as Promise<null>,
+  styleElement: (...args: unknown[]) => (mocks.style as (...a: unknown[]) => unknown)(...args) as Promise<null>,
   editElementGeometry: () => Promise.resolve(null),
   styleGesture: () => Promise.resolve(null),
   onFrameChange: () => () => {},
@@ -134,12 +133,12 @@ describe('template text helpers', () => {
   })
 
   it('reports every applicable ancestor limit for an edit', () => {
-    const html = page('<section data-od-id="a" data-od-max-length="3"><p data-od-id="b" data-od-max-length="8">x</p></section>')
+    const html = page(
+      '<section data-od-id="a" data-od-max-length="3"><p data-od-id="b" data-od-max-length="8">x</p></section>',
+    )
     expect(templateMaxLengthsOf(html, FIELD)).toEqual([8, 3])
     expect(templateMaxLengthsOf(html, SECTION)).toEqual([3])
-    expect(templateMaxLengthsOf(page('<section data-od-id="a"><p data-od-id="b">x</p></section>'), FIELD)).toEqual(
-      [],
-    )
+    expect(templateMaxLengthsOf(page('<section data-od-id="a"><p data-od-id="b">x</p></section>'), FIELD)).toEqual([])
     expect(templateMaxLengthsOf(html, 'body > nav:nth-of-type(9)')).toBeNull()
   })
 })
@@ -275,15 +274,13 @@ describe('ElementPanel template color constraints', () => {
     expect(select!.value).toBe('')
     expect(select!.options[0]!.textContent).toBe('Aktuelle Farbe nicht erlaubt')
     expect(select!.options[0]!.disabled).toBe(true)
-    expect([...select!.options].map((o) => o.value)).toEqual([
-      '',
-      'prowin-ci-blau',
-      'prowin-ci-orange',
-    ])
+    expect([...select!.options].map((o) => o.value)).toEqual(['', 'prowin-ci-blau', 'prowin-ci-orange'])
   })
 
   it('keeps keyboard focus out of blocked controls', async () => {
-    const locked = page('<section data-od-id="hero" data-od-role="headline" data-od-locked="true"><h1>Hi</h1></section>')
+    const locked = page(
+      '<section data-od-id="hero" data-od-role="headline" data-od-locked="true"><h1>Hi</h1></section>',
+    )
     await show(locked, SECTION)
     const dimmed = container.querySelector('div[aria-disabled="true"]') as HTMLElement | null
     expect(dimmed).not.toBeNull()

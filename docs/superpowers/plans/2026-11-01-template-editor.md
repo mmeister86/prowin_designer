@@ -10,6 +10,11 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-01-template-editor-design.md`
 
+**Execution status (02.11.2026):** Alle drei Schritte samt Task-/Branch-Reviews
+und finaler Verifikation abgeschlossen. Nachweise und Resthinweise:
+`docs/superpowers/reports/2026-11-02-template-editor.md`. TASK-31 bleibt bis
+zur manuellen Nutzerabnahme In Progress; kein Push/PR/Merge.
+
 ## Global Constraints
 
 - Rollen über die bestehende Canvas-Capability `manageLocks` bestimmen, nicht über Workspace-Adminstatus oder ein neues Creator-Flag. Bis zum Laden gilt die bestehende fail-closed Voreinstellung.
