@@ -144,6 +144,15 @@ export function ElementPanel({
   )
   const policy = info ? info.policy : storedPolicy
   const blocked = !policy || (!caps.manageLocks && (policy.locked || policy.readOnly))
+  /* non-creator edit inside a template field: the server only ever accepts
+     typography and (where listed) exact token colors, so geometry, layout,
+     appearance and HTML controls are not offered at all. Plain frames and
+     creators keep the full editor. */
+  const inTemplateEdit =
+    !caps.manageLocks && !!policy && policy.template && !policy.locked && !policy.readOnly
+  /* token allowlist of all enclosing fields (null = unrestricted free
+     colors, [] = no color change at all) */
+  const tokenColors = inTemplateEdit && policy!.allowedColors !== null ? policy!.allowedColors : null
 
   /* re-read after every html change — remote edits and our own saves alike —
      when the runtime finishes rendering or loading fonts, and when the
@@ -267,15 +276,29 @@ export function ElementPanel({
               >
                 {blocked ? (
                   <div aria-disabled="true" className="pointer-events-none opacity-50">
-                    <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
+                    <DesignTab
+                      key={`${frame.id}:${selector}`}
+                      info={info}
+                      apply={apply}
+                      editGeometry={editGeometry}
+                      templateEdit={inTemplateEdit}
+                      tokenColors={tokenColors}
+                    />
                   </div>
                 ) : (
-                  <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
+                  <DesignTab
+                    key={`${frame.id}:${selector}`}
+                    info={info}
+                    apply={apply}
+                    editGeometry={editGeometry}
+                    templateEdit={inTemplateEdit}
+                    tokenColors={tokenColors}
+                  />
                 )}
               </PropertyScrubContext.Provider>
             ) : stale ? (
               <div aria-busy className="pointer-events-none opacity-50" title="Element wird gelesen…">
-                <DesignTab info={stale} apply={apply} editGeometry={editGeometry} />
+                <DesignTab info={stale} apply={apply} editGeometry={editGeometry} templateEdit={false} tokenColors={null} />
               </div>
             ) : (
               <Waiting />
@@ -283,7 +306,7 @@ export function ElementPanel({
           </PanelBody>
         </PanelTabPanel>
         <PanelTabPanel value="html">
-          <HtmlTab key={selector} frame={frame} selector={selector} disabled={blocked} />
+          <HtmlTab key={selector} frame={frame} selector={selector} disabled={blocked || inTemplateEdit} />
         </PanelTabPanel>
       </PanelTabsRoot>
     </Panel>
@@ -385,14 +408,64 @@ function parentLayout(info: ElementInfo): string {
   return cssValueLabel(p.display)
 }
 
+/** The authored token behind an exact `var(--token)` value, or null for
+ *  any free color the server would reject under a template allowlist. */
+function tokenOf(value: string | undefined): string | null {
+  return /^var\(--([A-Za-z0-9_-]+)\)$/.exec((value ?? '').trim())?.[1] ?? null
+}
+
+/* Token-only color choice for non-creators in allowlisted template fields:
+   every write is the exact `var(--token)` form the server accepts — no
+   hex/RGB/alpha escape. An empty allowlist disables color changes. */
+function TokenColorField({
+  row,
+  label,
+  prop,
+  info,
+  tokens,
+  apply,
+}: {
+  row: string
+  label: string
+  prop: 'color' | 'background-color' | 'border-color'
+  info: ElementInfo
+  tokens: string[]
+  apply: (styles: StylePatch) => void
+}) {
+  if (tokens.length === 0) {
+    return (
+      <PropertyRow label={row}>
+        <StaticField>Keine Farbe erlaubt</StaticField>
+      </PropertyRow>
+    )
+  }
+  const current = tokenOf(info.inline[prop])
+  return (
+    <PropertyRow label={row}>
+      <SelectField
+        label={label}
+        value={current && tokens.includes(current) ? current : tokens[0]!}
+        options={tokens.map((t) => ({ value: t, label: t }))}
+        onChange={(v) => apply({ [prop]: `var(--${v})` })}
+      />
+    </PropertyRow>
+  )
+}
+
 function DesignTab({
   info,
   apply,
   editGeometry,
+  templateEdit,
+  tokenColors,
 }: {
   info: ElementInfo
   apply: (styles: StylePatch) => void
   editGeometry: (edit: GeometryEdit) => void
+  /** non-creator edit inside a template field: structure controls hidden */
+  templateEdit: boolean
+  /** intersected token allowlist, or null for free colors */
+  tokenColors: string[] | null
 }) {
   const ratio = aspectRatio(info.aspectRatio, info.naturalAspectRatio)
   const canLink = (info.width ?? 0) > 0 && (info.height ?? 0) > 0
@@ -474,6 +547,9 @@ function DesignTab({
   }
   return (
     <>
+      {/* geometry, layout and appearance are server-rejected for
+          non-creators in template fields — not offered, not just dimmed */}
+      {!templateEdit && (
       <PropertySection title="Ausrichtung">
         <div className="flex gap-1" role="group" aria-label="Ebene im übergeordneten Element ausrichten">
           {LAYER_ALIGNS.map(({ axis, edge, label, Icon }) => (
@@ -492,6 +568,8 @@ function DesignTab({
           ))}
         </div>
       </PropertySection>
+      )}
+      {!templateEdit && (
       <PropertySection title="Position">
         <div
           className="grid grid-cols-2 gap-1.5"
@@ -570,6 +648,8 @@ function DesignTab({
           </StaticField>
         </PropertyRow>
       </PropertySection>
+      )}
+      {!templateEdit && (
       <PropertySection
         title="Layout"
         action={
@@ -658,7 +738,9 @@ function DesignTab({
           </>
         )}
       </PropertySection>
-      {isFlex && <FlexLayoutControls info={info} apply={apply} />}
+      )}
+      {isFlex && !templateEdit && <FlexLayoutControls info={info} apply={apply} />}
+      {!templateEdit && (
       <PropertySection
         title="Aussehen"
         action={
@@ -703,7 +785,11 @@ function DesignTab({
           />
         </label>
       </PropertySection>
+      )}
       <PropertySection title="Füllung">
+        {tokenColors !== null ? (
+          <TokenColorField row="Füllung" label="Füllfarbe (Vorlage)" prop="background-color" info={info} tokens={tokenColors} apply={apply} />
+        ) : (
         <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
           <ColorField
             label="Füllfarbe"
@@ -724,16 +810,23 @@ function DesignTab({
             onCommit={(v) => apply({ 'background-color': colorWithAlpha(fill ?? info.backgroundColor, v / 100) })}
           />
         </div>
+        )}
       </PropertySection>
       <PropertySection title="Kontur">
+        {tokenColors !== null ? (
+          <TokenColorField row="Kontur" label="Rahmenfarbe (Vorlage)" prop="border-color" info={info} tokens={tokenColors} apply={apply} />
+        ) : (
         <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
           <ColorField
             label="Rahmenfarbe"
             value={borderColor}
             onCommit={(v) =>
-              apply({ 'border-color': v, ...(v && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}) })
+              /* adding border-style alongside the color is server-rejected
+                 for non-creators in template fields — color only there */
+              apply({ 'border-color': v, ...(v && info.borderStyle === 'none' && !templateEdit ? { 'border-style': 'solid' } : {}) })
             }
           />
+          {!templateEdit && (
           <NumberField
             label="Rahmenbreite"
             value={border.width}
@@ -745,7 +838,9 @@ function DesignTab({
               })
             }
           />
+          )}
         </div>
+        )}
         {border.sides && (
           <p className="mt-1 text-[10.5px] text-ink-faint">
             Seiten: {border.sides.split(' ').map(cssValueLabel).join(', ')}
@@ -779,9 +874,13 @@ function DesignTab({
               onChange={(v) => apply({ 'font-weight': v })}
             />
           </PropertyRow>
-          <PropertyRow label="Farbe">
-            <ColorField value={rgbToHex(info.color)} onCommit={(v) => apply({ color: v })} />
-          </PropertyRow>
+          {tokenColors !== null ? (
+            <TokenColorField row="Farbe" label="Textfarbe (Vorlage)" prop="color" info={info} tokens={tokenColors} apply={apply} />
+          ) : (
+            <PropertyRow label="Farbe">
+              <ColorField value={rgbToHex(info.color)} onCommit={(v) => apply({ color: v })} />
+            </PropertyRow>
+          )}
           <PropertyRow label="Ausrichten">
             <Segmented
               aria-label="Textausrichtung"

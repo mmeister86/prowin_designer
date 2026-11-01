@@ -116,6 +116,23 @@ describe('saveFrameHtml', () => {
     expect(useStore.getState().notice?.text).toBe('Die Ebene konnte nicht gespeichert werden')
   })
 
+  it('reverts the live document when a save is rejected', async () => {
+    const before = liveHtml()
+    updateFrame.mockRejectedValueOnce(new Error('Forbidden'))
+    saveFrameHtml(frame(before), before.replace('<p>A</p>', '<p>B</p>'))
+    await flush()
+    expect(liveHtml()).toBe(before)
+    expect(requestFrame).toHaveBeenCalledWith('f1', 'doop:revert', { html: before })
+  })
+
+  it('leaves the live document alone when the server accepts the save', async () => {
+    const before = liveHtml()
+    saveFrameHtml(frame(before), before.replace('<p>A</p>', '<p>B</p>'))
+    await flush()
+    expect(liveHtml()).toContain('<p>B</p>')
+    expect(requestFrame).not.toHaveBeenCalled()
+  })
+
   it('keeps the saved html when the server accepts it', async () => {
     const before = liveHtml()
     saveFrameHtml(frame(before), before.replace('<p>A</p>', '<p>B</p>'))

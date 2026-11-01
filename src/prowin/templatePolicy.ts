@@ -27,6 +27,8 @@ export interface TemplateAttrLevel {
   hasId: boolean
   /** raw data-od-allowed-colors value, or null when the attribute is absent */
   colors: string | null
+  /** raw data-od-max-length value, or null when the attribute is absent */
+  maxLength: string | null
 }
 
 export function templatePolicyForChain(
@@ -76,6 +78,7 @@ export function templatePolicyOf(html: string, selector: string, manageLocks: bo
       hasLocked: cur.hasAttribute('data-od-locked'),
       hasId: cur.hasAttribute('data-od-id'),
       colors: cur.hasAttribute('data-od-allowed-colors') ? (cur.getAttribute('data-od-allowed-colors') ?? '') : null,
+      maxLength: cur.hasAttribute('data-od-max-length') ? (cur.getAttribute('data-od-max-length') ?? '') : null,
     })
   }
   return templatePolicyForChain(chain, manageLocks, frameHasTemplate)
@@ -98,4 +101,50 @@ export function selectionBlockReason(
 
 export function canSelectTemplateElement(html: string, selector: string, manageLocks: boolean): boolean {
   return selectionBlockReason(html, selector, manageLocks) === null
+}
+
+/** Decoded Unicode codepoints — the way the server counts field text
+ *  (`[...text].length`). Keep self-contained (no imports): serialized
+ *  into the frame runtime beside the policy core. */
+export function templateCodepoints(text: string): number {
+  return [...text].length
+}
+
+/* Applicable text limits of the element-to-root chain, self before
+   ancestors: every data-od-max-length on the way applies to the whole
+   field text including descendants and siblings. Invalid values (no
+   integer ≥ 1) never validate server-side, so they constrain nothing
+   here. Keep self-contained (no imports): serialized into the runtime. */
+export function templateMaxLengthsForChain(chain: TemplateAttrLevel[]): number[] {
+  const out: number[] = []
+  for (const level of chain) {
+    const raw = level.maxLength
+    if (raw === null || raw === undefined) continue
+    const n = Number(raw.trim())
+    if (Number.isInteger(n) && n >= 1) out.push(n)
+  }
+  return out
+}
+
+/** Every applicable text limit for the element (self before ancestors),
+ *  or null when the selector no longer resolves. */
+export function templateMaxLengthsOf(html: string, selector: string): number[] | null {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  let el: Element | null
+  try {
+    el = doc.querySelector(selector)
+  } catch {
+    return null
+  }
+  if (!el) return null
+  const chain: TemplateAttrLevel[] = []
+  for (let cur: Element | null = el; cur && cur !== doc.documentElement; cur = cur.parentElement) {
+    chain.push({
+      hasLocked: cur.hasAttribute('data-od-locked'),
+      hasId: cur.hasAttribute('data-od-id'),
+      colors: cur.hasAttribute('data-od-allowed-colors') ? (cur.getAttribute('data-od-allowed-colors') ?? '') : null,
+      maxLength: cur.hasAttribute('data-od-max-length') ? (cur.getAttribute('data-od-max-length') ?? '') : null,
+    })
+  }
+  return templateMaxLengthsForChain(chain)
 }

@@ -1,5 +1,5 @@
 import { frameSrcDoc } from './framePolicy'
-import { templatePolicyForChain } from '../prowin/templatePolicy'
+import { templateCodepoints, templateMaxLengthsForChain, templatePolicyForChain } from '../prowin/templatePolicy'
 
 /**
  * Bootstrap document loaded once per frame iframe. The parent posts HTML in
@@ -146,6 +146,8 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   var LOCKED = '[data-doop-locked]'
   var templateManageLocks = false
   var templatePolicyForChain = ${templatePolicyForChain.toString()}
+  var templateCodepoints = ${templateCodepoints.toString()}
+  var templateMaxLengthsForChain = ${templateMaxLengthsForChain.toString()}
   function templateChain(el) {
     var chain = []
     for (var node = el; node && node.nodeType === 1; node = node.parentElement) {
@@ -154,6 +156,9 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
         hasId: node.hasAttribute('data-od-id'),
         colors: node.hasAttribute('data-od-allowed-colors')
           ? (node.getAttribute('data-od-allowed-colors') || '')
+          : null,
+        maxLength: node.hasAttribute('data-od-max-length')
+          ? (node.getAttribute('data-od-max-length') || '')
           : null,
       })
     }
@@ -170,6 +175,94 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   }
   function isLocked(el) {
     return !!(el && el.closest && (el.closest(LOCKED) || templateLocked(el)))
+  }
+
+  /* ---- template text limits (TASK-31 step 2) ----
+     The server counts decoded Unicode codepoints of the whole field,
+     including descendants and siblings, and every ancestor limit applies.
+     Unchanged legacy over-limit text stays resavable; only a change that
+     leaves a field over its limit is rejected, never trimmed here. The
+     guard mirrors that: beforeinput rejects an edit that would overflow
+     any applicable limit, and the input fallback restores the last valid
+     state for edits the browser did not announce (IME, drag). Nested
+     locked content is fenced off so typing cannot clobber it. */
+  var textGuard = null
+  function notifyEditLimit(text) {
+    parent.postMessage({ type: 'doop:edit-notice', text: text }, '*')
+  }
+  function lockNested(el) {
+    var nested = []
+    var found = el.querySelectorAll('[data-od-locked]')
+    for (var i = 0; i < found.length; i++) {
+      found[i].setAttribute('contenteditable', 'false')
+      nested.push(found[i])
+    }
+    return nested
+  }
+  function snapshotGuard(el) {
+    var roots = []
+    for (var node = el; node && node.nodeType === 1; node = node.parentElement) {
+      var raw = node.hasAttribute('data-od-max-length') ? node.getAttribute('data-od-max-length') : null
+      if (raw !== null) {
+        var n = Number(String(raw).trim())
+        if (Math.floor(n) === n && n >= 1) {
+          roots.push({ root: node, max: n, base: node.textContent || '', lastValid: node.textContent || '',
+            lastValidHtml: node.innerHTML })
+        }
+      }
+      if (node === document.body || node === document.documentElement) break
+    }
+    return { roots: roots, nested: lockNested(el) }
+  }
+  function selectionIn(root) {
+    try {
+      var s = getSelection()
+      if (s && s.rangeCount > 0 && root.contains(s.anchorNode) && root.contains(s.focusNode)) {
+        return String(s.toString() || '')
+      }
+    } catch (e) {}
+    return ''
+  }
+  function pendingInsert(ev) {
+    var type = ev.inputType || ''
+    if (type === 'insertText' || type === 'insertCompositionText' || type === 'insertReplacementText') {
+      return ev.data || ''
+    }
+    if (type === 'insertLineBreak' || type === 'insertParagraph') return '\\n'
+    if (type === 'insertFromPaste' || type === 'insertFromDrop') {
+      var pasted = ev.dataTransfer && ev.dataTransfer.getData ? ev.dataTransfer.getData('text/plain') || '' : ''
+      return pasted || ev.data || ''
+    }
+    /* deletions carry no insert; formatting/undo/history change no countable
+       text here — the server stays authoritative for those */
+    if (type.indexOf('delete') === 0) return ''
+    return null
+  }
+  function checkGuardLimits() {
+    if (!textGuard) return
+    for (var i = 0; i < textGuard.roots.length; i++) {
+      var g = textGuard.roots[i]
+      if (!g.root.isConnected) continue
+      var current = g.root.textContent || ''
+      if (templateCodepoints(current) > g.max && current !== g.base) {
+        /* restore the last valid state verbatim: the snapshot holds nested
+           frozen content untouched, so this never clobbers it */
+        try {
+          g.root.innerHTML = g.lastValidHtml
+          if (activeEl) textGuard.nested = lockNested(activeEl)
+          var r = document.createRange()
+          r.selectNodeContents(g.root)
+          r.collapse(false)
+          var s = getSelection()
+          s.removeAllRanges()
+          s.addRange(r)
+        } catch (e) {}
+        notifyEditLimit('Der Text überschreitet die Vorlagenbegrenzung von ' + g.max + ' Zeichen.')
+      } else {
+        g.lastValid = current
+        g.lastValidHtml = g.root.innerHTML
+      }
+    }
   }
 
   /* nearest ancestor (incl. self) that directly contains visible text */
@@ -198,6 +291,12 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (!activeEl) return
     activeEl.removeAttribute('contenteditable')
     activeEl.removeAttribute('data-v-active')
+    if (textGuard) {
+      for (var i = 0; i < textGuard.nested.length; i++) {
+        if (textGuard.nested[i].isConnected) textGuard.nested[i].removeAttribute('contenteditable')
+      }
+      textGuard = null
+    }
     activeEl = null
     postActive()
   }
@@ -234,6 +333,10 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       el.removeAttribute('data-v-hover')
       el.setAttribute('data-v-active', '1')
       try { el.contentEditable = 'plaintext-only' } catch (e) { el.contentEditable = 'true' }
+      /* applicable ancestor limits snapshot here (creators answer to no
+         limit); nested frozen content is fenced off so typing cannot
+         clobber it */
+      try { textGuard = templateManageLocks ? null : snapshotGuard(el) } catch (e) { textGuard = null }
       el.focus({ preventScroll: true })
       postActive()
     }
@@ -312,8 +415,40 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   document.addEventListener('input', function () {
     if (!editing) return
     if (editTimer) clearTimeout(editTimer)
+    /* edits the browser did not announce via beforeinput (IME, drag) are
+       validated after the fact and restored, never trimmed */
+    checkGuardLimits()
     editTimer = setTimeout(function () { editTimer = null; postEdited() }, 400)
   })
+
+  /* reject an edit that would leave any applicable template field over its
+     limit — typing, selection replacement, paste, drop and composition.
+     Anything unclassifiable stays for the server to decide. */
+  document.addEventListener('beforeinput', function (ev) {
+    if (!editing || !activeEl || !textGuard) return
+    var t = ev.target
+    if (t && t.nodeType === 1 && t.closest) {
+      var lock = t.closest('[data-od-locked]')
+      if (lock && activeEl.contains(lock)) {
+        ev.preventDefault()
+        notifyEditLimit('Dieses Element ist in der Vorlage gesperrt und kann nicht bearbeitet werden.')
+        return
+      }
+    }
+    var inserted = pendingInsert(ev)
+    if (inserted === null) return
+    for (var i = 0; i < textGuard.roots.length; i++) {
+      var g = textGuard.roots[i]
+      if (!g.root.isConnected) continue
+      var current = g.root.textContent || ''
+      var next = templateCodepoints(current) - templateCodepoints(selectionIn(g.root)) + templateCodepoints(inserted)
+      if (next > g.max) {
+        ev.preventDefault()
+        notifyEditLimit('Der Text überschreitet die Vorlagenbegrenzung von ' + g.max + ' Zeichen.')
+        return
+      }
+    }
+  }, true)
 
   /* Escape pressed with focus inside the frame: the parent never sees the
      key event itself, so relay it (present mode closes on it) */
@@ -875,6 +1010,14 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       notifyFrameUpdated()
       if (d.reqId) parent.postMessage({ type: 'doop:html-result', reqId: d.reqId }, '*')
     }
+    /* a save the server refused is rolled back parent-side; the live
+       document follows when idle so the next text save serializes the
+       stored state. Mid-edit the newer typing wins and its next save is
+       judged on its own. */
+    if (d.type === 'doop:revert' && typeof d.html === 'string' && !editing) {
+      render(d.html)
+      notifyFrameUpdated()
+    }
     if (d.type === 'doop:edit') setEdit(!!d.on, d.flushId)
     // Mirror the Layers eye in the live document, including during text edits.
     if (d.type === 'doop:visibility') {
@@ -958,6 +1101,16 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (d.type === 'doop:policy') {
       templateManageLocks = !!d.manageLocks
       if (!templateManageLocks && activeEl && (templateLocked(activeEl) || templateReadOnly(activeEl))) deactivate()
+      else if (activeEl) {
+        /* re-snapshot under the new capability; stale nested fences come
+           down first so creators are never fenced */
+        try {
+          if (textGuard) {
+            for (var k = 0; k < textGuard.nested.length; k++) textGuard.nested[k].removeAttribute('contenteditable')
+          }
+          textGuard = templateManageLocks ? null : snapshotGuard(activeEl)
+        } catch (e) { textGuard = null }
+      }
       if (d.reqId) parent.postMessage({ type: 'doop:policy-result', reqId: d.reqId, ok: true }, '*')
     }
     if (d.type === 'doop:drawing-hit') {

@@ -36,12 +36,14 @@ export function saveFrameHtml(frame: Frame, html: string) {
   recordUpdate(frame.id, { html: before }, { html })
   useStore.getState().patchFrameLocal(frame.id, { html })
   /* a save the server refused is rolled back, so the rail shows what
-     everyone else sees */
+     everyone else sees — and the live document is reverted too, so its
+     next text save serializes the stored state */
   trackSave(
     api.updateFrame(frame.id, { html }).catch((err: unknown) => {
       const s = useStore.getState()
       s.patchFrameLocal(frame.id, { html: before })
       s.pushNotice(errorMessage(err, 'Die Ebene konnte nicht gespeichert werden'))
+      void requestFrame(frame.id, 'doop:revert', { html: before })
     }),
   )
 }

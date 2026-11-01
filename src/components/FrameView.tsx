@@ -18,7 +18,7 @@ import {
   selectionBlockReason,
   templatePolicyOf,
 } from '../prowin/templatePolicy'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
 import { throttle } from '../lib/throttle'
@@ -702,6 +702,9 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     [frame.html, toolbarAnchorSel, manageLocks],
   )
   const anchorBlocked = !manageLocks && (!toolbarPolicy || toolbarPolicy.locked || toolbarPolicy.readOnly)
+  /* geometry edits are server-rejected for non-creators anywhere in a
+     template frame — the grips stay off so they cannot be attempted */
+  const anchorTemplate = !manageLocks && !!toolbarPolicy && toolbarPolicy.template
 
   useEffect(() => {
     function onMsg(ev: MessageEvent) {
@@ -894,7 +897,22 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         let save: Promise<unknown> = Promise.resolve()
         if (before !== ev.data.html) {
           useStore.getState().patchFrameLocal(frame.id, { html: ev.data.html })
-          save = api.updateFrame(frame.id, { html: ev.data.html }).catch(console.error)
+          /* a save the server refused (template guard, permissions) is no
+             local save: German feedback, Store rollback, and the live
+             document reverted when idle so the next save serializes the
+             stored state */
+          save = api.updateFrame(frame.id, { html: ev.data.html }).catch((err: unknown) => {
+            const s = useStore.getState()
+            const cur = s.canvas?.frames.find((f) => f.id === frame.id)
+            if (cur && before !== undefined && cur.html === ev.data.html) {
+              s.patchFrameLocal(frame.id, { html: before })
+            }
+            s.pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden'))
+            if (before !== undefined) {
+              localHtml.current = before
+              iframeRef.current?.contentWindow?.postMessage({ type: 'doop:revert', html: before }, '*')
+            }
+          })
           trackSave(save)
           if (before !== undefined)
             recordUpdate(frame.id, { html: before }, { html: ev.data.html }, ev.data.discrete === true)
@@ -911,6 +929,10 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       }
       if (ev.data?.type === 'doop:edit-esc') {
         exitEdit()
+      }
+      /* the runtime's template text guard explains itself in German */
+      if (ev.data?.type === 'doop:edit-notice' && typeof ev.data.text === 'string') {
+        useStore.getState().pushNotice(ev.data.text)
       }
     }
     window.addEventListener('message', onMsg)
@@ -1135,6 +1157,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
               tool === 'select' &&
               probe.sizable &&
               !probe.locked &&
+              !anchorTemplate &&
               !frame.locked && (
                 <ElementResizeHandles
                   frame={frame}
