@@ -18,8 +18,8 @@ import {
   selectionBlockReason,
   templatePolicyOf,
 } from '../prowin/templatePolicy'
-import { api, errorMessage } from '../lib/api'
-import { rollbackTarget, type SaveAttempt } from '../lib/layerEdits'
+import { api } from '../lib/api'
+import { enqueueHtmlSave } from '../lib/frameHtmlSaves'
 import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
 import { throttle } from '../lib/throttle'
@@ -178,10 +178,6 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
   )
   const [pathEdit, setPathEdit] = useState<PathEditSource | null>(null)
   const editRequest = useRef(0)
-  /* inline-save ordering: only the newest in-flight save may roll back —
-     a superseded rejection is ignored so it cannot clobber newer edits */
-  const editSaveSeq = useRef(0)
-  const editSaveAttempts = useRef<SaveAttempt[]>([])
   /* exit flushes overtaken by a rejection abort: their echo is skipped */
   const deadFlushIds = useRef(new Set<number>())
   const closePathEdit = useCallback(() => {
@@ -927,44 +923,20 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         let save: Promise<unknown> = Promise.resolve()
         if (before !== ev.data.html) {
           useStore.getState().patchFrameLocal(frame.id, { html: ev.data.html })
-          /* a save the server refused (template guard, permissions) is no
-             local save: German feedback, store rollback, and the live
-             document restored even mid-edit — the session ends rather than
-             keep invalid state. A superseded rejection is ignored: the
-             newer save governs. */
-          const seq = ++editSaveSeq.current
-          const entry: SaveAttempt | null =
-            before === undefined ? null : { html: ev.data.html, before, rejected: false }
-          if (entry) {
-            editSaveAttempts.current.push(entry)
-            if (editSaveAttempts.current.length > 10) editSaveAttempts.current.splice(0, 1)
-          }
-          save = api.updateFrame(frame.id, { html: ev.data.html }).then(
-            () => {
-              if (!entry) return
-              const at = editSaveAttempts.current.indexOf(entry)
-              if (at >= 0) editSaveAttempts.current.splice(at, 1)
-            },
-            (err: unknown) => {
-              if (entry) entry.rejected = true
-              if (seq !== editSaveSeq.current) return
-              if (before === undefined) {
-                useStore.getState().pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden'))
-                return
-              }
-              const target = entry ? rollbackTarget(editSaveAttempts.current, before) : before
-              const s = useStore.getState()
-              const cur = s.canvas?.frames.find((f) => f.id === frame.id)
-              if (cur && cur.html === ev.data.html) {
-                s.patchFrameLocal(frame.id, { html: target })
-                abortEditToHtml(frame.id, target)
-              }
-              s.pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden'))
-            },
-          )
-          trackSave(save)
           if (before !== undefined)
             recordUpdate(frame.id, { html: before }, { html: ev.data.html }, ev.data.discrete === true)
+          /* a save the server refused (template guard, permissions) is no
+             local save: the shared per-frame sequence rolls the store back
+             to the newest confirmed state with German feedback and resets
+             the live session instead of keeping invalid content */
+          save = enqueueHtmlSave({
+            frameId: frame.id,
+            html: ev.data.html,
+            before,
+            refusedNotice: 'Die Änderung konnte nicht gespeichert werden',
+            resetLive: (id, target) => abortEditToHtml(id, target),
+          })
+          trackSave(save)
         }
         const finish = editExits.current.get(flushId)
         if (finish) {

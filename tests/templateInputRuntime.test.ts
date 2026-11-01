@@ -127,7 +127,7 @@ describe('frame runtime template text guard', () => {
 
   it('keeps nested locked content out of reach and unchanged', async () => {
     document.body.innerHTML =
-      '<section data-od-id="f" data-od-role="body" data-od-max-length="10"><p id="t">Hi <span id="lk" data-od-locked="true">fix</span></p></section>'
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="10"><span id="t">Hi <span id="lk" data-od-id="lk" data-od-locked="true">fix</span></span></section>'
     await editMode()
     click(document.querySelector('#t')!)
     expect(document.querySelector('#lk')!.getAttribute('contenteditable')).toBe('false')
@@ -205,6 +205,77 @@ describe('frame runtime template text guard', () => {
     } finally {
       window.removeEventListener('message', collect)
     }
+    await stopEdit()
+  })
+
+  it('serializes no runtime fence attributes after typing beside a locked descendant', async () => {
+    const edited: string[] = []
+    const collect = (ev: MessageEvent) => {
+      if (ev.data?.type === 'doop:edited' && typeof ev.data.html === 'string') edited.push(ev.data.html)
+    }
+    window.addEventListener('message', collect)
+    try {
+      /* the locked descendant survives activation fenced; the debounced
+         save must carry author markup only, or the server refuses a
+         runtime-only attribute change on frozen content */
+      document.body.innerHTML =
+        '<section data-od-id="f" data-od-role="body" data-od-max-length="50"><span id="t">Hi <span id="lk" data-od-id="lk" data-od-locked="true">fix</span></span></section>'
+      await editMode()
+      click(document.querySelector('#t')!)
+      document.querySelector('#t')!.firstChild!.textContent = 'Hi!'
+      document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+      await new Promise((r) => setTimeout(r, 600))
+      expect(edited.length).toBe(1)
+      expect(edited[0]).not.toContain('contenteditable')
+      expect(edited[0]).not.toContain('data-v-frozen')
+      expect(edited[0]).toContain('data-od-locked="true"')
+      expect(edited[0]).toContain('>fix</span>')
+    } finally {
+      window.removeEventListener('message', collect)
+    }
+    await stopEdit()
+  })
+
+  it('rejects whole-selection edits that touch frozen descendants', async () => {
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="50"><span id="t">Hi <span id="lk" data-od-id="lk" data-od-locked="true">fix</span></span></section>'
+    await editMode()
+    click(document.querySelector('#t')!)
+    /* select-all spans the locked child: the length arithmetic alone
+       would allow it, the range guard must refuse it */
+    const text = document.querySelector('#t')!
+    selectText(text, 0, text.childNodes.length)
+    expect(beforeInput(text, { data: 'X' })).toBe(true)
+    selectText(text, 0, text.childNodes.length)
+    expect(beforeInput(text, { inputType: 'deleteContentBackward' })).toBe(true)
+    expect(document.querySelector('#lk')!.textContent).toBe('fix')
+    expect(document.querySelector('#t')!.textContent).toBe('Hi fix')
+    await tick()
+    expect(notices.some((n) => n.includes('gesperrt'))).toBe(true)
+    await stopEdit()
+  })
+
+  it('restores frozen descendants in the input fallback and keeps the session editable', async () => {
+    document.body.innerHTML =
+      '<section data-od-id="f" data-od-role="body" data-od-max-length="50"><span id="t">Hi <span id="lk" data-od-id="lk" data-od-locked="true">fix</span></span></section>'
+    await editMode()
+    click(document.querySelector('#t')!)
+    /* an unannounced edit removes the locked child: the fallback must
+       restore it from the snapshot instead of accepting the result */
+    document.querySelector('#lk')!.remove()
+    document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+    await tick()
+    expect(document.querySelector('#lk')!.textContent).toBe('fix')
+    expect(notices.some((n) => n.includes('gesperrt'))).toBe(true)
+    /* the session survives the restore: the editable node is resolved
+       again and the guard still judges */
+    const active = document.querySelector('#t')!
+    expect(active.hasAttribute('contenteditable')).toBe(true)
+    expect(active.hasAttribute('data-v-active')).toBe(true)
+    document.querySelector('#t')!.firstChild!.textContent = 'Hi!'
+    document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+    await tick()
+    expect(document.querySelector('#lk')!.textContent).toBe('fix')
     await stopEdit()
   })
 })

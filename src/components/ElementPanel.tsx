@@ -275,7 +275,15 @@ export function ElementPanel({
                 value={{ onStart: () => scrub('begin'), onEnd: (cancel) => scrub(cancel ? 'cancel' : 'commit') }}
               >
                 {blocked ? (
-                  <div aria-disabled="true" className="pointer-events-none opacity-50">
+                  <div
+                    aria-disabled="true"
+                    className="pointer-events-none opacity-50"
+                    /* inert keeps keyboard focus out of the dimmed
+                       controls too, not just the pointer */
+                    ref={(el) => {
+                      if (el) el.inert = true
+                    }}
+                  >
                     <DesignTab
                       key={`${frame.id}:${selector}`}
                       info={info}
@@ -440,12 +448,21 @@ function TokenColorField({
     )
   }
   const current = tokenOf(info.inline[prop])
+  /* a non-token current value is shown as what it is — not allowed — and
+     never claimed as selected; the first user choice writes a token */
+  const valid = current && tokens.includes(current) ? current : null
+  const authored = (info.inline[prop] ?? '').trim() !== ''
   return (
     <PropertyRow label={row}>
       <SelectField
         label={label}
-        value={current && tokens.includes(current) ? current : tokens[0]!}
-        options={tokens.map((t) => ({ value: t, label: t }))}
+        value={valid ?? ''}
+        options={[
+          ...(valid
+            ? []
+            : [{ value: '', label: authored ? 'Aktuelle Farbe nicht erlaubt' : 'Farbe wählen', disabled: true }]),
+          ...tokens.map((t) => ({ value: t, label: t })),
+        ]}
         onChange={(v) => apply({ [prop]: `var(--${v})` })}
       />
     </PropertyRow>

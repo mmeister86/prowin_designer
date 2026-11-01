@@ -190,14 +190,46 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   function notifyEditLimit(text) {
     parent.postMessage({ type: 'doop:edit-notice', text: text }, '*')
   }
+  /* Nested frozen content is fenced off so typing cannot clobber it. The
+     fence is marked with its original contenteditable state ('0' = absent,
+     '1:<value>' = present): serialization restores exactly that, so a
+     genuine author attribute is never stripped nor a runtime-only one
+     leaked into saves. */
   function lockNested(el) {
     var nested = []
     var found = el.querySelectorAll('[data-od-locked]')
     for (var i = 0; i < found.length; i++) {
+      if (!found[i].hasAttribute('data-v-frozen')) {
+        found[i].setAttribute(
+          'data-v-frozen',
+          found[i].hasAttribute('contenteditable') ? '1:' + found[i].getAttribute('contenteditable') : '0',
+        )
+      }
       found[i].setAttribute('contenteditable', 'false')
       nested.push(found[i])
     }
     return nested
+  }
+  function restoreFence(node) {
+    var v = null
+    try {
+      v = node.getAttribute('data-v-frozen')
+    } catch (e) {}
+    if (v === null) return
+    if (v.charAt(0) === '1') node.setAttribute('contenteditable', v.slice(2))
+    else node.removeAttribute('contenteditable')
+    node.removeAttribute('data-v-frozen')
+  }
+  function restoreFences(root) {
+    if (root.hasAttribute && root.hasAttribute('data-v-frozen')) restoreFence(root)
+    var fz = root.querySelectorAll ? root.querySelectorAll('[data-v-frozen]') : []
+    for (var i = 0; i < fz.length; i++) restoreFence(fz[i])
+  }
+  function frozenHtml(el) {
+    var parts = []
+    var found = el.querySelectorAll('[data-od-locked]')
+    for (var i = 0; i < found.length; i++) parts.push(found[i].outerHTML)
+    return parts.join('\u0000')
   }
   function snapshotGuard(el) {
     var roots = []
@@ -212,7 +244,11 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       }
       if (node === document.body || node === document.documentElement) break
     }
-    return { roots: roots, nested: lockNested(el) }
+    var nested = lockNested(el)
+    /* frozen-descendant fingerprint after fencing, so the fallback can
+       tell an untouched lock from a removed or rewritten one; plus an
+       element-level snapshot for fields without length limits */
+    return { roots: roots, nested: nested, sel: cssPath(el), locks: frozenHtml(el), selfHtml: el.innerHTML }
   }
   function selectionIn(root) {
     try {
@@ -222,6 +258,80 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       }
     } catch (e) {}
     return ''
+  }
+  /* true when a real (non-collapsed) selection touches a locked descendant
+     of the active element: whole-selection delete/replace would clobber
+     frozen content that length arithmetic alone cannot see. A collapsed
+     caret beside a lock is harmless and stays editable. */
+  function selectionHitsFrozen() {
+    var s = null
+    try {
+      s = getSelection()
+    } catch (e) {
+      return false
+    }
+    if (!s || s.rangeCount === 0 || !activeEl) return false
+    var locks = activeEl.querySelectorAll('[data-od-locked]')
+    for (var li = 0; li < locks.length; li++) {
+      for (var ri = 0; ri < s.rangeCount; ri++) {
+        var r = null
+        try {
+          r = s.getRangeAt(ri)
+        } catch (e2) {
+          continue
+        }
+        if (r && !r.collapsed && rangesOverlap(r, locks[li])) return true
+      }
+    }
+    return false
+  }
+  function rangesOverlap(range, el) {
+    try {
+      if (typeof range.intersectsNode === 'function') return range.intersectsNode(el)
+    } catch (e) {}
+    /* START_TO_END=1 compares the lock start to the range end,
+       END_TO_START=2 the lock end to the range start */
+    try {
+      var lr = document.createRange()
+      lr.selectNodeContents(el)
+      return range.compareBoundaryPoints(2, lr) > 0 && range.compareBoundaryPoints(1, lr) < 0
+    } catch (e2) {}
+    return false
+  }
+  function caretToEnd(node) {
+    try {
+      var r = document.createRange()
+      r.selectNodeContents(node)
+      r.collapse(false)
+      var s = getSelection()
+      s.removeAllRanges()
+      s.addRange(r)
+    } catch (e) {}
+  }
+  /* the fallback restore replaces descendants, which can detach the
+     element being typed in: resolve it again by its snapshot selector so
+     the session stays editable instead of silently dying */
+  function resolveActive() {
+    if (activeEl && document.contains(activeEl)) return activeEl
+    var found = null
+    try {
+      found = textGuard && textGuard.sel ? document.querySelector(textGuard.sel) : null
+    } catch (e) {}
+    if (found) {
+      activeEl = found
+      if (!activeEl.hasAttribute('data-v-active')) activeEl.setAttribute('data-v-active', '1')
+      if (!activeEl.hasAttribute('contenteditable')) {
+        try {
+          activeEl.contentEditable = 'plaintext-only'
+        } catch (e2) {
+          activeEl.contentEditable = 'true'
+        }
+      }
+      textGuard.nested = lockNested(activeEl)
+    } else if (activeEl) {
+      deactivate()
+    }
+    return activeEl
   }
   function pendingInsert(ev) {
     var type = ev.inputType || ''
@@ -240,6 +350,21 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   }
   function checkGuardLimits() {
     if (!textGuard) return
+    /* frozen descendants first: an unannounced edit that removed or
+       rewrote a lock is restored no matter what the length says, and an
+       accepted length result must never adopt it as the new baseline */
+    if (activeEl && frozenHtml(activeEl) !== textGuard.locks) {
+      var oroot = textGuard.roots.length > 0 ? textGuard.roots[textGuard.roots.length - 1] : null
+      try {
+        if (oroot && oroot.root.isConnected) oroot.root.innerHTML = oroot.lastValidHtml
+        else if (activeEl.isConnected) activeEl.innerHTML = textGuard.selfHtml
+      } catch (e) {}
+      if (activeEl && activeEl.isConnected) textGuard.nested = lockNested(activeEl)
+      var live = resolveActive()
+      if (live) caretToEnd(live)
+      notifyEditLimit('Dieses Element ist in der Vorlage gesperrt und kann nicht bearbeitet werden.')
+      return
+    }
     for (var i = 0; i < textGuard.roots.length; i++) {
       var g = textGuard.roots[i]
       if (!g.root.isConnected) continue
@@ -250,13 +375,9 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
         try {
           g.root.innerHTML = g.lastValidHtml
           if (activeEl) textGuard.nested = lockNested(activeEl)
-          var r = document.createRange()
-          r.selectNodeContents(g.root)
-          r.collapse(false)
-          var s = getSelection()
-          s.removeAllRanges()
-          s.addRange(r)
-        } catch (e) {}
+          var again = resolveActive()
+          if (again) caretToEnd(again)
+        } catch (e2) {}
         notifyEditLimit('Der Text überschreitet die Vorlagenbegrenzung von ' + g.max + ' Zeichen.')
       } else {
         g.lastValid = current
@@ -293,7 +414,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     activeEl.removeAttribute('data-v-active')
     if (textGuard) {
       for (var i = 0; i < textGuard.nested.length; i++) {
-        if (textGuard.nested[i].isConnected) textGuard.nested[i].removeAttribute('contenteditable')
+        if (textGuard.nested[i].isConnected) restoreFence(textGuard.nested[i])
       }
       textGuard = null
     }
@@ -353,6 +474,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (es && es.parentNode) es.parentNode.removeChild(es)
     var ran = root.querySelectorAll('[data-v-ran]')
     for (var i = 0; i < ran.length; i++) ran[i].removeAttribute('data-v-ran')
+    restoreFences(root)
     var marked = root.querySelectorAll('[data-v-active],[data-v-hover]')
     for (var j = 0; j < marked.length; j++) {
       marked[j].removeAttribute('contenteditable')
@@ -434,6 +556,13 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
         notifyEditLimit('Dieses Element ist in der Vorlage gesperrt und kann nicht bearbeitet werden.')
         return
       }
+    }
+    /* a selection reaching into frozen descendants would delete or replace
+       them no matter what the length arithmetic says */
+    if (selectionHitsFrozen()) {
+      ev.preventDefault()
+      notifyEditLimit('Dieses Element ist in der Vorlage gesperrt und kann nicht bearbeitet werden.')
+      return
     }
     var inserted = pendingInsert(ev)
     if (inserted === null) return
@@ -647,6 +776,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     try { el = selector ? document.querySelector(selector) : null } catch (e) { /* bad selector */ }
     if (!el) return null
     var c = el.cloneNode(true)
+    restoreFences(c)
     var nodes = [c].concat(Array.prototype.slice.call(c.querySelectorAll('*')))
     for (var i = 0; i < nodes.length; i++) {
       nodes[i].removeAttribute('data-v-ran')

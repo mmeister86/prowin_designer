@@ -14,7 +14,7 @@ vi.mock('../src/lib/frameBridge', () => ({
 
 const { useStore } = await import('../src/lib/store')
 const { applyTemplateField, duplicateLayer, markTemplateField, saveFrameHtml } = await import('../src/lib/layerEdits')
-const { rollbackTarget } = await import('../src/lib/layerEdits')
+const { rollbackTarget } = await import('../src/lib/frameHtmlSaves')
 
 const page = (body: string) => `<!doctype html><html><head></head><body>${body}</body></html>`
 const SECTION = 'body:nth-of-type(1) > section:nth-of-type(1)'
@@ -100,25 +100,65 @@ describe('applyTemplateField', () => {
     })
   })
 
-  it('ignores a stale field rejection when a newer field save is stored', async () => {
-    let rejectFirst!: (err: unknown) => void
-    updateFrame.mockImplementationOnce(() => new Promise<Frame>((_, reject) => (rejectFirst = reject)))
+  it('serializes overlapping field saves and ignores the superseded rejection', async () => {
+    const gates: Array<{ resolve: (v: Frame) => void; reject: (e: unknown) => void }> = []
+    updateFrame.mockImplementation(
+      () =>
+        new Promise<Frame>((resolve, reject) => {
+          gates.push({ resolve, reject })
+        }),
+    )
     expect(applyTemplateField(frame(liveHtml()), SECTION, field)).toBe(true)
     const marked = liveHtml()
     expect(marked).toContain('data-od-id')
     requestFrame.mockClear()
+    /* the second commit coalesces behind the running first save */
     expect(applyTemplateField(frame(marked), SECTION, null)).toBe(true)
     await new Promise((r) => setTimeout(r, 0))
-    await new Promise((r) => setTimeout(r, 0))
+    expect(updateFrame).toHaveBeenCalledTimes(1)
     expect(liveHtml()).not.toContain('data-od-id')
-    requestFrame.mockClear()
-    useStore.setState({ notice: null })
-    rejectFirst(new Error('Offline'))
+    /* refusing the superseded first save flushes the second and stays
+       silent: the newer commit governs */
+    gates[0]!.reject(new Error('Offline'))
     await new Promise((r) => setTimeout(r, 0))
     await new Promise((r) => setTimeout(r, 0))
+    expect(updateFrame).toHaveBeenCalledTimes(2)
     expect(liveHtml()).not.toContain('data-od-id')
-    expect(requestFrame).not.toHaveBeenCalled()
     expect(useStore.getState().notice).toBeNull()
+    gates[1]!.resolve({} as Frame)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(liveHtml()).not.toContain('data-od-id')
+    expect(useStore.getState().notice).toBeNull()
+    expect(requestFrame).not.toHaveBeenCalledWith('f1', 'doop:revert', expect.anything())
+  })
+
+  it('walks back to the original field on overlapping double rejection', async () => {
+    const original = liveHtml()
+    const gates: Array<{ resolve: (v: Frame) => void; reject: (e: unknown) => void }> = []
+    updateFrame.mockImplementation(
+      () =>
+        new Promise<Frame>((resolve, reject) => {
+          gates.push({ resolve, reject })
+        }),
+    )
+    expect(applyTemplateField(frame(original), SECTION, field)).toBe(true)
+    expect(applyTemplateField(frame(liveHtml()), SECTION, null)).toBe(true)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(updateFrame).toHaveBeenCalledTimes(1)
+    /* oldest refusal first: silent, the newer commit is flushed */
+    gates[0]!.reject(new Error('Offline'))
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(updateFrame).toHaveBeenCalledTimes(2)
+    expect(useStore.getState().notice).toBeNull()
+    /* newest refusal next: back to the original unmarked field — never
+       the already-refused intermediate — in the store and live */
+    gates[1]!.reject(new Error('Offline'))
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(liveHtml()).toBe(original)
+    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:template', { selector: SECTION, field: null })
+    expect(useStore.getState().notice?.text).toBe('Template-Feld konnte nicht gespeichert werden')
   })
 })
 
@@ -176,23 +216,36 @@ describe('saveFrameHtml', () => {
     expect(requestFrame).not.toHaveBeenCalled()
   })
 
-  it('ignores a stale rejection when a newer save is already stored', async () => {
+  it('serializes overlapping saves and ignores the superseded rejection', async () => {
     const before = liveHtml()
-    let rejectFirst!: (err: unknown) => void
-    updateFrame.mockImplementationOnce(() => new Promise<Frame>((_, reject) => (rejectFirst = reject)))
+    const gates: Array<{ resolve: (v: Frame) => void; reject: (e: unknown) => void }> = []
+    updateFrame.mockImplementation(
+      () =>
+        new Promise<Frame>((resolve, reject) => {
+          gates.push({ resolve, reject })
+        }),
+    )
     const htmlA = before.replace('<p>A</p>', '<p>B</p>')
     saveFrameHtml(frame(before), htmlA)
     saveFrameHtml(frame(liveHtml()), htmlA.replace('<p>B</p>', '<p>C</p>'))
     await flush()
+    /* the second save coalesces behind the running first one */
+    expect(updateFrame).toHaveBeenCalledTimes(1)
     expect(liveHtml()).toContain('<p>C</p>')
     requestFrame.mockClear()
     useStore.setState({ notice: null })
-    rejectFirst(new Error('Forbidden'))
+    /* refusing the superseded first save flushes the second and stays
+       silent: the newer save judges */
+    gates[0]!.reject(new Error('Forbidden'))
     await flush()
-    /* the superseded rejection must not clobber the newer content,
-       in the store or live, and stays silent: the newer save judges */
+    await flush()
+    expect(updateFrame).toHaveBeenCalledTimes(2)
     expect(liveHtml()).toContain('<p>C</p>')
     expect(requestFrame).not.toHaveBeenCalled()
+    expect(useStore.getState().notice).toBeNull()
+    gates[1]!.resolve({} as Frame)
+    await flush()
+    expect(liveHtml()).toContain('<p>C</p>')
     expect(useStore.getState().notice).toBeNull()
   })
 
@@ -209,12 +262,16 @@ describe('saveFrameHtml', () => {
     saveFrameHtml(frame(before), htmlA)
     const htmlB = htmlA.replace('<p>B</p>', '<p>C</p>')
     saveFrameHtml(frame(liveHtml()), htmlB)
-    expect(gates.length).toBe(2)
+    await flush()
+    expect(updateFrame).toHaveBeenCalledTimes(1)
     gates[0]!.reject(new Error('Forbidden'))
     await flush()
-    /* superseded: the newer save still governs */
+    await flush()
+    /* superseded: the newer save is flushed and still governs */
+    expect(updateFrame).toHaveBeenCalledTimes(2)
     expect(liveHtml()).toContain('<p>C</p>')
     gates[1]!.reject(new Error('Forbidden'))
+    await flush()
     await flush()
     /* both refused: back to the newest confirmed state, not the
        refused intermediate — in the store and live */

@@ -152,25 +152,64 @@ describe.skipIf(!findBrowserPath())('template save recovery', { timeout: 60_000 
     expect(patches.length).toBe(1)
   }, 30_000)
 
-  it('ignores a stale rejection while a newer save governs, then honors the latest', async () => {
+  it('serializes overlapping saves: silent supersede, then newest-confirmed recovery', async () => {
     const iframe = await seed()
     await beginTyping(iframe)
     await page.keyboard.type('A')
     await waitPatches(1)
     await page.keyboard.type('B')
-    await waitPatches(2)
-    /* the first save fails while the second governs: nothing rolls back,
-       newer valid typing is preserved, the session stays open */
+    /* the second save coalesces behind the running first one: still one PATCH */
+    await new Promise((r) => setTimeout(r, 700))
+    expect(patches.length).toBe(1)
+    /* refusing the superseded first save flushes the second and stays
+       silent — the session stays open on the newer content */
     await deny(patches[0]!)
-    await new Promise((r) => setTimeout(r, 500))
+    await waitPatches(2)
+    await new Promise((r) => setTimeout(r, 300))
     expect(await storeHtml()).toContain('HelloAB')
     expect(await liveText(iframe)).toBe('HelloAB')
     expect(await editingOpen(iframe)).not.toBeNull()
-    /* the latest save fails: full recovery to the stored state */
+    expect(await page.evaluate(() => window.elementPanelHarness.notice())).toBeNull()
+    /* refusing the governing save walks past the refused predecessor:
+       full recovery to the stored state */
     await deny(patches[1]!)
     await expect.poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 }).toContain('gespeichert')
     await expect.poll(storeHtml, { timeout: 10_000 }).toBe(ORIGINAL)
     await expect.poll(() => liveText(iframe), { timeout: 10_000 }).toBe('Hello')
     expect(await editingOpen(iframe)).toBeNull()
+  }, 30_000)
+
+  it('keeps remotely moved store content on rejection and resets live to it', async () => {
+    const iframe = await seed()
+    await beginTyping(iframe)
+    await page.keyboard.type('A')
+    await waitPatches(1)
+    /* a collaborator moves the store while our save is pending */
+    const remote = ORIGINAL.replace('Hello', 'Remote')
+    await page.evaluate((html) => {
+      window.elementPanelHarness.remote({
+        id: 'f',
+        canvasId: 'c',
+        name: 'Recovery',
+        x: 40,
+        y: 60,
+        width: 600,
+        height: 500,
+        html,
+        createdAt: 0,
+        updatedAt: 0,
+        updatedBy: 'Collaborator',
+      })
+    }, remote)
+    await deny(patches[0]!)
+    /* German feedback, but the newer remote store is preserved — and the
+       rejected live session ends on exactly that content */
+    await expect.poll(() => page.evaluate(() => window.elementPanelHarness.notice()), { timeout: 10_000 }).toContain('gespeichert')
+    await expect.poll(storeHtml, { timeout: 10_000 }).toBe(remote)
+    await expect.poll(() => liveText(iframe), { timeout: 10_000 }).toBe('Remote')
+    expect(await editingOpen(iframe)).toBeNull()
+    /* nothing reserializes the refused content afterwards */
+    await new Promise((r) => setTimeout(r, 900))
+    expect(patches.length).toBe(1)
   }, 30_000)
 })

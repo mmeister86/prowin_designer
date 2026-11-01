@@ -168,9 +168,10 @@ describe('ElementPanel template color constraints', () => {
     container.remove()
   })
 
-  async function show(html: string, selector: string) {
+  async function show(html: string, selector: string, inline?: Record<string, string>) {
     useStore.setState({ canvas: { id: 'c1', name: 'Canvas', frames: [frame(html)] } as Canvas })
     mocks.info = makeInfo(html, selector)
+    if (inline) (mocks.info as { inline: Record<string, string> }).inline = inline
     /* sync act for the mount (async act swallows the panel's debounced
        re-read timer); the sleep outside act lets it fire */
     act(() => {
@@ -192,9 +193,9 @@ describe('ElementPanel template color constraints', () => {
 
   it('offers only the allowed tokens and writes the exact var() form', async () => {
     await show(CONSTRAINED, FIELD)
-    expect(tokenOptions('Füllfarbe (Vorlage)')).toEqual(['prowin-ci-blau', 'prowin-ci-orange'])
-    expect(tokenOptions('Rahmenfarbe (Vorlage)')).toEqual(['prowin-ci-blau', 'prowin-ci-orange'])
-    expect(tokenOptions('Textfarbe (Vorlage)')).toEqual(['prowin-ci-blau', 'prowin-ci-orange'])
+    expect(tokenOptions('Füllfarbe (Vorlage)')).toEqual(['', 'prowin-ci-blau', 'prowin-ci-orange'])
+    expect(tokenOptions('Rahmenfarbe (Vorlage)')).toEqual(['', 'prowin-ci-blau', 'prowin-ci-orange'])
+    expect(tokenOptions('Textfarbe (Vorlage)')).toEqual(['', 'prowin-ci-blau', 'prowin-ci-orange'])
     /* no free hex/RGB/alpha escape routes for any of the three colors */
     expect(container.querySelector('input[type="color"]')).toBeNull()
     expect(container.querySelector('input[aria-label="Füllfarbe"]')).toBeNull()
@@ -210,7 +211,7 @@ describe('ElementPanel template color constraints', () => {
 
   it('intersects nested allowlists to their joint tokens', async () => {
     await show(NESTED, FIELD)
-    expect(tokenOptions('Textfarbe (Vorlage)')).toEqual(['prowin-ci-orange'])
+    expect(tokenOptions('Textfarbe (Vorlage)')).toEqual(['', 'prowin-ci-orange'])
   })
 
   it('disables color changes when nested allowlists share no token', async () => {
@@ -265,5 +266,27 @@ describe('ElementPanel template color constraints', () => {
     expect(container.querySelector('input[type="color"]')).not.toBeNull()
     expect(container.querySelector('input[aria-label="X-Position"]')).not.toBeNull()
     expect(container.querySelector('select[aria-label="Textfarbe (Vorlage)"]')).toBeNull()
+  })
+
+  it('shows a non-token current color as disallowed instead of claiming a token', async () => {
+    await show(CONSTRAINED, FIELD, { color: '#ff0000' })
+    const select = container.querySelector('select[aria-label="Textfarbe (Vorlage)"]') as HTMLSelectElement | null
+    expect(select).not.toBeNull()
+    expect(select!.value).toBe('')
+    expect(select!.options[0]!.textContent).toBe('Aktuelle Farbe nicht erlaubt')
+    expect(select!.options[0]!.disabled).toBe(true)
+    expect([...select!.options].map((o) => o.value)).toEqual([
+      '',
+      'prowin-ci-blau',
+      'prowin-ci-orange',
+    ])
+  })
+
+  it('keeps keyboard focus out of blocked controls', async () => {
+    const locked = page('<section data-od-id="hero" data-od-role="headline" data-od-locked="true"><h1>Hi</h1></section>')
+    await show(locked, SECTION)
+    const dimmed = container.querySelector('div[aria-disabled="true"]') as HTMLElement | null
+    expect(dimmed).not.toBeNull()
+    expect(dimmed!.inert).toBe(true)
   })
 })
