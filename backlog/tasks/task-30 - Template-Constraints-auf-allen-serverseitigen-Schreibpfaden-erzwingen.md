@@ -4,7 +4,7 @@ title: Template-Constraints auf allen serverseitigen Schreibpfaden erzwingen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-11-01T10:12:00Z'
+updated_date: '2026-11-01T12:02:00Z'
 labels:
   - prowin
   - implementation
@@ -65,4 +65,6 @@ Follow-up: Semikolon in zitiertem CSS-Fontnamen (declined: fail-closed Sonderfal
 TDD laufend: 7 erwartete neue Fehler, danach 85 fokussierte Tests PASS; Source-ACL-Mutationtest nach Wiederherstellung PASS. Kein Merge und kein Done.
 
 CodeRabbit-Korrekturwelle verifiziert: Gesamtsuite mit maxWorkers=2 PASS (191 Dateien /1609 Tests, 339.54s); Caller-Regressionen 18 Tests und abschliessender MCP-Tools-Lauf 5 Tests PASS. Typecheck/Lint/Build/Format/Diff PASS; Doc-lint PASS mit bekanntem Stale-.context-Hinweis. Bekannte localStorage-/Chunk-Hinweise sowie happy-dom-Connection/Abort-Stderr ohne fehlgeschlagene Tests. Bericht aktualisiert; alle CodeRabbit-Befunde geprueft, Ressourcen-/CSS-Kompatibilitaetsarbeit in TASK-77/78 To Do. TASK-30 bleibt In Progress; kein Merge oder manuelles Browser-Testing.
+
+Babysitting bis gruene Tests: CI-Blocker in TASK-79 minimal behoben (aa19816): Stop/Cleanup wartet auf Serverende, Lifecycle-/Reboot-Caller warten auf Cleanup, zwei Realserver-Regressionen. Endgueltiger lokaler Gesamtlauf: 192 Dateien /1611 Tests PASS ohne Skips; alle vier CI-Test-Shards plus Aggregat und weitere Pflichtchecks auf aa19816 PASS. Alle fuenf CodeRabbit-Threads beantwortet und aufgeloest; TASK-77/78 bleiben To Do. TASK-30/79 bleiben In Progress; kein Merge. Fruehere CI-/Browser-Flakes sind im Bericht erhalten.
 <!-- SECTION:NOTES:END -->
