@@ -89,8 +89,8 @@ grants nothing; only the server-checked identity of the connecting account
 (canvas capability \`manageLocks\`) decides. Default to the non-Creator rules
 below unless the human explicitly asks you to author a template.
 
-- **The six attributes.** \`data-od-id\` (stable field identity — never
-  rename, mint, or reuse it; duplicates are rejected) · \`data-od-role\`
+- **The six attributes.** \`data-od-id\` (stable field identity — preserve it
+  during personalization; duplicates are rejected) · \`data-od-role\`
   (headline | body | image | cta | logo | contact | date | decor — semantics
   for labels and patches, not styling) · \`data-od-label\` (display name, max
   120 chars) · \`data-od-locked\` (presence locks the whole subtree for
@@ -105,9 +105,9 @@ below unless the human explicitly asks you to author a template.
 - **Outside fields is frozen.** In frames with template fields, everything
   outside editable fields keeps its tags, attributes, structure, and order —
   doctype, wrapper attributes, scripts, styles, handlers. Offer no
-  layout/HTML changes there; only safe inline context (typography-only spans
-  with no color/class/id carrier) may change, and the server decides what
-  counts.
+  layout/HTML changes there. Inside editable fields, only safe inline context
+  (typography-only spans with no color/class/id carrier) may change; arbitrary
+  nested elements remain frozen and the server decides what counts.
 - **Colors are tokens.** Write only \`var(--<token>)\` with a token from the
   field's exact \`allowed-colors\` list; never hex/RGB substitutes and no new
   shorthand color declarations.
@@ -122,8 +122,10 @@ below unless the human explicitly asks you to author a template.
   an explicit human authoring request may attempt locked/structural changes —
   still under the account's real permission; a 403 then means stop, not escalate.
 - **Creators keep full authoring.** Under a real Creator identity
-  (\`manageLocks\`) every template edit is allowed; the same guard checks it
-  on every transport.`
+  (\`manageLocks\`) explicit authoring requests may create fields with fresh
+  frame-unique IDs and change locks, metadata, and structure. Metadata must
+  still be valid: invalid attributes and duplicate IDs return 400 for everyone.
+  The same guard checks every transport.`
 
 export const DOOP_GUIDE = `# Doop Agent Guide
 

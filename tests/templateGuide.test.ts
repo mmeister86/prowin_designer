@@ -146,7 +146,10 @@ async function guideText(): Promise<string> {
     const result = await withUserPermissions(MATE, () =>
       client.callTool({ name: 'get_guide', arguments: { topic: 'doop-instructions' } }),
     )
-    return JSON.stringify(result.content)
+    return (result.content as Array<{ type: string; text?: string }>)
+      .filter((block) => block.type === 'text')
+      .map((block) => block.text)
+      .join('\n')
   } finally {
     await client.close()
     await server.close()
@@ -191,6 +194,7 @@ describe('shared template guide', () => {
 
   it('reaches MCP get_guide with role, length, token, structure and 403 rules', async () => {
     const text = await guideText()
+    expect(text).toContain(TEMPLATE_GUIDE)
     for (const needle of CONTRACT) expect(text, needle).toContain(needle)
     /* exact contract details, not just keywords */
     expect(text).toContain('data-od-locked')
@@ -215,6 +219,7 @@ describe('shared template guide', () => {
     const card = actions.addQueuedCard('guide', 'Guide pruefen', 'Mate', undefined, undefined, MATE)!
     await vi.waitFor(() => expect(card.failedAt).toBeDefined(), { timeout: 20_000 })
     const system = captured[0]?.system.map((block) => block.text).join('\n\n') ?? ''
+    expect(system).toContain(TEMPLATE_GUIDE)
     for (const needle of CONTRACT) expect(system, needle).toContain(needle)
     expect(system).toContain('Unicode')
     expect(system).toContain('403')
@@ -234,16 +239,16 @@ describe('guide-backed agent edits', () => {
         MATE,
       )
       expect(ok.isError, JSON.stringify(ok)).not.toBe(true)
-      const mid = store.getFrame(frame.id)!
-      expect(mid.html).toContain('Hallo Welt')
+      const mid = store.getFrame(frame.id)!.html
+      expect(mid).toContain('Hallo Welt')
       const denied = await tool(
         client,
         'set_frame_html',
-        { frame_id: frame.id, html: mid.html.replace('>Text<', '>Gehackt<'), agent_name: 'Mate' },
+        { frame_id: frame.id, html: mid.replace('>Text<', '>Gehackt<'), agent_name: 'Mate' },
         MATE,
       )
       expect(denied.isError, JSON.stringify(denied)).toBe(true)
-      expect(store.getFrame(frame.id)).toEqual(mid)
+      expect(store.getFrame(frame.id)!.html).toBe(mid)
     } finally {
       await close()
     }
@@ -254,26 +259,26 @@ describe('guide-backed agent edits', () => {
     const limited = await templateFrame(LIMITED)
     const { client, close } = await connectAs('Mate', MATE)
     try {
-      const nestedBefore = store.getFrame(nested.id)!
+      const nestedBefore = store.getFrame(nested.id)!.html
       /* "Du" -> "Duu" pushes the outer field from 5 to 6 code points */
       const ancestor = await tool(
         client,
         'set_frame_html',
-        { frame_id: nested.id, html: nestedBefore.html.replace('>Du<', '>Duu<'), agent_name: 'Mate' },
+        { frame_id: nested.id, html: nestedBefore.replace('>Du<', '>Duu<'), agent_name: 'Mate' },
         MATE,
       )
       expect(ancestor.isError, JSON.stringify(ancestor)).toBe(true)
-      expect(store.getFrame(nested.id)).toEqual(nestedBefore)
-      const limitedBefore = store.getFrame(limited.id)!
+      expect(store.getFrame(nested.id)!.html).toBe(nestedBefore)
+      const limitedBefore = store.getFrame(limited.id)!.html
       /* three emoji are three code points over a limit of two */
       const unicode = await tool(
         client,
         'set_frame_html',
-        { frame_id: limited.id, html: limitedBefore.html.replace('>OK<', '>✅✅✅<'), agent_name: 'Mate' },
+        { frame_id: limited.id, html: limitedBefore.replace('>OK<', '>✅✅✅<'), agent_name: 'Mate' },
         MATE,
       )
       expect(unicode.isError, JSON.stringify(unicode)).toBe(true)
-      expect(store.getFrame(limited.id)).toEqual(limitedBefore)
+      expect(store.getFrame(limited.id)!.html).toBe(limitedBefore)
     } finally {
       await close()
     }
@@ -281,18 +286,18 @@ describe('guide-backed agent edits', () => {
 
   it('decides by server identity, never by actor names', async () => {
     const frame = await templateFrame()
-    const before = store.getFrame(frame.id)!
+    const before = store.getFrame(frame.id)!.html
     const { client, close } = await connectAs('Mate', MATE)
     try {
       /* claiming to be the Creator in agent_name buys no manageLocks */
       const escalated = await tool(
         client,
         'set_frame_html',
-        { frame_id: frame.id, html: before.html.replace('>Text<', '>Gehackt<'), agent_name: 'Creator' },
+        { frame_id: frame.id, html: before.replace('>Text<', '>Gehackt<'), agent_name: 'Creator' },
         MATE,
       )
       expect(escalated.isError, JSON.stringify(escalated)).toBe(true)
-      expect(store.getFrame(frame.id)).toEqual(before)
+      expect(store.getFrame(frame.id)!.html).toBe(before)
     } finally {
       await close()
     }
