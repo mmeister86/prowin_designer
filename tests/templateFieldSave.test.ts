@@ -14,7 +14,7 @@ vi.mock('../src/lib/frameBridge', () => ({
 
 const { useStore } = await import('../src/lib/store')
 const { applyTemplateField, duplicateLayer, markTemplateField, saveFrameHtml } = await import('../src/lib/layerEdits')
-const { rollbackTarget } = await import('../src/lib/frameHtmlSaves')
+const { enqueueHtmlSave, rollbackTarget } = await import('../src/lib/frameHtmlSaves')
 
 const page = (body: string) => `<!doctype html><html><head></head><body>${body}</body></html>`
 const SECTION = 'body:nth-of-type(1) > section:nth-of-type(1)'
@@ -188,6 +188,69 @@ describe('saveFrameHtml', () => {
     await Promise.resolve()
     await new Promise((r) => setTimeout(r, 0))
   }
+
+  it.each([false, true])('never restores coalesced unsent HTML (first accepted: %s)', async (accepted) => {
+    const before = liveHtml()
+    const gates: Array<{ resolve: (v: Frame) => void; reject: (e: unknown) => void }> = []
+    updateFrame.mockImplementation(() => new Promise<Frame>((resolve, reject) => gates.push({ resolve, reject })))
+    const first = before.replace('<p>A</p>', '<p>sent</p>')
+    saveFrameHtml(frame(before), first)
+    saveFrameHtml(frame(liveHtml()), before.replace('<p>A</p>', '<p>unsent</p>'))
+    const last = before.replace('<p>A</p>', '<p>latest</p>')
+    saveFrameHtml(frame(liveHtml()), last)
+    expect(updateFrame).toHaveBeenCalledTimes(1)
+    if (accepted) gates[0]!.resolve({} as Frame)
+    else gates[0]!.reject(new Error('Forbidden'))
+    await flush()
+    expect(updateFrame.mock.calls.map(([, patch]) => patch.html)).toEqual([first, last])
+    gates[1]!.reject(new Error('Forbidden'))
+    await flush()
+    expect(liveHtml()).toBe(accepted ? first : before)
+    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:revert', { html: accepted ? first : before })
+  })
+
+  it('waits for the replacing send before resolving coalesced saves', async () => {
+    const before = liveHtml()
+    const gates: Array<{ resolve: (v: Frame) => void; reject: (e: unknown) => void }> = []
+    updateFrame.mockImplementation(() => new Promise<Frame>((resolve, reject) => gates.push({ resolve, reject })))
+    const save = (html: string, previous: string) =>
+      enqueueHtmlSave({
+        frameId: 'f1',
+        html,
+        before: previous,
+        refusedNotice: 'Nicht gespeichert',
+      })
+    const first = save('first', before)
+    let coalescedSettled = false
+    const coalesced = save('middle', 'first').then(() => {
+      coalescedSettled = true
+    })
+    const latest = save('last', 'middle')
+    await flush()
+    const settledBeforeSend = coalescedSettled
+    gates[0]!.resolve({} as Frame)
+    await flush()
+    const settledWhilePending = coalescedSettled
+    gates[1]!.resolve({} as Frame)
+    await Promise.all([first, coalesced, latest])
+    expect(settledBeforeSend).toBe(false)
+    expect(settledWhilePending).toBe(false)
+    expect(coalescedSettled).toBe(true)
+  })
+
+  it('recovers confirmed content after more than fifty coalesced edits', async () => {
+    const before = liveHtml()
+    const gates: Array<{ resolve: (v: Frame) => void; reject: (e: unknown) => void }> = []
+    updateFrame.mockImplementation(() => new Promise<Frame>((resolve, reject) => gates.push({ resolve, reject })))
+    for (let i = 0; i < 61; i++) {
+      saveFrameHtml(frame(liveHtml()), before.replace('<p>A</p>', `<p>edit-${i}</p>`))
+    }
+    gates[0]!.reject(new Error('Forbidden'))
+    await flush()
+    gates[1]!.reject(new Error('Forbidden'))
+    await flush()
+    expect(liveHtml()).toBe(before)
+  })
 
   it('rolls back local html and pushes a notice when a duplicate save is rejected', async () => {
     const before = liveHtml()

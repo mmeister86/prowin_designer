@@ -40,7 +40,7 @@ export interface HtmlSaveRequest {
 interface PendingSave {
   req: HtmlSaveRequest
   attempt: SaveAttempt | null
-  resolve: () => void
+  resolves: Array<() => void>
 }
 
 interface FrameSaveState {
@@ -73,16 +73,15 @@ export function enqueueHtmlSave(req: HtmlSaveRequest): Promise<void> {
       req.before === undefined ? null : { html: req.html, before: req.before, rejected: false }
     if (attempt) {
       state.attempts.push(attempt)
-      /* bounded backstop; successes prune below, so only a long refused
-         streak ever approaches this */
-      if (state.attempts.length > 50) state.attempts.splice(0, state.attempts.length - 50)
     }
-    const pending: PendingSave = { req, attempt, resolve }
+    const pending: PendingSave = { req, attempt, resolves: [resolve] }
     if (state.inflight) {
-      /* coalesce behind the running request: the newest intent wins, and a
-         superseded waiter resolves — its content lives on in the store and
-         the replacing send settles its fate */
-      if (state.queued) state.queued.resolve()
+      /* Never roll back to unsent content; its waiters share the replacing
+         send's outcome so undo/flush barriers do not finish prematurely. */
+      if (state.queued) {
+        if (state.queued.attempt) state.queued.attempt.rejected = true
+        pending.resolves.push(...state.queued.resolves)
+      }
       state.queued = pending
       return
     }
@@ -104,11 +103,12 @@ async function send(frameId: string, pending: PendingSave): Promise<void> {
   } catch (err) {
     onRefused(state, frameId, pending, err)
   }
-  pending.resolve()
+  for (const resolve of pending.resolves) resolve()
   state.inflight = null
   const next = state.queued
   state.queued = null
   if (next) void send(frameId, next)
+  else frames.delete(frameId)
 }
 
 function onRefused(state: FrameSaveState, frameId: string, pending: PendingSave, error: unknown): void {
