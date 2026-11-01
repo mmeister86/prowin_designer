@@ -164,18 +164,47 @@ describe('frame runtime template text guard', () => {
     await stopEdit()
   })
 
-  it('reverts the live document on doop:revert while idle, and ignores it mid-edit', async () => {
+  it('reverts the live document on doop:revert, ending an active edit', async () => {
     document.body.innerHTML = '<section><p id="t">alt</p></section>'
     send({ type: 'doop:revert', html: '<!doctype html><html><head></head><body><section><p id="t">neu</p></section></body></html>' })
     await tick()
     expect(document.querySelector('#t')!.textContent).toBe('neu')
 
+    /* a rejected save mid-typing restores the stored state even though the
+       edit is still open: no invalid state survives, in the store or live */
     document.body.innerHTML = '<section data-od-id="f" data-od-role="body"><p id="t">live</p></section>'
     await editMode()
     click(document.querySelector('#t')!)
-    send({ type: 'doop:revert', html: '<!doctype html><html><head></head><body><section><p>weg</p></section></body></html>' })
+    document.querySelector('#t')!.textContent = 'live plus invalid'
+    send({ type: 'doop:revert', html: '<!doctype html><html><head></head><body><section data-od-id="f" data-od-role="body"><p id="t">stored</p></section></body></html>' })
     await tick()
-    expect(document.querySelector('#t')!.textContent).toBe('live')
+    expect(document.querySelector('#t')!.textContent).toBe('stored')
+    expect(document.querySelector('#t')!.hasAttribute('contenteditable')).toBe(false)
+    expect(document.querySelector('[data-v-active]')).toBeNull()
+    await stopEdit()
+  })
+
+  it('does not reserialize rejected content after a revert', async () => {
+    const edited: unknown[] = []
+    const collect = (ev: MessageEvent) => {
+      if (ev.data?.type === 'doop:edited') edited.push(ev.data.html)
+    }
+    window.addEventListener('message', collect)
+    try {
+      document.body.innerHTML = '<section data-od-id="f" data-od-role="body"><p id="t">live</p></section>'
+      await editMode()
+      click(document.querySelector('#t')!)
+      /* a valid keystroke starts the save debounce … */
+      document.querySelector('#t')!.textContent = 'live!'
+      document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+      /* … then the rejection wins the race and must cancel the pending save */
+      send({ type: 'doop:revert', html: '<!doctype html><html><head></head><body><section data-od-id="f" data-od-role="body"><p id="t">stored</p></section></body></html>' })
+      await new Promise((r) => setTimeout(r, 600))
+      expect(edited).toEqual([])
+      expect(document.querySelector('#t')!.textContent).toBe('stored')
+    } finally {
+      window.removeEventListener('message', collect)
+    }
     await stopEdit()
   })
 })

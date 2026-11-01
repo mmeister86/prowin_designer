@@ -19,6 +19,7 @@ import {
   templatePolicyOf,
 } from '../prowin/templatePolicy'
 import { api, errorMessage } from '../lib/api'
+import { rollbackTarget, type SaveAttempt } from '../lib/layerEdits'
 import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
 import { throttle } from '../lib/throttle'
@@ -177,6 +178,12 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
   )
   const [pathEdit, setPathEdit] = useState<PathEditSource | null>(null)
   const editRequest = useRef(0)
+  /* inline-save ordering: only the newest in-flight save may roll back —
+     a superseded rejection is ignored so it cannot clobber newer edits */
+  const editSaveSeq = useRef(0)
+  const editSaveAttempts = useRef<SaveAttempt[]>([])
+  /* exit flushes overtaken by a rejection abort: their echo is skipped */
+  const deadFlushIds = useRef(new Set<number>())
   const closePathEdit = useCallback(() => {
     editRequest.current++
     setPathEdit(null)
@@ -876,6 +883,22 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     activeSelRef.current = null
   }, [setComposing])
 
+  /* End the text session without serializing and restore the live document
+     to stored html: a rejected save must leave no invalid state behind, in
+     the store or on the canvas. Exit flushes overtaken by the abort are
+     recorded as dead so their echo never re-saves the refused content. */
+  const abortEditToHtml = useCallback((frameId: string, html: string) => {
+    for (const flushId of editExits.current.keys()) deadFlushIds.current.add(flushId)
+    for (const finish of editExits.current.values()) finish()
+    editExits.current.clear()
+    setSuspendPost(false)
+    setEditing(false)
+    setActiveHit(null)
+    setComposing(false)
+    activeSelRef.current = null
+    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:revert', html }, '*')
+  }, [])
+
   /* switching to Hand or Comment ends a text-edit session: both put the
      shield back over the document, and a comment click has to probe the
      frame, which an open edit blocks. The iframe is told to leave edit mode
@@ -890,6 +913,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     function onMsg(ev: MessageEvent) {
       if (ev.source !== iframeRef.current?.contentWindow) return
       if (ev.data?.type === 'doop:edited' && typeof ev.data.html === 'string') {
+        const flushId = ev.data.flushId
+        /* an exit flush overtaken by a rejection abort: its echo carries
+           the refused content and must never be re-saved */
+        if (typeof flushId === 'number' && deadFlushIds.current.has(flushId)) {
+          deadFlushIds.current.delete(flushId)
+          return
+        }
         // The runtime already has this document. Echoing it through the HTML
         // throttle can overwrite a newer style edit still waiting to save.
         localHtml.current = ev.data.html
@@ -898,26 +928,44 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         if (before !== ev.data.html) {
           useStore.getState().patchFrameLocal(frame.id, { html: ev.data.html })
           /* a save the server refused (template guard, permissions) is no
-             local save: German feedback, Store rollback, and the live
-             document reverted when idle so the next save serializes the
-             stored state */
-          save = api.updateFrame(frame.id, { html: ev.data.html }).catch((err: unknown) => {
-            const s = useStore.getState()
-            const cur = s.canvas?.frames.find((f) => f.id === frame.id)
-            if (cur && before !== undefined && cur.html === ev.data.html) {
-              s.patchFrameLocal(frame.id, { html: before })
-            }
-            s.pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden'))
-            if (before !== undefined) {
-              localHtml.current = before
-              iframeRef.current?.contentWindow?.postMessage({ type: 'doop:revert', html: before }, '*')
-            }
-          })
+             local save: German feedback, store rollback, and the live
+             document restored even mid-edit — the session ends rather than
+             keep invalid state. A superseded rejection is ignored: the
+             newer save governs. */
+          const seq = ++editSaveSeq.current
+          const entry: SaveAttempt | null =
+            before === undefined ? null : { html: ev.data.html, before, rejected: false }
+          if (entry) {
+            editSaveAttempts.current.push(entry)
+            if (editSaveAttempts.current.length > 10) editSaveAttempts.current.splice(0, 1)
+          }
+          save = api.updateFrame(frame.id, { html: ev.data.html }).then(
+            () => {
+              if (!entry) return
+              const at = editSaveAttempts.current.indexOf(entry)
+              if (at >= 0) editSaveAttempts.current.splice(at, 1)
+            },
+            (err: unknown) => {
+              if (entry) entry.rejected = true
+              if (seq !== editSaveSeq.current) return
+              if (before === undefined) {
+                useStore.getState().pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden'))
+                return
+              }
+              const target = entry ? rollbackTarget(editSaveAttempts.current, before) : before
+              const s = useStore.getState()
+              const cur = s.canvas?.frames.find((f) => f.id === frame.id)
+              if (cur && cur.html === ev.data.html) {
+                s.patchFrameLocal(frame.id, { html: target })
+                abortEditToHtml(frame.id, target)
+              }
+              s.pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden'))
+            },
+          )
           trackSave(save)
           if (before !== undefined)
             recordUpdate(frame.id, { html: before }, { html: ev.data.html }, ev.data.discrete === true)
         }
-        const flushId = ev.data.flushId
         const finish = editExits.current.get(flushId)
         if (finish) {
           void save.then(() => {
@@ -942,7 +990,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       for (const finish of exits.values()) finish()
       exits.clear()
     }
-  }, [frame.id, exitEdit])
+  }, [frame.id, exitEdit, abortEditToHtml])
 
   /* deselecting the frame ends the edit session. Selection lives in the
      store and the iframe has to be told, so this is a sync with an external

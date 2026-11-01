@@ -31,20 +31,68 @@ import type { TemplateField } from '../../shared/prowin/templateAttributes'
 
 /* ---- element edits shared by the Layers rail and the element panel ---- */
 
+/* One in-flight or refused frame-html save. Only the newest response may
+   roll back; the rollback walks past predecessors the server already
+   refused, so a superseded rejection can neither clobber newer edits nor
+   reinstate unconfirmed content. */
+export interface SaveAttempt {
+  html: string
+  before: string
+  rejected: boolean
+}
+
+/** Walk `before` back past refused predecessors to the newest confirmed state. */
+export function rollbackTarget(attempts: SaveAttempt[], before: string): string {
+  let target = before
+  for (let i = 0; i <= attempts.length; i++) {
+    const prior = attempts.find((a) => a.rejected && a.html === target)
+    if (!prior) break
+    target = prior.before
+  }
+  return target
+}
+
+/** Recent html saves per frame, newest last, bounded. */
+const saveAttempts = new Map<string, SaveAttempt[]>()
+
+function trackAttempt(frameId: string, entry: SaveAttempt): void {
+  const list = saveAttempts.get(frameId) ?? []
+  list.push(entry)
+  saveAttempts.set(frameId, list.length > 10 ? list.slice(-10) : list)
+}
+
+function settleAttempt(frameId: string, entry: SaveAttempt): void {
+  const list = saveAttempts.get(frameId)
+  if (!list) return
+  const at = list.indexOf(entry)
+  if (at >= 0) list.splice(at, 1)
+  if (!list.length) saveAttempts.delete(frameId)
+}
+
 export function saveFrameHtml(frame: Frame, html: string) {
   const before = frame.html
   recordUpdate(frame.id, { html: before }, { html })
   useStore.getState().patchFrameLocal(frame.id, { html })
   /* a save the server refused is rolled back, so the rail shows what
      everyone else sees — and the live document is reverted too, so its
-     next text save serializes the stored state */
+     next text save serializes the stored state. A superseded rejection
+     stays silent and touches nothing: the newer save governs. */
+  const entry: SaveAttempt = { html, before, rejected: false }
+  trackAttempt(frame.id, entry)
   trackSave(
-    api.updateFrame(frame.id, { html }).catch((err: unknown) => {
-      const s = useStore.getState()
-      s.patchFrameLocal(frame.id, { html: before })
-      s.pushNotice(errorMessage(err, 'Die Ebene konnte nicht gespeichert werden'))
-      void requestFrame(frame.id, 'doop:revert', { html: before })
-    }),
+    api.updateFrame(frame.id, { html }).then(
+      () => settleAttempt(frame.id, entry),
+      (err: unknown) => {
+        entry.rejected = true
+        const s = useStore.getState()
+        const cur = s.canvas?.frames.find((f) => f.id === frame.id)
+        if (!cur || cur.html !== html) return
+        const target = rollbackTarget(saveAttempts.get(frame.id) ?? [], before)
+        s.patchFrameLocal(frame.id, { html: target })
+        s.pushNotice(errorMessage(err, 'Die Ebene konnte nicht gespeichert werden'))
+        void requestFrame(frame.id, 'doop:revert', { html: target })
+      },
+    ),
   )
 }
 
@@ -179,10 +227,13 @@ export function applyTemplateField(frame: Frame, selector: string, field: Templa
     recordUpdate(frame.id, { html: before }, { html })
     useStore.getState().patchFrameLocal(frame.id, { html })
     /* a save the server refused is rolled back, so the panel shows what
-       everyone else sees */
+       everyone else sees. A superseded rejection stays silent and touches
+       nothing: the newer save governs. */
     trackSave(
       api.updateFrame(frame.id, { html }).catch((err: unknown) => {
         const s = useStore.getState()
+        const cur = s.canvas?.frames.find((f) => f.id === frame.id)
+        if (!cur || cur.html !== html) return
         s.patchFrameLocal(frame.id, { html: before })
         s.pushNotice(errorMessage(err, 'Template-Feld konnte nicht gespeichert werden'))
         /* mirror the rollback to the live document: it already got the new

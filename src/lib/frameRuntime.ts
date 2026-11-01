@@ -1010,11 +1010,17 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       notifyFrameUpdated()
       if (d.reqId) parent.postMessage({ type: 'doop:html-result', reqId: d.reqId }, '*')
     }
-    /* a save the server refused is rolled back parent-side; the live
-       document follows when idle so the next text save serializes the
-       stored state. Mid-edit the newer typing wins and its next save is
-       judged on its own. */
-    if (d.type === 'doop:revert' && typeof d.html === 'string' && !editing) {
+    /* a save the server refused restores the stored state everywhere: the
+       edit ends without serializing, so invalid content can neither linger
+       live nor be re-saved on exit, and pending debounces are dropped */
+    if (d.type === 'doop:revert' && typeof d.html === 'string') {
+      if (editTimer) { clearTimeout(editTimer); editTimer = null }
+      if (styleTimer) { clearTimeout(styleTimer); styleTimer = null }
+      deactivate()
+      editing = false
+      clearHover()
+      var editStyle = document.querySelector('style[data-v-edit]')
+      if (editStyle && editStyle.parentNode) editStyle.parentNode.removeChild(editStyle)
       render(d.html)
       notifyFrameUpdated()
     }

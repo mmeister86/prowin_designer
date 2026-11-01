@@ -14,6 +14,7 @@ vi.mock('../src/lib/frameBridge', () => ({
 
 const { useStore } = await import('../src/lib/store')
 const { applyTemplateField, duplicateLayer, markTemplateField, saveFrameHtml } = await import('../src/lib/layerEdits')
+const { rollbackTarget } = await import('../src/lib/layerEdits')
 
 const page = (body: string) => `<!doctype html><html><head></head><body>${body}</body></html>`
 const SECTION = 'body:nth-of-type(1) > section:nth-of-type(1)'
@@ -98,6 +99,48 @@ describe('applyTemplateField', () => {
       field: expect.objectContaining({ id: expect.any(String) }),
     })
   })
+
+  it('ignores a stale field rejection when a newer field save is stored', async () => {
+    let rejectFirst!: (err: unknown) => void
+    updateFrame.mockImplementationOnce(() => new Promise<Frame>((_, reject) => (rejectFirst = reject)))
+    expect(applyTemplateField(frame(liveHtml()), SECTION, field)).toBe(true)
+    const marked = liveHtml()
+    expect(marked).toContain('data-od-id')
+    requestFrame.mockClear()
+    expect(applyTemplateField(frame(marked), SECTION, null)).toBe(true)
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(liveHtml()).not.toContain('data-od-id')
+    requestFrame.mockClear()
+    useStore.setState({ notice: null })
+    rejectFirst(new Error('Offline'))
+    await new Promise((r) => setTimeout(r, 0))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(liveHtml()).not.toContain('data-od-id')
+    expect(requestFrame).not.toHaveBeenCalled()
+    expect(useStore.getState().notice).toBeNull()
+  })
+})
+
+describe('rollbackTarget', () => {
+  it('returns before with no refused predecessors', () => {
+    expect(rollbackTarget([], 'X')).toBe('X')
+    expect(rollbackTarget([{ html: 'A', before: 'X', rejected: false }], 'X')).toBe('X')
+  })
+
+  it('walks past refused predecessors to the newest confirmed state', () => {
+    const attempts = [
+      { html: 'A', before: 'X', rejected: true },
+      { html: 'B', before: 'A', rejected: true },
+    ]
+    expect(rollbackTarget(attempts, 'B')).toBe('X')
+    expect(rollbackTarget(attempts, 'A')).toBe('X')
+  })
+
+  it('stops at pending or confirmed predecessors', () => {
+    expect(rollbackTarget([{ html: 'A', before: 'X', rejected: false }], 'A')).toBe('A')
+    expect(rollbackTarget([], 'A')).toBe('A')
+  })
 })
 
 describe('saveFrameHtml', () => {
@@ -131,6 +174,53 @@ describe('saveFrameHtml', () => {
     await flush()
     expect(liveHtml()).toContain('<p>B</p>')
     expect(requestFrame).not.toHaveBeenCalled()
+  })
+
+  it('ignores a stale rejection when a newer save is already stored', async () => {
+    const before = liveHtml()
+    let rejectFirst!: (err: unknown) => void
+    updateFrame.mockImplementationOnce(() => new Promise<Frame>((_, reject) => (rejectFirst = reject)))
+    const htmlA = before.replace('<p>A</p>', '<p>B</p>')
+    saveFrameHtml(frame(before), htmlA)
+    saveFrameHtml(frame(liveHtml()), htmlA.replace('<p>B</p>', '<p>C</p>'))
+    await flush()
+    expect(liveHtml()).toContain('<p>C</p>')
+    requestFrame.mockClear()
+    useStore.setState({ notice: null })
+    rejectFirst(new Error('Forbidden'))
+    await flush()
+    /* the superseded rejection must not clobber the newer content,
+       in the store or live, and stays silent: the newer save judges */
+    expect(liveHtml()).toContain('<p>C</p>')
+    expect(requestFrame).not.toHaveBeenCalled()
+    expect(useStore.getState().notice).toBeNull()
+  })
+
+  it('rolls back past a refused predecessor on overlapping double rejection', async () => {
+    const before = liveHtml()
+    const gates: Array<{ resolve: (v: Frame) => void; reject: (e: unknown) => void }> = []
+    updateFrame.mockImplementation(
+      () =>
+        new Promise<Frame>((resolve, reject) => {
+          gates.push({ resolve, reject })
+        }),
+    )
+    const htmlA = before.replace('<p>A</p>', '<p>B</p>')
+    saveFrameHtml(frame(before), htmlA)
+    const htmlB = htmlA.replace('<p>B</p>', '<p>C</p>')
+    saveFrameHtml(frame(liveHtml()), htmlB)
+    expect(gates.length).toBe(2)
+    gates[0]!.reject(new Error('Forbidden'))
+    await flush()
+    /* superseded: the newer save still governs */
+    expect(liveHtml()).toContain('<p>C</p>')
+    gates[1]!.reject(new Error('Forbidden'))
+    await flush()
+    /* both refused: back to the newest confirmed state, not the
+       refused intermediate — in the store and live */
+    expect(liveHtml()).toBe(before)
+    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:revert', { html: before })
+    expect(useStore.getState().notice?.text).toBe('Die Ebene konnte nicht gespeichert werden')
   })
 
   it('keeps the saved html when the server accepts it', async () => {
