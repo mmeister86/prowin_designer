@@ -182,6 +182,7 @@ export function recordPageCopy(
   activeBefore: string | null,
   activeAfter: string | null,
   frames: Frame[],
+  sourceFrameIds?: string[],
 ) {
   if (samePages(before, after)) return
   push({
@@ -196,7 +197,12 @@ export function recordPageCopy(
         activeBefore,
         activeAfter,
       },
-      ...frames.map((f): Entry => ({ type: 'create', frameId: f.id, snapshot: snapshot(f) })),
+      ...frames.map((f, i): Entry => ({
+        type: 'create',
+        frameId: f.id,
+        snapshot: snapshot(f),
+        ...(sourceFrameIds?.[i] ? { sourceFrameId: sourceFrameIds[i] } : {}),
+      })),
     ],
   })
 }

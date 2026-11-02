@@ -219,6 +219,15 @@ export function createFrameInput(
   canvas: Canvas | undefined,
 ) {
   const size = { width: Number(raw.width) || 800, height: Number(raw.height) || 500 }
+  const copySize = {
+    width: raw.width === undefined ? undefined : Number(raw.width),
+    height: raw.height === undefined ? undefined : Number(raw.height),
+  }
+  if (
+    raw.source_frame_id &&
+    Object.values(copySize).some((value) => value !== undefined && (!Number.isFinite(value) || value <= 0))
+  )
+    throw new actions.FormatPresetError()
   const chosen = Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: Number(raw.x), y: Number(raw.y) } : undefined
   const beside =
     !chosen && placement?.near && canvas
@@ -227,7 +236,7 @@ export function createFrameInput(
   return {
     name: String(raw.name || 'Unbenannte Zeichenfläche'),
     // Omitted copy dimensions must reach the action as omitted, not invented defaults.
-    ...(raw.source_frame_id ? { width: raw.width, height: raw.height } : size),
+    ...(raw.source_frame_id ? copySize : size),
     ...(raw.preset !== undefined ? { preset: raw.preset } : {}),
     html: raw.html,
     ...(placement ? { pageId: placement.pageId } : {}),

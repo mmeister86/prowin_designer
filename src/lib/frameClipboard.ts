@@ -1,6 +1,6 @@
 import type { Frame } from '../../shared/types'
 import { extractTemplateFields } from '../../shared/prowin/templateAttributes'
-import { api, errorMessage } from './api'
+import { api, ApiError, errorMessage } from './api'
 import { validateImageFile } from './imageFiles'
 import { useStore } from './store'
 import { recordCreates } from './history'
@@ -77,10 +77,43 @@ function clipBounds(frames: ClipFrame[]) {
 async function createFrames(
   requests: { canvasId: string; frame: Parameters<typeof api.createFrame>[1]; sourceFrameId?: string }[],
 ) {
-  const results = await Promise.allSettled(requests.map((r) => api.createFrame(r.canvasId, r.frame)))
+  const results = await Promise.allSettled(
+    requests.map(async (r) => {
+      try {
+        return await api.createFrame(r.canvasId, r.frame)
+      } catch (error) {
+        // A missing plain preset may be authored anew, never treated as a trusted source copy.
+        if (
+          !(error instanceof ApiError) ||
+          error.status !== 404 ||
+          !r.frame.sourceFrameId ||
+          !r.frame.preset ||
+          // Escaped-only markup is repaired server-side and could conceal template fields.
+          !r.frame.html?.includes('<') ||
+          extractTemplateFields(r.frame.html ?? '').length > 0 ||
+          !(await api.canvasCapabilities(r.canvasId)).manageLocks
+        )
+          throw error
+        const { sourceFrameId: _sourceFrameId, ...input } = r.frame
+        const created = await api.createFrame(r.canvasId, { ...input, restoreDimensions: true })
+        r.sourceFrameId = undefined
+        return created
+      }
+    }),
+  )
   const created = results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))
   const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
-  if (failed) console.error(`${requests.length - created.length} of ${requests.length} frame(s) failed`, failed.reason)
+  if (failed) {
+    console.error(`${requests.length - created.length} of ${requests.length} frame(s) failed`, failed.reason)
+    useStore
+      .getState()
+      .pushNotice(
+        errorMessage(
+          failed.reason,
+          'Die Zeichenflächen konnten nicht kopiert oder eingefügt werden. Versuche es erneut.',
+        ),
+      )
+  }
   if (created.length) {
     /* redo replays the same provenance (results keep request order) */
     const sources = results.flatMap((r, i) => (r.status === 'fulfilled' ? [requests[i]!.sourceFrameId] : []))

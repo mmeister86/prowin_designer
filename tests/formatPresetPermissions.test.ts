@@ -36,7 +36,7 @@ vi.mock('../server/screenshot.ts', () => ({
 }))
 vi.mock('../server/allowance.ts', () => ({ RESIDENT_TASK_LIMIT: 1 }))
 const persist = await import('../server/db/persist.ts')
-await import('../server/resident.ts')
+const { createFrameInput } = await import('../server/resident.ts')
 const actor = { name: 'Creator', kind: 'user', color: '#000' } as const
 const broadcast = vi.fn()
 const as = <T>(id: string, run: () => T) => withUserPermissions(id, run)
@@ -256,6 +256,52 @@ describe('preset action boundary', () => {
 })
 
 describe('resident preset inputs and summaries', () => {
+  it.each(['mate', 'creator'])(
+    'coerces supplied resident copy dimensions for %s without inventing omitted values',
+    async (user) => {
+      const source = await as('creator', () => create({ preset: 'ig-post' }))
+      await as('creator', () => actions.updateFrame(source.id, { width: 800, height: 600 }, { ...actor }))
+      const input = createFrameInput(
+        { html: source.html, source_frame_id: source.id, width: '800', height: '600' } as never,
+        undefined,
+        store.getCanvas('c'),
+      )
+      const copied = await as(user, () => actions.createFrame('c', input, { ...actor }))
+      expect(copied).toMatchObject({ preset: 'ig-post', width: 800, height: 600 })
+      const omitted = createFrameInput(
+        { html: source.html, source_frame_id: source.id },
+        undefined,
+        store.getCanvas('c'),
+      )
+      expect(omitted.width).toBeUndefined()
+      expect(omitted.height).toBeUndefined()
+      expect(await as(user, () => actions.createFrame('c', omitted, { ...actor }))).toMatchObject({
+        width: 800,
+        height: 600,
+      })
+    },
+  )
+  it.each(['800oops', 'Infinity', '', '0', '-1'])(
+    'rejects invalid supplied resident copy width %j before mutation',
+    async (width) => {
+      const source = await as('creator', () => create({ preset: 'ig-post' }))
+      const before = structuredClone(store.getCanvas('c'))
+      await expect(
+        as('creator', () =>
+          actions.createFrame(
+            'c',
+            createFrameInput(
+              { html: source.html, source_frame_id: source.id, width } as never,
+              undefined,
+              store.getCanvas('c'),
+            ),
+            { ...actor },
+          ),
+        ),
+      ).rejects.toThrow()
+      expect(store.getCanvas('c')).toEqual(before)
+    },
+  )
   async function run(input: Record<string, unknown>, sourceId?: string) {
     const canvas = store.createCanvas('Resident', 'creator')!
     canvas.memberIds = ['mate']
@@ -309,6 +355,11 @@ describe('resident preset inputs and summaries', () => {
     expect(required).not.toContain('height')
     const messages = (requests[1] as { messages: { content: unknown }[] }).messages
     expect(JSON.stringify(messages.at(-1))).toContain('preset=ig-post')
+  }, 30_000)
+  it('copies numeric-string dimensions through the real resident loop', async () => {
+    const { canvas, requests } = await run({ width: '1111', height: '777' }, 'source')
+    expect(canvas.frames[1]).toMatchObject({ preset: 'ig-post', width: 1111, height: 777 })
+    expect(JSON.stringify(requests)).not.toContain('"is_error":true')
   }, 30_000)
   it('rejects invalid resident preset IDs instead of silently dropping them', async () => {
     const { canvas, requests } = await run({ preset: '__proto__' })

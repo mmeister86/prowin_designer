@@ -1129,7 +1129,7 @@ app.post('/api/canvases/:id/pages/:pageId/duplicate', async (req, res) => {
   try {
     const copy = await actions.duplicatePage(canvas.id, req.params.pageId, actor)
     if (!copy) return res.status(404).json({ error: 'Seite nicht gefunden' })
-    res.json({ page: copy.page, pages: copy.pages, frames: copy.frames })
+    res.json({ page: copy.page, pages: copy.pages, frames: copy.frames, sourceFrameIds: copy.sourceFrameIds })
   } catch (e) {
     if (e instanceof PageLimitError) return res.status(400).json({ error: e.message })
     console.error('[pages] duplicate failed', e)

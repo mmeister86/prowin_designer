@@ -229,4 +229,43 @@ describe.skipIf(!findBrowserPath())('frame preset manual entry points', () => {
     expect(await frames()).toEqual([])
     expect(await write('POST', () => shortcut())).toMatchObject({ preset: 'a4', width: 820, height: 1160 })
   }, 20_000)
+
+  it('shows a visible error instead of retrying a deleted template preset as unsourced authoring', async () => {
+    await page.click('button[aria-label="Neue Zeichenfläche"]')
+    const source = await confirm('a4')
+    await page.evaluate(async (id) => {
+      const response = await fetch(`/api/frames/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html: '<p data-od-id="title">Protected</p>' }),
+      })
+      if (!response.ok) throw new Error(await response.text())
+    }, source.id)
+    const iframe = await page.waitForSelector(`iframe[title="${source.name}"]`)
+    await (await iframe!.contentFrame())!.waitForSelector('[data-od-id="title"]')
+    await page.keyboard.down('Meta')
+    await page.keyboard.press('c')
+    await page.keyboard.up('Meta')
+    await page.waitForFunction(() => localStorage.getItem('doop:frame-clipboard')?.includes('data-od-id'))
+    const deleted = page.waitForResponse(
+      (res) => res.url().endsWith(`/api/frames/${source.id}`) && res.request().method() === 'DELETE',
+    )
+    await page.keyboard.press('Delete')
+    expect((await deleted).ok()).toBe(true)
+    const pasted = page.waitForResponse(
+      (res) => res.url().endsWith(`/api/canvases/${canvasId}/frames`) && res.request().method() === 'POST',
+    )
+    await page.click('.stage', { button: 'right', offset: { x: 700, y: 700 } })
+    await page.waitForSelector('[role="menuitem"]')
+    await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+        .find((item) => item.textContent?.startsWith('Einfügen'))!
+        .click(),
+    )
+    expect((await pasted).status()).toBe(404)
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('[role="status"]')].some((el) => el.textContent?.includes('Quell-Zeichenfläche')),
+    )
+    expect(await frames()).toEqual([])
+  }, 20_000)
 })

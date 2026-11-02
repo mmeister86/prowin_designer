@@ -264,6 +264,7 @@ export const api = {
       page: import('../../shared/types').CanvasPageInfo
       pages: import('../../shared/types').CanvasPageInfo[]
       frames: Frame[]
+      sourceFrameIds: string[]
     }>(`/api/canvases/${canvasId}/pages/${pageId}/duplicate`, { method: 'POST' }),
   createFrame: (
     canvasId: string,

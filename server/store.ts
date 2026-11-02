@@ -21,7 +21,13 @@ export class PageLimitError extends Error {
   }
 }
 
-type PageCopy = { source: CanvasPageInfo; page: CanvasPageInfo; pages: CanvasPageInfo[]; frames: Frame[] }
+type PageCopy = {
+  source: CanvasPageInfo
+  page: CanvasPageInfo
+  pages: CanvasPageInfo[]
+  frames: Frame[]
+  sourceFrameIds: string[]
+}
 
 const names = (pages: CanvasPageInfo[]) => pages.map((page) => page.name)
 
@@ -223,7 +229,9 @@ class Store {
     if (pages.length >= MAX_PAGES) throw new PageLimitError()
     const now = Date.now()
     const page: CanvasPageInfo = { id: nanoid(10), name: copyPageName(source.name, names(pages)) }
-    const frames: Frame[] = pageFrames(canvas, pageId).map((frame) => ({
+    const sources = pageFrames(canvas, pageId)
+    const sourceFrameIds = sources.map((frame) => frame.id)
+    const frames: Frame[] = sources.map((frame) => ({
       ...frame,
       html: normalizeFrameHtml(frame.html),
       id: nanoid(10),
@@ -248,7 +256,7 @@ class Store {
     for (const frame of frames) this.frameIndex.set(frame.id, canvasId)
     canvas.updatedAt = Math.max(canvas.updatedAt, now)
     if (!samePages(canvas.pages, next)) persist.saveCanvas(canvas)
-    return { source, page, pages: canvas.pages, frames }
+    return { source, page, pages: canvas.pages, frames, sourceFrameIds }
   }
 
   setPages(canvasId: string, pages: import('../shared/types.ts').CanvasPageInfo[]) {
