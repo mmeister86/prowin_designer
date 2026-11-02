@@ -1,9 +1,10 @@
 ---
 id: TASK-32
 title: Fünf Kernformate persistent integrieren
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
+updated_date: '2026-11-02T10:30:00Z'
 labels:
   - prowin
   - implementation
@@ -20,7 +21,6 @@ ordinal: 32000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-
 Social- und Druckausgaben benötigen feste, reproduzierbare Maße. Bestehende Frames ohne Preset müssen weiterhin funktionieren.
 
 Quellen: Umsetzung §§ 10.1–10.2; Referenz R1.6
@@ -35,3 +35,18 @@ Quellen: Umsetzung §§ 10.1–10.2; Referenz R1.6
 - [ ] #3 Preset-Maße sind für Nicht-Creator auch serverseitig gegen Resize geschützt; Creator-Ausnahmen sind geprüft.
 
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Gemeinsamen Formatkatalog, Frame.preset und Datenbankmigration samt Persistenz ergänzen.
+2. REST-, MCP-, Resident-, Restore- und Live-Resize-Pfade über bestehende Canvas-Creator-Rechte schützen.
+3. Separaten Preset-Dialog integrieren, Kopien/Undo erhalten und Resize-UI absichern.
+4. Pro Schritt Spec-/Qualitätsreview, abschließend Gesamttests und Branch-Review; manuelle Abnahme bleibt offen.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+02.11.2026: Nutzer wählt separaten Preset-Dialog und gibt Entwurf sowie isolierten Worktree frei. Implementierungsplan: docs/superpowers/plans/2026-11-02-format-presets.md. Keine Änderungen an Safe-Zone-Overlay oder Exportauflösung.
+<!-- SECTION:NOTES:END -->
