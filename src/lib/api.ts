@@ -264,20 +264,31 @@ export const api = {
       page: import('../../shared/types').CanvasPageInfo
       pages: import('../../shared/types').CanvasPageInfo[]
       frames: Frame[]
+      sourceFrameIds: string[]
     }>(`/api/canvases/${canvasId}/pages/${pageId}/duplicate`, { method: 'POST' }),
-  createFrame: (canvasId: string, input: Partial<Frame> & { name: string; sourceFrameId?: string }) =>
+  createFrame: (
+    canvasId: string,
+    input: Partial<Frame> & { name: string; sourceFrameId?: string; restoreDimensions?: boolean },
+  ) =>
     req<Frame>(`/api/canvases/${canvasId}/frames`, {
       method: 'POST',
       body: JSON.stringify({
         pageId:
           useStore.getState().canvas?.id === canvasId ? (useStore.getState().activePageId ?? undefined) : undefined,
         ...input,
-        // Plain copies (including old clips and redo) never depend on a live source.
-        sourceFrameId: input.html && extractTemplateFields(input.html).length > 0 ? input.sourceFrameId : undefined,
+        // Preset copies need the stored source to retain customized dimensions.
+        sourceFrameId:
+          input.preset || (input.html && extractTemplateFields(input.html).length > 0)
+            ? input.sourceFrameId
+            : undefined,
         actor: actor(),
       }),
     }),
-  updateFrame: (frameId: string, patch: Partial<Frame>, expectedUpdatedAt?: number) =>
+  updateFrame: (
+    frameId: string,
+    patch: Partial<Omit<Frame, 'preset'>> & { preset?: Frame['preset'] | null },
+    expectedUpdatedAt?: number,
+  ) =>
     req<Frame>('/api/frames/' + frameId, {
       method: 'PATCH',
       body: JSON.stringify({ ...patch, expectedUpdatedAt, actor: actor() }),

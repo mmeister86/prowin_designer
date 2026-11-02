@@ -1,4 +1,5 @@
 import type { BillingInterval, WorkspaceStatus } from './billing.ts'
+import type { FormatPresetId } from './prowin/formats.ts'
 
 export interface Frame {
   id: string
@@ -10,6 +11,7 @@ export interface Frame {
   y: number
   width: number
   height: number
+  preset?: FormatPresetId
   html: string
   createdAt: number
   updatedAt: number

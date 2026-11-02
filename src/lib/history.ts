@@ -10,7 +10,7 @@ import { useStore } from './store'
 type Patch = Partial<Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'>>
 type Snapshot = Pick<
   Frame,
-  'canvasId' | 'pageId' | 'name' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'
+  'canvasId' | 'pageId' | 'name' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked' | 'preset'
 >
 
 type Entry =
@@ -79,6 +79,7 @@ function snapshot(f: Frame): Snapshot {
     y: f.y,
     width: f.width,
     height: f.height,
+    ...(f.preset ? { preset: f.preset } : {}),
     /* a hidden or locked frame comes back as it was when its deletion is undone */
     hidden: f.hidden,
     locked: f.locked,
@@ -181,6 +182,7 @@ export function recordPageCopy(
   activeBefore: string | null,
   activeAfter: string | null,
   frames: Frame[],
+  sourceFrameIds?: string[],
 ) {
   if (samePages(before, after)) return
   push({
@@ -195,7 +197,12 @@ export function recordPageCopy(
         activeBefore,
         activeAfter,
       },
-      ...frames.map((f): Entry => ({ type: 'create', frameId: f.id, snapshot: snapshot(f) })),
+      ...frames.map((f, i): Entry => ({
+        type: 'create',
+        frameId: f.id,
+        snapshot: snapshot(f),
+        ...(sourceFrameIds?.[i] ? { sourceFrameId: sourceFrameIds[i] } : {}),
+      })),
     ],
   })
 }
@@ -233,24 +240,37 @@ export function deleteFramesTracked(frames: Frame[]) {
 function remapId(oldId: string, newId: string) {
   const visit = (e: Entry) => {
     if (e.type === 'group' || e.type === 'transfer') e.entries.forEach(visit)
-    else if (e.type !== 'pages' && e.frameId === oldId) {
-      e.frameId = newId
-      if (e.expected) e.expected = { ...e.expected, id: newId }
+    else if (e.type !== 'pages') {
+      if (e.type === 'create' && e.sourceFrameId === oldId) e.sourceFrameId = newId
+      if (e.frameId === oldId) {
+        e.frameId = newId
+        if (e.expected) e.expected = { ...e.expected, id: newId }
+      }
     }
   }
   for (const e of [...undoStack, ...redoStack]) visit(e)
 }
 
-async function recreate(e: { frameId: string; snapshot: Snapshot; expected?: Frame; sourceFrameId?: string }) {
+async function recreate(e: Extract<Entry, { type: 'create' | 'delete' }>) {
   const { canvasId, ...rest } = e.snapshot
   const canvas = useStore.getState().canvas
   if (!canvas || canvas.id !== canvasId) throw new UserFacingError('Die Arbeitsfläche wurde geändert')
   const pages = canvasPages(canvas)
   if (!rest.pageId || !pages.some((p) => p.id === rest.pageId)) rest.pageId = pages[0]!.id
-  const f = await api.createFrame(canvasId, {
-    ...rest,
-    ...(e.sourceFrameId ? { sourceFrameId: e.sourceFrameId } : {}),
-  })
+  const sourceFrameId = e.type === 'create' ? e.sourceFrameId : undefined
+  let f: Frame
+  try {
+    f = await api.createFrame(canvasId, {
+      ...rest,
+      ...(rest.preset ? { restoreDimensions: true } : {}),
+      ...(sourceFrameId ? { sourceFrameId } : {}),
+    })
+  } catch (error) {
+    // Revoked authority must not discard the only remaining snapshot or silently change its layout.
+    if (rest.preset && error instanceof ApiError && error.status === 403)
+      throw new PrerequisiteFailed(e, null, error, canvasId)
+    throw error
+  }
   useStore.getState().upsertFrame(f)
   remapId(e.frameId, f.id)
   e.frameId = f.id
@@ -340,6 +360,19 @@ async function settle(entries: Entry[], direction: 'undo' | 'redo'): Promise<Ent
   const ok = results.flatMap((r) => (r.status === 'fulfilled' && r.value ? [r.value] : []))
   const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
   if (failed) console.error(`${direction} failed for ${entries.length - ok.length} frame(s)`, failed.reason)
+  const retries = results.flatMap((r) =>
+    r.status === 'rejected' && r.reason instanceof PrerequisiteFailed ? [r.reason] : [],
+  )
+  if (retries.length)
+    throw new PrerequisiteFailed(
+      groupOf(
+        retries.map((retry) => retry.remaining),
+        false,
+      )!,
+      groupOf(ok, false),
+      retries[0],
+      retries[0]!.canvasId,
+    )
   return ok
 }
 
@@ -364,8 +397,15 @@ async function applyOrdered(entries: Entry[], direction: 'undo' | 'redo'): Promi
     } catch (err) {
       throw new PrerequisiteFailed(groupOf(entries, true)!, null, err)
     }
-    const ok = await settle(dependents, 'redo')
-    return groupOf(first ? [first, ...ok] : ok, true)
+    try {
+      const ok = await settle(dependents, 'redo')
+      return groupOf(first ? [first, ...ok] : ok, true)
+    } catch (err) {
+      if (!(err instanceof PrerequisiteFailed)) throw err
+      // Keep the successful page prerequisite with its frames so undo still removes frames first.
+      const applied = first ? groupOf([first, ...(err.applied ? [err.applied] : [])], true) : err.applied
+      throw new PrerequisiteFailed(err.remaining, applied, err, err.canvasId ?? pagesCanvasId(prerequisite))
+    }
   }
   const ok = await settle(dependents, 'undo')
   try {

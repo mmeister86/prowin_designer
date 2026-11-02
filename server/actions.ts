@@ -1,4 +1,10 @@
-import { assertCanChangeLock, CreatorPermissionError, currentPermissionUserId } from './prowin/permissions.ts'
+import {
+  assertCanChangeLock,
+  canvasCapabilities,
+  CreatorPermissionError,
+  currentPermissionUserId,
+} from './prowin/permissions.ts'
+import { FORMAT_PRESETS, isFormatPresetId, type FormatPresetId } from '../shared/prowin/formats.ts'
 import { assertCanChangeTemplateMeta } from './prowin/templateMeta.ts'
 import { assertTemplateDelete, hasTemplateFields } from './prowin/templateGuard.ts'
 import { canAccessCanvas } from './access.ts'
@@ -1113,7 +1119,7 @@ export async function restoreFrameVersion(
      so a version that strips present locks or resizes a protected frame
      is rejected without touching streams, reveals, history or broadcasts */
   assertCanChangeTemplateMeta(canvas, before.html, version.html)
-  assertTemplateGeometry(canvas, before, { width: version.width, height: version.height })
+  assertFrameGeometry(canvas, before, { width: version.width, height: version.height })
   takeOverDraft(frameId)
   finishReveal(frameId)
   if (before.html === version.html && before.width === version.width && before.height === version.height)
@@ -1168,15 +1174,32 @@ export function hasAppendDraft(frameId: string): boolean {
   return streams.has(frameId)
 }
 
-/** Non-creator resize of a template-bearing frame is forbidden, like deletion. */
-function assertTemplateGeometry(
+export class FormatPresetError extends Error {
+  readonly status = 400
+  constructor() {
+    super('Ungültiges Format-Preset.')
+  }
+}
+
+function assertValidPreset(preset: unknown): asserts preset is FormatPresetId {
+  if (!isFormatPresetId(preset)) throw new FormatPresetError()
+}
+
+/** Shared by committed writes, restores and live drags; actor labels confer no rights. */
+export function assertFrameGeometry(
   canvas: import('../shared/types.ts').Canvas,
   before: Frame,
-  patch: { width?: number; height?: number },
+  patch: { width?: number; height?: number; preset?: FormatPresetId | null },
 ): void {
   const changed =
     (patch.width !== undefined && patch.width !== before.width) ||
     (patch.height !== undefined && patch.height !== before.height)
+  if (
+    before.preset !== undefined &&
+    (changed || (patch.preset !== undefined && patch.preset !== before.preset)) &&
+    !canvasCapabilities(canvas).manageLocks
+  )
+    throw new CreatorPermissionError()
   if (changed && hasTemplateFields(before.html)) assertTemplateDelete(canvas, before.html)
 }
 
@@ -1403,21 +1426,26 @@ export function createFrame(
     y?: number
     width?: number
     height?: number
+    preset?: FormatPresetId
     html?: string
     demo?: boolean
     hidden?: boolean
     locked?: boolean
-    /** trusted provenance for template copies: validated against the stored
+    /** trusted provenance for template/preset copies: validated against the stored
      *  source frame and current source access, never trusted from the client */
     sourceFrameId?: string
+    /** Explicit history intent; customized dimensions still require current canvas authority. */
+    restoreDimensions?: boolean
   },
   actor: Actor,
 ): Frame | undefined {
   const canvas = store.getCanvas(canvasId)
   if (!canvas) return undefined
+  if (input.preset !== undefined) assertValidPreset(input.preset)
   assertCanChangeLock(canvas, false, input.locked)
   /* normalize once, then validate exactly that candidate before any side effect */
   const candidate = input.html !== undefined ? normalizeFrameHtml(repairEscapedHtml(input.html)) : ''
+  let copiedFormat = false
   if (input.html !== undefined || input.sourceFrameId !== undefined) {
     let baseline = ''
     if (input.sourceFrameId !== undefined) {
@@ -1426,9 +1454,36 @@ export function createFrame(
       if (!source || !sourceCanvas) throw new TemplateSourceError()
       if (!canAccessCanvas(currentPermissionUserId(), sourceCanvas)) throw new CreatorPermissionError()
       baseline = source.html
+      if (!canvasCapabilities(canvas).manageLocks) {
+        if (
+          (input.preset !== undefined && input.preset !== source.preset) ||
+          (input.width !== undefined && input.width !== source.width) ||
+          (input.height !== undefined && input.height !== source.height)
+        )
+          throw new CreatorPermissionError()
+      }
+      if (input.preset === undefined || input.preset === source.preset) {
+        input = {
+          ...input,
+          preset: source.preset,
+          width: input.width ?? source.width,
+          height: input.height ?? source.height,
+        }
+        copiedFormat = true
+      }
     }
     assertCanChangeTemplateMeta(canvas, baseline, candidate)
     if (input.html !== undefined) input = { ...input, html: candidate }
+  }
+  // Copies keep actual (possibly customized) sizes; choosing a new format is canonical.
+  if (input.preset !== undefined && !copiedFormat) {
+    const format = FORMAT_PRESETS[input.preset]
+    const width = input.restoreDimensions === true ? (input.width ?? format.width) : format.width
+    const height = input.restoreDimensions === true ? (input.height ?? format.height) : format.height
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new FormatPresetError()
+    if ((width !== format.width || height !== format.height) && !canvasCapabilities(canvas).manageLocks)
+      throw new CreatorPermissionError()
+    input = { ...input, width, height }
   }
   const frame = store.createFrame(canvasId, input, actor.name)
   if (!frame) return undefined
@@ -1453,7 +1508,9 @@ export function createFrame(
  *  based. Without it a write is judged by how much it changed. */
 export function updateFrame(
   frameId: string,
-  patch: Partial<Pick<Frame, 'name' | 'pageId' | 'x' | 'y' | 'width' | 'height' | 'html' | 'hidden' | 'locked'>>,
+  patch: Partial<Pick<Frame, 'name' | 'pageId' | 'x' | 'y' | 'width' | 'height' | 'html' | 'hidden' | 'locked'>> & {
+    preset?: FormatPresetId | null
+  },
   actor: Actor,
   opts: { replace?: boolean } = {},
 ): Frame | undefined {
@@ -1461,8 +1518,13 @@ export function updateFrame(
   if (!before) return undefined
   const canvas = store.getCanvas(before.canvasId)
   if (!canvas) return undefined
+  if (patch.preset !== undefined && patch.preset !== null) assertValidPreset(patch.preset)
+  if (patch.preset && patch.preset !== before.preset) {
+    const { width, height } = FORMAT_PRESETS[patch.preset]
+    patch = { ...patch, width, height }
+  }
   assertCanChangeLock(canvas, !!before.locked, patch.locked)
-  assertTemplateGeometry(canvas, before, patch)
+  assertFrameGeometry(canvas, before, patch)
   if (patch.html !== undefined) {
     const nextHtml = normalizeFrameHtml(repairEscapedHtml(patch.html))
     assertCanChangeTemplateMeta(canvas, before.html, nextHtml)

@@ -20,6 +20,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import { PageLimitError, store } from './store.ts'
 import { getImage } from './previews.ts'
 import * as actions from './actions.ts'
+import { relayFrameDrag } from './frameDrag.ts'
 import { liveActivitiesRouter, logLiveActivityRequests, startLiveActivityDelivery } from './liveActivities.ts'
 import { onCanvasEvent } from './events.ts'
 import * as commentNotifications from './commentNotifications.ts'
@@ -1128,7 +1129,7 @@ app.post('/api/canvases/:id/pages/:pageId/duplicate', async (req, res) => {
   try {
     const copy = await actions.duplicatePage(canvas.id, req.params.pageId, actor)
     if (!copy) return res.status(404).json({ error: 'Seite nicht gefunden' })
-    res.json({ page: copy.page, pages: copy.pages, frames: copy.frames })
+    res.json({ page: copy.page, pages: copy.pages, frames: copy.frames, sourceFrameIds: copy.sourceFrameIds })
   } catch (e) {
     if (e instanceof PageLimitError) return res.status(400).json({ error: e.message })
     console.error('[pages] duplicate failed', e)
@@ -1138,7 +1139,7 @@ app.post('/api/canvases/:id/pages/:pageId/duplicate', async (req, res) => {
 
 app.post('/api/canvases/:id/frames', (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
-  const { name, pageId, x, y, width, height, html, hidden, locked } = req.body ?? {}
+  const { name, pageId, x, y, width, height, preset, html, hidden, locked } = req.body ?? {}
   if (pageId !== undefined && !store.getCanvas(req.params.id)?.pages?.some((p) => p.id === pageId))
     return res.status(400).json({ error: 'Seite nicht gefunden' })
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
@@ -1154,6 +1155,8 @@ app.post('/api/canvases/:id/frames', (req, res) => {
         y,
         width,
         height,
+        preset,
+        restoreDimensions: req.body?.restoreDimensions === true,
         html,
         hidden: hidden === true,
         locked: locked === true,
@@ -1181,7 +1184,7 @@ app.patch('/api/frames/:id', (req, res) => {
     !store.getCanvas(store.getFrame(req.params.id)!.canvasId)?.pages?.some((p) => p.id === patch.pageId)
   )
     return res.status(400).json({ error: 'Seite nicht gefunden' })
-  const allowed = ['name', 'pageId', 'x', 'y', 'width', 'height', 'html'] as const
+  const allowed = ['name', 'pageId', 'x', 'y', 'width', 'height', 'preset', 'html'] as const
   const clean: Record<string, unknown> = {}
   for (const k of allowed) if (patch[k] !== undefined) clean[k] = patch[k]
   /* the eye in the Layers panel: anything but a literal true shows the frame */
@@ -1651,21 +1654,30 @@ wss.on('connection', (ws, upgradeReq) => {
         presence.activeFrameId = msg.frameId
         broadcast(canvasId, { type: 'editing', clientId: presence.clientId, frameId: msg.frameId }, presence.clientId)
         break
-      case 'frame:drag':
-        broadcast(
+      case 'frame:drag': {
+        await relayFrameDrag(
           canvasId,
-          {
-            type: 'frame:drag',
-            clientId: presence.clientId,
-            frameId: msg.frameId,
-            x: msg.x,
-            y: msg.y,
-            width: msg.width,
-            height: msg.height,
+          msg,
+          () => auth.api.getSession({ headers: fromNodeHeaders(upgradeReq.headers) }),
+          () => {
+            if (conns.get(ws) !== conn || ws.readyState !== WebSocket.OPEN) return false
+            broadcast(
+              canvasId,
+              {
+                type: 'frame:drag',
+                clientId: presence.clientId,
+                frameId: msg.frameId,
+                x: msg.x,
+                y: msg.y,
+                width: msg.width,
+                height: msg.height,
+              },
+              presence.clientId,
+            )
           },
-          presence.clientId,
         )
         break
+      }
     }
   })
 

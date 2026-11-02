@@ -424,8 +424,8 @@ describe('resident template transports', () => {
           () =>
             toolUse('t1', 'create_frame', {
               name: 'Kopie',
-              width: 800,
-              height: 500,
+              width: source.width,
+              height: source.height,
               html: sourceHtml,
               source_frame_id: source.id,
             }),

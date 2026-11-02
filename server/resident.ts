@@ -1,4 +1,5 @@
 import { withUserPermissions } from './prowin/permissions.ts'
+import { FORMAT_PRESETS, type FormatPresetId } from '../shared/prowin/formats.ts'
 import { PROWIN_BRAND_PROMPT } from './prowin/brand.ts'
 import { createRedactionSession, redactPii } from './prowin/redact.ts'
 import { env } from './env.ts'
@@ -208,6 +209,7 @@ export function createFrameInput(
     name?: string
     width?: number
     height?: number
+    preset?: FormatPresetId
     html: string
     x?: number
     y?: number
@@ -217,6 +219,15 @@ export function createFrameInput(
   canvas: Canvas | undefined,
 ) {
   const size = { width: Number(raw.width) || 800, height: Number(raw.height) || 500 }
+  const copySize = {
+    width: raw.width === undefined ? undefined : Number(raw.width),
+    height: raw.height === undefined ? undefined : Number(raw.height),
+  }
+  if (
+    raw.source_frame_id &&
+    Object.values(copySize).some((value) => value !== undefined && (!Number.isFinite(value) || value <= 0))
+  )
+    throw new actions.FormatPresetError()
   const chosen = Number.isFinite(raw.x) && Number.isFinite(raw.y) ? { x: Number(raw.x), y: Number(raw.y) } : undefined
   const beside =
     !chosen && placement?.near && canvas
@@ -224,12 +235,13 @@ export function createFrameInput(
       : undefined
   return {
     name: String(raw.name || 'Unbenannte Zeichenfläche'),
-    ...size,
+    // Omitted copy dimensions must reach the action as omitted, not invented defaults.
+    ...(raw.source_frame_id ? copySize : size),
+    ...(raw.preset !== undefined ? { preset: raw.preset } : {}),
     html: raw.html,
     ...(placement ? { pageId: placement.pageId } : {}),
     ...(chosen ?? beside ?? {}),
-    /* copy provenance for template frames: the server validates the html
-       against the stored source and the run's permission context */
+    /* The action validates source access, template HTML and copied format dimensions. */
     ...(typeof raw.source_frame_id === 'string' && raw.source_frame_id ? { sourceFrameId: raw.source_frame_id } : {}),
   }
 }
@@ -444,7 +456,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     const frameList = visibleFrames
       .map(
         (f, index) =>
-          `- Frame ${index + 1}: id=${f.id}, name="${redactPii(f.name)}", ${Math.round(f.width)}x${Math.round(f.height)} (last edit: ${f.updatedBy}, ${f.html.length} bytes${f.html.length > LARGE_HTML_CHARS ? '; large document — avoid a full read for visual-reference work' : ''})`,
+          `- Frame ${index + 1}: id=${f.id}, name="${redactPii(f.name)}", ${Math.round(f.width)}x${Math.round(f.height)}${f.preset ? `, preset=${f.preset}` : ''} (last edit: ${f.updatedBy}, ${f.html.length} bytes${f.html.length > LARGE_HTML_CHARS ? '; large document — avoid a full read for visual-reference work' : ''})`,
       )
       .join('\n')
 
@@ -863,13 +875,18 @@ const ALL_TOOLS: Anthropic.Tool[] = [
       type: 'object',
       properties: {
         name: { type: 'string' },
-        width: { type: 'number', description: 'px, e.g. 1200' },
-        height: { type: 'number', description: 'px, e.g. 630' },
+        width: { type: 'number', description: 'Optional px; omit for canonical preset or source copy dimensions' },
+        height: { type: 'number', description: 'Optional px; omit for canonical preset or source copy dimensions' },
+        preset: {
+          type: 'string',
+          enum: Object.keys(FORMAT_PRESETS),
+          description: 'Optional format preset; the server applies canonical dimensions',
+        },
         html: { type: 'string', description: 'Complete HTML document with inline CSS' },
         source_frame_id: {
           type: 'string',
           description:
-            'Copy provenance: the id of the frame this HTML was copied from. Pass it when duplicating a frame so template fields stay valid under a non-Creator account.',
+            'Copy provenance: the id of the frame being copied. Non-Creator copies inherit its preset and dimensions; supplied values must match. The server also validates template fields against the stored source.',
         },
         x: {
           type: 'number',
@@ -878,7 +895,7 @@ const ALL_TOOLS: Anthropic.Tool[] = [
         },
         y: { type: 'number', description: 'Canvas position in px. Optional, see x.' },
       },
-      required: ['name', 'width', 'height', 'html'],
+      required: ['name', 'html'],
     },
   },
   {
@@ -1203,6 +1220,7 @@ async function execTool(
           name?: string
           width?: number
           height?: number
+          preset?: FormatPresetId
           html?: string
           x?: number
           y?: number
@@ -1222,7 +1240,7 @@ async function execTool(
         runState.mutatedFrames.add(f.id)
         runState.verifiedFrames.delete(f.id)
         return ok(
-          `created frame ${f.id} ("${f.name}", ${Math.round(f.width)}x${Math.round(f.height)}) — it is revealing to viewers now`,
+          `created frame ${f.id} ("${f.name}", ${Math.round(f.width)}x${Math.round(f.height)}${f.preset ? `, preset=${f.preset}` : ''}) — it is revealing to viewers now`,
         )
       }
       case 'inspect_frame': {

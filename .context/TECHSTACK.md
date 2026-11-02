@@ -39,6 +39,13 @@
 - `@electric-sql/pglite` 0.5.4 - embedded Postgres so `bun run dev` works with zero external
   services.
 - `pg` 8.22.0 - Postgres driver for the real-database path.
+- TASK-32 adds optional `Frame.preset`, backed by nullable `frames.preset` and migration
+  `0041_frame_presets`. The five IDs and exact CSS-pixel sizes live in
+  `shared/prowin/formats.ts`; legacy frames keep no preset. New manual frames use
+  `FramePresetDialog`; server actions enforce canvas-scoped Creator resize rights
+  across REST, MCP, Resident, history restore and live drag. Copies preserve source
+  provenance; explicit custom-size history restore needs current Creator authority
+  without a live source. See `docs/superpowers/reports/2026-11-02-format-presets.md`.
 
 ## 4. Canvas Drawing
 

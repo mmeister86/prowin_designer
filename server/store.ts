@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid'
 import { normalizeFrameHtml } from './prowin/frameBrand.ts'
 import { createBrandGuideline } from './prowin/brand.ts'
 import { canvasPages, copyPageName, pageFrames, samePages } from '../shared/pages.ts'
+import type { FormatPresetId } from '../shared/prowin/formats.ts'
 import * as persist from './db/persist.ts'
 import type {
   Canvas,
@@ -20,7 +21,13 @@ export class PageLimitError extends Error {
   }
 }
 
-type PageCopy = { source: CanvasPageInfo; page: CanvasPageInfo; pages: CanvasPageInfo[]; frames: Frame[] }
+type PageCopy = {
+  source: CanvasPageInfo
+  page: CanvasPageInfo
+  pages: CanvasPageInfo[]
+  frames: Frame[]
+  sourceFrameIds: string[]
+}
 
 const names = (pages: CanvasPageInfo[]) => pages.map((page) => page.name)
 
@@ -222,7 +229,9 @@ class Store {
     if (pages.length >= MAX_PAGES) throw new PageLimitError()
     const now = Date.now()
     const page: CanvasPageInfo = { id: nanoid(10), name: copyPageName(source.name, names(pages)) }
-    const frames: Frame[] = pageFrames(canvas, pageId).map((frame) => ({
+    const sources = pageFrames(canvas, pageId)
+    const sourceFrameIds = sources.map((frame) => frame.id)
+    const frames: Frame[] = sources.map((frame) => ({
       ...frame,
       html: normalizeFrameHtml(frame.html),
       id: nanoid(10),
@@ -247,7 +256,7 @@ class Store {
     for (const frame of frames) this.frameIndex.set(frame.id, canvasId)
     canvas.updatedAt = Math.max(canvas.updatedAt, now)
     if (!samePages(canvas.pages, next)) persist.saveCanvas(canvas)
-    return { source, page, pages: canvas.pages, frames }
+    return { source, page, pages: canvas.pages, frames, sourceFrameIds }
   }
 
   setPages(canvasId: string, pages: import('../shared/types.ts').CanvasPageInfo[]) {
@@ -522,6 +531,7 @@ class Store {
       y?: number
       width?: number
       height?: number
+      preset?: FormatPresetId
       html?: string
       demo?: boolean
       hidden?: boolean
@@ -558,6 +568,7 @@ class Store {
       updatedBy: by,
     }
     if (input.demo) frame.demo = true
+    if (input.preset !== undefined) frame.preset = input.preset
     if (input.hidden) frame.hidden = true
     if (input.locked) frame.locked = true
     c.frames.push(frame)
@@ -570,7 +581,9 @@ class Store {
 
   updateFrame(
     frameId: string,
-    patch: Partial<Pick<Frame, 'name' | 'pageId' | 'x' | 'y' | 'width' | 'height' | 'html' | 'hidden' | 'locked'>>,
+    patch: Partial<Pick<Frame, 'name' | 'pageId' | 'x' | 'y' | 'width' | 'height' | 'html' | 'hidden' | 'locked'>> & {
+      preset?: FormatPresetId | null
+    },
     by: string,
   ): Frame | undefined {
     const frame = this.getFrame(frameId)
@@ -580,7 +593,10 @@ class Store {
       !canvasPages(this.canvases.get(frame.canvasId)!).some((p) => p.id === patch.pageId)
     )
       return undefined
-    Object.assign(frame, patch)
+    const { preset, ...fields } = patch
+    Object.assign(frame, fields)
+    if (preset === null) delete frame.preset
+    else if (preset !== undefined) frame.preset = preset
     frame.html = normalizeFrameHtml(frame.html)
     // Also serves as the optimistic-save version, including writes in the same millisecond.
     frame.updatedAt = Math.max(Date.now(), frame.updatedAt + 1)

@@ -81,7 +81,12 @@ beforeEach(() => {
   })
   vi.mocked(api.updateFrame).mockImplementation(async (id, patch, expectedUpdatedAt) => {
     const current = checkVersion(id, expectedUpdatedAt)
-    const frame = { ...current, ...patch, updatedAt: current.updatedAt + 1 }
+    const frame = {
+      ...current,
+      ...patch,
+      preset: patch.preset === null ? undefined : (patch.preset ?? current.preset),
+      updatedAt: current.updatedAt + 1,
+    }
     db.set(id, frame)
     return frame
   })
@@ -92,6 +97,29 @@ beforeEach(() => {
 })
 
 describe('moving drawings between frames and canvas', () => {
+  it('does not inherit the parent preset when extracting a drawing into its own frame', async () => {
+    const source = {
+      ...base,
+      preset: 'ig-story' as const,
+      html: '<html><body><div id="drawing" data-doop-drawing="rect" style="width:80px;height:80px"></div></body></html>',
+    }
+    db.set(source.id, source)
+    useStore.getState().upsertFrame(source)
+    await moveDrawing(source, '#drawing', rect)
+    const created = vi.mocked(api.createFrame).mock.calls[0]![1]
+    expect(created).not.toHaveProperty('preset')
+    expect(created).not.toHaveProperty('sourceFrameId')
+    expect(created).toMatchObject({ width: 80, height: 80 })
+  })
+
+  it('preserves a transferred whole-frame preset when undo recreates the removed source', async () => {
+    const source = { ...shape, preset: 'wa-status' as const }
+    db.set(source.id, source)
+    useStore.getState().upsertFrame(source)
+    await moveDrawing(source, undefined, rect, base.id)
+    await undo()
+    expect(frames().find((f) => f.id !== base.id)).toMatchObject({ preset: 'wa-status', width: 80, height: 80 })
+  })
   it('converts a standalone circle to a frame layer at the drop coordinates, as one undo step', async () => {
     await moveDrawing(shape, undefined, rect, base.id)
     expect(frames()).toHaveLength(1)
@@ -430,7 +458,12 @@ describe('moving drawings between frames and canvas', () => {
       await new Promise<void>((done) => {
         release = done
       })
-      const saved = { ...db.get(id)!, ...patch }
+      const current = db.get(id)!
+      const saved = {
+        ...current,
+        ...patch,
+        preset: patch.preset === null ? undefined : (patch.preset ?? current.preset),
+      }
       db.set(id, saved)
       return saved
     })

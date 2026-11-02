@@ -66,6 +66,8 @@ import { Toast, ToastAction, ToastSpinner } from '../components/ui/toast'
 import { Tooltip } from '../components/ui/tooltip'
 import { Modal, ModalActions, ModalLede, ModalTitle } from '../components/ui/modal'
 import { createCenteredFrame } from '../lib/framePlacement'
+import type { FormatPresetId } from '../../shared/prowin/formats'
+import { FramePresetDialog } from '../components/FramePresetDialog'
 
 /* The floating chrome's geometry, in px from the canvas area's edges. The
    panels sit 14px in from the edge; on the right the Agents panel (280)
@@ -151,6 +153,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
     history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`)
   }, [])
   const [showShare, setShowShare] = useState(false)
+  const [showFramePreset, setShowFramePreset] = useState(false)
   const [presenting, setPresenting] = useState(false)
   /* ⌘. acts only over the canvas view, outside PresentMode */
   const hideUiActive = canHideUi({ view: 'canvas', presenting })
@@ -315,9 +318,14 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
     }
   }, [latestDecision])
 
-  async function addFrame() {
+  function addFrame() {
+    setShowMobileLayers(false)
+    setShowFramePreset(true)
+  }
+
+  async function createFrame(preset?: FormatPresetId) {
     const n = (canvas?.frames.length ?? 0) + 1
-    const frame = await createCenteredFrame(canvasId, `Zeichenfläche ${n}`, STARTER_HTML)
+    const frame = await createCenteredFrame(canvasId, `Zeichenfläche ${n}`, STARTER_HTML, preset)
     select(frame.id)
   }
 
@@ -485,6 +493,7 @@ export function CanvasPage({ canvasId }: { canvasId: string }) {
           </Tooltip>
         </div>
       </TopBar>
+      {showFramePreset && <FramePresetDialog open onOpenChange={setShowFramePreset} onCreate={createFrame} />}
 
       {/* the canvas runs under the transparent top bar to the window's top
           edge; the floating chrome gets its own layer that starts below the

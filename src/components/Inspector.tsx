@@ -1,6 +1,7 @@
 import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { Frame } from '../../shared/types'
+import { FORMAT_PRESETS } from '../../shared/prowin/formats'
 import { useStore } from '../lib/store'
 import { api } from '../lib/api'
 import { copyFramePng, downloadFrameExport, downloadFrameHtml } from '../lib/frameExport'
@@ -103,6 +104,7 @@ export function Inspector({
   }
 
   function commitMeta(patch: Partial<Frame>) {
+    if (frame.preset && !canManageLocks && (patch.width !== undefined || patch.height !== undefined)) return
     recordUpdate(frame.id, frame, patch)
     useStore.getState().patchFrameLocal(frame.id, patch)
     api.updateFrame(frame.id, patch).catch(console.error)
@@ -152,9 +154,20 @@ export function Inspector({
           </div>
         </InspectorGroup>
         <InspectorGroup title="Layout">
+          {frame.preset && <p className="mb-1.5 text-[12px] text-ink-soft">{FORMAT_PRESETS[frame.preset].label}</p>}
           <div className="grid grid-cols-2 gap-1.5">
-            <NumInput label="W" value={frame.width} onCommit={(v) => commitMeta({ width: Math.max(120, v) })} />
-            <NumInput label="H" value={frame.height} onCommit={(v) => commitMeta({ height: Math.max(80, v) })} />
+            <NumInput
+              label="W"
+              value={frame.width}
+              disabled={!!frame.preset && !canManageLocks}
+              onCommit={(v) => commitMeta({ width: Math.max(120, v) })}
+            />
+            <NumInput
+              label="H"
+              value={frame.height}
+              disabled={!!frame.preset && !canManageLocks}
+              onCommit={(v) => commitMeta({ height: Math.max(80, v) })}
+            />
           </div>
         </InspectorGroup>
         <InspectorGroup title="Export">
@@ -326,7 +339,17 @@ function NameInput({ value, onCommit }: { value: string; onCommit: (v: string) =
   )
 }
 
-function NumInput({ label, value, onCommit }: { label: string; value: number; onCommit: (v: number) => void }) {
+function NumInput({
+  label,
+  value,
+  disabled,
+  onCommit,
+}: {
+  label: string
+  value: number
+  disabled?: boolean
+  onCommit: (v: number) => void
+}) {
   const [draft, setDraft] = useState(String(value))
   const [seen, setSeen] = useState(value)
   if (seen !== value) {
@@ -340,11 +363,12 @@ function NumInput({ label, value, onCommit }: { label: string; value: number; on
         aria-label={{ X: 'X-Position', Y: 'Y-Position', W: 'Breite', H: 'Höhe' }[label] ?? label}
         className="w-full min-w-0 bg-transparent font-mono text-[11px] text-ink outline-none"
         inputMode="numeric"
+        disabled={disabled}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           const n = Math.round(Number(draft))
-          if (!Number.isNaN(n) && n !== value) onCommit(n)
+          if (!disabled && !Number.isNaN(n) && n !== value) onCommit(n)
           else setDraft(String(value))
         }}
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}

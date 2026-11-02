@@ -76,6 +76,23 @@ describe('frameCenterPosition', () => {
 })
 
 describe('createCenteredFrame', () => {
+  it.each([
+    ['a4', 794, 1123, 103, -161.5],
+    ['ig-story', 1080, 1920, -40, -560],
+    ['wa-status', 1080, 1920, -40, -560],
+  ] as const)(
+    'centers %s using its actual size and preserves its identity on redo',
+    async (preset, width, height, x, y) => {
+      vi.stubGlobal('window', { innerWidth: 1000, innerHeight: 800 })
+      vi.stubGlobal('document', { querySelector: () => null })
+      const created = await createCenteredFrame('c1', 'Preset', '<p>hi</p>', preset)
+      expect(created).toMatchObject({ preset, width, height, x, y })
+      expect(api.createFrame).toHaveBeenLastCalledWith('c1', expect.objectContaining({ preset, width, height, x, y }))
+      await history.undo()
+      await history.redo()
+      expect(api.createFrame).toHaveBeenLastCalledWith('c1', expect.objectContaining({ preset, width, height }))
+    },
+  )
   beforeEach(() => {
     nextId = 0
     useStore.getState().setCanvas({ id: 'c1', name: 'c', frames: [] } as unknown as Canvas)

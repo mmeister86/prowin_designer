@@ -51,7 +51,7 @@ export function duplicatePage(canvas: Canvas, pageId: string) {
        back the copy alone */
     const after = [...expected]
     after.splice(expected.findIndex((page) => page.id === pageId) + 1, 0, copy.page)
-    recordPageCopy(canvas.id, expected, after, activeBefore, copy.page.id, copy.frames)
+    recordPageCopy(canvas.id, expected, after, activeBefore, copy.page.id, copy.frames, copy.sourceFrameIds)
     /* the broadcast usually lands first; a page list or frame that already
        moved on past this response is left alone */
     if (samePages(canvasPages(state.canvas), expected)) state.setPages(copy.pages, canvas.id)

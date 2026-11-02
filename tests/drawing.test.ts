@@ -55,6 +55,7 @@ beforeEach(() => {
   vi.mocked(api.updateFrame).mockImplementation(async (id, input) => ({
     ...useStore.getState().canvas!.frames.find((f) => f.id === id)!,
     ...input,
+    preset: input.preset === null ? undefined : input.preset,
   }))
 })
 
@@ -241,7 +242,11 @@ describe('saving and targeting drawings', () => {
       ...originalCanvas,
       frames: [{ ...frame, html: '<p>Latest remote edit</p>' }],
     })
-    vi.mocked(api.updateFrame).mockImplementation(async (_id, patch) => ({ ...frame, ...patch }))
+    vi.mocked(api.updateFrame).mockImplementation(async (_id, patch) => ({
+      ...frame,
+      ...patch,
+      preset: patch.preset === null ? undefined : patch.preset,
+    }))
     const first = saveDrawing(box, target)
     const layer = saveDrawing(box, { ...target, frameId: 'f' })
     const second = saveDrawing({ ...box, tool: 'circle' }, target)

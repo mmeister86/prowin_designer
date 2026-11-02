@@ -71,6 +71,9 @@ const REVIEW_NUDGE =
   'You have not seen this design yet. Call get_frame_screenshot on it now, judge it against the review checkpoints (fit, spacing, hierarchy, contrast, alignment, realism), and fix any issues before moving on.'
 
 import type { Actor } from '../shared/types.ts'
+import { FORMAT_PRESETS, type FormatPresetId } from '../shared/prowin/formats.ts'
+
+const presetId = z.enum(Object.keys(FORMAT_PRESETS) as [FormatPresetId, ...FormatPresetId[]])
 
 /** Reaches agents whose session predates set_status (or who skipped the guide). */
 function withStatusNudge<T extends { content: { type: 'text' | 'image'; [k: string]: unknown }[] }>(
@@ -178,6 +181,7 @@ function frameSummary(f: {
   demo?: boolean
   hidden?: boolean
   locked?: boolean
+  preset?: FormatPresetId
 }) {
   return {
     id: f.id,
@@ -190,6 +194,7 @@ function frameSummary(f: {
     y: f.y,
     width: f.width,
     height: f.height,
+    ...(f.preset !== undefined ? { preset: f.preset } : {}),
     updatedAt: new Date(f.updatedAt).toISOString(),
     updatedBy: f.updatedBy,
     htmlBytes: f.html.length,
@@ -834,16 +839,17 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
         y: z.number().optional(),
         width: z.number().optional().describe('Default 640'),
         height: z.number().optional().describe('Default 480'),
+        preset: presetId.optional().describe('Format preset; uses canonical dimensions unless copying a source'),
         source_frame_id: z
           .string()
           .optional()
           .describe(
-            'Copy provenance: the id of the frame this HTML was copied from. Pass it when duplicating a frame so template fields stay editable under a non-Creator account; the server validates against the stored source, never this id alone.',
+            'Copy provenance: the id of the frame being copied. Non-Creator copies inherit its preset and actual dimensions; supplied dimensions/preset must match. Template fields are validated against the stored source, never this id alone.',
           ),
         agent_name: agentName,
       },
     },
-    async ({ canvas_id, pageId, name, html, x, y, width, height, source_frame_id, agent_name }) => {
+    async ({ canvas_id, pageId, name, html, x, y, width, height, preset, source_frame_id, agent_name }) => {
       if (!canvasFor(canvas_id)) return noCanvas(canvas_id)
       const frame = actions.createFrame(
         canvas_id,
@@ -855,6 +861,7 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
           y,
           width,
           height,
+          preset,
           ...(source_frame_id ? { sourceFrameId: source_frame_id } : {}),
         },
         actorFrom(agent_name),
@@ -1453,6 +1460,10 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
         y: z.number().optional(),
         width: z.number().optional(),
         height: z.number().optional(),
+        preset: presetId
+          .nullable()
+          .optional()
+          .describe('Apply/switch format, or null to remove it; existing preset changes require Creator rights'),
         locked: z.boolean().optional(),
         agent_name: agentName,
       },
