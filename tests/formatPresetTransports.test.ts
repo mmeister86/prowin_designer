@@ -208,75 +208,50 @@ async function socket(client: Client, canvasId = canvas.id) {
   })
   return { ws, received }
 }
-// A viewport sent after the drag is a wire barrier: the receiver has processed preceding relays.
+// Network tests await an actual permitted relay. Denials await the handler directly in frameDrag.test.ts.
 async function relay(
   sender: Awaited<ReturnType<typeof socket>>,
   receiver: Awaited<ReturnType<typeof socket>>,
   drag: Record<string, unknown>,
 ) {
   receiver.received.length = 0
-  const barrier = new Promise<void>((resolve) => {
+  const relayed = new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      receiver.ws.off('message', handler)
+      reject(new Error('drag was not relayed'))
+    }, 5000)
     const handler = (data: WebSocket.RawData) => {
-      if (JSON.parse(String(data)).type !== 'viewport') return
+      const msg = JSON.parse(String(data))
+      if (msg.type !== 'frame:drag' || msg.frameId !== drag.frameId) return
+      clearTimeout(timer)
       receiver.ws.off('message', handler)
       resolve()
     }
     receiver.ws.on('message', handler)
   })
   sender.ws.send(JSON.stringify({ type: 'frame:drag', x: 42, y: 77, ...drag }))
-  // Permission checks are async; let the drag finish before sending the wire barrier.
-  await new Promise((r) => setTimeout(r, 150))
-  sender.ws.send(JSON.stringify({ type: 'viewport', viewport: { x: 1, y: 2, width: 100, height: 100, zoom: 1 } }))
-  await barrier
+  await relayed
   return receiver.received.filter((m) => m.type === 'frame:drag')
 }
 
-it('live drag validates preset dimensions, frame room, current role and access rather than client flags', async () => {
+it('relays allowed live moves, equal sizes and Creator sizes through the guarded handler', async () => {
   const f = await frame()
   const free = await frame({ preset: undefined })
-  const hidden: Canvas = await (await owner.post('/api/canvases', { name: 'Hidden' })).json()
-  const foreign: Frame = await (
-    await owner.post(`/api/canvases/${hidden.id}/frames`, { name: 'Foreign', preset: 'ig-post' })
-  ).json()
   const viewer = await socket(owner)
   const member = await socket(mate)
   const author = await socket(creator)
   try {
-    expect(await relay(member, viewer, { frameId: f.id, width: 500 })).toEqual([])
-    expect(await relay(member, viewer, { frameId: f.id, height: 500 })).toEqual([])
-    expect(await relay(member, viewer, { frameId: foreign.id, width: 500 })).toEqual([])
-    expect(await relay(member, viewer, { frameId: 'missing' })).toEqual([])
     expect(await relay(member, viewer, { frameId: f.id })).toHaveLength(1)
     expect(await relay(member, viewer, { frameId: f.id, width: 1080, height: 1080 })).toHaveLength(1)
     expect(await relay(member, viewer, { frameId: free.id, width: 500 })).toHaveLength(1)
-    expect(await relay(author, viewer, { frameId: foreign.id, width: 500 })).toEqual([])
     expect(await relay(author, viewer, { frameId: f.id, width: 500 })).toHaveLength(1)
     await owner.patch(`/api/workspaces/${workspace}/members/${creatorId}`, { role: 'member' })
     expect((await creator.patch(`/api/frames/${f.id}`, { width: 500 })).status).toBe(403)
-    expect(await relay(author, viewer, { frameId: f.id, width: 500 })).toEqual([])
     expect(await relay(author, viewer, { frameId: f.id })).toHaveLength(1)
-    await owner.delete(`/api/workspaces/${workspace}/members/${creatorId}`)
-    expect(await relay(author, viewer, { frameId: f.id })).toEqual([])
     expect(await snapshot(f.id)).toMatchObject({ preset: 'ig-post', width: 1080, height: 1080 })
   } finally {
     viewer.ws.close()
     member.ws.close()
     author.ws.close()
-  }
-}, 20_000)
-
-it('stops live drag relays after the joined session signs out', async () => {
-  const visitor = await new Client(server).signUp('preset-session@test.dev', 'Session')
-  await owner.post(`/api/workspaces/${workspace}/members`, { email: 'preset-session@test.dev' })
-  const f = await frame()
-  const viewer = await socket(owner)
-  const sender = await socket(visitor)
-  try {
-    expect(await relay(sender, viewer, { frameId: f.id })).toHaveLength(1)
-    expect((await visitor.post('/api/auth/sign-out')).status).toBe(200)
-    expect(await relay(sender, viewer, { frameId: f.id })).toEqual([])
-  } finally {
-    viewer.ws.close()
-    sender.ws.close()
   }
 }, 20_000)

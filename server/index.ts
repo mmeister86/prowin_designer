@@ -20,6 +20,7 @@ import { WebSocketServer, WebSocket } from 'ws'
 import { PageLimitError, store } from './store.ts'
 import { getImage } from './previews.ts'
 import * as actions from './actions.ts'
+import { relayFrameDrag } from './frameDrag.ts'
 import { liveActivitiesRouter, logLiveActivityRequests, startLiveActivityDelivery } from './liveActivities.ts'
 import { onCanvasEvent } from './events.ts'
 import * as commentNotifications from './commentNotifications.ts'
@@ -1653,32 +1654,26 @@ wss.on('connection', (ws, upgradeReq) => {
         broadcast(canvasId, { type: 'editing', clientId: presence.clientId, frameId: msg.frameId }, presence.clientId)
         break
       case 'frame:drag': {
-        const session = await auth.api.getSession({ headers: fromNodeHeaders(upgradeReq.headers) }).catch(() => null)
-        const canvas = store.getCanvas(canvasId)
-        const frame = store.getFrame(msg.frameId)
-        if (!session || !canvas || !frame || frame.canvasId !== canvasId || !canAccessCanvas(session.user.id, canvas))
-          break
-        try {
-          await withUserPermissions(session.user.id, () => actions.assertFrameGeometry(canvas, frame, msg))
-        } catch (error) {
-          if (error instanceof CreatorPermissionError) break
-          console.error('[ws] drag permission check failed', error)
-          break
-        }
-        // Access can change while the trusted identity is being loaded.
-        if (!canAccessCanvas(session.user.id, canvas) || store.getFrame(msg.frameId) !== frame) break
-        broadcast(
+        await relayFrameDrag(
           canvasId,
-          {
-            type: 'frame:drag',
-            clientId: presence.clientId,
-            frameId: msg.frameId,
-            x: msg.x,
-            y: msg.y,
-            width: msg.width,
-            height: msg.height,
+          msg,
+          () => auth.api.getSession({ headers: fromNodeHeaders(upgradeReq.headers) }),
+          () => {
+            if (conns.get(ws) !== conn || ws.readyState !== WebSocket.OPEN) return
+            broadcast(
+              canvasId,
+              {
+                type: 'frame:drag',
+                clientId: presence.clientId,
+                frameId: msg.frameId,
+                x: msg.x,
+                y: msg.y,
+                width: msg.width,
+                height: msg.height,
+              },
+              presence.clientId,
+            )
           },
-          presence.clientId,
         )
         break
       }
