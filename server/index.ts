@@ -1138,7 +1138,7 @@ app.post('/api/canvases/:id/pages/:pageId/duplicate', async (req, res) => {
 
 app.post('/api/canvases/:id/frames', (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
-  const { name, pageId, x, y, width, height, html, hidden, locked } = req.body ?? {}
+  const { name, pageId, x, y, width, height, preset, html, hidden, locked } = req.body ?? {}
   if (pageId !== undefined && !store.getCanvas(req.params.id)?.pages?.some((p) => p.id === pageId))
     return res.status(400).json({ error: 'Seite nicht gefunden' })
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
@@ -1154,6 +1154,7 @@ app.post('/api/canvases/:id/frames', (req, res) => {
         y,
         width,
         height,
+        preset,
         html,
         hidden: hidden === true,
         locked: locked === true,
@@ -1181,7 +1182,7 @@ app.patch('/api/frames/:id', (req, res) => {
     !store.getCanvas(store.getFrame(req.params.id)!.canvasId)?.pages?.some((p) => p.id === patch.pageId)
   )
     return res.status(400).json({ error: 'Seite nicht gefunden' })
-  const allowed = ['name', 'pageId', 'x', 'y', 'width', 'height', 'html'] as const
+  const allowed = ['name', 'pageId', 'x', 'y', 'width', 'height', 'preset', 'html'] as const
   const clean: Record<string, unknown> = {}
   for (const k of allowed) if (patch[k] !== undefined) clean[k] = patch[k]
   /* the eye in the Layers panel: anything but a literal true shows the frame */
@@ -1651,7 +1652,21 @@ wss.on('connection', (ws, upgradeReq) => {
         presence.activeFrameId = msg.frameId
         broadcast(canvasId, { type: 'editing', clientId: presence.clientId, frameId: msg.frameId }, presence.clientId)
         break
-      case 'frame:drag':
+      case 'frame:drag': {
+        const session = await auth.api.getSession({ headers: fromNodeHeaders(upgradeReq.headers) }).catch(() => null)
+        const canvas = store.getCanvas(canvasId)
+        const frame = store.getFrame(msg.frameId)
+        if (!session || !canvas || !frame || frame.canvasId !== canvasId || !canAccessCanvas(session.user.id, canvas))
+          break
+        try {
+          await withUserPermissions(session.user.id, () => actions.assertFrameGeometry(canvas, frame, msg))
+        } catch (error) {
+          if (error instanceof CreatorPermissionError) break
+          console.error('[ws] drag permission check failed', error)
+          break
+        }
+        // Access can change while the trusted identity is being loaded.
+        if (!canAccessCanvas(session.user.id, canvas) || store.getFrame(msg.frameId) !== frame) break
         broadcast(
           canvasId,
           {
@@ -1666,6 +1681,7 @@ wss.on('connection', (ws, upgradeReq) => {
           presence.clientId,
         )
         break
+      }
     }
   })
 
