@@ -7,6 +7,7 @@ import * as t from './schema.ts'
 import { extractAssetIds } from '../assets.ts'
 import { roleByAgentName } from '../../shared/agents.ts'
 import { isCommunityCategory } from '../../shared/types.ts'
+import { isFormatPresetId } from '../../shared/prowin/formats.ts'
 import type {
   ActivityItem,
   ActorKind,
@@ -78,6 +79,7 @@ export async function saveCanvasCopy(c: Canvas): Promise<void> {
           y: frame.y,
           width: frame.width,
           height: frame.height,
+          preset: frame.preset ?? null,
           html: frame.html,
           createdAt: frame.createdAt,
           updatedAt: frame.updatedAt,
@@ -297,6 +299,7 @@ export async function savePageCopy(c: Canvas, frames: Frame[]): Promise<void> {
         y: frame.y,
         width: frame.width,
         height: frame.height,
+        preset: frame.preset ?? null,
         html: frame.html,
         createdAt: frame.createdAt,
         updatedAt: frame.updatedAt,
@@ -340,6 +343,7 @@ async function writeFrame(f: Frame) {
     y: f.y,
     width: f.width,
     height: f.height,
+    preset: f.preset ?? null,
     html: f.html,
     createdAt: f.createdAt,
     updatedAt: f.updatedAt,
@@ -794,9 +798,10 @@ export async function hydrate(): Promise<Hydrated> {
     const c = byId.get(m.canvasId)
     if (c) (c.memberIds ??= []).push(m.userId)
   }
-  for (const f of frameRows)
+  for (const { preset, ...f } of frameRows)
     byId.get(f.canvasId)?.frames.push({
       ...f,
+      ...(isFormatPresetId(preset) ? { preset } : {}),
       pageId: f.pageId ?? undefined,
       demo: f.demo ?? undefined,
       hidden: f.hidden ?? undefined,

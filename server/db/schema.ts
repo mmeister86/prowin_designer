@@ -164,6 +164,7 @@ export const frames = pgTable(
     y: doublePrecision('y').notNull(),
     width: doublePrecision('width').notNull(),
     height: doublePrecision('height').notNull(),
+    preset: text('preset'),
     html: text('html').notNull(),
     createdAt: bigint('created_at', { mode: 'number' }).notNull(),
     updatedAt: bigint('updated_at', { mode: 'number' }).notNull(),

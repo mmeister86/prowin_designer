@@ -281,6 +281,13 @@
       "when": 1792873409715,
       "tag": "0040_resident_task_admission",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793615688869,
+      "tag": "0041_frame_presets",
+      "breakpoints": true
     }
   ]
 }
