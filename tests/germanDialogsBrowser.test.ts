@@ -132,6 +132,8 @@ it.skipIf(!findBrowserPath())(
     await page.goto(`${origin}/c/${canvasId}`)
     await page.waitForSelector('button[aria-label="Neue Zeichenfläche"]')
     await page.click('button[aria-label="Neue Zeichenfläche"]')
+    await page.waitForSelector('[role="dialog"] button[type="submit"]')
+    await page.click('[role="dialog"] button[type="submit"]')
     await page.waitForSelector('iframe[data-doop-frame]')
     const html = await page.evaluate(async (id) => {
       const canvas = await (await fetch(`/api/canvases/${id}`)).json()

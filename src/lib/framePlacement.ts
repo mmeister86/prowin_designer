@@ -1,4 +1,5 @@
 import type { Frame } from '../../shared/types'
+import { FORMAT_PRESETS, type FormatPresetId } from '../../shared/prowin/formats'
 import { api } from './api'
 import { useStore } from './store'
 import { recordCreate } from './history'
@@ -55,15 +56,23 @@ function stageViewportSize(): { width: number; height: number } {
  * and viewport wiring driving the Layers panel's "New frame" has something to test directly, the
  * same way frameClipboard.ts's paste helpers already do.
  */
-export async function createCenteredFrame(canvasId: string, name: string, html: string): Promise<Frame> {
-  const { x, y } = frameCenterPosition(useStore.getState().viewport, stageViewportSize(), DEFAULT_FRAME_SIZE)
+export async function createCenteredFrame(
+  canvasId: string,
+  name: string,
+  html: string,
+  preset?: FormatPresetId,
+): Promise<Frame> {
+  const { width, height } = preset ? FORMAT_PRESETS[preset] : DEFAULT_FRAME_SIZE
+  const { x, y } = frameCenterPosition(useStore.getState().viewport, stageViewportSize(), { width, height })
   const frame = await api.createFrame(canvasId, {
     name,
     html,
     x,
     y,
     pageId: useStore.getState().activePageId ?? undefined,
-    ...DEFAULT_FRAME_SIZE,
+    width,
+    height,
+    ...(preset ? { preset } : {}),
   })
   recordCreate(frame)
   return frame

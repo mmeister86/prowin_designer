@@ -272,12 +272,19 @@ export const api = {
         pageId:
           useStore.getState().canvas?.id === canvasId ? (useStore.getState().activePageId ?? undefined) : undefined,
         ...input,
-        // Plain copies (including old clips and redo) never depend on a live source.
-        sourceFrameId: input.html && extractTemplateFields(input.html).length > 0 ? input.sourceFrameId : undefined,
+        // Preset copies need the stored source to retain customized dimensions.
+        sourceFrameId:
+          input.preset || (input.html && extractTemplateFields(input.html).length > 0)
+            ? input.sourceFrameId
+            : undefined,
         actor: actor(),
       }),
     }),
-  updateFrame: (frameId: string, patch: Partial<Frame>, expectedUpdatedAt?: number) =>
+  updateFrame: (
+    frameId: string,
+    patch: Partial<Omit<Frame, 'preset'>> & { preset?: Frame['preset'] | null },
+    expectedUpdatedAt?: number,
+  ) =>
     req<Frame>('/api/frames/' + frameId, {
       method: 'PATCH',
       body: JSON.stringify({ ...patch, expectedUpdatedAt, actor: actor() }),

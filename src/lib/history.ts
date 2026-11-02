@@ -10,7 +10,7 @@ import { useStore } from './store'
 type Patch = Partial<Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'>>
 type Snapshot = Pick<
   Frame,
-  'canvasId' | 'pageId' | 'name' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'
+  'canvasId' | 'pageId' | 'name' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked' | 'preset'
 >
 
 type Entry =
@@ -79,6 +79,7 @@ function snapshot(f: Frame): Snapshot {
     y: f.y,
     width: f.width,
     height: f.height,
+    ...(f.preset ? { preset: f.preset } : {}),
     /* a hidden or locked frame comes back as it was when its deletion is undone */
     hidden: f.hidden,
     locked: f.locked,
@@ -233,9 +234,12 @@ export function deleteFramesTracked(frames: Frame[]) {
 function remapId(oldId: string, newId: string) {
   const visit = (e: Entry) => {
     if (e.type === 'group' || e.type === 'transfer') e.entries.forEach(visit)
-    else if (e.type !== 'pages' && e.frameId === oldId) {
-      e.frameId = newId
-      if (e.expected) e.expected = { ...e.expected, id: newId }
+    else if (e.type !== 'pages') {
+      if (e.type === 'create' && e.sourceFrameId === oldId) e.sourceFrameId = newId
+      if (e.frameId === oldId) {
+        e.frameId = newId
+        if (e.expected) e.expected = { ...e.expected, id: newId }
+      }
     }
   }
   for (const e of [...undoStack, ...redoStack]) visit(e)

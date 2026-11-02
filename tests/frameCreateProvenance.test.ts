@@ -27,3 +27,21 @@ it('retains source provenance for actual template fields', async () => {
   const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string) as Record<string, unknown>
   expect(body).toMatchObject({ html, sourceFrameId: 'source' })
 })
+
+it('retains source provenance for preset copies even without template HTML', async () => {
+  await api.createFrame('c1', {
+    name: 'Story',
+    html: '<p>Plain</p>',
+    preset: 'ig-story',
+    width: 900,
+    height: 1700,
+    sourceFrameId: 'source',
+  })
+  const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string) as Record<string, unknown>
+  expect(body).toMatchObject({ preset: 'ig-story', width: 900, height: 1700, sourceFrameId: 'source' })
+})
+
+it('serializes explicit preset removal for update requests', async () => {
+  await api.updateFrame('f', { preset: null })
+  expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toMatchObject({ preset: null })
+})

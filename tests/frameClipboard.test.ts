@@ -53,6 +53,54 @@ beforeEach(() => {
 })
 
 describe('multi-frame copy and paste', () => {
+  it('remaps preset copy provenance when its source is recreated by redo', async () => {
+    const source = { ...frame('source', 0, 0, 1080, 1920), preset: 'ig-story' as const }
+    history.recordCreate(source)
+    clipboard.duplicateFrame(source)
+    await flush()
+    await history.undo()
+    await history.undo()
+    await history.redo()
+    await history.redo()
+    expect(api.createFrame).toHaveBeenLastCalledWith(
+      'c1',
+      expect.objectContaining({ preset: 'ig-story', sourceFrameId: 'new2' }),
+    )
+  })
+  it.each(['ig-story', 'wa-status'] as const)(
+    'preserves %s and customized source dimensions through paste and redo',
+    async (preset) => {
+      clipboard.copyFrame({ ...frame('source', 0, 0, 900, 1700), preset })
+      clipboard.pasteFrameCentered('c1')
+      await flush()
+      expect(api.createFrame).toHaveBeenLastCalledWith(
+        'c1',
+        expect.objectContaining({ preset, width: 900, height: 1700, sourceFrameId: 'source' }),
+      )
+      await history.undo()
+      await history.redo()
+      expect(api.createFrame).toHaveBeenLastCalledWith(
+        'c1',
+        expect.objectContaining({ preset, width: 900, height: 1700, sourceFrameId: 'source' }),
+      )
+    },
+  )
+
+  it('preserves preset identity and dimensions for duplication and deleted-frame undo', async () => {
+    const source = { ...frame('source', 0, 0, 900, 1700), preset: 'wa-status' as const }
+    clipboard.duplicateFrame(source)
+    await flush()
+    expect(api.createFrame).toHaveBeenLastCalledWith(
+      'c1',
+      expect.objectContaining({ preset: 'wa-status', width: 900, height: 1700, sourceFrameId: 'source' }),
+    )
+    history.deleteFrameTracked(source)
+    await history.undo()
+    expect(api.createFrame).toHaveBeenLastCalledWith(
+      'c1',
+      expect.objectContaining({ preset: 'wa-status', width: 900, height: 1700 }),
+    )
+  })
   it('pastes every copied frame, keeping their layout, centred as a group', async () => {
     clipboard.copyFrames([frame('a', 100, 100), frame('b', 300, 150, 50, 50)])
     clipboard.pasteFrameCentered('c1')

@@ -141,6 +141,8 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
       (button) => getComputedStyle(button.parentElement!).backgroundColor,
     )
     await page.click('button[aria-label="Neue Zeichenfläche"]')
+    await page.waitForSelector('[role="dialog"] button[type="submit"]')
+    await page.click('[role="dialog"] button[type="submit"]')
     await page.waitForSelector('iframe[data-doop-frame]')
     await page.waitForSelector('[role="treeitem"][aria-selected="true"]')
     expect(selectedColor).toBe(
@@ -192,6 +194,8 @@ describe.skipIf(!findBrowserPath())('page list controls and keyboard history', (
       (button) => button.textContent!,
     )
     await page.click('button[aria-label="Neue Zeichenfläche"]')
+    await page.waitForSelector('[role="dialog"] button[type="submit"]')
+    await page.click('[role="dialog"] button[type="submit"]')
     await page.waitForSelector('iframe[data-doop-frame]')
     /* the room's broadcast can paint the frame before the create response
        selects it, and the picker only shows for a selection */

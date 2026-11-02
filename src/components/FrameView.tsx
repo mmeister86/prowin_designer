@@ -264,6 +264,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     /* a locked frame is not the stage's to select, move or resize: the press
        falls through to the Stage, which treats it as empty canvas */
     if (action !== 'frame-drag' || frame.locked) return
+    if (mode === 'resize' && frame.preset && !manageLocks) return
     if (
       mode === 'move' &&
       probeOnClick &&
@@ -339,7 +340,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
           const src = frames.find((f) => f.id === g.id)
           if (!src) continue
           api
-            .createFrame(src.canvasId, { name: src.name, html: src.html, sourceFrameId: src.id, ...g.orig })
+            .createFrame(src.canvasId, {
+              name: src.name,
+              html: src.html,
+              preset: src.preset,
+              sourceFrameId: src.id,
+              ...g.orig,
+            })
             .then((f) => {
               recordCreate(f, src.id)
             })
@@ -1372,7 +1379,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
             )
           })()}
 
-          {!frame.locked && !pathEdit && (
+          {!frame.locked && !pathEdit && (!frame.preset || manageLocks) && (
             <div
               className={cn(
                 'absolute -right-[7px] -bottom-[7px] h-3.5 w-3.5 cursor-nwse-resize rounded-[4px] border-[1.5px] border-ink bg-surface opacity-0 [transition:opacity_0.12s] group-hover:opacity-100',
