@@ -4,7 +4,7 @@ title: Fünf Kernformate persistent integrieren
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-11-02T12:46:00Z'
+updated_date: '2026-11-02T13:31:00Z'
 labels:
   - prowin
   - implementation
@@ -56,4 +56,6 @@ Follow-up: CodeRabbit minor in server/resident.ts – use preset dimensions for 
 
 Finale Controller-Verifikation auf 2f9eae2: 210/210 Testdateien, 1875/1875 Tests bestanden, keine übersprungen (390,05s; --maxWorkers=2). Typecheck, vollständiges Lint, Build und Whitespace-Prüfung bestanden. Abschließendes unabhängiges Re-Review: alle drei finalen Findings adressiert, keine neue Critical/Important-Breakage. CodeRabbit-Wiederholung: keine Major/Critical-Findings; verbleibender Minor ist TASK-80. Bekannte localStorage-/ECONNREFUSED-/AbortError-Stderr-Ausgaben und Vite-Chunk-Hinweis dokumentiert.
 Alle technischen Akzeptanzkriterien verifiziert. Manuelle Geräte-/Nutzerabnahme und externes PostgreSQL-Deployment nicht behauptet; Status bleibt In Progress.
+
+Nach Abschluss aller Prüfungen hat der Nutzer ausdrücklich Push und Pull Request im Fork mmeister86/prowin_designer gewählt. Kein Merge oder Task-Done ohne weitere ausdrückliche Freigabe. Branch und Worktree bleiben für PR-Feedback erhalten.
 <!-- SECTION:NOTES:END -->

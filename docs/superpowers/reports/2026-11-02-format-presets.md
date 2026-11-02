@@ -63,8 +63,9 @@
 - Bekannte Node-localStorage-/localhost-Verbindungs-/happy-dom-Teardown-Ausgaben
   und der bestehende Vite-Chunk-Hinweis sind nicht als Testfehler verschwiegen
   oder durch Konfigurationsänderungen unterdrückt worden.
-- Kein Push, Merge oder Deployment. TASK-32 bleibt bis zur ausdrücklichen
-  manuellen Nutzerabnahme **In Progress**.
+- Nach vollständiger Prüfung hat der Nutzer Push und Pull Request im Fork
+  `mmeister86/prowin_designer` freigegeben. Kein Merge oder Deployment.
+  TASK-32 bleibt bis zur ausdrücklichen manuellen Nutzerabnahme **In Progress**.
 
 ## Entscheidungen des Controllers
 
