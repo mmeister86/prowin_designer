@@ -1659,7 +1659,7 @@ wss.on('connection', (ws, upgradeReq) => {
           msg,
           () => auth.api.getSession({ headers: fromNodeHeaders(upgradeReq.headers) }),
           () => {
-            if (conns.get(ws) !== conn || ws.readyState !== WebSocket.OPEN) return
+            if (conns.get(ws) !== conn || ws.readyState !== WebSocket.OPEN) return false
             broadcast(
               canvasId,
               {

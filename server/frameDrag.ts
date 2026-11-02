@@ -4,22 +4,22 @@ import { assertFrameGeometry } from './actions.ts'
 import { CreatorPermissionError, withUserPermissions } from './prowin/permissions.ts'
 import { store } from './store.ts'
 
-const latestDrag = new WeakMap<Frame, symbol>()
+let nextDragSequence = 0
+const lastRelayedDrag = new WeakMap<Frame, number>()
 
 /** Validate a live drag against the current session, frame and Creator scope. */
 export async function relayFrameDrag(
   canvasId: string,
   msg: Extract<ClientMessage, { type: 'frame:drag' }>,
   getSession: () => Promise<{ user: { id: string } } | null>,
-  relay: () => void,
+  relay: () => boolean | void,
 ): Promise<void> {
   const canvas = store.getCanvas(canvasId)
   const frame = store.getFrame(msg.frameId)
   if (!canvas || !frame || frame.canvasId !== canvasId) return
-  // Capture before either lookup: later drags and committed saves supersede this message.
+  // Snapshot before either lookup; only an already-relayed newer drag supersedes this one.
   const version = frame.updatedAt
-  const sequence = Symbol()
-  latestDrag.set(frame, sequence)
+  const sequence = ++nextDragSequence
   const session = await getSession().catch(() => null)
   if (!session || !canAccessCanvas(session.user.id, canvas)) return
   try {
@@ -30,12 +30,13 @@ export async function relayFrameDrag(
     return
   }
   if (
-    latestDrag.get(frame) !== sequence ||
+    sequence <= (lastRelayedDrag.get(frame) ?? 0) ||
     frame.updatedAt !== version ||
     store.getCanvas(canvasId) !== canvas ||
     store.getFrame(msg.frameId) !== frame ||
     !canAccessCanvas(session.user.id, canvas)
   )
     return
-  relay()
+  // A disconnected/replaced socket returns false without broadcasting.
+  if (relay() !== false) lastRelayedDrag.set(frame, sequence)
 }

@@ -59,6 +59,59 @@ beforeEach(() => {
   store.init([canvas])
 })
 
+it('keeps relaying continuous 50-ms arrivals when the two lookups take 80 ms', async () => {
+  vi.useFakeTimers()
+  try {
+    vi.mocked(permissionIdentity).mockImplementation(async (userId) => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+      return { userId, creator: true, admin: false }
+    })
+    const slowSession = async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40))
+      return session()
+    }
+    const relays: number[] = []
+    const pending: Promise<void>[] = []
+    for (const x of [10, 20, 30, 40, 50]) {
+      pending.push(
+        relayFrameDrag('c', drag(x), slowSession, () => {
+          relays.push(x)
+        }),
+      )
+      await vi.advanceTimersByTimeAsync(50)
+    }
+    // The fifth lookup is still pending; peers must already have seen four live updates.
+    expect(relays).toEqual([10, 20, 30, 40])
+    await vi.advanceTimersByTimeAsync(50)
+    await Promise.all(pending)
+    expect(relays).toEqual([10, 20, 30, 40, 50])
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it.each(['denied', 'disconnected'] as const)(
+  'does not let a newer %s drag suppress an older valid pending relay',
+  async (outcome) => {
+    const gate = deferred<void>()
+    const started = deferred<void>()
+    vi.mocked(permissionIdentity).mockImplementationOnce(async (userId) => {
+      started.resolve()
+      await gate.promise
+      return { userId, creator: true, admin: false }
+    })
+    const relays: number[] = []
+    const older = relayFrameDrag('c', drag(10), session, () => {
+      relays.push(10)
+    })
+    await started.promise
+    await relayFrameDrag('c', drag(20), outcome === 'denied' ? async () => null : session, () => false)
+    gate.resolve()
+    await older
+    expect(relays).toEqual([10])
+  },
+)
+
 it.each(['session', 'permission'] as const)(
   'drops an older drag when a newer drag finishes during its delayed %s lookup',
   async (stage) => {
