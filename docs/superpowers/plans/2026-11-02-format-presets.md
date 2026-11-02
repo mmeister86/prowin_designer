@@ -48,11 +48,11 @@
 - The new DB column is nullable `preset text`; mirror through ordinary writes, canvas-copy writes, page-copy writes and load. Use the existing Drizzle generation workflow; inspect generated diff for unrelated changes.
 - Task 2 owns boundary validation, canonical creation sizes and permissions, not Task 1.
 
-- [ ] **Step 1: Write failing catalog and persistence tests.** Assert the five exact IDs/dimensions, distinguish Story/Status, assert own-key ID validation. Use real PGlite/migration or harness restart to verify create/save/reload, page/canvas copies and a legacy row without preset with unchanged dimensions. Exercise preset removal to DB null and reload to undefined.
-- [ ] **Step 2: Run `bun run test tests/formatPresets.test.ts tests/formatPresetPersistence.test.ts` and record the expected failures before implementation.**
-- [ ] **Step 3: Implement the catalog, optional Frame/store field, nullable schema migration and all persistence mappings.** Reuse existing object-spread copy behavior; do not add a second serialization layer.
-- [ ] **Step 4: Run the new tests plus `bun run test tests/duplicatePersistence.test.ts tests/legacyPagesMigration.test.ts tests/prowinMigration.test.ts` and `bun run typecheck`.** All must pass; document exact counts.
-- [ ] **Step 5: Format changed files, self-review, and commit only this task's files with `feat: Persist frame format presets`.**
+- [x] **Step 1: Write failing catalog and persistence tests.** Assert the five exact IDs/dimensions, distinguish Story/Status, assert own-key ID validation. Use real PGlite/migration or harness restart to verify create/save/reload, page/canvas copies and a legacy row without preset with unchanged dimensions. Exercise preset removal to DB null and reload to undefined.
+- [x] **Step 2: Run `bun run test tests/formatPresets.test.ts tests/formatPresetPersistence.test.ts` and record the expected failures before implementation.**
+- [x] **Step 3: Implement the catalog, optional Frame/store field, nullable schema migration and all persistence mappings.** Reuse existing object-spread copy behavior; do not add a second serialization layer.
+- [x] **Step 4: Run the new tests plus `bun run test tests/duplicatePersistence.test.ts tests/legacyPagesMigration.test.ts tests/prowinMigration.test.ts` and `bun run typecheck`.** All must pass; document exact counts.
+- [x] **Step 5: Format changed files, self-review, and commit only this task's files with `feat: Persist frame format presets`.**
 
 ### Task 2: Protect preset writes on the server
 
@@ -73,12 +73,12 @@
 - Live `frame:drag` must validate the frame belongs to the joined canvas, current session access and current Creator permission before relaying size changes of preset frames. Never trust actor names/client role flags. Allow position-only relay; never relay protected size changes.
 - Use existing error conventions: invalid ID/input is 400; denied resize/preset change is 403. Do not broaden general authorization or unrelated legacy numeric validation.
 
-- [ ] **Step 1: Write failing tests for all five canonical creations and invalid/prototype IDs.** Assert rejection does not change frame count, timestamps, dimensions, history or stream state as applicable.
-- [ ] **Step 2: Write failing permissions/transport tests.** Cover non-Creator REST/MCP resize denial, width-only/height-only, preset null/removal/switch bypass, same-size update, move, legacy free resize, authorized Creator resize retaining preset, workspace-member Creator denial, and subsequent denial after role revocation. Include version restore and live drag size relay. Cover a customized source copied with verified provenance versus forged/inaccessible/mismatched sources.
-- [ ] **Step 3: Run `bun run test tests/formatPresetPermissions.test.ts tests/formatPresetTransports.test.ts` and record expected failures.**
-- [ ] **Step 4: Implement the smallest shared action-level protection and wire boundary schemas/serializers.** Reuse trusted permission scopes, existing error handlers and copy provenance. Extend live drag handling only as required to prevent preset resize bypass.
-- [ ] **Step 5: Run the new tests, `bun run test tests/frameCreateProvenance.test.ts tests/templateTransports.test.ts tests/templateWrites.test.ts tests/frameVersions.test.ts`, and `bun run typecheck`.** All must pass.
-- [ ] **Step 6: Format, self-review and commit only this task's files with `feat: Protect preset frame dimensions`.**
+- [x] **Step 1: Write failing tests for all five canonical creations and invalid/prototype IDs.** Assert rejection does not change frame count, timestamps, dimensions, history or stream state as applicable.
+- [x] **Step 2: Write failing permissions/transport tests.** Cover non-Creator REST/MCP resize denial, width-only/height-only, preset null/removal/switch bypass, same-size update, move, legacy free resize, authorized Creator resize retaining preset, workspace-member Creator denial, and subsequent denial after role revocation. Include version restore and live drag size relay. Cover a customized source copied with verified provenance versus forged/inaccessible/mismatched sources.
+- [x] **Step 3: Run `bun run test tests/formatPresetPermissions.test.ts tests/formatPresetTransports.test.ts` and record expected failures.**
+- [x] **Step 4: Implement the smallest shared action-level protection and wire boundary schemas/serializers.** Reuse trusted permission scopes, existing error handlers and copy provenance. Extend live drag handling only as required to prevent preset resize bypass.
+- [x] **Step 5: Run the new tests, `bun run test tests/frameCreateProvenance.test.ts tests/templateTransports.test.ts tests/templateWrites.test.ts tests/frameVersions.test.ts`, and `bun run typecheck`.** All must pass.
+- [x] **Step 6: Format, self-review and commit only this task's files with `feat: Protect preset frame dimensions`.**
 
 ### Task 3: Add the preset dialog and preserve client flows
 
@@ -99,12 +99,12 @@
 - Clipboard snapshots, full-frame duplication (including Alt-drag), history snapshots/recreation and full-frame transfers carry preset identity and required source provenance. Do not assign a parent's preset to an extracted element promoted into a new frame.
 - Existing free-frame paths continue working; tests/fixtures expecting immediate manual creation must be updated for explicit dialog confirmation.
 
-- [ ] **Step 1: Write failing dialog tests.** Assert all five labels/dimensions, free-frame choice, cancellation without create, selected preset argument, pending-submit guard and visible failure without closing. Test keyboard/Escape through the existing modal behavior.
-- [ ] **Step 2: Write failing placement, copy/history and resize-control tests.** Verify A4/Story creation centered around actual preset size, Story versus Status identity, clipboard/duplicate/Undo/Redo preservation and Creator-customized copy dimensions. Verify non-Creator preset resize controls/group gesture cannot mutate local size; Creator and legacy controls remain usable.
-- [ ] **Step 3: Run the focused new/extended test files and record expected failures.**
-- [ ] **Step 4: Implement the dialog wiring, creation helper, client serialization/copy/history propagation and resize UI guard.** Reuse existing components and permission hooks; no preset-management screen or export work.
-- [ ] **Step 5: Run all new/extended tests, `bun run typecheck`, `bun run lint`, `bun run build` and `bun run test`.** Record exact results and any baseline-only failures; do not conceal skips.
-- [ ] **Step 6: Format, self-review and commit only this task's files with `feat: Add frame preset selection dialog`.**
+- [x] **Step 1: Write failing dialog tests.** Assert all five labels/dimensions, free-frame choice, cancellation without create, selected preset argument, pending-submit guard and visible failure without closing. Test keyboard/Escape through the existing modal behavior.
+- [x] **Step 2: Write failing placement, copy/history and resize-control tests.** Verify A4/Story creation centered around actual preset size, Story versus Status identity, clipboard/duplicate/Undo/Redo preservation and Creator-customized copy dimensions. Verify non-Creator preset resize controls/group gesture cannot mutate local size; Creator and legacy controls remain usable.
+- [x] **Step 3: Run the focused new/extended test files and record expected failures.**
+- [x] **Step 4: Implement the dialog wiring, creation helper, client serialization/copy/history propagation and resize UI guard.** Reuse existing components and permission hooks; no preset-management screen or export work.
+- [x] **Step 5: Run all new/extended tests, `bun run typecheck`, `bun run lint`, `bun run build` and `bun run test`.** Record exact results and any baseline-only failures; do not conceal skips.
+- [x] **Step 6: Format, self-review and commit only this task's files with `feat: Add frame preset selection dialog`.**
 
 ## Completion bookkeeping
 
