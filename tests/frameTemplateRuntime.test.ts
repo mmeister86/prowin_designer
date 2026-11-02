@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { FRAME_BOOTSTRAP } from '../src/lib/frameRuntime'
 
 /* Runs the real `doop:template` branch of the frame runtime's message
@@ -35,6 +35,159 @@ function send(selector: string, field: typeof FIELD | null, reqId: string) {
     new MessageEvent('message', { data: { type: 'doop:template', selector, field, reqId }, source: window }),
   )
 }
+
+describe('frame runtime template policy (doop:policy)', () => {
+  const seen: Array<Record<string, unknown>> = []
+  function install(): void {
+    const src = new DOMParser()
+      .parseFromString(FRAME_BOOTSTRAP, 'text/html')
+      .querySelector('script[data-v-boot]')!.textContent!
+    ;(document as unknown as { fonts: unknown }).fonts = { addEventListener: () => {}, forEach: () => {} }
+    ;(globalThis as unknown as { parent: unknown }).parent = window
+    window.addEventListener('message', (ev: MessageEvent) => {
+      if (typeof ev.data?.type === 'string' && ev.data.type.endsWith('-result')) seen.push(ev.data)
+      if (ev.data?.type === 'doop:active') seen.push(ev.data)
+    })
+    ;(0, eval)(src)
+  }
+  function send(data: Record<string, unknown>) {
+    window.dispatchEvent(new MessageEvent('message', { data, source: window }))
+  }
+  const tick = () => new Promise((r) => setTimeout(r, 0))
+  const results = (reqId: string) => seen.filter((m) => m.reqId === reqId)
+
+  beforeAll(install)
+  beforeEach(() => {
+    document.body.innerHTML =
+      '<section data-od-id="hero" data-od-locked="true"><p id="s">Hi</p></section>' +
+      '<section data-od-id="free"><span id="fld">A</span></section><p id="frz">B</p>'
+    seen.length = 0
+  })
+
+  it('fail-closes: locked and frozen elements take no style/select until the parent sends capabilities', async () => {
+    send({ type: 'doop:style', selector: '#s', styles: { color: 'red' }, reqId: 'locked-style' })
+    send({ type: 'doop:select', selector: '#s', reqId: 'locked-select' })
+    send({ type: 'doop:style', selector: '#frz', styles: { color: 'red' }, reqId: 'frozen-style' })
+    send({ type: 'doop:style', selector: '#fld', styles: { color: 'red' }, reqId: 'field-style' })
+    await tick()
+    expect(results('locked-style').length).toBeGreaterThan(0)
+    expect(results('locked-style').every((m) => m.ok === false)).toBe(true)
+    expect(results('locked-select').every((m) => m.hit == null)).toBe(true)
+    expect(results('frozen-style').every((m) => m.ok === false)).toBe(true)
+    expect(results('field-style').some((m) => m.ok === true)).toBe(true)
+  })
+
+  it('opens locked elements for creators once capabilities arrive', async () => {
+    seen.length = 0
+    send({ type: 'doop:policy', manageLocks: true, reqId: 'policy-on' })
+    await tick()
+    send({ type: 'doop:style', selector: '#s', styles: { color: 'red' }, reqId: 'creator-style' })
+    send({ type: 'doop:select', selector: '#s', reqId: 'creator-select' })
+    await tick()
+    expect(results('creator-style').some((m) => m.ok === true)).toBe(true)
+    expect(results('creator-select').some((m) => m.hit != null)).toBe(true)
+    send({ type: 'doop:policy', manageLocks: false, reqId: 'policy-off' })
+    await tick()
+  })
+
+  it('ends an active edit on a locked element when capabilities are revoked', async () => {
+    document.body.innerHTML = '<section data-od-id="hero" data-od-locked="true"><p id="t">Hi</p></section>'
+    seen.length = 0
+    send({ type: 'doop:policy', manageLocks: true, reqId: 'edit-creator' })
+    await tick()
+    send({ type: 'doop:edit', on: true })
+    await tick()
+    document
+      .querySelector('#t')!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }))
+    await tick()
+    const active = seen.filter((m) => m.type === 'doop:active')
+    expect(active.length).toBeGreaterThan(0)
+    expect(active.some((m) => (m.hit as { selector?: string } | null)?.selector === '#t')).toBe(true)
+    expect(document.querySelector('#t')!.hasAttribute('data-v-active')).toBe(true)
+    send({ type: 'doop:policy', manageLocks: false, reqId: 'edit-revoked' })
+    await tick()
+    const after = seen.filter((m) => m.type === 'doop:active')
+    expect(after.at(-1)?.hit).toBeNull()
+    expect(document.querySelector('#t')!.hasAttribute('data-v-active')).toBe(false)
+    send({ type: 'doop:edit', on: false })
+    await tick()
+  })
+
+  /* Breaks caught here: inspect() not reporting the live template policy,
+     so the parent panel cannot tell a script-generated element (editable in
+     plain frames, read-only in frozen areas, blocked under a script-added
+     lock) from a stale selector. Hand-derived literals, not policy helpers. */
+  it('reports the live template policy on inspect and null for stale selectors', async () => {
+    seen.length = 0
+    send({ type: 'doop:inspect', selector: '#s', reqId: 'inspect-locked' })
+    send({ type: 'doop:inspect', selector: '#fld', reqId: 'inspect-field' })
+    send({ type: 'doop:inspect', selector: '#frz', reqId: 'inspect-frozen' })
+    send({ type: 'doop:inspect', selector: '#nope', reqId: 'inspect-stale' })
+    await tick()
+    const policyOf = (reqId: string) => (results(reqId)[0]?.info as { policy?: unknown } | null)?.policy ?? null
+    expect(policyOf('inspect-locked')).toEqual({
+      template: true,
+      locked: true,
+      readOnly: true,
+      allowedColors: null,
+    })
+    expect(policyOf('inspect-field')).toEqual({
+      template: true,
+      locked: false,
+      readOnly: false,
+      allowedColors: null,
+    })
+    expect(policyOf('inspect-frozen')).toEqual({
+      template: true,
+      locked: false,
+      readOnly: true,
+      allowedColors: null,
+    })
+    expect(results('inspect-stale')[0]?.info ?? null).toBeNull()
+  })
+
+  it('intersects nested color bounds from the live document', async () => {
+    document.body.innerHTML =
+      '<section data-od-id="a" data-od-allowed-colors="prowin-ci-blau, prowin-ci-rot">' +
+      '<p id="inner" data-od-id="b" data-od-allowed-colors="prowin-ci-rot,prowin-ci-gruen">x</p></section>'
+    seen.length = 0
+    send({ type: 'doop:inspect', selector: '#inner', reqId: 'inspect-colors' })
+    await tick()
+    const colors = results('inspect-colors')[0]?.info as { policy?: { allowedColors?: unknown } } | undefined
+    expect(colors?.policy?.allowedColors).toEqual(['prowin-ci-rot'])
+  })
+
+  /* Breaks caught here: the runtime offering text/style edits on arbitrary
+     field descendants the server freezes (div-field > p). Unsafe wrappers
+     and everything below them take no style and inspect read-only; safe
+     spans and field roots keep working. Hand-derived literals. */
+  it('refuses style and reports read-only for unsafe field descendants', async () => {
+    document.body.innerHTML =
+      '<div data-od-id="f" data-od-role="body"><p id="u">Text <span id="v">tief</span></p>' +
+      '<span id="ok">frei</span></div><p id="r" data-od-id="g" data-od-role="body">Wurzel</p>'
+    seen.length = 0
+    send({ type: 'doop:style', selector: '#u', styles: { color: 'red' }, reqId: 'unsafe-p' })
+    send({ type: 'doop:style', selector: '#v', styles: { color: 'red' }, reqId: 'unsafe-deep' })
+    send({ type: 'doop:style', selector: '#ok', styles: { color: 'red' }, reqId: 'safe-span' })
+    send({ type: 'doop:style', selector: '#r', styles: { color: 'red' }, reqId: 'field-root' })
+    send({ type: 'doop:inspect', selector: '#u', reqId: 'inspect-u' })
+    send({ type: 'doop:inspect', selector: '#v', reqId: 'inspect-v' })
+    send({ type: 'doop:inspect', selector: '#ok', reqId: 'inspect-ok' })
+    send({ type: 'doop:inspect', selector: '#r', reqId: 'inspect-r' })
+    await tick()
+    expect(results('unsafe-p').every((m) => m.ok === false)).toBe(true)
+    expect(results('unsafe-deep').every((m) => m.ok === false)).toBe(true)
+    expect(results('safe-span').some((m) => m.ok === true)).toBe(true)
+    expect(results('field-root').some((m) => m.ok === true)).toBe(true)
+    const policyOf = (reqId: string) =>
+      (results(reqId)[0]?.info as { policy?: { readOnly?: boolean } } | null)?.policy ?? null
+    expect(policyOf('inspect-u')).toMatchObject({ readOnly: true })
+    expect(policyOf('inspect-v')).toMatchObject({ readOnly: true })
+    expect(policyOf('inspect-ok')).toMatchObject({ readOnly: false })
+    expect(policyOf('inspect-r')).toMatchObject({ readOnly: false })
+  })
+})
 
 describe('frame runtime doop:template handler', () => {
   it('sets all six attributes on the live element and removes them when field is null', async () => {

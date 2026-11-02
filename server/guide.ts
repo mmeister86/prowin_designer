@@ -77,6 +77,56 @@ brief from the user's requirements and the design-quality principles. Record the
 mood, palette roles, typography and layout direction with set_status and save_decision.
 External inspiration search is temporarily disabled.`
 
+/** Shared template-field contract for agents. Interpolated verbatim into
+ *  DOOP_GUIDE (MCP get_guide) and the resident system prompt so both
+ *  surfaces carry the same rules; the server guard stays the authority. */
+export const TEMPLATE_GUIDE = `## Templates — personalizable fields (\`data-od-*\`)
+
+Some frames are templates: Creator-marked elements carry stable \`data-od-*\`
+fields that non-Creators personalize. The server guard
+(\`assertTemplateWrite\`) is the binding authority — your \`agent_name\`
+grants nothing; only the server-checked identity of the connecting account
+(canvas capability \`manageLocks\`) decides. Default to the non-Creator rules
+below unless the human explicitly asks you to author a template.
+
+- **The six attributes.** \`data-od-id\` (stable field identity — preserve it
+  during personalization; duplicates are rejected) · \`data-od-role\`
+  (headline | body | image | cta | logo | contact | date | decor — semantics
+  for labels and patches, not styling) · \`data-od-label\` (display name, max
+  120 chars) · \`data-od-locked\` (presence locks the whole subtree for
+  non-Creators, whatever its value) · \`data-od-max-length\` (max Unicode
+  code points of the field's whole decoded text, descendants included —
+  every ancestor limit applies too) · \`data-od-allowed-colors\`
+  (comma-separated token names without \`--\`, only from BRAND_TOKENS;
+  nested lists intersect).
+- **Locked means locked.** Never edit, move, delete, rename, unwrap, or
+  re-style a \`data-od-locked\` element or any descendant; never remove the
+  attribute. Locked subtrees are not selectable for non-Creators.
+- **Outside fields is frozen.** In frames with template fields, everything
+  outside editable fields keeps its tags, attributes, structure, and order —
+  doctype, wrapper attributes, scripts, styles, handlers. Offer no
+  layout/HTML changes there. Inside editable fields, only safe inline context
+  (typography-only spans with no color/class/id carrier) may change; arbitrary
+  nested elements remain frozen and the server decides what counts.
+- **Colors are tokens.** Write only \`var(--<token>)\` with a token from the
+  field's exact \`allowed-colors\` list; never hex/RGB substitutes and no new
+  shorthand color declarations.
+- **Lengths are Unicode whole-field.** Count decoded code points
+  (\`[...text].length\`) over the whole field including descendants, against
+  every applicable limit (field plus all ancestors). Over-long legacy content
+  stays resavable — never truncate silently; shorten your own addition or ask.
+- **A 403 ends the attempt.** A rejected save is not a local save: keep the
+  stored state, explain in German what was refused and why, and never retry
+  by removing constraints, renaming IDs, dropping \`source_frame_id\`
+  provenance, changing \`agent_name\`, or otherwise bypassing the guard. Only
+  an explicit human authoring request may attempt locked/structural changes —
+  still under the account's real permission; a 403 then means stop, not escalate.
+- **Creators keep full authoring.** Under a real Creator identity
+  (\`manageLocks\`) explicit authoring requests may create fields with fresh
+  frame-unique IDs and change locks, metadata, and structure. Metadata must
+  still be valid: invalid attributes and duplicate IDs return 400 for everyone.
+  The same guard checks every transport.`
+
 export const DOOP_GUIDE = `# Doop Agent Guide
 
 ${PROWIN_BRAND_PROMPT}
@@ -375,6 +425,8 @@ CURRENT html (/i/<frameId>.png?scale=2; use .jpg?quality=90 for JPEG, append &do
 for an attachment). The export_frame tool returns the same URLs on demand. Use it when a human asks to publish a design elsewhere: download the
 image and upload it wherever they need (a CMS media library, a social post, an og:image).
 The URL re-renders on change, so an embedded link stays current as the frame iterates.
+
+${TEMPLATE_GUIDE}
 
 ## Multiplayer etiquette
 

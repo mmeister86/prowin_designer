@@ -9,8 +9,17 @@ import { FrameLabelLayer } from './FrameLabelLayer'
 import { PathEditor } from './PathEditor'
 import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
-import { registerFrameWindow, unregisterFrameWindow } from '../lib/frameBridge'
+import { registerFrameWindow, unregisterFrameWindow, inspectElement } from '../lib/frameBridge'
+import { dropTemplateBlockedSelection } from '../lib/layerEdits'
+import { useCanvasCapabilities } from '../prowin/canvasPermissions'
+import {
+  TEMPLATE_LOCKED_NOTICE,
+  TEMPLATE_STALE_NOTICE,
+  selectionBlockReason,
+  templatePolicyOf,
+} from '../prowin/templatePolicy'
 import { api } from '../lib/api'
+import { enqueueHtmlSave } from '../lib/frameHtmlSaves'
 import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
 import { throttle } from '../lib/throttle'
@@ -169,11 +178,16 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
   )
   const [pathEdit, setPathEdit] = useState<PathEditSource | null>(null)
   const editRequest = useRef(0)
+  /* exit flushes overtaken by a rejection abort: their echo is skipped */
+  const deadFlushIds = useRef(new Set<number>())
   const closePathEdit = useCallback(() => {
     editRequest.current++
     setPathEdit(null)
   }, [])
   const selected = useStore((s) => s.selectedIds.includes(frame.id))
+  /* template capability for this canvas: drives the runtime's lock
+     enforcement and the toolbar's lock hints (fail-closed until loaded) */
+  const manageLocks = useCanvasCapabilities(frame.canvasId).manageLocks
   /* space held: the shield stays up even in edit mode, so the press reaches
      the Stage and pans instead of vanishing into the editable iframe */
   const panMode = useStore((s) => s.panMode)
@@ -430,6 +444,12 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     registerFrameWindow(frame.id, win)
     return () => unregisterFrameWindow(frame.id, win)
   }, [runtimeReady, frame.id])
+  /* the runtime's template enforcement runs on trusted parent state,
+     fail-closed until this arrives and whenever it changes */
+  useEffect(() => {
+    if (!runtimeReady) return
+    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:policy', manageLocks }, '*')
+  }, [runtimeReady, manageLocks, frame.id])
   useEffect(() => {
     if (!runtimeReady || editing || suspendPost || html !== frame.html || html === localHtml.current) return
     localHtml.current = null
@@ -668,6 +688,30 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     )
   }, [runtimeReady, wantedSel, probeSel, frame.id, html, frame.html])
 
+  /* a pick that HTML or capability changes have template-locked is dropped
+     with German feedback, so it cannot stand in for selection. Stale picks
+     stay with the select-result path: the live document (scripts included)
+     is authoritative for whether a selector still resolves, and that path
+     keeps the legacy inspector contract. */
+  useEffect(() => {
+    dropTemplateBlockedSelection(frame, manageLocks)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- frame.html + frame.id cover every used field
+  }, [frame.html, manageLocks, frame.id])
+
+  /* lock hint for the element toolbar's anchor. A null stored policy means
+     the selector resolves only in the live document (script-generated) or
+     not at all (stale): neither blocks the button — the runtime judges the
+     live element on click, and a stale anchor offers nothing to act on. */
+  const toolbarAnchorSel = (editing ? activeHit : probe)?.selector ?? null
+  const toolbarPolicy = useMemo(
+    () => (toolbarAnchorSel ? templatePolicyOf(frame.html, toolbarAnchorSel, manageLocks) : null),
+    [frame.html, toolbarAnchorSel, manageLocks],
+  )
+  const anchorBlocked = !manageLocks && !!toolbarPolicy && (toolbarPolicy.locked || toolbarPolicy.readOnly)
+  /* geometry edits are server-rejected for non-creators anywhere in a
+     template frame — the grips stay off so they cannot be attempted */
+  const anchorTemplate = !manageLocks && !!toolbarPolicy && toolbarPolicy.template
+
   useEffect(() => {
     function onMsg(ev: MessageEvent) {
       if (ev.source !== iframeRef.current?.contentWindow) return
@@ -694,11 +738,28 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
           setProbe(hit)
         } else {
           /* The live document is authoritative for linked elements and
-             Layers picks, including nodes created or removed by scripts. */
+             Layers picks, including nodes created or removed by scripts. A
+             lock the stored HTML cannot see (script-added) is told apart
+             from a gone element by one live read before reporting. */
           const s = useStore.getState()
+          const selector = selectSel.current ?? ''
+          if (selectionBlockReason(frame.html, selector, manageLocks) === 'locked') {
+            s.pickElement(null)
+            s.pushNotice(TEMPLATE_LOCKED_NOTICE)
+            return
+          }
           s.pickElement(null)
-          s.setInspectorOpen(true)
-          s.pushNotice('Dieses Element existiert nicht mehr. Stattdessen wird seine Zeichenfläche angezeigt.')
+          void inspectElement(frame.id, selector).then((liveInfo) => {
+            const cur = useStore.getState()
+            /* a newer pick owns the feedback now */
+            if (cur.selectedElement !== null) return
+            if (liveInfo && !manageLocks && liveInfo.policy.locked) {
+              cur.pushNotice(TEMPLATE_LOCKED_NOTICE)
+            } else {
+              cur.setInspectorOpen(true)
+              cur.pushNotice(TEMPLATE_STALE_NOTICE)
+            }
+          })
         }
       }
       if (ev.data?.type === 'doop:hover-result' && ev.data.reqId === hoverReq.current) {
@@ -750,7 +811,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     }
     window.addEventListener('message', onMsg)
     return () => window.removeEventListener('message', onMsg)
-  }, [frame.id])
+  }, [frame.id, frame.html, manageLocks])
 
   /* Esc dismisses popovers (edit mode has its own Esc path inside the iframe) */
   useEffect(() => {
@@ -821,6 +882,22 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     activeSelRef.current = null
   }, [setComposing])
 
+  /* End the text session without serializing and restore the live document
+     to stored html: a rejected save must leave no invalid state behind, in
+     the store or on the canvas. Exit flushes overtaken by the abort are
+     recorded as dead so their echo never re-saves the refused content. */
+  const abortEditToHtml = useCallback((frameId: string, html: string) => {
+    for (const flushId of editExits.current.keys()) deadFlushIds.current.add(flushId)
+    for (const finish of editExits.current.values()) finish()
+    editExits.current.clear()
+    setSuspendPost(false)
+    setEditing(false)
+    setActiveHit(null)
+    setComposing(false)
+    activeSelRef.current = null
+    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:revert', html }, '*')
+  }, [])
+
   /* switching to Hand or Comment ends a text-edit session: both put the
      shield back over the document, and a comment click has to probe the
      frame, which an open edit blocks. The iframe is told to leave edit mode
@@ -835,6 +912,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     function onMsg(ev: MessageEvent) {
       if (ev.source !== iframeRef.current?.contentWindow) return
       if (ev.data?.type === 'doop:edited' && typeof ev.data.html === 'string') {
+        const flushId = ev.data.flushId
+        /* an exit flush overtaken by a rejection abort: its echo carries
+           the refused content and must never be re-saved */
+        if (typeof flushId === 'number' && deadFlushIds.current.has(flushId)) {
+          deadFlushIds.current.delete(flushId)
+          return
+        }
         // The runtime already has this document. Echoing it through the HTML
         // throttle can overwrite a newer style edit still waiting to save.
         localHtml.current = ev.data.html
@@ -842,12 +926,21 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         let save: Promise<unknown> = Promise.resolve()
         if (before !== ev.data.html) {
           useStore.getState().patchFrameLocal(frame.id, { html: ev.data.html })
-          save = api.updateFrame(frame.id, { html: ev.data.html }).catch(console.error)
-          trackSave(save)
           if (before !== undefined)
             recordUpdate(frame.id, { html: before }, { html: ev.data.html }, ev.data.discrete === true)
+          /* a save the server refused (template guard, permissions) is no
+             local save: the shared per-frame sequence rolls the store back
+             to the newest confirmed state with German feedback and resets
+             the live session instead of keeping invalid content */
+          save = enqueueHtmlSave({
+            frameId: frame.id,
+            html: ev.data.html,
+            before,
+            refusedNotice: 'Die Änderung konnte nicht gespeichert werden',
+            resetLive: (id, target) => abortEditToHtml(id, target),
+          })
+          trackSave(save)
         }
-        const flushId = ev.data.flushId
         const finish = editExits.current.get(flushId)
         if (finish) {
           void save.then(() => {
@@ -860,6 +953,10 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       if (ev.data?.type === 'doop:edit-esc') {
         exitEdit()
       }
+      /* the runtime's template text guard explains itself in German */
+      if (ev.data?.type === 'doop:edit-notice' && typeof ev.data.text === 'string') {
+        useStore.getState().pushNotice(ev.data.text)
+      }
     }
     window.addEventListener('message', onMsg)
     const exits = editExits.current
@@ -868,7 +965,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       for (const finish of exits.values()) finish()
       exits.clear()
     }
-  }, [frame.id, exitEdit])
+  }, [frame.id, exitEdit, abortEditToHtml])
 
   /* deselecting the frame ends the edit session. Selection lives in the
      store and the iframe has to be told, so this is a sync with an external
@@ -1083,6 +1180,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
               tool === 'select' &&
               probe.sizable &&
               !probe.locked &&
+              !anchorTemplate &&
               !frame.locked && (
                 <ElementResizeHandles
                   frame={frame}
@@ -1192,6 +1290,14 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                           <span className="rounded-[5px] bg-paper/[0.14] px-[5px] py-px text-[11px] font-bold text-paper [font-family:ui-monospace,monospace]">
                             {anchor.tag}
                           </span>
+                          {!manageLocks && toolbarPolicy && (toolbarPolicy.locked || toolbarPolicy.readOnly) && (
+                            <span
+                              role="status"
+                              className="rounded-[5px] bg-paper/[0.14] px-[5px] py-px text-[11px] font-bold text-paper"
+                            >
+                              {toolbarPolicy.locked ? 'Template-gesperrt' : 'Schreibgeschützt'}
+                            </span>
+                          )}
                           <Button
                             variant="inverse"
                             className={EL_TOOLBAR_BTN}
@@ -1229,7 +1335,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                           >
                             Link kopieren
                           </Button>
-                          {!editing && canEdit && anchor.text !== '' && (
+                          {!editing && canEdit && !anchorBlocked && anchor.text !== '' && (
                             <Button
                               variant="inverse"
                               className={EL_TOOLBAR_BTN}

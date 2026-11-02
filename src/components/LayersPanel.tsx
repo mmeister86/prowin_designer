@@ -1,4 +1,4 @@
-import { useCanvasCapabilities } from '../prowin/canvasPermissions'
+import { useCanvasCapabilities, canManageFrameLocks } from '../prowin/canvasPermissions'
 import {
   useEffect,
   useMemo,
@@ -36,6 +36,12 @@ import {
   setLayerLocked,
   shiftLayer,
 } from '../lib/layerEdits'
+import {
+  TEMPLATE_LOCKED_NOTICE,
+  TEMPLATE_STALE_NOTICE,
+  selectionBlockReason,
+  templatePolicyOf,
+} from '../prowin/templatePolicy'
 import { MOD_KEY } from '../lib/keys'
 import { cn } from '@/lib/utils'
 import { AgentIcon } from './AgentIcon'
@@ -229,9 +235,18 @@ export function LayersPanel({
   const currentKey = selectedElement ? rowKey(selectedElement.frameId, selectedElement.selector) : selectedId
 
   /* a layer row opens the element properties panel; a frame row closes it
-     and leaves the frame's own inspector to the frame-name click */
+     and leaves the frame's own inspector to the frame-name click.
+     Template-locked subtrees are strictly not selectable for non-creators;
+     a stale pick cannot stand in for a frame selection either. */
   function activate(row: VisibleRow) {
     const s = useStore.getState()
+    if (row.kind === 'node') {
+      const reason = selectionBlockReason(row.frame.html, row.node.selector, canManageFrameLocks(row.frame.canvasId))
+      if (reason) {
+        s.pushNotice(reason === 'locked' ? TEMPLATE_LOCKED_NOTICE : TEMPLATE_STALE_NOTICE)
+        return
+      }
+    }
     s.select(row.frame.id)
     s.pickElement(row.kind === 'node' ? { frameId: row.frame.id, selector: row.node.selector } : null)
   }
@@ -604,6 +619,17 @@ function NodeRow({
 }) {
   const { frame, node } = row
   const hasChildren = node.children.length > 0
+  const caps = useCanvasCapabilities(frame.canvasId)
+  /* a template lock shows as a lock too; for non-creators its toggle
+     explains the template lock instead of flipping the legacy one */
+  const templateLocked = useMemo(
+    () => templatePolicyOf(frame.html, node.selector, caps.manageLocks)?.locked ?? false,
+    [frame.html, node.selector, caps.manageLocks],
+  )
+  const templateBlocked = !caps.manageLocks && templateLocked
+  const toggleLocked = templateBlocked
+    ? () => useStore.getState().pushNotice(TEMPLATE_LOCKED_NOTICE)
+    : () => setLayerLocked(frame, node.selector, !node.locked)
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
@@ -620,8 +646,8 @@ function NodeRow({
           hidden={node.hidden}
           dimmed={row.dim || node.hidden}
           onToggleHidden={() => setLayerHidden(frame, node.selector, !node.hidden)}
-          locked={node.locked}
-          onToggleLocked={() => setLayerLocked(frame, node.selector, !node.locked)}
+          locked={node.locked || templateLocked}
+          onToggleLocked={toggleLocked}
           className={cn(dragging && 'opacity-40')}
           onClick={onActivate}
           onContextMenu={onActivate}
@@ -667,12 +693,16 @@ function NodeRow({
           <MenuHint>⌥↓</MenuHint>
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem onSelect={() => setLayerLocked(frame, node.selector, !node.locked)}>
-          {node.locked ? 'Entsperren' : 'Sperren'}
+        <ContextMenuItem onSelect={toggleLocked}>
+          {node.locked || templateBlocked ? 'Entsperren' : 'Sperren'}
           <MenuHint>⌘⇧L</MenuHint>
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem tone="danger" disabled={node.locked} onSelect={() => deleteLayer(frame, node.selector)}>
+        <ContextMenuItem
+          tone="danger"
+          disabled={node.locked || templateBlocked}
+          onSelect={() => deleteLayer(frame, node.selector)}
+        >
           Element löschen
           <MenuHint>⌫</MenuHint>
         </ContextMenuItem>

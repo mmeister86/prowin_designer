@@ -13,6 +13,14 @@ import {
 } from '../lib/frameBridge'
 import { ancestorsOf, buildLayerTree, elementHtml, findLayer, layerName } from '../lib/layers'
 import { replaceLayerHtml } from '../lib/layerEdits'
+import { useCanvasCapabilities } from '../prowin/canvasPermissions'
+import {
+  stricterTemplatePolicy,
+  TEMPLATE_LOCKED_NOTICE,
+  TEMPLATE_READONLY_NOTICE,
+  TEMPLATE_STALE_NOTICE,
+  templatePolicyOf,
+} from '../prowin/templatePolicy'
 import { TemplateFieldsSection } from '../prowin/TemplateFieldsSection'
 import {
   aspectRatio,
@@ -124,8 +132,35 @@ export function ElementPanel({
   const node = useMemo(() => findLayer(tree, selector), [tree, selector])
   const parentNode = useMemo(() => ancestorsOf(tree, selector)?.at(-1) ?? null, [tree, selector])
 
+  /* template status for non-creators (TASK-31): locked subtrees and frozen
+     areas show German feedback and offer no free design/HTML editing —
+     constrained inputs arrive in step 2. Direct calls stay guarded too.
+     The live inspect policy and the stored policy merge fail-closed: a
+     newly stricter verdict on either side (capability revocation, HTML
+     change) applies at once instead of waiting for the debounced re-read,
+     while a side that cannot resolve (script-generated content, stale
+     selector) leaves the other side to decide alone. */
+  const caps = useCanvasCapabilities(frame.canvasId)
+  const storedPolicy = useMemo(
+    () => templatePolicyOf(frame.html, selector, caps.manageLocks),
+    [frame.html, selector, caps.manageLocks],
+  )
+  const policy =
+    info && storedPolicy ? stricterTemplatePolicy(info.policy, storedPolicy) : (info?.policy ?? storedPolicy)
+  const blocked = !policy || (!caps.manageLocks && (policy.locked || policy.readOnly))
+  /* non-creator edit inside a template field: the server only ever accepts
+     typography and (where listed) exact token colors, so geometry, layout,
+     appearance and HTML controls are not offered at all. Plain frames and
+     creators keep the full editor. */
+  const inTemplateEdit = !caps.manageLocks && !!policy && policy.template && !policy.locked && !policy.readOnly
+  /* token allowlist of all enclosing fields (null = unrestricted free
+     colors, [] = no color change at all) */
+  const tokenColors = inTemplateEdit && policy!.allowedColors !== null ? policy!.allowedColors : null
+
   /* re-read after every html change — remote edits and our own saves alike —
-     and when the runtime finishes rendering or loading fonts */
+     when the runtime finishes rendering or loading fonts, and when the
+     capability changes: the live policy is computed under the runtime's
+     own capability flag, so a stale flag would freeze the wrong verdict */
   useEffect(() => {
     let live = true
     let timer: number | null = null
@@ -146,7 +181,7 @@ export function ElementPanel({
       off()
       if (timer) window.clearTimeout(timer)
     }
-  }, [frame.id, frame.html, selector])
+  }, [frame.id, frame.html, selector, caps.manageLocks])
 
   function updateRead(request: Promise<ElementInfo | null>) {
     request
@@ -157,15 +192,15 @@ export function ElementPanel({
   }
 
   function apply(styles: StylePatch) {
-    if (info) updateRead(styleElement(frame.id, selector, styles))
+    if (!blocked && info) updateRead(styleElement(frame.id, selector, styles))
   }
 
   function editGeometry(edit: GeometryEdit) {
-    if (info) updateRead(editElementGeometry(frame.id, selector, edit))
+    if (!blocked && info) updateRead(editElementGeometry(frame.id, selector, edit))
   }
 
   function scrub(phase: 'begin' | 'commit' | 'cancel') {
-    updateRead(styleGesture(frame.id, selector, phase))
+    if (!blocked) updateRead(styleGesture(frame.id, selector, phase))
   }
 
   function selectTab(next: Tab) {
@@ -221,6 +256,20 @@ export function ElementPanel({
             </Tooltip>
           )}
         </div>
+        {/* template status: locked subtrees and frozen areas explain
+            themselves; stale picks say where they went */}
+        {!policy ? (
+          <p role="status" className="flex-none border-b border-line-soft px-3 py-2 text-[11.5px] text-ink-soft">
+            {TEMPLATE_STALE_NOTICE}
+          </p>
+        ) : (
+          !caps.manageLocks &&
+          (policy.locked || policy.readOnly) && (
+            <p role="status" className="flex-none border-b border-line-soft px-3 py-2 text-[11.5px] text-ink-soft">
+              {policy.locked ? TEMPLATE_LOCKED_NOTICE : TEMPLATE_READONLY_NOTICE}
+            </p>
+          )
+        )}
         <PanelTabPanel value="design">
           <PanelBody>
             <TemplateFieldsSection frame={frame} selector={selector} />
@@ -228,11 +277,45 @@ export function ElementPanel({
               <PropertyScrubContext.Provider
                 value={{ onStart: () => scrub('begin'), onEnd: (cancel) => scrub(cancel ? 'cancel' : 'commit') }}
               >
-                <DesignTab key={`${frame.id}:${selector}`} info={info} apply={apply} editGeometry={editGeometry} />
+                {blocked ? (
+                  <div
+                    aria-disabled="true"
+                    className="pointer-events-none opacity-50"
+                    /* inert keeps keyboard focus out of the dimmed
+                       controls too, not just the pointer */
+                    ref={(el) => {
+                      if (el) el.inert = true
+                    }}
+                  >
+                    <DesignTab
+                      key={`${frame.id}:${selector}`}
+                      info={info}
+                      apply={apply}
+                      editGeometry={editGeometry}
+                      templateEdit={inTemplateEdit}
+                      tokenColors={tokenColors}
+                    />
+                  </div>
+                ) : (
+                  <DesignTab
+                    key={`${frame.id}:${selector}`}
+                    info={info}
+                    apply={apply}
+                    editGeometry={editGeometry}
+                    templateEdit={inTemplateEdit}
+                    tokenColors={tokenColors}
+                  />
+                )}
               </PropertyScrubContext.Provider>
             ) : stale ? (
               <div aria-busy className="pointer-events-none opacity-50" title="Element wird gelesen…">
-                <DesignTab info={stale} apply={apply} editGeometry={editGeometry} />
+                <DesignTab
+                  info={stale}
+                  apply={apply}
+                  editGeometry={editGeometry}
+                  templateEdit={false}
+                  tokenColors={null}
+                />
               </div>
             ) : (
               <Waiting />
@@ -240,7 +323,7 @@ export function ElementPanel({
           </PanelBody>
         </PanelTabPanel>
         <PanelTabPanel value="html">
-          <HtmlTab key={selector} frame={frame} selector={selector} />
+          <HtmlTab key={selector} frame={frame} selector={selector} disabled={blocked || inTemplateEdit} />
         </PanelTabPanel>
       </PanelTabsRoot>
     </Panel>
@@ -342,14 +425,73 @@ function parentLayout(info: ElementInfo): string {
   return cssValueLabel(p.display)
 }
 
+/** The authored token behind an exact `var(--token)` value, or null for
+ *  any free color the server would reject under a template allowlist. */
+function tokenOf(value: string | undefined): string | null {
+  return /^var\(--([A-Za-z0-9_-]+)\)$/.exec((value ?? '').trim())?.[1] ?? null
+}
+
+/* Token-only color choice for non-creators in allowlisted template fields:
+   every write is the exact `var(--token)` form the server accepts — no
+   hex/RGB/alpha escape. An empty allowlist disables color changes. */
+function TokenColorField({
+  row,
+  label,
+  prop,
+  info,
+  tokens,
+  apply,
+}: {
+  row: string
+  label: string
+  prop: 'color' | 'background-color' | 'border-color'
+  info: ElementInfo
+  tokens: string[]
+  apply: (styles: StylePatch) => void
+}) {
+  if (tokens.length === 0) {
+    return (
+      <PropertyRow label={row}>
+        <StaticField>Keine Farbe erlaubt</StaticField>
+      </PropertyRow>
+    )
+  }
+  const current = tokenOf(info.inline[prop])
+  /* a non-token current value is shown as what it is — not allowed — and
+     never claimed as selected; the first user choice writes a token */
+  const valid = current && tokens.includes(current) ? current : null
+  const authored = (info.inline[prop] ?? '').trim() !== ''
+  return (
+    <PropertyRow label={row}>
+      <SelectField
+        label={label}
+        value={valid ?? ''}
+        options={[
+          ...(valid
+            ? []
+            : [{ value: '', label: authored ? 'Aktuelle Farbe nicht erlaubt' : 'Farbe wählen', disabled: true }]),
+          ...tokens.map((t) => ({ value: t, label: t })),
+        ]}
+        onChange={(v) => apply({ [prop]: `var(--${v})` })}
+      />
+    </PropertyRow>
+  )
+}
+
 function DesignTab({
   info,
   apply,
   editGeometry,
+  templateEdit,
+  tokenColors,
 }: {
   info: ElementInfo
   apply: (styles: StylePatch) => void
   editGeometry: (edit: GeometryEdit) => void
+  /** non-creator edit inside a template field: structure controls hidden */
+  templateEdit: boolean
+  /** intersected token allowlist, or null for free colors */
+  tokenColors: string[] | null
 }) {
   const ratio = aspectRatio(info.aspectRatio, info.naturalAspectRatio)
   const canLink = (info.width ?? 0) > 0 && (info.height ?? 0) > 0
@@ -431,278 +573,317 @@ function DesignTab({
   }
   return (
     <>
-      <PropertySection title="Ausrichtung">
-        <div className="flex gap-1" role="group" aria-label="Ebene im übergeordneten Element ausrichten">
-          {LAYER_ALIGNS.map(({ axis, edge, label, Icon }) => (
-            <Button
-              key={label}
-              variant="bare"
-              size="icon-sm"
-              className="h-[26px] min-w-0 flex-1 rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep"
-              aria-label={label}
-              title={`${label} im übergeordneten Element`}
-              disabled={!info.geometry.canAlign}
-              onClick={() => editGeometry({ kind: 'align', axis, edge })}
-            >
-              <Icon size="rail" />
-            </Button>
-          ))}
-        </div>
-      </PropertySection>
-      <PropertySection title="Position">
-        <div
-          className="grid grid-cols-2 gap-1.5"
-          title="Dargestellte Position relativ zum übergeordneten Element, in Pixeln der Zeichenfläche"
-        >
-          <NumberField
-            label="X-Position"
-            min={-Infinity}
-            prefix="X"
-            value={info.geometry.x}
-            unit="px"
-            disabled={!info.geometry.enabled}
-            onCommit={(value) => editGeometry({ kind: 'position', axis: 'x', value })}
-          />
-          <NumberField
-            label="Y-Position"
-            min={-Infinity}
-            prefix="Y"
-            value={info.geometry.y}
-            unit="px"
-            disabled={!info.geometry.enabled}
-            onCommit={(value) => editGeometry({ kind: 'position', axis: 'y', value })}
-          />
-        </div>
-        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-          <NumberField
-            label="Drehung"
-            min={-Infinity}
-            prefix={<CircleDashedIcon size="rail" />}
-            value={info.geometry.rotation}
-            unit="°"
-            disabled={!info.geometry.enabled}
-            onCommit={(value) => editGeometry({ kind: 'rotate', value })}
-          />
-          <div className="grid grid-cols-2 gap-1.5">
-            {(['x', 'y'] as const).map((axis) => {
-              const Icon = axis === 'x' ? FlipHorizontal2Icon : FlipVertical2Icon
-              const label = axis === 'x' ? 'Horizontal spiegeln' : 'Vertikal spiegeln'
-              const pressed = (axis === 'x' ? info.geometry.scaleX : info.geometry.scaleY) < 0
-              return (
-                <Button
-                  key={axis}
-                  variant="bare"
-                  size="icon-sm"
-                  aria-label={label}
-                  title={label}
-                  aria-pressed={pressed}
-                  disabled={!info.geometry.enabled}
-                  className={cn(
-                    'h-[26px] w-full rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep',
-                    pressed && 'bg-paper-deep text-ink',
-                  )}
-                  onClick={() => editGeometry({ kind: 'flip', axis })}
-                >
-                  <Icon size="rail" />
-                </Button>
-              )
-            })}
-          </div>
-        </div>
-        <PropertyRow label="Typ">
-          <SelectField
-            label="Positionstyp"
-            value={info.position}
-            options={POSITIONS}
-            onChange={(v) => apply({ position: v })}
-          />
-        </PropertyRow>
-        <PropertyRow label="Reihenfolge">
-          <StaticField>
-            {info.index}
-            <FieldUnit>
-              von {info.count.toLocaleString('de-DE')}
-              {parentLayout(info) && ` · ${parentLayout(info)}`}
-            </FieldUnit>
-          </StaticField>
-        </PropertyRow>
-      </PropertySection>
-      <PropertySection
-        title="Layout"
-        action={
-          <Tooltip
-            label={
-              ratio !== null
-                ? 'Breite und Höhe entkoppeln'
-                : canLink
-                  ? 'Breite und Höhe koppeln'
-                  : 'Lege eine positive Breite und Höhe fest, um sie zu koppeln'
-            }
-          >
-            <span>
+      {/* geometry, layout and appearance are server-rejected for
+          non-creators in template fields — not offered, not just dimmed */}
+      {!templateEdit && (
+        <PropertySection title="Ausrichtung">
+          <div className="flex gap-1" role="group" aria-label="Ebene im übergeordneten Element ausrichten">
+            {LAYER_ALIGNS.map(({ axis, edge, label, Icon }) => (
               <Button
+                key={label}
                 variant="bare"
                 size="icon-sm"
-                className={cn(
-                  'size-5 rounded-tag',
-                  ratio !== null ? 'bg-ink text-paper hover:bg-ink/85 hover:text-paper' : 'text-ink-faint',
-                )}
-                aria-label="Breite und Höhe koppeln"
-                aria-pressed={ratio !== null}
-                disabled={ratio === null && !canLink}
-                onClick={toggleRatio}
+                className="h-[26px] min-w-0 flex-1 rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep"
+                aria-label={label}
+                title={`${label} im übergeordneten Element`}
+                disabled={!info.geometry.canAlign}
+                onClick={() => editGeometry({ kind: 'align', axis, edge })}
               >
-                {ratio !== null ? <LinkIcon size="rail" /> : <UnlinkIcon size="rail" />}
+                <Icon size="rail" />
               </Button>
-            </span>
-          </Tooltip>
-        }
-      >
-        <div className="grid grid-cols-2 gap-1.5">
-          {(['width', 'height'] as const).map((axis) => (
-            <div key={axis} className="flex min-w-0 flex-col gap-1">
-              <NumberField
-                label={axis === 'width' ? 'Breite' : 'Höhe'}
-                prefix={axis === 'width' ? 'W' : 'H'}
-                value={info[axis]}
-                unit="px"
-                onCommit={(v) => setSize(axis, 'fixed', v)}
-              />
-              <SelectField
-                label={axis === 'width' ? 'Breitenanpassung' : 'Höhenanpassung'}
-                value={modeFor(axis)}
-                options={SIZE_MODES}
-                onChange={(v) => setSize(axis, v)}
-              />
+            ))}
+          </div>
+        </PropertySection>
+      )}
+      {!templateEdit && (
+        <PropertySection title="Position">
+          <div
+            className="grid grid-cols-2 gap-1.5"
+            title="Dargestellte Position relativ zum übergeordneten Element, in Pixeln der Zeichenfläche"
+          >
+            <NumberField
+              label="X-Position"
+              min={-Infinity}
+              prefix="X"
+              value={info.geometry.x}
+              unit="px"
+              disabled={!info.geometry.enabled}
+              onCommit={(value) => editGeometry({ kind: 'position', axis: 'x', value })}
+            />
+            <NumberField
+              label="Y-Position"
+              min={-Infinity}
+              prefix="Y"
+              value={info.geometry.y}
+              unit="px"
+              disabled={!info.geometry.enabled}
+              onCommit={(value) => editGeometry({ kind: 'position', axis: 'y', value })}
+            />
+          </div>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+            <NumberField
+              label="Drehung"
+              min={-Infinity}
+              prefix={<CircleDashedIcon size="rail" />}
+              value={info.geometry.rotation}
+              unit="°"
+              disabled={!info.geometry.enabled}
+              onCommit={(value) => editGeometry({ kind: 'rotate', value })}
+            />
+            <div className="grid grid-cols-2 gap-1.5">
+              {(['x', 'y'] as const).map((axis) => {
+                const Icon = axis === 'x' ? FlipHorizontal2Icon : FlipVertical2Icon
+                const label = axis === 'x' ? 'Horizontal spiegeln' : 'Vertikal spiegeln'
+                const pressed = (axis === 'x' ? info.geometry.scaleX : info.geometry.scaleY) < 0
+                return (
+                  <Button
+                    key={axis}
+                    variant="bare"
+                    size="icon-sm"
+                    aria-label={label}
+                    title={label}
+                    aria-pressed={pressed}
+                    disabled={!info.geometry.enabled}
+                    className={cn(
+                      'h-[26px] w-full rounded-[7px] bg-sub text-ink-soft hover:bg-paper-deep',
+                      pressed && 'bg-paper-deep text-ink',
+                    )}
+                    onClick={() => editGeometry({ kind: 'flip', axis })}
+                  >
+                    <Icon size="rail" />
+                  </Button>
+                )
+              })}
             </div>
-          ))}
-        </div>
-        <PropertyRow label="Min. Breite">
-          <LengthField
-            label="Mindestbreite"
-            value={info.inline['min-width'] ?? (info.minWidth === '0px' ? '' : info.minWidth)}
-            placeholder="automatisch"
-            onCommit={(v) => apply({ 'min-width': lengthValue(v) })}
-          />
-        </PropertyRow>
-        <PropertyRow label="Darstellung">
-          <SelectField
-            label="Darstellung"
-            value={displayValue(info)}
-            options={DISPLAYS}
-            onChange={(v) => apply({ display: v })}
-          />
-        </PropertyRow>
-        {!isFlex && (
-          <>
-            {info.display.includes('grid') && (
-              <PropertyRow label="Abstand">
+          </div>
+          <PropertyRow label="Typ">
+            <SelectField
+              label="Positionstyp"
+              value={info.position}
+              options={POSITIONS}
+              onChange={(v) => apply({ position: v })}
+            />
+          </PropertyRow>
+          <PropertyRow label="Reihenfolge">
+            <StaticField>
+              {info.index}
+              <FieldUnit>
+                von {info.count.toLocaleString('de-DE')}
+                {parentLayout(info) && ` · ${parentLayout(info)}`}
+              </FieldUnit>
+            </StaticField>
+          </PropertyRow>
+        </PropertySection>
+      )}
+      {!templateEdit && (
+        <PropertySection
+          title="Layout"
+          action={
+            <Tooltip
+              label={
+                ratio !== null
+                  ? 'Breite und Höhe entkoppeln'
+                  : canLink
+                    ? 'Breite und Höhe koppeln'
+                    : 'Lege eine positive Breite und Höhe fest, um sie zu koppeln'
+              }
+            >
+              <span>
+                <Button
+                  variant="bare"
+                  size="icon-sm"
+                  className={cn(
+                    'size-5 rounded-tag',
+                    ratio !== null ? 'bg-ink text-paper hover:bg-ink/85 hover:text-paper' : 'text-ink-faint',
+                  )}
+                  aria-label="Breite und Höhe koppeln"
+                  aria-pressed={ratio !== null}
+                  disabled={ratio === null && !canLink}
+                  onClick={toggleRatio}
+                >
+                  {ratio !== null ? <LinkIcon size="rail" /> : <UnlinkIcon size="rail" />}
+                </Button>
+              </span>
+            </Tooltip>
+          }
+        >
+          <div className="grid grid-cols-2 gap-1.5">
+            {(['width', 'height'] as const).map((axis) => (
+              <div key={axis} className="flex min-w-0 flex-col gap-1">
                 <NumberField
-                  label="Zeilenabstand"
-                  value={info.rowGap ?? 0}
+                  label={axis === 'width' ? 'Breite' : 'Höhe'}
+                  prefix={axis === 'width' ? 'W' : 'H'}
+                  value={info[axis]}
                   unit="px"
-                  onCommit={(v) => apply({ 'row-gap': `${Math.max(0, v)}px` })}
+                  onCommit={(v) => setSize(axis, 'fixed', v)}
                 />
-                <NumberField
-                  label="Spaltenabstand"
-                  value={info.columnGap ?? 0}
-                  unit="px"
-                  onCommit={(v) => apply({ 'column-gap': `${Math.max(0, v)}px` })}
+                <SelectField
+                  label={axis === 'width' ? 'Breitenanpassung' : 'Höhenanpassung'}
+                  value={modeFor(axis)}
+                  options={SIZE_MODES}
+                  onChange={(v) => setSize(axis, v)}
                 />
-              </PropertyRow>
-            )}
-            <PaddingControls info={info} apply={apply} />
-          </>
+              </div>
+            ))}
+          </div>
+          <PropertyRow label="Min. Breite">
+            <LengthField
+              label="Mindestbreite"
+              value={info.inline['min-width'] ?? (info.minWidth === '0px' ? '' : info.minWidth)}
+              placeholder="automatisch"
+              onCommit={(v) => apply({ 'min-width': lengthValue(v) })}
+            />
+          </PropertyRow>
+          <PropertyRow label="Darstellung">
+            <SelectField
+              label="Darstellung"
+              value={displayValue(info)}
+              options={DISPLAYS}
+              onChange={(v) => apply({ display: v })}
+            />
+          </PropertyRow>
+          {!isFlex && (
+            <>
+              {info.display.includes('grid') && (
+                <PropertyRow label="Abstand">
+                  <NumberField
+                    label="Zeilenabstand"
+                    value={info.rowGap ?? 0}
+                    unit="px"
+                    onCommit={(v) => apply({ 'row-gap': `${Math.max(0, v)}px` })}
+                  />
+                  <NumberField
+                    label="Spaltenabstand"
+                    value={info.columnGap ?? 0}
+                    unit="px"
+                    onCommit={(v) => apply({ 'column-gap': `${Math.max(0, v)}px` })}
+                  />
+                </PropertyRow>
+              )}
+              <PaddingControls info={info} apply={apply} />
+            </>
+          )}
+        </PropertySection>
+      )}
+      {isFlex && !templateEdit && <FlexLayoutControls info={info} apply={apply} />}
+      {!templateEdit && (
+        <PropertySection
+          title="Aussehen"
+          action={
+            <Button
+              variant="bare"
+              size="icon-sm"
+              className="size-5 rounded-tag text-ink-faint"
+              aria-label={visible ? 'Element ausblenden' : 'Element einblenden'}
+              title={visible ? 'Element ausblenden' : 'Element einblenden'}
+              aria-pressed={!visible}
+              onClick={() => apply({ visibility: visible ? 'hidden' : 'visible' })}
+            >
+              {visible ? <EyeIcon size="rail" /> : <EyeClosedIcon size="rail" />}
+            </Button>
+          }
+        >
+          <div className="grid grid-cols-2 gap-1.5">
+            <NumberField
+              label="Deckkraft des Elements"
+              max={100}
+              prefix={<DropletIcon size="rail" />}
+              value={info.opacity === null ? null : Math.round(info.opacity * 100)}
+              unit="%"
+              onCommit={(v) => apply({ opacity: String(Math.min(100, Math.max(0, v)) / 100) })}
+            />
+            <NumberField
+              label="Eckenradius"
+              prefix={<RadiusIcon size="rail" />}
+              value={info.borderRadius}
+              unit="px"
+              onCommit={(v) => apply({ 'border-radius': `${Math.max(0, v)}px` })}
+            />
+          </div>
+          <label className="mt-2 flex h-5 cursor-pointer items-center justify-between text-[11.5px] text-ink-soft">
+            Inhalt beschneiden
+            <Switch
+              size="sm"
+              aria-label="Inhalt beschneiden"
+              className="data-[state=checked]:bg-ink"
+              checked={info.clipsContent}
+              onCheckedChange={(on) => apply({ overflow: on ? 'hidden' : 'visible' })}
+            />
+          </label>
+        </PropertySection>
+      )}
+      <PropertySection title="Füllung">
+        {tokenColors !== null ? (
+          <TokenColorField
+            row="Füllung"
+            label="Füllfarbe (Vorlage)"
+            prop="background-color"
+            info={info}
+            tokens={tokenColors}
+            apply={apply}
+          />
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
+            <ColorField
+              label="Füllfarbe"
+              value={fillAlpha === 0 && fill === '#000000' ? null : fill}
+              onCommit={(v) =>
+                apply({
+                  'background-color': v
+                    ? colorWithAlpha(v, fillAlpha === 0 && (!fill || fill === '#000000') ? 1 : fillAlpha)
+                    : 'transparent',
+                })
+              }
+            />
+            <NumberField
+              label="Deckkraft der Füllung"
+              max={100}
+              value={Math.round(fillAlpha * 100)}
+              unit="%"
+              onCommit={(v) => apply({ 'background-color': colorWithAlpha(fill ?? info.backgroundColor, v / 100) })}
+            />
+          </div>
         )}
       </PropertySection>
-      {isFlex && <FlexLayoutControls info={info} apply={apply} />}
-      <PropertySection
-        title="Aussehen"
-        action={
-          <Button
-            variant="bare"
-            size="icon-sm"
-            className="size-5 rounded-tag text-ink-faint"
-            aria-label={visible ? 'Element ausblenden' : 'Element einblenden'}
-            title={visible ? 'Element ausblenden' : 'Element einblenden'}
-            aria-pressed={!visible}
-            onClick={() => apply({ visibility: visible ? 'hidden' : 'visible' })}
-          >
-            {visible ? <EyeIcon size="rail" /> : <EyeClosedIcon size="rail" />}
-          </Button>
-        }
-      >
-        <div className="grid grid-cols-2 gap-1.5">
-          <NumberField
-            label="Deckkraft des Elements"
-            max={100}
-            prefix={<DropletIcon size="rail" />}
-            value={info.opacity === null ? null : Math.round(info.opacity * 100)}
-            unit="%"
-            onCommit={(v) => apply({ opacity: String(Math.min(100, Math.max(0, v)) / 100) })}
-          />
-          <NumberField
-            label="Eckenradius"
-            prefix={<RadiusIcon size="rail" />}
-            value={info.borderRadius}
-            unit="px"
-            onCommit={(v) => apply({ 'border-radius': `${Math.max(0, v)}px` })}
-          />
-        </div>
-        <label className="mt-2 flex h-5 cursor-pointer items-center justify-between text-[11.5px] text-ink-soft">
-          Inhalt beschneiden
-          <Switch
-            size="sm"
-            aria-label="Inhalt beschneiden"
-            className="data-[state=checked]:bg-ink"
-            checked={info.clipsContent}
-            onCheckedChange={(on) => apply({ overflow: on ? 'hidden' : 'visible' })}
-          />
-        </label>
-      </PropertySection>
-      <PropertySection title="Füllung">
-        <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
-          <ColorField
-            label="Füllfarbe"
-            value={fillAlpha === 0 && fill === '#000000' ? null : fill}
-            onCommit={(v) =>
-              apply({
-                'background-color': v
-                  ? colorWithAlpha(v, fillAlpha === 0 && (!fill || fill === '#000000') ? 1 : fillAlpha)
-                  : 'transparent',
-              })
-            }
-          />
-          <NumberField
-            label="Deckkraft der Füllung"
-            max={100}
-            value={Math.round(fillAlpha * 100)}
-            unit="%"
-            onCommit={(v) => apply({ 'background-color': colorWithAlpha(fill ?? info.backgroundColor, v / 100) })}
-          />
-        </div>
-      </PropertySection>
       <PropertySection title="Kontur">
-        <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
-          <ColorField
-            label="Rahmenfarbe"
-            value={borderColor}
-            onCommit={(v) =>
-              apply({ 'border-color': v, ...(v && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}) })
-            }
+        {tokenColors !== null ? (
+          <TokenColorField
+            row="Kontur"
+            label="Rahmenfarbe (Vorlage)"
+            prop="border-color"
+            info={info}
+            tokens={tokenColors}
+            apply={apply}
           />
-          <NumberField
-            label="Rahmenbreite"
-            value={border.width}
-            unit="px"
-            onCommit={(v) =>
-              apply({
-                'border-width': `${Math.max(0, v)}px`,
-                ...(v > 0 && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}),
-              })
-            }
-          />
-        </div>
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_64px] gap-1.5">
+            <ColorField
+              label="Rahmenfarbe"
+              value={borderColor}
+              onCommit={(v) =>
+                /* adding border-style alongside the color is server-rejected
+                 for non-creators in template fields — color only there */
+                apply({
+                  'border-color': v,
+                  ...(v && info.borderStyle === 'none' && !templateEdit ? { 'border-style': 'solid' } : {}),
+                })
+              }
+            />
+            {!templateEdit && (
+              <NumberField
+                label="Rahmenbreite"
+                value={border.width}
+                unit="px"
+                onCommit={(v) =>
+                  apply({
+                    'border-width': `${Math.max(0, v)}px`,
+                    ...(v > 0 && info.borderStyle === 'none' ? { 'border-style': 'solid' } : {}),
+                  })
+                }
+              />
+            )}
+          </div>
+        )}
         {border.sides && (
           <p className="mt-1 text-[10.5px] text-ink-faint">
             Seiten: {border.sides.split(' ').map(cssValueLabel).join(', ')}
@@ -736,9 +917,20 @@ function DesignTab({
               onChange={(v) => apply({ 'font-weight': v })}
             />
           </PropertyRow>
-          <PropertyRow label="Farbe">
-            <ColorField value={rgbToHex(info.color)} onCommit={(v) => apply({ color: v })} />
-          </PropertyRow>
+          {tokenColors !== null ? (
+            <TokenColorField
+              row="Farbe"
+              label="Textfarbe (Vorlage)"
+              prop="color"
+              info={info}
+              tokens={tokenColors}
+              apply={apply}
+            />
+          ) : (
+            <PropertyRow label="Farbe">
+              <ColorField value={rgbToHex(info.color)} onCommit={(v) => apply({ color: v })} />
+            </PropertyRow>
+          )}
           <PropertyRow label="Ausrichten">
             <Segmented
               aria-label="Textausrichtung"
@@ -767,7 +959,7 @@ function DesignTab({
 
 /* ---- HTML tab ---- */
 
-function HtmlTab({ frame, selector }: { frame: Frame; selector: string }) {
+function HtmlTab({ frame, selector, disabled }: { frame: Frame; selector: string; disabled?: boolean }) {
   const source = useMemo(() => elementHtml(frame.html, selector) ?? '', [frame.html, selector])
   const [draft, setDraft] = useState(source)
   const [typing, setTyping] = useState(false)
@@ -790,6 +982,7 @@ function HtmlTab({ frame, selector }: { frame: Frame; selector: string }) {
   }
 
   function onChange(value: string) {
+    if (disabled) return
     setDraft(value)
     if (pendingSave.current) window.clearTimeout(pendingSave.current.timer)
     const run = () => {
@@ -806,6 +999,7 @@ function HtmlTab({ frame, selector }: { frame: Frame; selector: string }) {
       className="min-h-[320px] flex-1"
       value={draft}
       spellCheck={false}
+      disabled={disabled}
       onFocus={() => setTyping(true)}
       onBlur={() => setTyping(false)}
       onChange={(e) => onChange(e.target.value)}

@@ -359,7 +359,13 @@ Ersetzt `EditableFieldMeta`. Die Zuordnung alt → neu steht in R1.4. Rollen und
    vergleicht normalisiertes Kandidaten-HTML gegen das gespeicherte Frame unter
    vertrautem Permission-Kontext; Update, Append-Commit, Restore, Create/Import und
    Delete sind geprüft, Streams committen atomar, Kopien laufen über `sourceFrameId`.
-3. **Agent** (`guide.ts`, Systemprompt): erklärt die Attribute. Gesperrte Elemente niemals ändern, editierbare nur innerhalb der Constraints.
+3. **Agent** (`TEMPLATE_GUIDE` in `guide.ts`, TASK-31 umgesetzt): erklärt Rollen
+   und alle sechs Attribute, stabile IDs, eingefrorene Teilbäume und Struktur,
+   Tokenfarben (`var(--token)` aus exakten Listen), Unicode-Textlimits über
+   Feld und Vorfahren sowie 403/Stopp-ohne-Umgehung. MCP-`get_guide` und
+   Resident-Systemprompt binden denselben Text ein. Agenten ohne ausdrücklichen
+   Authoring-Auftrag folgen den Nicht-Creator-Regeln; die serverseitig geprüfte
+   Identität entscheidet, `agent_name` nie.
 
 Entwurfsskizze (so nicht umgesetzt — die Umsetzung traversiert mit `parse5`
 echte Browser-Bäume inklusive SVG/`template`-Inhalten/Entities, vergleicht

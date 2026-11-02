@@ -248,7 +248,7 @@ export function SelectField<T extends string>({
   onChange,
 }: {
   value: T
-  options: { value: T; label: string }[]
+  options: { value: T; label: string; disabled?: boolean }[]
   label?: string
   className?: string
   onChange: (v: T) => void
@@ -263,7 +263,7 @@ export function SelectField<T extends string>({
         onChange={(e) => onChange(e.target.value as T)}
       >
         {options.map((o) => (
-          <option key={o.value} value={o.value}>
+          <option key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}
           </option>
         ))}
