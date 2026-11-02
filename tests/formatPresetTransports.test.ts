@@ -58,6 +58,98 @@ async function tool(key: string, name: string, args: Record<string, unknown>) {
 }
 
 describe('REST and MCP preset boundaries', () => {
+  it('restores a deleted customized Creator preset atomically only with explicit restore intent', async () => {
+    const original = await frame({ preset: 'a4' })
+    const customized: Frame = await (
+      await owner.patch(`/api/frames/${original.id}`, { width: 820, height: 1160 })
+    ).json()
+    expect((await owner.delete(`/api/frames/${original.id}`)).status).toBe(200)
+    const { id: _id, ...snapshot } = customized
+    const restored = await owner.post(`/api/canvases/${canvas.id}/frames`, { ...snapshot, restoreDimensions: true })
+    expect(restored.status).toBe(200)
+    const restoredFrame: Frame = await restored.json()
+    expect(restoredFrame).toMatchObject({ preset: 'a4', width: 820, height: 1160 })
+    expect(await (await owner.get(`/api/frames/${restoredFrame.id}/versions`)).json()).toEqual([])
+    const fresh = await owner.post(`/api/canvases/${canvas.id}/frames`, snapshot)
+    expect(await fresh.json()).toMatchObject({ preset: 'a4', width: 794, height: 1123 })
+  })
+
+  it('rejects customized history restore after Creator revocation without frame/activity mutations', async () => {
+    await owner.patch(`/api/workspaces/${workspace}/members/${creatorId}`, { role: 'creator' })
+    const original = await frame()
+    const customized = await (await creator.patch(`/api/frames/${original.id}`, { width: 1111, height: 777 })).json()
+    expect((await creator.delete(`/api/frames/${original.id}`)).status).toBe(200)
+    await owner.patch(`/api/workspaces/${workspace}/members/${creatorId}`, { role: 'member' })
+    try {
+      const before = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
+      const activity = await (await owner.get('/api/home/activity')).json()
+      const response = await creator.post(`/api/canvases/${canvas.id}/frames`, {
+        ...customized,
+        restoreDimensions: true,
+      })
+      expect(response.status).toBe(403)
+      expect((await response.json()).error).toContain('Creator')
+      expect(await (await owner.get(`/api/canvases/${canvas.id}`)).json()).toEqual(before)
+      expect(await (await owner.get('/api/home/activity')).json()).toEqual(activity)
+    } finally {
+      await owner.patch(`/api/workspaces/${workspace}/members/${creatorId}`, { role: 'creator' })
+    }
+  })
+
+  it('allows canonical Member restores while a restore flag cannot bypass copy provenance', async () => {
+    const original = await frame()
+    expect((await mate.delete(`/api/frames/${original.id}`)).status).toBe(200)
+    const restored = await mate.post(`/api/canvases/${canvas.id}/frames`, { ...original, restoreDimensions: true })
+    expect(restored.status).toBe(200)
+    expect(await restored.json()).toMatchObject({ preset: 'ig-post', width: 1080, height: 1080 })
+    const source = await frame()
+    await owner.patch(`/api/frames/${source.id}`, { width: 1111, height: 777 })
+    const copy = await mate.post(`/api/canvases/${canvas.id}/frames`, {
+      name: 'Trusted copy',
+      sourceFrameId: source.id,
+      restoreDimensions: true,
+    })
+    expect(copy.status).toBe(200)
+    expect(await copy.json()).toMatchObject({ preset: 'ig-post', width: 1111, height: 777 })
+    expect(
+      (
+        await mate.post(`/api/canvases/${canvas.id}/frames`, {
+          name: 'Forged copy',
+          sourceFrameId: source.id,
+          width: 500,
+          restoreDimensions: true,
+        })
+      ).status,
+    ).toBe(403)
+    expect(
+      (
+        await owner.post(`/api/canvases/${canvas.id}/frames`, {
+          name: 'Missing source',
+          sourceFrameId: 'deleted',
+          preset: 'ig-post',
+          width: 1111,
+          height: 777,
+          restoreDimensions: true,
+        })
+      ).status,
+    ).toBe(404)
+  })
+
+  it.each([0, -1, '820'])('rejects invalid restore dimension %j before any mutation', async (width) => {
+    const before = await (await owner.get(`/api/canvases/${canvas.id}`)).json()
+    expect(
+      (
+        await owner.post(`/api/canvases/${canvas.id}/frames`, {
+          name: 'Invalid restore',
+          preset: 'a4',
+          width,
+          height: 1160,
+          restoreDimensions: true,
+        })
+      ).status,
+    ).toBe(400)
+    expect(await (await owner.get(`/api/canvases/${canvas.id}`)).json()).toEqual(before)
+  })
   it('advertises the validated preset choices on MCP create and update schemas', async () => {
     const response = await fetch(`${server.base}/mcp`, {
       method: 'POST',

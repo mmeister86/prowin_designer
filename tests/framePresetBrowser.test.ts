@@ -187,4 +187,46 @@ describe.skipIf(!findBrowserPath())('frame preset manual entry points', () => {
     await page.keyboard.up('Meta')
     expect(await (await redone).json()).toMatchObject({ preset: 'a4', width: 820, height: 1160 })
   }, 20_000)
+
+  it('keeps customized Creator dimensions through Delete, Undo, Redo and a second Undo without a live source', async () => {
+    await page.click('button[aria-label="Neue Zeichenfläche"]')
+    const source = await confirm('a4')
+    await page.evaluate(async (id) => {
+      const response = await fetch(`/api/frames/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ width: 820, height: 1160 }),
+      })
+      if (!response.ok) throw new Error(await response.text())
+    }, source.id)
+    await page.waitForFunction(
+      (name) => document.querySelector<HTMLIFrameElement>(`iframe[title="${name}"]`)?.style.width === '820px',
+      {},
+      source.name,
+    )
+    const write = async (method: string, action: () => Promise<void>) => {
+      const response = page.waitForResponse(
+        (res) => res.request().method() === method && /\/api\/(frames|canvases)\//.test(new URL(res.url()).pathname),
+      )
+      await action()
+      const result = await response
+      expect(result.ok()).toBe(true)
+      const body = await result.json()
+      await page.evaluate(() => new Promise(requestAnimationFrame))
+      return body as Frame
+    }
+    const shortcut = async (redo = false) => {
+      await page.keyboard.down('Meta')
+      if (redo) await page.keyboard.down('Shift')
+      await page.keyboard.press('z')
+      if (redo) await page.keyboard.up('Shift')
+      await page.keyboard.up('Meta')
+    }
+    await write('DELETE', () => page.keyboard.press('Delete'))
+    expect(await frames()).toEqual([])
+    expect(await write('POST', () => shortcut())).toMatchObject({ preset: 'a4', width: 820, height: 1160 })
+    await write('DELETE', () => shortcut(true))
+    expect(await frames()).toEqual([])
+    expect(await write('POST', () => shortcut())).toMatchObject({ preset: 'a4', width: 820, height: 1160 })
+  }, 20_000)
 })

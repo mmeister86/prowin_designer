@@ -245,16 +245,26 @@ function remapId(oldId: string, newId: string) {
   for (const e of [...undoStack, ...redoStack]) visit(e)
 }
 
-async function recreate(e: { frameId: string; snapshot: Snapshot; expected?: Frame; sourceFrameId?: string }) {
+async function recreate(e: Extract<Entry, { type: 'create' | 'delete' }>) {
   const { canvasId, ...rest } = e.snapshot
   const canvas = useStore.getState().canvas
   if (!canvas || canvas.id !== canvasId) throw new UserFacingError('Die Arbeitsfläche wurde geändert')
   const pages = canvasPages(canvas)
   if (!rest.pageId || !pages.some((p) => p.id === rest.pageId)) rest.pageId = pages[0]!.id
-  const f = await api.createFrame(canvasId, {
-    ...rest,
-    ...(e.sourceFrameId ? { sourceFrameId: e.sourceFrameId } : {}),
-  })
+  const sourceFrameId = e.type === 'create' ? e.sourceFrameId : undefined
+  let f: Frame
+  try {
+    f = await api.createFrame(canvasId, {
+      ...rest,
+      ...(rest.preset ? { restoreDimensions: true } : {}),
+      ...(sourceFrameId ? { sourceFrameId } : {}),
+    })
+  } catch (error) {
+    // Revoked authority must not discard the only remaining snapshot or silently change its layout.
+    if (rest.preset && error instanceof ApiError && error.status === 403)
+      throw new PrerequisiteFailed(e, null, error, canvasId)
+    throw error
+  }
   useStore.getState().upsertFrame(f)
   remapId(e.frameId, f.id)
   e.frameId = f.id
@@ -344,6 +354,19 @@ async function settle(entries: Entry[], direction: 'undo' | 'redo'): Promise<Ent
   const ok = results.flatMap((r) => (r.status === 'fulfilled' && r.value ? [r.value] : []))
   const failed = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
   if (failed) console.error(`${direction} failed for ${entries.length - ok.length} frame(s)`, failed.reason)
+  const retries = results.flatMap((r) =>
+    r.status === 'rejected' && r.reason instanceof PrerequisiteFailed ? [r.reason] : [],
+  )
+  if (retries.length)
+    throw new PrerequisiteFailed(
+      groupOf(
+        retries.map((retry) => retry.remaining),
+        false,
+      )!,
+      groupOf(ok, false),
+      retries[0],
+      retries[0]!.canvasId,
+    )
   return ok
 }
 

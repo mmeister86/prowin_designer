@@ -15,7 +15,7 @@ const api = {
   updateFrame: vi.fn(async () => ({})),
   deleteFrame: vi.fn(async () => ({})),
 }
-vi.mock('../src/lib/api', () => ({ api }))
+vi.mock('../src/lib/api', async (original) => ({ ...(await original<typeof import('../src/lib/api')>()), api }))
 
 /* the module keeps the clip in localStorage, which the node test runtime
    lacks; a tiny in-memory stand-in is all it needs */
@@ -31,6 +31,7 @@ vi.stubGlobal('document', { querySelector: () => null })
 const { useStore } = await import('../src/lib/store')
 const history = await import('../src/lib/history')
 const clipboard = await import('../src/lib/frameClipboard')
+const { ApiError } = await import('../src/lib/api')
 
 function frame(id: string, x = 0, y = 0, width = 100, height = 100): Frame {
   return { id, canvasId: 'c1', name: id, html: `<p>${id}</p>`, x, y, width, height } as Frame
@@ -53,6 +54,36 @@ beforeEach(() => {
 })
 
 describe('multi-frame copy and paste', () => {
+  it.each([1, 2])(
+    'keeps %s denied preset restoration(s) visible and retryable instead of losing the snapshots',
+    async (count) => {
+      const sources = Array.from({ length: count }, (_, index) => ({
+        ...frame(`source-${index}`, 0, 0, 900, 1700),
+        preset: 'ig-story' as const,
+      }))
+      history.deleteFramesTracked(sources)
+      seed()
+      useStore.setState({ notice: null })
+      for (const _source of sources)
+        api.createFrame.mockRejectedValueOnce(
+          new ApiError(403, JSON.stringify({ error: 'Du benötigst Creator-Rechte auf dieser Arbeitsfläche.' })),
+        )
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+      try {
+        await history.undo()
+        expect(useStore.getState().canvas!.frames).toEqual([])
+        expect(useStore.getState().notice?.text).toContain('Creator')
+        await history.undo()
+        expect(useStore.getState().canvas!.frames).toHaveLength(count)
+        expect(api.createFrame).toHaveBeenLastCalledWith(
+          'c1',
+          expect.objectContaining({ preset: 'ig-story', width: 900, height: 1700, restoreDimensions: true }),
+        )
+      } finally {
+        errors.mockRestore()
+      }
+    },
+  )
   it('remaps preset copy provenance when its source is recreated by redo', async () => {
     const source = { ...frame('source', 0, 0, 1080, 1920), preset: 'ig-story' as const }
     history.recordCreate(source)

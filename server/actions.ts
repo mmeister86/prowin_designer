@@ -1434,6 +1434,8 @@ export function createFrame(
     /** trusted provenance for template/preset copies: validated against the stored
      *  source frame and current source access, never trusted from the client */
     sourceFrameId?: string
+    /** Explicit history intent; customized dimensions still require current canvas authority. */
+    restoreDimensions?: boolean
   },
   actor: Actor,
 ): Frame | undefined {
@@ -1475,7 +1477,12 @@ export function createFrame(
   }
   // Copies keep actual (possibly customized) sizes; choosing a new format is canonical.
   if (input.preset !== undefined && !copiedFormat) {
-    const { width, height } = FORMAT_PRESETS[input.preset]
+    const format = FORMAT_PRESETS[input.preset]
+    const width = input.restoreDimensions === true ? (input.width ?? format.width) : format.width
+    const height = input.restoreDimensions === true ? (input.height ?? format.height) : format.height
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new FormatPresetError()
+    if ((width !== format.width || height !== format.height) && !canvasCapabilities(canvas).manageLocks)
+      throw new CreatorPermissionError()
     input = { ...input, width, height }
   }
   const frame = store.createFrame(canvasId, input, actor.name)

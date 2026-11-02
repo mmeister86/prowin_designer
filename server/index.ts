@@ -1156,6 +1156,7 @@ app.post('/api/canvases/:id/frames', (req, res) => {
         width,
         height,
         preset,
+        restoreDimensions: req.body?.restoreDimensions === true,
         html,
         hidden: hidden === true,
         locked: locked === true,
