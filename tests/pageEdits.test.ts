@@ -321,6 +321,96 @@ it('shows a duplicated page and undoes it frames-first, redoing it page-first', 
   expect(useStore.getState().activePageId).toBe('copy')
 })
 
+it.each([false, true])(
+  'keeps the restored page and successful frames undoable after Creator revocation (partial frames=%s)',
+  async (partialFrames) => {
+    const copyPage = { id: 'copy', name: 'Exploration copy' }
+    const custom: Frame = {
+      ...frame,
+      id: 'custom-copy',
+      name: 'Customized',
+      pageId: 'copy',
+      preset: 'ig-story',
+      width: 900,
+      height: 1700,
+    }
+    const canonical: Frame = {
+      ...frame,
+      id: 'canonical-copy',
+      name: 'Canonical',
+      pageId: 'copy',
+      preset: 'ig-post',
+      width: 1080,
+      height: 1080,
+    }
+    const copied = partialFrames ? [canonical, custom] : [custom]
+    let manageLocks = true
+    let nextId = 0
+    const writes: string[] = []
+    api.duplicatePage.mockResolvedValue({ page: copyPage, pages: [...pages, copyPage], frames: copied })
+    api.createFrame.mockImplementation(async (canvasId: string, input: Partial<Frame>) => {
+      if (input.preset === 'ig-story' && !manageLocks)
+        throw new ApiError(403, JSON.stringify({ error: 'Du benötigst Creator-Rechte auf dieser Arbeitsfläche.' }))
+      writes.push(`create ${input.name}`)
+      return { ...frame, ...input, canvasId, id: `restored-${++nextId}` }
+    })
+    api.deleteFrame.mockImplementation(async (id: string) => {
+      writes.push(`delete ${id}`)
+      return {}
+    })
+    api.setPages.mockImplementation(async (_id, next: typeof pages) => {
+      // Model the real server's prerequisite: a page cannot disappear while it still holds frames.
+      if (useStore.getState().canvas!.frames.some((f) => !next.some((page) => page.id === f.pageId)))
+        throw new Error('Seite enthält Zeichenflächen')
+      writes.push(`pages ${next.map((page) => page.id).join(',')}`)
+      return next
+    })
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await duplicatePage(useStore.getState().canvas!, 'second')
+      await undo()
+      expect(useStore.getState().canvas!.pages).toEqual(pages)
+      manageLocks = false
+      await redo()
+      expect(useStore.getState().canvas!.pages).toEqual([...pages, copyPage])
+      expect(
+        useStore
+          .getState()
+          .canvas!.frames.filter((f) => f.pageId === 'copy')
+          .map((f) => f.name),
+      ).toEqual(partialFrames ? ['Canonical'] : [])
+      expect(useStore.getState().notice?.text).toContain('Creator')
+
+      writes.length = 0
+      await undo()
+      expect(useStore.getState().canvas!.pages).toEqual(pages)
+      expect(useStore.getState().canvas!.frames).toEqual([frame])
+      expect(writes.at(-1)).toBe('pages first,second')
+      if (partialFrames) expect(writes[0]).toBe('delete restored-1')
+
+      // Redo the successful page/frame portion first; the denied snapshot must remain a separate retry.
+      await redo()
+      expect(useStore.getState().canvas!.pages).toEqual([...pages, copyPage])
+      manageLocks = true
+      await redo()
+      expect(useStore.getState().canvas!.frames.find((f) => f.name === 'Customized')).toMatchObject({
+        pageId: 'copy',
+        preset: 'ig-story',
+        width: 900,
+        height: 1700,
+        html: custom.html,
+      })
+      expect(useStore.getState().canvas!.frames.filter((f) => f.pageId === 'copy')).toHaveLength(copied.length)
+      await undo()
+      await undo()
+      expect(useStore.getState().canvas!.pages).toEqual(pages)
+      expect(useStore.getState().canvas!.frames).toEqual([frame])
+    } finally {
+      errors.mockRestore()
+    }
+  },
+)
+
 it('undoes only the copied page, keeping a page a collaborator added meanwhile', async () => {
   const copyPage = { id: 'copy', name: 'Main copy' }
   const theirs = { id: 'theirs', name: 'Collaborator' }

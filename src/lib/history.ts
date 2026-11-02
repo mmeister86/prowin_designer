@@ -391,8 +391,15 @@ async function applyOrdered(entries: Entry[], direction: 'undo' | 'redo'): Promi
     } catch (err) {
       throw new PrerequisiteFailed(groupOf(entries, true)!, null, err)
     }
-    const ok = await settle(dependents, 'redo')
-    return groupOf(first ? [first, ...ok] : ok, true)
+    try {
+      const ok = await settle(dependents, 'redo')
+      return groupOf(first ? [first, ...ok] : ok, true)
+    } catch (err) {
+      if (!(err instanceof PrerequisiteFailed)) throw err
+      // Keep the successful page prerequisite with its frames so undo still removes frames first.
+      const applied = first ? groupOf([first, ...(err.applied ? [err.applied] : [])], true) : err.applied
+      throw new PrerequisiteFailed(err.remaining, applied, err, err.canvasId ?? pagesCanvasId(prerequisite))
+    }
   }
   const ok = await settle(dependents, 'undo')
   try {
