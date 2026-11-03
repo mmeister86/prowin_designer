@@ -1,5 +1,6 @@
 import { env } from './env.ts'
 import type { Frame } from '../shared/types.ts'
+import { defaultExportScale } from '../shared/prowin/formats.ts'
 import * as thumbs from './thumbs.ts'
 
 /**
@@ -33,7 +34,10 @@ const RENDERS_PER_MIN = env.PREVIEW_RENDERS_PER_MIN
 
 export interface ImageRequest {
   ext: 'png' | 'jpg'
-  scale: 1 | 2
+  /** explicit density; omitted: downloads use the preset default, views 1 */
+  scale?: 1 | 2
+  /** download intent: resolves the preset default scale, never the persisted thumb */
+  download?: boolean
   quality: number
   /** dashboard-card variant: small, clipped, jpeg, persisted. Only
    *  meaningful for jpg — a png?preview would serve jpeg bytes under an
@@ -48,8 +52,12 @@ export type ImageResult = { status: 'ok'; buf: Buffer } | { status: 'rate-limite
 
 /** May reject when the render itself fails — the caller owns the 500. */
 export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageResult> {
-  const preview = req.preview && req.ext === 'jpg'
-  const key = imageKey(frame.id, req.ext, req.scale, req.ext === 'jpg' ? req.quality : '', preview)
+  /* explicit scale wins; otherwise downloads render at the preset default
+     (free frames 2x) and plain views at 1x */
+  const scale = req.scale ?? (req.download ? defaultExportScale(frame.preset) : 1)
+  /* a download is the full-size render, never the persisted card thumb */
+  const preview = req.preview && req.ext === 'jpg' && !req.download
+  const key = imageKey(frame.id, req.ext, scale, req.ext === 'jpg' ? req.quality : '', preview)
   const cached = imgCache.get(key)
   let pending =
     cached && cached.updatedAt === frame.updatedAt && Date.now() - cached.at < IMG_CACHE_MS ? cached.buf : null
@@ -71,7 +79,7 @@ export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageRe
       ? /* renders AND persists — the next cold start serves from storage */
         thumbs.create(frame)
       : loadScreenshot().then(({ renderFrame }) =>
-          renderFrame(frame, req.scale, { type: req.ext === 'jpg' ? 'jpeg' : 'png', quality: req.quality }),
+          renderFrame(frame, scale, { type: req.ext === 'jpg' ? 'jpeg' : 'png', quality: req.quality }),
         )
     remember(key, pending, frame.updatedAt)
   }
@@ -79,7 +87,7 @@ export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageRe
   return { status: 'ok', buf: await pending }
 }
 
-function imageKey(id: string, ext: 'png' | 'jpg', scale: 1 | 2, quality: number | '', preview: boolean): string {
+function imageKey(id: string, ext: 'png' | 'jpg', scale: number, quality: number | '', preview: boolean): string {
   return `${id}:${ext}:${scale}:${quality}:${preview ? 'p' : ''}`
 }
 
@@ -88,7 +96,7 @@ function imageKey(id: string, ext: 'png' | 'jpg', scale: 1 | 2, quality: number 
  *  preview card loads `/i/<id>.png` right after it from a cookie-less sandbox
  *  iframe — anonymous, so metered. Priming turns that load into a free
  *  cached serve instead of a second render against the per-IP budget. */
-export function primeImage(frame: Frame, scale: 1 | 2, png: Buffer): void {
+export function primeImage(frame: Frame, scale: number, png: Buffer): void {
   remember(imageKey(frame.id, 'png', scale, '', false), Promise.resolve(png), frame.updatedAt)
 }
 

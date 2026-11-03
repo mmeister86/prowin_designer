@@ -23,6 +23,11 @@ export const FORMAT_PRESETS = {
 
 export type FormatPresetId = keyof typeof FORMAT_PRESETS
 
+/** Pixel density a download renders at: the preset's exportScale, 2 for free frames. */
+export function defaultExportScale(preset?: FormatPresetId): number {
+  return preset === undefined ? 2 : FORMAT_PRESETS[preset].exportScale
+}
+
 export function isFormatPresetId(value: unknown): value is FormatPresetId {
   return typeof value === 'string' && Object.hasOwn(FORMAT_PRESETS, value)
 }

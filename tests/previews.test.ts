@@ -127,4 +127,19 @@ describe('getImage', () => {
     /* the prime is per frame version: an edit needs a real render again */
     expect((await getImage({ ...f, updatedAt: 2 }, png)).status).toBe('rate-limited')
   })
+
+  it('omitted scale renders downloads at the preset default and views at 1x', async () => {
+    const a4 = frame({ preset: 'a4' })
+    await getImage(a4, req({ scale: undefined, download: true }))
+    expect(mocks.renderFrame).toHaveBeenCalledWith(a4, 3.125, expect.anything())
+    mocks.renderFrame.mockClear()
+    await getImage(a4, req({ scale: undefined }))
+    expect(mocks.renderFrame).toHaveBeenCalledWith(a4, 1, expect.anything())
+  })
+
+  it('explicit scale wins over the download default', async () => {
+    const a4 = frame({ preset: 'a4' })
+    await getImage(a4, req({ scale: 1, download: true }))
+    expect(mocks.renderFrame).toHaveBeenCalledWith(a4, 1, expect.anything())
+  })
 })

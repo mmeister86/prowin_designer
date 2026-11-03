@@ -279,7 +279,9 @@ app.get('/i/:id.:ext', async (req, res) => {
   try {
     result = await getImage(frame, {
       ext,
-      scale: req.query.scale === '2' ? 2 : 1,
+      /* only literal densities; anything else falls back to the policy default */
+      scale: req.query.scale === '2' ? 2 : req.query.scale === '1' ? 1 : undefined,
+      download: req.query.download !== undefined,
       quality: Math.min(100, Math.max(1, Number(req.query.quality) || 90)),
       /* ?preview — the dashboard-card variant; see previews.ts */
       preview: req.query.preview !== undefined,

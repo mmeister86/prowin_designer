@@ -11,7 +11,7 @@ const FORMAT_LABEL: Record<FrameExportFormat, string> = { png: 'PNG', jpg: 'JPG'
 const BLOB_URL_LIFETIME_MS = 10 * 60_000
 
 export function frameExportUrl(frame: Frame, format: FrameExportFormat): string {
-  return `/i/${frame.id}.${format}?scale=2&download`
+  return `/i/${frame.id}.${format}?download`
 }
 
 /** The server names the file after the frame; fall back to that if the
