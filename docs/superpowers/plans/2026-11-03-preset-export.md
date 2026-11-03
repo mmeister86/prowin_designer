@@ -82,3 +82,7 @@
 ## Self-review
 
 Both tasks cover the spec; shared previews/index interfaces are intentionally sequential. Task1 is independently reviewable dimension/caller policy, Task2 adds strict success/failure semantics. All five review-focus cases have assigned tests. No new public arbitrary-scale API or dependency is introduced. Controller may make equivalent local interface choices only with a recorded ruling that preserves the spec.
+
+## Execution result
+
+Both tasks, independent task reviews, required fixes, whole-branch review and one scoped final correction wave are complete. Final source `cca5e90`: controller verification **235 files / 2086 tests passed**, typecheck, official lint and production build passed. All Backlog AC checked; status remains In Progress pending manual acceptance. Detailed evidence, deviations from test-first ordering for added coverage, review scores and the final viewport-first fractional rounding ruling are in `docs/superpowers/reports/2026-11-03-preset-export.md`. The original step checkboxes remain the authored plan; the per-task execution ledger and report record actual completion and deviations without retrospectively claiming every coverage test ran RED.
