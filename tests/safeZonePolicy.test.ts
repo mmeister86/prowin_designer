@@ -129,8 +129,18 @@ describe('safe-zone policy', () => {
   it('rejects resize and restore that invalidate the override', () => {
     const f = canvasWith('ig-post')
     actions.updateFrame(f.id, { safeZoneOverride: { top: 500, right: 0, bottom: 500, left: 0 } }, actor('c'))
+    const activityBefore = structuredClone(actions.getActivity('c1'))
+    broadcast.mockClear()
+    vi.mocked(persist.saveActivity).mockClear()
+    vi.mocked(persist.saveFrameVersion).mockClear()
     expect(() => actions.updateFrame(f.id, { height: 900 }, actor('c'))).toThrow()
     expect(store.getFrame(f.id)).toHaveProperty('safeZoneOverride')
+    expect(store.getFrame(f.id)).toMatchObject({ width: 1080, height: 1080 })
+    /* denied server writes persist nothing: no version, no activity, no broadcast */
+    expect(persist.saveFrameVersion).not.toHaveBeenCalled()
+    expect(persist.saveActivity).not.toHaveBeenCalled()
+    expect(actions.getActivity('c1')).toEqual(activityBefore)
+    expect(broadcast).not.toHaveBeenCalled()
   })
 
   it('member source copies inherit stored metadata including zeroes', () => {

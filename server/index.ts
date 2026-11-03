@@ -1530,7 +1530,8 @@ app.use(
 
 app.use((error: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (error instanceof CreatorPermissionError) return res.status(403).json({ error: error.message })
-  if (error instanceof TemplateMetaError) return res.status(error.status).json({ error: error.message })
+  if (error instanceof TemplateMetaError || error instanceof actions.SafeZoneError)
+    return res.status(error.status).json({ error: error.message })
   if (res.headersSent) return next(error)
   console.error('[api] request failed', error)
   const status =

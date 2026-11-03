@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { Frame } from '../../shared/types'
 import { FORMAT_PRESETS } from '../../shared/prowin/formats'
 import { useStore } from '../lib/store'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import { copyFramePng, downloadFrameExport, downloadFrameHtml } from '../lib/frameExport'
 import { deleteFrameTracked, recordUpdate } from '../lib/history'
 import { setFramesLocked } from '../lib/layerEdits'
@@ -103,11 +103,22 @@ export function Inspector({
     localStorage.setItem(HTML_OPEN_KEY, next ? '1' : '0')
   }
 
-  function commitMeta(patch: Partial<Frame>) {
+  async function commitMeta(patch: Partial<Frame>) {
     if (frame.preset && !canManageLocks && (patch.width !== undefined || patch.height !== undefined)) return
-    recordUpdate(frame.id, frame, patch)
+    try {
+      await api.updateFrame(frame.id, patch)
+    } catch (err) {
+      /* a rejected write (e.g. a resize that no longer fits the safe-zone
+         override) must leave neither history nor bad local geometry behind */
+      console.error(err)
+      useStore
+        .getState()
+        .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
+      return
+    }
+    /* history and local state only after the server accepted the write */
     useStore.getState().patchFrameLocal(frame.id, patch)
-    api.updateFrame(frame.id, patch).catch(console.error)
+    recordUpdate(frame.id, frame, patch)
   }
 
   return (

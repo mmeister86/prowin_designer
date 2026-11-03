@@ -47,4 +47,17 @@ describe('safe-zone REST boundaries', () => {
     const reset = await (await owner.patch(`/api/frames/${created.id}`, { safeZoneOverride: null })).json()
     expect(reset).not.toHaveProperty('safeZoneOverride')
   })
+
+  it('denied resize reports the specific German safe-zone reason', async () => {
+    const created = await (
+      await owner.post(`/api/canvases/${canvas.id}/frames`, {
+        name: 'Tight',
+        preset: 'ig-post',
+        safeZoneOverride: { top: 500, right: 0, bottom: 500, left: 0 },
+      })
+    ).json()
+    const res = await owner.patch(`/api/frames/${created.id}`, { height: 900 })
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({ error: expect.stringMatching(/Safe-Zone/) })
+  })
 })
