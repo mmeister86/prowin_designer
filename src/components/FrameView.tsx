@@ -10,6 +10,7 @@ import { PathEditor } from './PathEditor'
 import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
 import { registerFrameWindow, unregisterFrameWindow, inspectElement } from '../lib/frameBridge'
+import { safeZoneDocumentToken } from '../lib/safeZoneDocument'
 import { useSafeZoneMeasure } from '../lib/useSafeZoneMeasure'
 import { effectiveSafeZone } from '../../shared/prowin/safeZones.ts'
 import { SafeZoneOverlay } from '../prowin/SafeZoneOverlay'
@@ -607,8 +608,11 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
   useEffect(() => {
     if (!runtimeReady || editing || suspendPost || html !== frame.html || html === localHtml.current) return
     localHtml.current = null
-    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:html', html }, '*')
-  }, [runtimeReady, html, frame.html, editing, suspendPost])
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'doop:html', html, docToken: safeZoneDocumentToken(frame.id, html) },
+      '*',
+    )
+  }, [runtimeReady, html, frame.html, frame.id, editing, suspendPost])
 
   const showSafeZones = useStore((s) => s.showSafeZones)
   const safeInsets = useMemo(() => effectiveSafeZone(frame), [frame])
@@ -1059,7 +1063,10 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     setActiveHit(null)
     setComposing(false)
     activeSelRef.current = null
-    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:revert', html }, '*')
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'doop:revert', html, docToken: safeZoneDocumentToken(frameId, html) },
+      '*',
+    )
   }, [])
 
   /* switching to Hand or Comment ends a text-edit session: both put the

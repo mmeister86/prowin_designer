@@ -114,7 +114,7 @@ interface PendingAsk {
 const REPLY_TIMEOUT_MS = 2000
 
 const windows = new Map<string, Window>()
-const changeListeners = new Map<string, Set<(generation?: number) => void>>()
+const changeListeners = new Map<string, Set<(generation?: number, docToken?: number) => void>>()
 const pending = new Map<number, PendingAsk>()
 let nextReq = 0
 let listening = false
@@ -123,12 +123,13 @@ function listen() {
   if (listening) return
   listening = true
   window.addEventListener('message', (ev: MessageEvent) => {
-    const data = ev.data as { type?: string; reqId?: number; generation?: number } | null
+    const data = ev.data as { type?: string; reqId?: number; generation?: number; docToken?: number } | null
     if (data?.type === 'doop:frame-updated') {
       const generation =
         typeof data.generation === 'number' && Number.isFinite(data.generation) ? data.generation : undefined
+      const docToken = typeof data.docToken === 'number' && Number.isFinite(data.docToken) ? data.docToken : undefined
       for (const [frameId, win] of windows) {
-        if (ev.source === win) changeListeners.get(frameId)?.forEach((cb) => cb(generation))
+        if (ev.source === win) changeListeners.get(frameId)?.forEach((cb) => cb(generation, docToken))
       }
       return
     }
@@ -153,8 +154,10 @@ export function unregisterFrameWindow(frameId: string, win: Window) {
 
 /** Re-read after the runtime registers, renders HTML, or loads font faces.
  *  Store updates can precede the frame's throttled render. The callback
- *  receives the runtime's rendered-document generation when known. */
-export function onFrameChange(frameId: string, cb: (generation?: number) => void): () => void {
+ *  receives the runtime's rendered-document generation when known, plus the
+ *  expected-document token of the rendered HTML — only a token matching the
+ *  currently desired HTML proves the wanted document actually rendered. */
+export function onFrameChange(frameId: string, cb: (generation?: number, docToken?: number) => void): () => void {
   listen()
   const set = changeListeners.get(frameId) ?? new Set()
   set.add(cb)

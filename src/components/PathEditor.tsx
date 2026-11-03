@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { Frame } from '../../shared/types'
 import { isCanvasElement, nearestPathAnchor, type PathPoint, type Point } from '../lib/drawing'
 import { requestFrame } from '../lib/frameBridge'
+import { safeZoneDocumentToken } from '../lib/safeZoneDocument'
 import { gesture } from '../lib/gesture'
 import { isTypingTarget } from '../lib/keys'
 import {
@@ -48,7 +49,10 @@ export function PathEditor({
       const current = ++revision.current
       const latest = useStore.getState().canvas?.frames.find((f) => f.id === requested.id)
       if (!latest) return
-      await requestFrame(latest.id, 'doop:html', { html: latest.html })
+      await requestFrame(latest.id, 'doop:html', {
+        html: latest.html,
+        docToken: safeZoneDocumentToken(latest.id, latest.html),
+      })
       const next = await loadPathEdit(latest, { selector: initial.selector })
       if (!alive.current || current !== revision.current) return
       if (!next) return onClose()

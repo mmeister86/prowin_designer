@@ -847,7 +847,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
      a summary of one element and writes changes back as inline styles; the
      edited document then goes to the parent through the usual save path. */
   function notifyFrameUpdated() {
-    parent.postMessage({ type: 'doop:frame-updated', generation: safeZoneGeneration }, '*')
+    parent.postMessage({ type: 'doop:frame-updated', generation: safeZoneGeneration, docToken: safeZoneDocument }, '*')
   }
   document.fonts.addEventListener('loadingdone', notifyFrameUpdated)
   /* A linked sheet can declare unused faces without loading any font files.
@@ -894,11 +894,16 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
      unavailable rather than trusted success. Bounded at 200 boxes: more
      visible roles degrade to incomplete so an omitted intruder can never
      read as trusted success. The generation stamps the rendered document
-     the boxes were measured in. */
+     the boxes were measured in; the docToken is the parent's
+     expected-document identity for that HTML, so the parent can tell the
+     desired document apart from a stale render. */
   var safeZoneGeneration = 0
+  var safeZoneDocument = null
   function safeZoneBoxes() {
     var viewport = { width: innerWidth, height: innerHeight }
-    if (document.hidden) return { status: 'unavailable', boxes: [], viewport: viewport, generation: safeZoneGeneration }
+    if (document.hidden)
+      return { status: 'unavailable', boxes: [], viewport: viewport, generation: safeZoneGeneration,
+        docToken: safeZoneDocument }
     var out = []
     var overflow = false
     var nodes = document.querySelectorAll('[data-od-role]')
@@ -925,6 +930,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       boxes: out,
       viewport: viewport,
       generation: safeZoneGeneration,
+      docToken: safeZoneDocument,
     }
   }
 
@@ -1260,6 +1266,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       parent.postMessage({ type: 'doop:style-gesture-result', reqId: d.reqId, info: changed ? inspect(d.selector) : null }, '*')
     }
     if (d.type === 'doop:html' && typeof d.html === 'string' && !editing) {
+      safeZoneDocument = typeof d.docToken === 'number' && isFinite(d.docToken) ? d.docToken : null
       render(d.html)
       notifyFrameUpdated()
       if (d.reqId) parent.postMessage({ type: 'doop:html-result', reqId: d.reqId }, '*')
@@ -1276,6 +1283,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       clearHover()
       var editStyle = document.querySelector('style[data-v-edit]')
       if (editStyle && editStyle.parentNode) editStyle.parentNode.removeChild(editStyle)
+      safeZoneDocument = typeof d.docToken === 'number' && isFinite(d.docToken) ? d.docToken : null
       render(d.html)
       notifyFrameUpdated()
     }
@@ -1405,7 +1413,8 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (d.type === 'doop:safe-zones') {
       var measured = safeZoneBoxes()
       parent.postMessage({ type: 'doop:safe-zones-result', reqId: d.reqId, status: measured.status,
-        boxes: measured.boxes, viewport: measured.viewport || null, generation: measured.generation }, '*')
+        boxes: measured.boxes, viewport: measured.viewport || null, generation: measured.generation,
+        docToken: measured.docToken }, '*')
     }
   })
   parent.postMessage({ type: 'doop:frame-ready' }, '*')

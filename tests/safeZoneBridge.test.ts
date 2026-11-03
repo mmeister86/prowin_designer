@@ -47,6 +47,13 @@ it('ignores replies from the wrong source window or wrong reqId', async () => {
     post(asked, { type: 'doop:frame-updated', generation: 7 })
     expect(generations).toEqual([7])
     off2()
+    // The render notification also forwards the expected-document token so
+    // the measuring hook can tell the desired HTML apart from stale renders.
+    const seen: { generation?: number; docToken?: number }[] = []
+    const off3 = onFrameChange('spoof', (generation, docToken) => seen.push({ generation, docToken }))
+    post(asked, { type: 'doop:frame-updated', generation: 8, docToken: 3 })
+    expect(seen).toEqual([{ generation: 8, docToken: 3 }])
+    off3()
   } finally {
     unregisterFrameWindow('spoof', asked)
     off()

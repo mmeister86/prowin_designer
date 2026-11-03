@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { expect, it } from 'vitest'
 import { validateSafeZoneReply, MAX_SAFE_ZONE_BOXES } from '../src/lib/safeZoneMeasure.ts'
+import { FRAME_BOOTSTRAP } from '../src/lib/frameRuntime.ts'
 
 it('bounded 200-box payload with numeric validation and unavailable status', async () => {
   expect(MAX_SAFE_ZONE_BOXES).toBe(200)
@@ -81,4 +82,23 @@ it('keeps advisory boxes on a well-formed runtime incomplete (truncation)', () =
   })
   expect(dropped.status).toBe('incomplete')
   expect(dropped.boxes).toHaveLength(0)
+})
+
+it('carries the expected-document token for render-identity matching', () => {
+  const viewport = { width: 1080, height: 1920 }
+  const box = { x: 0, y: 0, width: 10, height: 10 }
+  expect(validateSafeZoneReply({ status: 'ok', boxes: [box], viewport, generation: 3, docToken: 9 }).docToken).toBe(9)
+  expect(validateSafeZoneReply({ status: 'ok', boxes: [box], viewport, generation: 3 }).docToken).toBe(null)
+  expect(validateSafeZoneReply(null).docToken).toBe(null)
+})
+
+it('the iframe runtime stamps replies and render notifications with the document token', () => {
+  // The runtime ships as a source string; these pins guard the wiring the
+  // hook's render-identity check depends on end to end (a reply without the
+  // stamp can never confirm the desired document).
+  expect(FRAME_BOOTSTRAP).toContain('docToken: measured.docToken')
+  expect(FRAME_BOOTSTRAP).toContain(
+    "type: 'doop:frame-updated', generation: safeZoneGeneration, docToken: safeZoneDocument",
+  )
+  expect(FRAME_BOOTSTRAP).toContain('safeZoneDocument = typeof d.docToken')
 })
