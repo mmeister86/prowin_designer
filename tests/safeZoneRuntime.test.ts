@@ -107,3 +107,19 @@ it('the iframe runtime stamps replies and render notifications with the document
   expect(FRAME_BOOTSTRAP).toContain("d.type === 'doop:edited-ack'")
   expect(FRAME_BOOTSTRAP).toContain('canonicalHtml(d.html)')
 })
+
+it('refreshes after transition/animation completion and cancellation', () => {
+  // Class-triggered transform transitions longer than the debounce settle
+  // without further DOM churn: capture covers non-bubbling delivery too.
+  for (const type of ['transitionend', 'transitioncancel', 'animationend', 'animationcancel']) {
+    expect(FRAME_BOOTSTRAP).toContain(`document.addEventListener('${type}', scheduleFrameUpdated, true)`)
+  }
+})
+
+it('filters fully transparent semantic content including opacity:0 ancestors', () => {
+  // Computed opacity is not inherited, so the child still computes 1 under
+  // an opacity:0 parent: only an ancestor walk excludes it. All roles stay
+  // covered — transparency is the only filter.
+  expect(FRAME_BOOTSTRAP).toContain('if (effectivelyTransparent(el, cs)) continue')
+  expect(FRAME_BOOTSTRAP).toContain('parseFloat(ncs.opacity) === 0')
+})

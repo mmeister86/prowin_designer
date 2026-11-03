@@ -457,7 +457,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         if (f) sendDrag(f.id, { id: f.id, x: f.x, y: f.y, width: f.width, height: f.height })
       }
     }
-    function onUp() {
+    function finishUp() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
@@ -527,6 +527,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       /* a click (no drag) on the frame name opens the details panel */
       if (!moved && panelOnClick) useStore.getState().setInspectorOpen(true)
     }
+    /* the global release only completes its own gesture: another pointer's
+       release must not commit this drag, record its copy or release its
+       reservation — the drawing handoff below completes explicitly instead */
+    function onUp(ev: PointerEvent) {
+      if (ev.pointerId !== e.pointerId) return
+      finishUp()
+    }
     function onCancel(ev?: PointerEvent) {
       /* a different pointer's cancellation must not abort this gesture;
          the unmount path calls with no event and always runs */
@@ -565,7 +572,9 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     window.addEventListener('pointercancel', onCancel)
-    return { move: onMove, up: onUp }
+    /* the drawing handoff replays a buffered release explicitly: it bypasses
+       the owning-pointer check above, which guards only the global listener */
+    return { move: onMove, up: finishUp }
   }
 
   const html = useThrottledValue(frame.html, 150)

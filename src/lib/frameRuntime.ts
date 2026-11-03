@@ -901,6 +901,14 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     var el = ev.target
     if (el && (el.tagName === 'IMG' || el.tagName === 'VIDEO' || (el.tagName === 'LINK' && el.rel && el.relList && el.relList.contains('stylesheet')))) scheduleFrameUpdated()
   }, true)
+  /* a class-triggered transform transition longer than the debounce settles
+     without further DOM churn: completion and cancellation remeasure the
+     final geometry (capture covers non-bubbling delivery too; continuous
+     tracking during the flight stays advisory) */
+  document.addEventListener('transitionend', scheduleFrameUpdated, true)
+  document.addEventListener('transitioncancel', scheduleFrameUpdated, true)
+  document.addEventListener('animationend', scheduleFrameUpdated, true)
+  document.addEventListener('animationcancel', scheduleFrameUpdated, true)
 
   /* Visible semantic boxes in frame-local CSS px. Includes display:contents
      descendants (the selector finds nested roles even when an ancestor has
@@ -913,6 +921,22 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
      desired document apart from a stale render. */
   var safeZoneGeneration = 0
   var safeZoneDocument = null
+  /* Fully transparent content warns about nothing visible: computed opacity
+     is not inherited, so a child still computes 1 under an opacity:0 parent
+     and only an ancestor walk excludes it. All roles stay covered. */
+  function effectivelyTransparent(el, cs) {
+    if (parseFloat(cs.opacity) === 0) return true
+    for (var node = el.parentElement; node; node = node.parentElement) {
+      var ncs = null
+      try {
+        ncs = getComputedStyle(node)
+      } catch (e) {
+        return false
+      }
+      if (parseFloat(ncs.opacity) === 0) return true
+    }
+    return false
+  }
   function safeZoneBoxes() {
     var viewport = { width: innerWidth, height: innerHeight }
     if (document.hidden)
@@ -927,6 +951,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       if (el.hasAttribute('hidden')) continue
       var cs = getComputedStyle(el)
       if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse') continue
+      if (effectivelyTransparent(el, cs)) continue
       var r
       try {
         r = el.getBoundingClientRect()

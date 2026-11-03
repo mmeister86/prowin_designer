@@ -111,6 +111,57 @@ it('a different pointer cancel leaves the active drag running', async () => {
   expect(updateFrame).toHaveBeenCalledTimes(1)
 })
 
+it('other-pointer release never commits a duplicate drag; owner cancel leaves no copy or history', async () => {
+  const { isGeometrySaving } = await import('../src/lib/geometrySaves')
+  const el = await surface()
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        altKey: true,
+        shiftKey: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 1, clientX: 40, clientY: 0, altKey: true, shiftKey: true }),
+    )
+    await flush()
+    await flush()
+  })
+  expect(createFrame).toHaveBeenCalledTimes(1)
+  expect(isGeometrySaving('a')).toBe(true)
+  // Another pointer's release is not this gesture's commit.
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 2, clientX: 0, clientY: 0 }))
+    await flush()
+    await flush()
+  })
+  expect(isGeometrySaving('a')).toBe(true)
+  expect(updateFrame).not.toHaveBeenCalled()
+  expect(deleteFrame).not.toHaveBeenCalled()
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'a')).toMatchObject({ x: 40 })
+  // The owner's cancellation then cleans up the duplicate with no commit.
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+  expect(deleteFrame).toHaveBeenCalledTimes(1)
+  expect(deleteFrame).toHaveBeenCalledWith('copy')
+  expect(updateFrame).not.toHaveBeenCalled()
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'a')).toMatchObject({ x: 0 })
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).not.toHaveBeenCalled()
+  expect(createFrame).toHaveBeenCalledTimes(1)
+  expect(deleteFrame).toHaveBeenCalledTimes(1)
+})
+
 it('cancelled duplicate drag with a resolved copy removes the copy and records no history', async () => {
   const el = await surface()
   await act(async () => {
