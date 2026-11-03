@@ -434,3 +434,228 @@ it('drag is blocked while an Inspector save is pending', async () => {
   expect(updateFrame).toHaveBeenCalledTimes(2)
   expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
 })
+
+it('Inspector commit during an active drag waits and rebases onto the restored 1080', async () => {
+  const { gripEl, heightEl } = await renderBoth()
+  const { isGeometrySaving } = await import('../src/lib/geometrySaves')
+  const dragGate = deferred<Frame>()
+  const inspectorGate = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => dragGate.promise).mockImplementationOnce(() => inspectorGate.promise)
+
+  /* drag 1080 -> 900 starts and stays down: the frame is reserved */
+  await act(async () => {
+    gripEl.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 0, clientY: -180 }))
+    await flush()
+  })
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 900 })
+  expect(isGeometrySaving('zoned')).toBe(true)
+
+  /* Inspector 1100 commit while the pointer is still down must wait, not save */
+  await act(async () => {
+    heightEl.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(heightEl, '1100')
+    heightEl.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    heightEl.blur()
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(0)
+
+  /* pointer-up finalizes inside the reservation: the invalid 900 save goes out */
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(updateFrame).toHaveBeenNthCalledWith(1, 'zoned', expect.objectContaining({ height: 900 }))
+
+  /* drag rejects -> 1080 restored; the Inspector commit then saves 1100 from 1080 */
+  await act(async () => {
+    dragGate.reject(rejectedResize())
+    await flush()
+    await flush()
+  })
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+  expect(updateFrame).toHaveBeenNthCalledWith(2, 'zoned', { height: 1100 })
+
+  /* a third commit while the Inspector save is pending queues behind it:
+     the older drag settlement must not drop the newer tail */
+  await act(async () => {
+    heightEl.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(heightEl, '1150')
+    heightEl.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    heightEl.blur()
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+
+  await act(async () => {
+    inspectorGate.resolve({ ...zoned, height: 1100, updatedAt: 2 } as Frame)
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(3)
+  expect(updateFrame).toHaveBeenNthCalledWith(3, 'zoned', { height: 1150 })
+
+  /* undo inverts the coalesced Inspector entry back to the restored 1080 */
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).toHaveBeenLastCalledWith('zoned', expect.objectContaining({ height: 1080 }))
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+})
+
+it('a second gesture cannot start while the first drag is still down', async () => {
+  const { isGeometrySaving } = await import('../src/lib/geometrySaves')
+  const el = await grip()
+  updateFrame.mockRejectedValueOnce(rejectedResize())
+
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 0, clientY: -180 }))
+    await flush()
+  })
+  expect(isGeometrySaving('zoned')).toBe(true)
+
+  /* second press with another pointer: blocked, its moves change nothing */
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 2, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 2, clientX: 0, clientY: -280 }))
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(0)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 900 })
+
+  /* the first gesture still owns the pointer: release saves the 900 attempt once */
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(updateFrame).toHaveBeenCalledWith('zoned', expect.objectContaining({ height: 900 }))
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+  expect(isGeometrySaving('zoned')).toBe(false)
+})
+
+it('pointercancel releases the reservation with no save and no history', async () => {
+  const { isGeometrySaving } = await import('../src/lib/geometrySaves')
+  const el = await grip()
+
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 0, clientY: -180 }))
+    await flush()
+  })
+  expect(isGeometrySaving('zoned')).toBe(true)
+
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1 }))
+    await flush()
+  })
+  expect(updateFrame).not.toHaveBeenCalled()
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+  expect(isGeometrySaving('zoned')).toBe(false)
+  expect(wsSend.mock.calls.at(-1)).toEqual([
+    { type: 'frame:drag', frameId: 'zoned', x: 0, y: 0, width: 1080, height: 1080 },
+  ])
+
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).not.toHaveBeenCalled()
+})
+
+it('unmount mid-drag releases the reservation with no save', async () => {
+  const { isGeometrySaving } = await import('../src/lib/geometrySaves')
+  await grip()
+  const secondContainer = document.createElement('div')
+  document.body.append(secondContainer)
+  const secondRoot = createRoot(secondContainer)
+  await act(async () => {
+    secondRoot.render(
+      <TooltipProvider>
+        <FrameView frame={{ ...zoned }} layoutZoom={1} />
+      </TooltipProvider>,
+    )
+  })
+  const secondGrip = secondContainer
+    .querySelector(`iframe[title="${zoned.name}"]`)!
+    .parentElement!.parentElement!.querySelector<HTMLElement>('.cursor-nwse-resize')!
+
+  await act(async () => {
+    secondGrip.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 7, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 7, clientX: 0, clientY: -180 }))
+    await flush()
+  })
+  expect(isGeometrySaving('zoned')).toBe(true)
+
+  await act(async () => {
+    secondRoot.unmount()
+  })
+  secondContainer.remove()
+  expect(isGeometrySaving('zoned')).toBe(false)
+  expect(updateFrame).not.toHaveBeenCalled()
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+
+  /* the undo barrier settled with the gesture: undo resolves with no write */
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).not.toHaveBeenCalled()
+})
+
+it('a group drag reserves every member until pointer-up', async () => {
+  const { isGeometrySaving } = await import('../src/lib/geometrySaves')
+  const a = plainFrame('a', 'A', 0)
+  const b = plainFrame('b', 'B', 300)
+  useStore.getState().setCanvas({ id: 'c', name: 'Canvas', frames: [a, b] } as Canvas)
+  useStore.setState({ selectedIds: ['a', 'b'], selectedId: 'a', tool: 'select', panMode: false, notice: null })
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <FrameView frame={{ ...a }} layoutZoom={1} />
+      </TooltipProvider>,
+    ),
+  )
+  const surface = container.querySelector(`iframe[title="A"]`)!.parentElement!
+
+  await act(async () => {
+    surface.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 0 }),
+    )
+    await flush()
+  })
+  expect(isGeometrySaving('a')).toBe(true)
+  expect(isGeometrySaving('b')).toBe(true)
+
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+  expect(isGeometrySaving('a')).toBe(false)
+  expect(isGeometrySaving('b')).toBe(false)
+})

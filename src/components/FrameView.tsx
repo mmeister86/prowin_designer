@@ -27,7 +27,7 @@ import { getIdentity } from '../lib/identity'
 import { FRAME_BOOTSTRAP } from '../lib/frameRuntime'
 import { FRAME_DOCUMENTS_TAKE_ZOOM_AS_DENSITY, counterZoom } from '../lib/layoutZoom'
 import { recordCreate, recordUpdate, recordUpdates, trackSave } from '../lib/history'
-import { enqueueGeometrySave, isGeometrySaving } from '../lib/geometrySaves'
+import { beginGeometryGesture, isGeometrySaving } from '../lib/geometrySaves'
 import { snapFrame } from '../lib/snap'
 import { gesture } from '../lib/gesture'
 import { resolvePointerAction } from '../lib/tools'
@@ -217,6 +217,16 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
      lands in the store — otherwise a stale post would morph the edit away */
   const [suspendPost, setSuspendPost] = useState(false)
 
+  /* the reservation of a still-running gesture: unmount (frame deleted, page
+     switched) releases it so busy and the undo barrier never stick */
+  const activeGestureCancel = useRef<(() => void) | null>(null)
+  useEffect(
+    () => () => {
+      activeGestureCancel.current?.()
+    },
+    [],
+  )
+
   /* one throttle per frame, so a group drag broadcasts every member —
      a single throttle would keep only the last frame written each tick */
   const dragSenders = useRef(new Map<string, { (f: DragRect): void; cancel: () => void }>()).current
@@ -326,10 +336,15 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       }))
     const groupIds = new Set(group.map((g) => g.id))
     /* a geometry save (drag or Inspector) is still resolving its authoritative
-       baseline: a second gesture would inherit a possibly rejected optimistic
-       rect as its own rollback/history baseline, so it waits until
-       save+record complete instead of poisoning undo */
+       baseline — or another gesture is still holding its reservation: a second
+       gesture would inherit a possibly rejected optimistic rect as its own
+       rollback/history baseline, so it never starts while any member is busy */
     if (group.some((g) => isGeometrySaving(g.id))) return undefined
+    /* reserve every member synchronously at pointer-down through the async
+       save plus history finish: Inspector commits queue behind this slot, so
+       they read their baseline after (never inside) the uncommitted drag */
+    const slot = beginGeometryGesture(group.map((g) => g.id))
+    let finished = false
     setDragging(true)
     clearHover()
     const start = { x: e.clientX, y: e.clientY }
@@ -413,17 +428,20 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     function onUp() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       setDragging(false)
       if (duplicating) setDuping(false)
       useStore.getState().setSnapGuides([])
+      activeGestureCancel.current = null
+      finished = true
       const live = useStore.getState().canvas?.frames ?? []
       const updates: { frameId: string; before: typeof orig; after: typeof orig }[] = []
-      /* shared geometry queue with Inspector commits: the whole gesture runs
-         as one barrier (save plus grouped history) so an undo starting
-         mid-save waits for it; queued behind any pending Inspector save */
-      void enqueueGeometrySave(
-        group.map((g) => g.id),
-        async () => {
+      /* the slot was reserved at pointer-down: finalize inside it (never
+         enqueued behind commits that arrived mid-gesture), so the whole
+         gesture runs as one barrier — save plus grouped history — and queued
+         commits rebase onto its result */
+      void slot
+        .finish(async () => {
           for (const g of group) {
             const f = live.find((x) => x.id === g.id)
             if (!f) continue
@@ -463,8 +481,8 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
           const [only, ...more] = updates
           if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
           else recordUpdates(updates)
-        },
-      ).catch(() => undefined)
+        })
+        .catch(() => undefined)
       /* a click (no drag) on the frame surface targets the element under
          the cursor: probe it and show the element toolbar */
       if (!moved && probeOnClick) probeAt(off.x, off.y)
@@ -472,8 +490,35 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       /* a click (no drag) on the frame name opens the details panel */
       if (!moved && panelOnClick) useStore.getState().setInspectorOpen(true)
     }
+    function onCancel() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+      setDragging(false)
+      if (duplicating) setDuping(false)
+      useStore.getState().setSnapGuides([])
+      activeGestureCancel.current = null
+      finished = true
+      /* an aborted gesture never saved: drop its optimistic rects (unless a
+         committed revision landed meanwhile) and release without history */
+      const live = useStore.getState().canvas?.frames ?? []
+      for (const g of group) {
+        const cur = live.find((x) => x.id === g.id)
+        if (!cur || cur.updatedAt !== g.updatedAt) continue
+        if (cur.x === g.orig.x && cur.y === g.orig.y && cur.width === g.orig.width && cur.height === g.orig.height)
+          continue
+        useStore.getState().patchFrameLocal(g.id, g.orig)
+        cancelDragSend(g.id)
+        sendWs({ type: 'frame:drag', frameId: g.id, ...g.orig })
+      }
+      slot.cancel()
+    }
+    activeGestureCancel.current = () => {
+      if (!finished) onCancel()
+    }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
     return { move: onMove, up: onUp }
   }
 
