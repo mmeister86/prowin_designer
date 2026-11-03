@@ -854,6 +854,66 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     if (el && el.tagName === 'LINK' && el.relList.contains('stylesheet')) notifyFrameUpdated()
   }, true)
 
+  /* ---- advisory safe-zone geometry (TASK-33 step 2) ----
+     Parent-only overlays: the runtime only measures, never adds warning
+     DOM, so serialized HTML stays untouched. Coalesced refresh pings keep
+     the parent's overlay fresh after live edits, resources and layout
+     changes without polling. */
+  var safeZoneTimer = null
+  function scheduleFrameUpdated() {
+    if (safeZoneTimer) return
+    safeZoneTimer = setTimeout(function () {
+      safeZoneTimer = null
+      notifyFrameUpdated()
+    }, 150)
+  }
+  try {
+    var safeZoneMut = new MutationObserver(scheduleFrameUpdated)
+    safeZoneMut.observe(document.documentElement, {
+      childList: true, attributes: true, characterData: true, subtree: true,
+    })
+  } catch (e) {}
+  try {
+    var safeZoneResize = new ResizeObserver(scheduleFrameUpdated)
+    safeZoneResize.observe(document.documentElement)
+    safeZoneResize.observe(document.body)
+  } catch (e) {}
+  window.addEventListener('resize', scheduleFrameUpdated)
+  /* resource loads (images, fonts via <link>) change boxes without a render */
+  document.addEventListener('load', function (ev) {
+    var el = ev.target
+    if (el && (el.tagName === 'IMG' || el.tagName === 'VIDEO' || (el.tagName === 'LINK' && el.rel && el.relList && el.relList.contains('stylesheet')))) scheduleFrameUpdated()
+  }, true)
+
+  /* Visible semantic boxes in frame-local CSS px. Includes display:contents
+     descendants (the selector finds nested roles even when an ancestor has
+     no box). Hidden documents suspend: the parent treats the reply as
+     unavailable rather than trusted success. Bounded at 200 boxes. */
+  function safeZoneBoxes() {
+    if (document.hidden) return { status: 'unavailable', boxes: [] }
+    var out = []
+    var nodes = document.querySelectorAll('[data-od-role]')
+    for (var i = 0; i < nodes.length && out.length < 200; i++) {
+      var el = nodes[i]
+      if (!(el instanceof Element)) continue
+      if (el.hasAttribute('hidden')) continue
+      var cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse') continue
+      var r
+      try {
+        r = el.getBoundingClientRect()
+      } catch (e) { continue }
+      if (!isFinite(r.x) || !isFinite(r.y) || !isFinite(r.width) || !isFinite(r.height)) continue
+      if (r.width <= 0 || r.height <= 0) continue
+      out.push({ x: r.left, y: r.top, width: r.width, height: r.height })
+    }
+    return {
+      status: 'ok',
+      boxes: out,
+      viewport: { width: innerWidth, height: innerHeight },
+    }
+  }
+
   function px(v) {
     var n = parseFloat(v)
     return isNaN(n) ? null : Math.round(n * 100) / 100
@@ -1327,6 +1387,11 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
         if (target) found = designRect(target)
       } catch (e) { /* bad selector -> null */ }
       parent.postMessage({ type: 'doop:located', reqId: d.reqId, selector: d.selector, rect: found, sizable: !!target && sizable(target) }, '*')
+    }
+    if (d.type === 'doop:safe-zones') {
+      var measured = safeZoneBoxes()
+      parent.postMessage({ type: 'doop:safe-zones-result', reqId: d.reqId, status: measured.status,
+        boxes: measured.boxes, viewport: measured.viewport || null }, '*')
     }
   })
   parent.postMessage({ type: 'doop:frame-ready' }, '*')

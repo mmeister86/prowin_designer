@@ -8,6 +8,7 @@ import { copyFramePng, downloadFrameExport, downloadFrameHtml } from '../lib/fra
 import { deleteFrameTracked, recordUpdate } from '../lib/history'
 import { enqueueGeometrySave } from '../lib/geometrySaves'
 import { setFramesLocked } from '../lib/layerEdits'
+import { SafeZoneSection } from '../prowin/SafeZoneSection'
 import { FrameHistoryModal } from './FrameHistoryModal'
 import { cn } from '@/lib/utils'
 import { Panel, PanelClose, PanelHeader } from './ui/panel'
@@ -202,6 +203,7 @@ export function Inspector({
               onCommit={(v) => commitMeta({ height: Math.max(80, v) })}
             />
           </div>
+          <SafeZoneSection frame={frame} />
         </InspectorGroup>
         <InspectorGroup title="Export">
           <div className="grid grid-cols-2 gap-1.5">

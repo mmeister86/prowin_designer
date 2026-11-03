@@ -9,7 +9,16 @@ import { FrameLabelLayer } from './FrameLabelLayer'
 import { PathEditor } from './PathEditor'
 import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
-import { registerFrameWindow, unregisterFrameWindow, inspectElement } from '../lib/frameBridge'
+import {
+  registerFrameWindow,
+  unregisterFrameWindow,
+  inspectElement,
+  onFrameChange,
+  requestSafeZones,
+} from '../lib/frameBridge'
+import { validateSafeZoneReply, type SafeZoneBox } from '../lib/safeZoneMeasure'
+import { effectiveSafeZone } from '../../shared/prowin/safeZones.ts'
+import { SafeZoneOverlay } from '../prowin/SafeZoneOverlay'
 import { dropTemplateBlockedSelection } from '../lib/layerEdits'
 import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import {
@@ -357,6 +366,17 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     let base = { x: start.x, y: start.y, rect: orig }
     let moved = false
     let dupDropped = false
+    /* a cancelled duplicate must leave no copy behind: resolved ids are
+       deleted on cancel, pending creates delete on resolve instead of
+       recording history. A failed cleanup keeps its data and reports. */
+    let dupCancelled = false
+    const dupCopyIds: string[] = []
+    function cleanupDupCopy(id: string) {
+      api.deleteFrame(id).catch((err) => {
+        console.error(err)
+        useStore.getState().pushNotice('Die Duplikat-Bereinigung ist fehlgeschlagen. Prüfe die Zeichenfläche.')
+      })
+    }
     if (duplicating) setDuping(true)
 
     function onMove(ev: PointerEvent) {
@@ -383,6 +403,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
               ...g.orig,
             })
             .then((f) => {
+              /* a cancel that landed first owns the copy: delete it
+                 instead of recording history for a gesture that died */
+              if (dupCancelled) {
+                if (f?.id) cleanupDupCopy(f.id)
+                return
+              }
+              if (f?.id) dupCopyIds.push(f.id)
               recordCreate(f, src.id)
             })
             .catch(console.error)
@@ -490,12 +517,18 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       /* a click (no drag) on the frame name opens the details panel */
       if (!moved && panelOnClick) useStore.getState().setInspectorOpen(true)
     }
-    function onCancel() {
+    function onCancel(ev?: PointerEvent) {
+      /* a different pointer's cancellation must not abort this gesture;
+         the unmount path calls with no event and always runs */
+      if (ev && typeof ev.pointerId === 'number' && ev.pointerId !== e.pointerId) return
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onCancel)
       setDragging(false)
       if (duplicating) setDuping(false)
+      dupCancelled = true
+      for (const id of dupCopyIds) cleanupDupCopy(id)
+      dupCopyIds.length = 0
       useStore.getState().setSnapGuides([])
       activeGestureCancel.current = null
       finished = true
@@ -564,6 +597,55 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     localHtml.current = null
     iframeRef.current?.contentWindow?.postMessage({ type: 'doop:html', html }, '*')
   }, [runtimeReady, html, frame.html, editing, suspendPost])
+
+  const showSafeZones = useStore((s) => s.showSafeZones)
+  const safeInsets = useMemo(() => effectiveSafeZone(frame), [frame])
+  const [safeBoxes, setSafeBoxes] = useState<SafeZoneBox[]>([])
+  const safeSeq = useRef(0)
+  const safeTimer = useRef<number | null>(null)
+
+  /* Advisory geometry for the parent-only overlay: latest request wins,
+     invalid replies degrade to empty rather than trusted success, and no
+     request fires while the document is hidden. Refresh follows renders,
+     live edits, resizes and resource/layout changes via onFrameChange. */
+  useEffect(() => {
+    if (!runtimeReady || !safeInsets || frame.hidden) {
+      setSafeBoxes([])
+      return
+    }
+    if (typeof document !== 'undefined' && document.hidden) {
+      setSafeBoxes([])
+      return
+    }
+    let live = true
+    const fetchSafe = () => {
+      safeSeq.current += 1
+      const my = safeSeq.current
+      void requestSafeZones(frame.id).then((reply) => {
+        if (!live || my !== safeSeq.current) return
+        setSafeBoxes(validateSafeZoneReply(reply).boxes)
+      })
+    }
+    fetchSafe()
+    const schedule = () => {
+      if (safeTimer.current) return
+      safeTimer.current = window.setTimeout(() => {
+        safeTimer.current = null
+        fetchSafe()
+      }, 150)
+    }
+    const off = onFrameChange(frame.id, schedule)
+    window.addEventListener('resize', schedule)
+    return () => {
+      live = false
+      off()
+      window.removeEventListener('resize', schedule)
+      if (safeTimer.current) {
+        window.clearTimeout(safeTimer.current)
+        safeTimer.current = null
+      }
+    }
+  }, [runtimeReady, frame.id, frame.html, frame.width, frame.height, frame.hidden, safeInsets])
 
   /* ---- element comments ---- */
   const frameComments = useStore((s) => s.comments).filter((c) => c.frameId === frame.id)
@@ -1253,6 +1335,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
             {/* shield keeps pointer events on the canvas, not the iframe;
             lifted while editing so clicks land in the editable document */}
             {(!editing || panMode || tool !== 'select') && <div className="absolute inset-0" />}
+            <SafeZoneOverlay
+              width={frame.width}
+              height={frame.height}
+              insets={safeInsets}
+              boxes={safeBoxes}
+              visible={showSafeZones}
+            />
             {/* above the selection outline (z-[3]), or that outline covers the
             hovered element's tag */}
             {hover && !editing && !pathEdit && !dragging && !resizing && (

@@ -82,6 +82,9 @@ interface State {
   elementPanelOpen: boolean
   /** the Layers rail is showing (desktop); the choice sticks across visits */
   layersOpen: boolean
+  /** show parent-side safe-zone bands + warnings; local, default on */
+  showSafeZones: boolean
+  setShowSafeZones(v: boolean): void
   /** ⌘. — every panel and toolbar is off screen, leaving only the canvas.
    *  A plain overlay flag: the panels' own open/closed state is untouched
    *  underneath, so toggling back shows exactly what was open before */
@@ -216,12 +219,21 @@ interface State {
 }
 
 const LAYERS_OPEN_KEY = 'doop:layers-open'
+const SAFE_ZONES_KEY = 'doop:safe-zones'
 /* longer than the slowest real export (Canva: render + verify, ~3 min) */
 const BUSY_NOTICE_MAX_MS = 5 * 60_000
 
 function readLayersOpen(): boolean {
   try {
     return localStorage.getItem(LAYERS_OPEN_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+function readShowSafeZones(): boolean {
+  try {
+    return localStorage.getItem(SAFE_ZONES_KEY) !== '0'
   } catch {
     return true
   }
@@ -258,6 +270,7 @@ export const useStore = create<State>((set, get) => ({
   hoveredLayer: null,
   elementPanelOpen: false,
   layersOpen: readLayersOpen(),
+  showSafeZones: readShowSafeZones(),
   uiHidden: false,
   viewport: { x: 0, y: 0, zoom: 1 },
   snapGuides: [],
@@ -611,6 +624,14 @@ export const useStore = create<State>((set, get) => ({
       /* private mode: the choice just doesn't stick */
     }
     set({ layersOpen })
+  },
+  setShowSafeZones: (showSafeZones) => {
+    try {
+      localStorage.setItem(SAFE_ZONES_KEY, showSafeZones ? '1' : '0')
+    } catch {
+      /* private mode: the choice just doesn't stick */
+    }
+    set({ showSafeZones })
   },
   toggleUiHidden: () => set((s) => ({ uiHidden: !s.uiHidden })),
   /* every ordinary camera move (pan, zoom, fit, fly-to) is ours, so it ends a follow */

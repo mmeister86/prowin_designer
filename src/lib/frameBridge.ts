@@ -209,3 +209,10 @@ export async function styleGesture(
 ): Promise<ElementInfo | null> {
   return infoOf(await requestFrame(frameId, 'doop:style-gesture', { selector, phase }))
 }
+
+/** Advisory safe-zone geometry: frame-local CSS px boxes for visible
+ *  semantic elements, or null when the frame is not registered. Follows the
+ *  same reqId + source-window convention as every other runtime request. */
+export async function requestSafeZones(frameId: string): Promise<Record<string, unknown> | null> {
+  return requestFrame(frameId, 'doop:safe-zones', {})
+}
