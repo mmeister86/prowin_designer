@@ -218,7 +218,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
 
   /* one throttle per frame, so a group drag broadcasts every member —
      a single throttle would keep only the last frame written each tick */
-  const dragSenders = useRef(new Map<string, (f: DragRect) => void>()).current
+  const dragSenders = useRef(new Map<string, { (f: DragRect): void; cancel: () => void }>()).current
   function sendDrag(id: string, f: DragRect) {
     let send = dragSenders.get(id)
     if (!send) {
@@ -228,6 +228,11 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       dragSenders.set(id, send)
     }
     send(f)
+  }
+  /* drop a frame's trailing relay before a rejection correction goes out,
+     so the stale timer cannot re-poison peers after it */
+  function cancelDragSend(id: string) {
+    dragSenders.get(id)?.cancel()
   }
 
   function startDrag(
@@ -322,7 +327,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     const selectedIds = mode === 'move' ? useStore.getState().selectedIds : [frame.id]
     const group = frames
       .filter((f) => selectedIds.includes(f.id) && !f.locked)
-      .map((f) => ({ id: f.id, orig: { x: f.x, y: f.y, width: f.width, height: f.height } }))
+      .map((f) => ({
+        id: f.id,
+        orig: { x: f.x, y: f.y, width: f.width, height: f.height },
+        /* the committed revision this gesture started from: a rejection only
+           rolls back to it while nothing newer landed meanwhile */
+        updatedAt: f.updatedAt,
+      }))
     const groupIds = new Set(group.map((g) => g.id))
 
     function onMove(ev: PointerEvent) {
@@ -399,20 +410,39 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       useStore.getState().setSnapGuides([])
       const live = useStore.getState().canvas?.frames ?? []
       const updates: { frameId: string; before: typeof orig; after: typeof orig }[] = []
-      void (async () => {
+      /* one barrier for the whole gesture: tracked synchronously so an undo
+         starting mid-save waits for every member plus the grouped history
+         entry, instead of resuming after the first tracked inner save */
+      const groupTask = (async () => {
         for (const g of group) {
           const f = live.find((x) => x.id === g.id)
           if (!f) continue
           const after = { x: f.x, y: f.y, width: f.width, height: f.height }
           /* a rejected save (e.g. a resize that no longer fits the safe-zone
              override) must leave neither history nor bad local geometry behind */
-          const save = api.updateFrame(f.id, after)
-          trackSave(save)
           try {
-            await save
+            await api.updateFrame(f.id, after)
           } catch (err) {
             console.error(err)
-            useStore.getState().patchFrameLocal(g.id, g.orig)
+            /* only the attempt's own geometry is stale: a second drag or a
+               remote save that landed meanwhile owns the current rect, so a
+               blind restore would overwrite the newer edit */
+            const cur = useStore.getState().canvas?.frames.find((x) => x.id === g.id)
+            const untouched =
+              cur !== undefined &&
+              cur.updatedAt === g.updatedAt &&
+              cur.x === after.x &&
+              cur.y === after.y &&
+              cur.width === after.width &&
+              cur.height === after.height
+            if (untouched) {
+              useStore.getState().patchFrameLocal(g.id, g.orig)
+              /* peers relayed the optimistic rects live: retract the gesture
+                 with the restored geometry so they converge instead of
+                 keeping the refused rect indefinitely */
+              cancelDragSend(g.id)
+              sendWs({ type: 'frame:drag', frameId: g.id, ...g.orig })
+            }
             useStore
               .getState()
               .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
@@ -424,6 +454,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
         else recordUpdates(updates)
       })()
+      trackSave(groupTask)
       /* a click (no drag) on the frame surface targets the element under
          the cursor: probe it and show the element toolbar */
       if (!moved && probeOnClick) probeAt(off.x, off.y)

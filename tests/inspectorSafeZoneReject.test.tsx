@@ -93,6 +93,16 @@ function rejectedResize() {
   )
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 it('rejected resize leaves local geometry, override and undo stack intact with a German notice', async () => {
   updateFrame.mockRejectedValueOnce(rejectedResize())
   const input = await heightInput()
@@ -124,4 +134,71 @@ it('successful resize still applies locally and records undo history', async () 
     await history.undo()
   })
   expect(updateFrame).toHaveBeenCalledWith('zoned', { height: 1080 })
+})
+
+it('overlapping commits serialize in call order with a single ordered history entry', async () => {
+  const first = deferred<Frame>()
+  const second = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise)
+  const input = await heightInput()
+  await commitHeight(input, '900')
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  await commitHeight(input, '800')
+
+  /* the second commit waits for the first: still a single inflight save */
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(updateFrame).toHaveBeenNthCalledWith(1, 'zoned', { height: 900 })
+
+  await act(async () => {
+    first.resolve({ ...framed, height: 900 })
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+  expect(updateFrame).toHaveBeenNthCalledWith(2, 'zoned', { height: 800 })
+
+  await act(async () => {
+    second.resolve({ ...framed, height: 800 })
+    await flush()
+    await flush()
+  })
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 800 })
+
+  /* one coalesced entry: a single undo inverts the whole burst */
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(3)
+  expect(updateFrame).toHaveBeenLastCalledWith('zoned', expect.objectContaining({ height: 1080 }))
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+})
+
+it('undo during a pending save waits for the save before inverting it', async () => {
+  const gate = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => gate.promise)
+  const input = await heightInput()
+  await commitHeight(input, '900')
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+
+  await act(async () => {
+    const undone = history.undo()
+    /* the save is still pending: undo must not have inverted anything yet */
+    await flush()
+    expect(updateFrame).toHaveBeenCalledTimes(1)
+    gate.resolve({ ...framed, height: 900 })
+    await undone
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledWith('zoned', expect.objectContaining({ height: 1080 }))
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+})
+
+it('rejected resize resets the numeric draft to the retained value', async () => {
+  updateFrame.mockRejectedValueOnce(rejectedResize())
+  const input = await heightInput()
+  await commitHeight(input, '900')
+
+  /* the draft remounts on rejection: the field shows the stored height again */
+  const reset = container.querySelector<HTMLInputElement>('[aria-label="Höhe"]')!
+  expect(reset.value).toBe('1080')
 })

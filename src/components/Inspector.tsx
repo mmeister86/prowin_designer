@@ -5,7 +5,7 @@ import { FORMAT_PRESETS } from '../../shared/prowin/formats'
 import { useStore } from '../lib/store'
 import { api, errorMessage } from '../lib/api'
 import { copyFramePng, downloadFrameExport, downloadFrameHtml } from '../lib/frameExport'
-import { deleteFrameTracked, recordUpdate } from '../lib/history'
+import { deleteFrameTracked, recordUpdate, trackSave } from '../lib/history'
 import { setFramesLocked } from '../lib/layerEdits'
 import { FrameHistoryModal } from './FrameHistoryModal'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,11 @@ import { Input } from './ui/input'
 import { Textarea } from './ui/textarea'
 
 const HTML_OPEN_KEY = 'doop:inspector-html'
+
+/* per-frame save queue: commits to the same frame run one after another so a
+   second commit reads the first one's result as its baseline (never the stale
+   render prop) and responses cannot land out of order over a newer value */
+const commitChains = new Map<string, Promise<void>>()
 
 /* the rail's filled buttons: a grey well, 28px, tall enough to hit on a phone */
 const fillBtn = 'h-7 rounded-[7px] bg-sub px-2 text-[12px] font-normal text-ink hover:bg-paper-deep max-md:min-h-10'
@@ -43,6 +48,9 @@ export function Inspector({
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [htmlCopy, setHtmlCopy] = useState<'idle' | 'copied' | 'failed'>('idle')
+  /* bumped whenever a commit is rejected: the numeric drafts reset to the
+     retained backing value instead of displaying the refused entry */
+  const [rejectSeq, setRejectSeq] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const saveTimer = useRef<number | null>(null)
   const copyTimer = useRef<number | null>(null)
@@ -105,20 +113,34 @@ export function Inspector({
 
   async function commitMeta(patch: Partial<Frame>) {
     if (frame.preset && !canManageLocks && (patch.width !== undefined || patch.height !== undefined)) return
-    try {
-      await api.updateFrame(frame.id, patch)
-    } catch (err) {
-      /* a rejected write (e.g. a resize that no longer fits the safe-zone
-         override) must leave neither history nor bad local geometry behind */
-      console.error(err)
-      useStore
-        .getState()
-        .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
-      return
-    }
-    /* history and local state only after the server accepted the write */
-    useStore.getState().patchFrameLocal(frame.id, patch)
-    recordUpdate(frame.id, frame, patch)
+    /* the whole save-and-record runs inside the history barrier: an undo
+       starting mid-save waits for it instead of undoing the older entry */
+    const next = (commitChains.get(frame.id) ?? Promise.resolve()).then(async () => {
+      /* baseline from the store at execution time, not the render prop:
+         a commit queued behind a pending one sees the first one's result */
+      const live = useStore.getState().canvas?.frames.find((f) => f.id === frame.id) ?? frame
+      try {
+        await api.updateFrame(frame.id, patch)
+      } catch (err) {
+        /* a rejected write (e.g. a resize that no longer fits the safe-zone
+           override) must leave neither history nor bad local geometry behind */
+        console.error(err)
+        useStore
+          .getState()
+          .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
+        setRejectSeq((s) => s + 1)
+        return
+      }
+      /* history and local state only after the server accepted the write */
+      useStore.getState().patchFrameLocal(frame.id, patch)
+      recordUpdate(frame.id, live, patch)
+    })
+    commitChains.set(
+      frame.id,
+      next.catch(() => undefined),
+    )
+    trackSave(next)
+    await next
   }
 
   return (
@@ -160,20 +182,22 @@ export function Inspector({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <InspectorGroup title="Position">
           <div className="grid grid-cols-2 gap-1.5">
-            <NumInput label="X" value={frame.x} onCommit={(v) => commitMeta({ x: v })} />
-            <NumInput label="Y" value={frame.y} onCommit={(v) => commitMeta({ y: v })} />
+            <NumInput key={`x-${rejectSeq}`} label="X" value={frame.x} onCommit={(v) => commitMeta({ x: v })} />
+            <NumInput key={`y-${rejectSeq}`} label="Y" value={frame.y} onCommit={(v) => commitMeta({ y: v })} />
           </div>
         </InspectorGroup>
         <InspectorGroup title="Layout">
           {frame.preset && <p className="mb-1.5 text-[12px] text-ink-soft">{FORMAT_PRESETS[frame.preset].label}</p>}
           <div className="grid grid-cols-2 gap-1.5">
             <NumInput
+              key={`w-${rejectSeq}`}
               label="W"
               value={frame.width}
               disabled={!!frame.preset && !canManageLocks}
               onCommit={(v) => commitMeta({ width: Math.max(120, v) })}
             />
             <NumInput
+              key={`h-${rejectSeq}`}
               label="H"
               value={frame.height}
               disabled={!!frame.preset && !canManageLocks}
