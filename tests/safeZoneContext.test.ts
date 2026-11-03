@@ -362,7 +362,7 @@ describe('Resident frame context', () => {
         { ...creatorActor },
       )
     })
-    const toolResults: string[] = []
+    const toolResults: Array<{ id: string; content: string }> = []
     let turn = 0
     mocks.pickModel.mockResolvedValue({
       provider: 'test',
@@ -372,8 +372,10 @@ describe('Resident frame context', () => {
       run: async (req: { system: Array<{ text: string }>; messages: Array<{ content?: unknown }> }) => {
         turn += 1
         for (const m of req.messages ?? []) {
-          for (const b of (m as { content?: Array<{ type?: string; content?: unknown }> }).content ?? []) {
-            if (b?.type === 'tool_result') toolResults.push(JSON.stringify(b.content))
+          for (const b of (m as { content?: Array<{ type?: string; tool_use_id?: string; content?: unknown }> })
+            .content ?? []) {
+            if (b?.type === 'tool_result')
+              toolResults.push({ id: String(b.tool_use_id), content: JSON.stringify(b.content) })
           }
         }
         if (turn === 1) {
@@ -405,11 +407,14 @@ describe('Resident frame context', () => {
     await vi.waitFor(() => expect(card.endedAt ?? card.failedAt).toBeDefined(), { timeout: 20_000 })
     expect(card.failedAt, JSON.stringify(toolResults)).toBeUndefined()
     const ASYMMETRIC = 'safe-zone top 10, right 20, bottom 30, left 40 CSS px (override)'
-    expect(toolResults.some((r) => r.includes(ASYMMETRIC))).toBe(true)
-    expect(toolResults.some((r) => r.includes(`Effective safe zone (CSS px, advisory): ${ASYMMETRIC}`))).toBe(true)
-    expect(toolResults.some((r) => r.includes('safe-zone top 200, right 0, bottom 250, left 0 CSS px (preset)'))).toBe(
-      true,
-    )
+    // Each result is pinned to its own tool-use id: dropping the zone from
+    // inspect alone must fail even while read/create still carry theirs.
+    const inspect = toolResults.find((r) => r.id === 't-inspect')?.content ?? ''
+    const read = toolResults.find((r) => r.id === 't-read')?.content ?? ''
+    const created = toolResults.find((r) => r.id === 't-create')?.content ?? ''
+    expect(inspect).toContain(ASYMMETRIC)
+    expect(read).toContain(`Effective safe zone (CSS px, advisory): ${ASYMMETRIC}`)
+    expect(created).toContain('safe-zone top 200, right 0, bottom 250, left 0 CSS px (preset)')
   })
 })
 
