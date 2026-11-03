@@ -1,9 +1,10 @@
 ---
 id: TASK-33
 title: Safe-Zone-Overlay und Agent-Kontext ergänzen
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
+updated_date: '2026-11-03T14:34:00Z'
 labels:
   - prowin
   - implementation
@@ -21,7 +22,6 @@ ordinal: 33000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-
 Plattform-Overlays dürfen wichtige Texte nicht verdecken. Safe Zones warnen, ohne die Gestaltung zu blockieren.
 
 Quellen: Umsetzung § 10.3; Referenz R2.2–R2.3
@@ -37,3 +37,12 @@ Quellen: Umsetzung § 10.3; Referenz R2.2–R2.3
 - [ ] #4 Die widersprüchlichen A4-Angaben in R2.2 sind anhand 3 mm geprüft und konsistent dokumentiert; 85 px werden nicht ungeprüft übernommen.
 
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+1. Council-Vorgehen und Design festhalten
+2. Metadaten, Persistenz, Berechtigungen und Copy/Undo mit Muse Spark 1.3 implementieren; mit GPT-6.1 Terra prüfen
+3. UI-Overlay, Messung und Creator-Override implementieren und prüfen
+4. Agent-Kontext, A4-Dokumentation und Regressionstests ergänzen; Gesamtprüfung durchführen
+<!-- SECTION:PLAN:END -->
