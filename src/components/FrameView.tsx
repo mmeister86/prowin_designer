@@ -606,12 +606,27 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     iframeRef.current?.contentWindow?.postMessage({ type: 'doop:policy', manageLocks }, '*')
   }, [runtimeReady, manageLocks, frame.id])
   useEffect(() => {
-    if (!runtimeReady || editing || suspendPost || html !== frame.html || html === localHtml.current) return
-    localHtml.current = null
-    iframeRef.current?.contentWindow?.postMessage(
-      { type: 'doop:html', html, docToken: safeZoneDocumentToken(frame.id, html) },
-      '*',
-    )
+    if (!runtimeReady || html !== frame.html) return
+    if (!editing && !suspendPost && html !== localHtml.current) {
+      localHtml.current = null
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'doop:html', html, docToken: safeZoneDocumentToken(frame.id, html) },
+        '*',
+      )
+      return
+    }
+    /* an echo or remote html landed for a document the runtime already
+       holds live (edit session, exit flush pending): confirm its identity
+       without re-posting — a re-post would remorph the DOM and drop the
+       caret. The runtime adopts the token only when its live document is
+       exactly this HTML, so a remote change can never bless the wrong
+       document. */
+    if (localHtml.current !== null && html !== localHtml.current) {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'doop:edited-ack', html, docToken: safeZoneDocumentToken(frame.id, html) },
+        '*',
+      )
+    }
   }, [runtimeReady, html, frame.html, frame.id, editing, suspendPost])
 
   const showSafeZones = useStore((s) => s.showSafeZones)
@@ -1093,6 +1108,15 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         // The runtime already has this document. Echoing it through the HTML
         // throttle can overwrite a newer style edit still waiting to save.
         localHtml.current = ev.data.html
+        /* the runtime already renders this exact document: confirm its
+           identity without re-posting (a re-post would remorph the DOM and
+           drop the caret), so advisory measurement can trust it. The runtime
+           adopts the token only while its live document is exactly this
+           HTML, byte-equal or canonicalizing equal. */
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'doop:edited-ack', html: ev.data.html, docToken: safeZoneDocumentToken(frame.id, ev.data.html) },
+          '*',
+        )
         const before = useStore.getState().canvas?.frames.find((f) => f.id === frame.id)?.html
         let save: Promise<unknown> = Promise.resolve()
         if (before !== ev.data.html) {

@@ -496,6 +496,20 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     return '<!doctype html>\\n' + root.outerHTML
   }
 
+  /* canonical form for identity comparison: both sides through this
+     document's own parser and serializer, so semantically identical
+     documents compare equal whatever byte flavor each side produced (the
+     server parse-round-trips every save; the parent serializes the live
+     DOM). A newer or different document still canonicalizes differently
+     and is rejected. */
+  function canonicalHtml(html) {
+    try {
+      return new DOMParser().parseFromString(html, 'text/html').documentElement.outerHTML
+    } catch (e) {
+      return null
+    }
+  }
+
   function postEdited(discrete, flushId) {
     var message = { type: 'doop:edited', html: serialize(), discrete: discrete === true }
     if (typeof flushId === 'number') message.flushId = flushId
@@ -1286,6 +1300,27 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       safeZoneDocument = typeof d.docToken === 'number' && isFinite(d.docToken) ? d.docToken : null
       render(d.html)
       notifyFrameUpdated()
+    }
+    /* an already-live edit the parent saved without re-posting (inline text,
+       Design-panel styles, or the server's normalized echo of one): adopt
+       its expected-document token only when the live document is exactly
+       that HTML — byte-equal, or canonicalizing equal through this
+       document's own parser (byte flavors differ across serializers). A
+       stale acknowledgement for newer or different contents is ignored, so
+       it can never bless the wrong document. Metadata only: no render, no
+       remorph, the caret stays where it is. */
+    if (d.type === 'doop:edited-ack' && typeof d.html === 'string'
+        && typeof d.docToken === 'number' && isFinite(d.docToken)) {
+      var live = serialize()
+      var same = d.html === live
+      if (!same) {
+        var want = canonicalHtml(d.html)
+        same = want !== null && want === canonicalHtml(live)
+      }
+      if (same) {
+        safeZoneDocument = d.docToken
+        notifyFrameUpdated()
+      }
     }
     if (d.type === 'doop:edit') setEdit(!!d.on, d.flushId)
     // Mirror the Layers eye in the live document, including during text edits.

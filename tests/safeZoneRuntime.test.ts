@@ -101,4 +101,9 @@ it('the iframe runtime stamps replies and render notifications with the document
     "type: 'doop:frame-updated', generation: safeZoneGeneration, docToken: safeZoneDocument",
   )
   expect(FRAME_BOOTSTRAP).toContain('safeZoneDocument = typeof d.docToken')
+  // Already-live edits (inline text, Design-panel styles) are saved without a
+  // re-post: the parent acknowledges their identity and the runtime adopts it
+  // only for the exact currently rendered serialization.
+  expect(FRAME_BOOTSTRAP).toContain("d.type === 'doop:edited-ack'")
+  expect(FRAME_BOOTSTRAP).toContain('canonicalHtml(d.html)')
 })

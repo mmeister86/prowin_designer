@@ -309,4 +309,86 @@ describe.skipIf(!findBrowserPath())('safe-zone overlay in real Chromium', { time
     })
     await page.waitForSelector('[data-safe-zone-warn]')
   }, 60_000)
+
+  it('a real live text edit keeps measurement and a late Inspector trusts it', async () => {
+    const frame = await createStory(TOP_HTML)
+    await page.waitForSelector('[data-safe-zone-warn]')
+
+    // Frame-local point of the headline center (200x40 at 10,10) and a
+    // safely empty surface point, resolved to screen coordinates.
+    const point = (x: number, y: number) =>
+      page.evaluate(
+        (args) => {
+          const rect = document.querySelector('[data-safe-zone-overlay]')!.getBoundingClientRect()
+          return { x: rect.left + (args.x * rect.width) / 1080, y: rect.top + (args.y * rect.height) / 1920 }
+        },
+        { x, y },
+      )
+    const headline = await point(110, 30)
+    const empty = await point(540, 960)
+
+    // Select without opening the Inspector, then enter live text edit through
+    // the real element toolbar (double-clicks do not synthesize dblclick
+    // over CDP input here; the button drives the same edit-mode path).
+    await page.mouse.click(empty.x, empty.y)
+    // Let the first click's probe settle before the second lands.
+    await new Promise((r) => setTimeout(r, 800))
+    await page.mouse.click(headline.x, headline.y)
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === '✎ Text bearbeiten'),
+    )
+    await page.evaluate(() => {
+      ;(
+        [...document.querySelectorAll('button')].find(
+          (b) => b.textContent?.trim() === '✎ Text bearbeiten',
+        ) as HTMLElement
+      ).click()
+    })
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll('button')].some((b) => b.textContent?.includes('Fertig')),
+    )
+    // Type into the live iframe document: no parent save posts this HTML.
+    await page.mouse.click(headline.x, headline.y)
+    await page.keyboard.type('!')
+    // The debounced serialization lands in the store through the edit path.
+    await page.waitForFunction(
+      async (args) => {
+        const response = await fetch(`/api/canvases/${args.canvasId}`)
+        const canvas = (await response.json()) as Canvas
+        return canvas.frames.find((f) => f.id === args.id)!.html.includes('!')
+      },
+      { timeout: 20_000 },
+      { canvasId, id: frame.id },
+    )
+    // The desired HTML changed without a render: outlines clear, then the
+    // identity acknowledgement drives a trusted refresh (stuck unavailable
+    // without it).
+    await page.waitForFunction(() => !document.querySelector('[data-safe-zone-warn]'), { timeout: 10_000 })
+    await page.waitForFunction(() => !!document.querySelector('[data-safe-zone-warn]'), { timeout: 15_000 })
+
+    // A late Inspector subscriber trusts the already-live document. First
+    // click the toolbar away: it hovers over the headline near the frame
+    // label and would swallow the label click. Clicking empty iframe space
+    // only deactivates the text element; the edit session stays open.
+    await page.mouse.click(empty.x, empty.y)
+    await page.waitForFunction(
+      () => ![...document.querySelectorAll('button')].some((b) => b.textContent?.trim() === '💬 Kommentar'),
+      { timeout: 10_000 },
+    )
+    await openInspector(frame.name)
+    await page.waitForFunction(
+      () => [...document.querySelectorAll('[role="status"]')].some((el) => el.textContent?.includes('im Randbereich')),
+      { timeout: 15_000 },
+    )
+
+    // Exiting edit mode flushes without remorphing the warning away.
+    // (Exact-text helper does not match the '✓ Fertig' chip label.)
+    await page.evaluate(() => {
+      ;([...document.querySelectorAll('button')].find((b) => b.textContent?.includes('Fertig')) as HTMLElement).click()
+    })
+    await page.waitForFunction(() => !!document.querySelector('[data-safe-zone-warn]'), { timeout: 15_000 })
+    const after = await storedHtml(frame.id)
+    expect(after).toContain('!')
+    expect(after).not.toContain('data-safe-zone')
+  }, 120_000)
 })

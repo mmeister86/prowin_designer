@@ -15,6 +15,7 @@ vi.mock('../src/lib/frameBridge', () => ({
 const { useStore } = await import('../src/lib/store')
 const { applyTemplateField, duplicateLayer, markTemplateField, saveFrameHtml } = await import('../src/lib/layerEdits')
 const { enqueueHtmlSave, rollbackTarget } = await import('../src/lib/frameHtmlSaves')
+const { safeZoneDocumentToken } = await import('../src/lib/safeZoneDocument')
 
 const page = (body: string) => `<!doctype html><html><head></head><body>${body}</body></html>`
 const SECTION = 'body:nth-of-type(1) > section:nth-of-type(1)'
@@ -206,7 +207,10 @@ describe('saveFrameHtml', () => {
     gates[1]!.reject(new Error('Forbidden'))
     await flush()
     expect(liveHtml()).toBe(accepted ? first : before)
-    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:revert', { html: accepted ? first : before })
+    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:revert', {
+      html: accepted ? first : before,
+      docToken: safeZoneDocumentToken('f1', accepted ? first : before),
+    })
   })
 
   it('waits for the replacing send before resolving coalesced saves', async () => {
@@ -268,7 +272,25 @@ describe('saveFrameHtml', () => {
     saveFrameHtml(frame(before), before.replace('<p>A</p>', '<p>B</p>'))
     await flush()
     expect(liveHtml()).toBe(before)
-    expect(requestFrame).toHaveBeenCalledWith('f1', 'doop:revert', { html: before })
+    expect(requestFrame).toHaveBeenCalledWith('f1', 'doop:revert', {
+      html: before,
+      docToken: safeZoneDocumentToken('f1', before),
+    })
+  })
+
+  it('stamps the rollback revert so measurement recovers after a denied save', async () => {
+    const before = liveHtml()
+    updateFrame.mockRejectedValueOnce(new Error('Forbidden'))
+    saveFrameHtml(frame(before), before.replace('<p>A</p>', '<p>B</p>'))
+    await flush()
+    expect(liveHtml()).toBe(before)
+    // The runtime adopts the token only for the exact rendered document:
+    // a numeric stamp for the rollback target lets the next render
+    // notification confirm the desired HTML instead of stranding it.
+    const calls = requestFrame.mock.calls as unknown as Array<[string, string, { html: string; docToken: unknown }]>
+    const revert = calls.find(([, type]) => type === 'doop:revert')?.[2]
+    expect(revert?.html).toBe(before)
+    expect(revert?.docToken).toBe(safeZoneDocumentToken('f1', before))
   })
 
   it('leaves the live document alone when the server accepts the save', async () => {
@@ -339,7 +361,10 @@ describe('saveFrameHtml', () => {
     /* both refused: back to the newest confirmed state, not the
        refused intermediate — in the store and live */
     expect(liveHtml()).toBe(before)
-    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:revert', { html: before })
+    expect(requestFrame).toHaveBeenLastCalledWith('f1', 'doop:revert', {
+      html: before,
+      docToken: safeZoneDocumentToken('f1', before),
+    })
     expect(useStore.getState().notice?.text).toBe('Die Ebene konnte nicht gespeichert werden')
   })
 
