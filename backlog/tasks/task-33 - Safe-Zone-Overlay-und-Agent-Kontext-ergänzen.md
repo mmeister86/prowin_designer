@@ -1,10 +1,10 @@
 ---
 id: TASK-33
 title: Safe-Zone-Overlay und Agent-Kontext ergänzen
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-11-03T18:41:00Z'
+updated_date: '2026-11-03T20:32:00Z'
 labels:
   - prowin
   - implementation
@@ -51,3 +51,13 @@ Implementierung isoliert auf feat/task-33-safe-zones. Council: Claude Opus 5.5, 
 
 Implementierung und automatische Verifikation abgeschlossen auf feat/task-33-safe-zones (Code-HEAD f8dc25e). Frischer unveränderter Gesamtlauf: 229 Dateien / 2024 Tests bestanden in 456.94 s; typecheck, lint und build erfolgreich. Terra-Gesamtprüfung: 7/10 mit zwei Findings; abschließende Nachprüfung 8/10, beide Important und Opacity-Minor behoben, keine neue scoped Auffälligkeit. HTML-Download sowie reale PNG/JPG-Pixel gegen Safe-Zone-Overlay geprüft. Alle AC automatisch geprüft; Status bleibt In Progress bis expliziter manueller Abnahme. Kein Push/Merge. Bekannte Grenzen: laufende Animationen nur nach Ende/Abbruch nachmessen; versteckte Tabs im Browser-Test simuliert; abgelehnter Layers-Rollback per Unit-Kette, nicht UI-E2E. Vorheriger paralleler Gesamtlauf war durch Codeänderungen gemischt und zählt nicht als finales Ergebnis.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Ergänze umschaltbare Safe-Zone-Overlays, semantische Warnungen, persistente Creator-Overrides und effektiven Agent-Kontext. Korrigiere die A4-Umrechnung und sichere HTML-/PNG-/JPG-Exportisolation.
+
+Verifiziere 2024 Tests sowie Typprüfung, Lint und Build; verweise auf docs/superpowers/reports/2026-11-03-safe-zones.md. PR #10 wurde am 03.11.2026 bereits gemergt: https://github.com/mmeister86/prowin_designer/pull/10.
+
+Schließe auf ausdrückliche Nutzerbestätigung vom 03.11.2026 (Task ist done) und dokumentiere den Abschluss auf main. Keine erneute manuelle Geräteprüfung behauptet.
+<!-- SECTION:FINAL_SUMMARY:END -->
