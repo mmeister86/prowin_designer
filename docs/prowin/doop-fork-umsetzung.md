@@ -439,7 +439,13 @@ export const FORMAT_PRESETS = {
     exportScale: 1,
   },
   'fb-post': { label: 'Facebook Post', width: 1200, height: 630, safe: all(50), exportScale: 1 },
-  a4: { label: 'A4 (Druck)', width: 794, height: 1123, safe: all(11) /* ≈ 3 mm */, exportScale: 3.125 /* → 300 dpi */ },
+  a4: {
+    label: 'A4 (Druck)',
+    width: 794,
+    height: 1123,
+    safe: all(11) /* 3 mm = 11,34 CSS-px gerundet; ×3,125 = 34,375 Raster-px */,
+    exportScale: 3.125 /* → 300 dpi */,
+  },
 } as const satisfies Record<string, { label: string; width: number; height: number; safe: Insets; exportScale: number }>
 
 export type FormatPresetId = keyof typeof FORMAT_PRESETS
@@ -454,8 +460,9 @@ export type FormatPresetId = keyof typeof FORMAT_PRESETS
 ### 10.3 Safe-Zone-Overlay
 
 - Ein reines UI-Overlay in `FrameView.tsx` (analog `SnapGuides.tsx`). Es steht **nicht** im HTML und wird nicht exportiert. Das Verhalten (Farbe, Toggle, Creator-Override) folgt R2.2.
+- Rechenweg A4: 3 mm × 96 / 25,4 = 11,34 CSS-px (gerundet 11); dieselben 3 mm × 300 / 25,4 = 35,43 Raster-px (nicht 85); gerundete 11 CSS-px × Exportfaktor 3,125 = 34,375 Raster-px. Innerer Sicherheitsabstand, kein Anschnitt, keine Druckfreigabe.
 - Wenn ein Element mit `data-od-role` in die Safe Zone ragt: dezente Warnung, keine Blockade.
-- Der Agent bekommt die Safe Zones des Presets als Text in seinen Kontext und wird angewiesen, Text und CTA außerhalb zu halten.
+- Der Agent bekommt die Safe Zones des Presets als Text in seinen Kontext und wird angewiesen, Text und CTA innerhalb des inneren Rechtecks zu halten.
 
 ### 10.4 Export & Teilen
 

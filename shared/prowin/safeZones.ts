@@ -17,6 +17,23 @@ export function safeZoneEquals(a: Insets | null | undefined, b: Insets | null | 
   if (x === null || y === null) return x === y
   return x.top === y.top && x.right === y.right && x.bottom === y.bottom && x.left === y.left
 }
+/** Where the effective insets come from: the preset default, a Creator override, or nothing without a preset. */
+export function safeZoneSource(
+  frame: Pick<{ preset?: FormatPresetId; safeZoneOverride?: Insets }, 'preset' | 'safeZoneOverride'>,
+): 'preset' | 'override' | 'none' {
+  if (frame.preset === undefined || !(frame.preset in FORMAT_PRESETS)) return 'none'
+  return frame.safeZoneOverride !== undefined ? 'override' : 'preset'
+}
+
+/** One-line agent context, e.g. `safe-zone 50/50/50/50 (preset)` or `no safe-zone`. */
+export function describeSafeZone(
+  frame: Pick<{ preset?: FormatPresetId; safeZoneOverride?: Insets }, 'preset' | 'safeZoneOverride'>,
+): string {
+  const zone = effectiveSafeZone(frame)
+  if (!zone) return 'no safe-zone'
+  return `safe-zone ${zone.top}/${zone.right}/${zone.bottom}/${zone.left} (${safeZoneSource(frame)})`
+}
+
 /** The preset default, fully replaced by a valid override; null without a preset. */
 export function effectiveSafeZone(
   frame: Pick<{ preset?: FormatPresetId; safeZoneOverride?: Insets }, 'preset' | 'safeZoneOverride'>,

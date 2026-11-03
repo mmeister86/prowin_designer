@@ -127,6 +127,29 @@ below unless the human explicitly asks you to author a template.
   still be valid: invalid attributes and duplicate IDs return 400 for everyone.
   The same guard checks every transport.`
 
+/** Shared safe-zone guidance for agents. Interpolated verbatim into DOOP_GUIDE
+ *  (MCP get_guide) and the resident system prompt so the two cannot drift
+ *  apart. Effective per-frame values arrive separately in the frame context. */
+export const SAFE_ZONE_GUIDE = `## Safe zones — keep text and CTAs inside
+
+Frames with a format preset carry an advisory safe zone: platform UI can cover
+the margins, so keep important text and CTA buttons inside the inner rectangle.
+This is an inner safety margin, not print bleed, and it promises nothing about
+offset printing.
+
+Check the frame's effective safe zone BEFORE creating or editing copy: use the
+preset default below unless the frame context reports an override.
+
+- Instagram Post (ig-post): 50 px on every side
+- Facebook Post (fb-post): 50 px on every side
+- Instagram Story (ig-story): top 200, bottom 250, left/right 0
+- WhatsApp Status (wa-status): top 150, bottom 200, left/right 0
+- A4 (a4): 11 CSS px on every side
+
+A4 note: 3 mm at 96 dpi = 11.34 CSS px, rounded to 11. The same 3 mm at
+300 dpi = 35.43 raster px (not 85). At the existing A4 export scale of 3.125,
+the rounded 11 CSS px become 34.375 raster px.`
+
 export const DOOP_GUIDE = `# Doop Agent Guide
 
 ${PROWIN_BRAND_PROMPT}
@@ -427,6 +450,8 @@ image and upload it wherever they need (a CMS media library, a social post, an o
 The URL re-renders on change, so an embedded link stays current as the frame iterates.
 
 ${TEMPLATE_GUIDE}
+
+${SAFE_ZONE_GUIDE}
 
 ## Multiplayer etiquette
 
