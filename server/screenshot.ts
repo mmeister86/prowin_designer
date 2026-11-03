@@ -383,8 +383,23 @@ async function requireSettledFonts(page: Page): Promise<void> {
   try {
     const failed = await Promise.race([
       page.evaluate(async () => {
-        await document.fonts.ready
-        return [...document.fonts].filter((face) => face.status === 'error').length
+        /* Page-side bound inside the same 8s font window: fires even if the
+           server-side deadline could not observe this evaluation. Never a
+           second wait — it races the font check concurrently and is cleared
+           below on every settlement. */
+        let pageTimer: ReturnType<typeof setTimeout> | undefined
+        try {
+          const settled = (async () => {
+            await document.fonts.ready
+            return [...document.fonts].filter((face) => face.status === 'error').length
+          })()
+          const deadline = new Promise<never>((_, reject) => {
+            pageTimer = setTimeout(() => reject(new Error('font settlement timed out')), 8000)
+          })
+          return await Promise.race([settled, deadline])
+        } finally {
+          if (pageTimer !== undefined) clearTimeout(pageTimer)
+        }
       }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new UnsettledFontsError()), 8000)

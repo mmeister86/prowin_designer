@@ -53,6 +53,12 @@ function fontBehavior(getOrigin: () => string): Plugin {
           `@font-face{font-family:'Below';font-style:normal;font-weight:400;src:url('${getOrigin()}/fonts/does-not-exist-400.woff2') format('woff2')}.below{font-family:'Below'}`,
         )
       })
+      server.middlewares.use('/fonts/dpr-check.css', (_req, res) => {
+        res.setHeader('Content-Type', 'text/css')
+        res.end(
+          `@font-face{font-family:'Dpr';font-style:normal;font-weight:400;src:url('${getOrigin()}/fonts/does-not-exist-400.woff2') format('woff2')}.dpr{font-family:'Dpr'}`,
+        )
+      })
     },
   }
 }
@@ -146,6 +152,20 @@ describe.skipIf(!findBrowserPath())('strict preset-download font boundary in rea
     })
     // lenient inspection-height capture never matches the gate: succeeds
     const lenient = await renderFrame(tall)
+    expect(lenient.length).toBeGreaterThan(0)
+  }, 60_000)
+
+  it('checks fonts selected only at final device scale (density-gated)', async () => {
+    // The stylesheet only applies at the export density (A4 renders at
+    // 3.125x): strict must establish the final scale before content load, or
+    // this font is never requested.
+    const html = `<!doctype html><html><head><link rel="stylesheet" href="${origin}/fonts/dpr-check.css" media="(min-resolution: 3dppx)"><style>body{margin:0}</style></head><body><div class="dpr" style="height:160px">Density-gated font</div></body></html>`
+    const f = frame(html, { width: 320, height: 160 })
+    await expect(renderFrame(f, 3.125, { ...strictOpts })).rejects.toMatchObject({
+      name: 'UnsettledFontsError',
+    })
+    // lenient 1x capture never matches the gate: succeeds
+    const lenient = await renderFrame(f, 1)
     expect(lenient.length).toBeGreaterThan(0)
   }, 60_000)
 

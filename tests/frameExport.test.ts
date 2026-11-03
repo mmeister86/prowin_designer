@@ -192,6 +192,26 @@ it('surfaces the controlled font error with no download and no busy leak', async
   })
 })
 
+it('reports the controlled font error when the PNG to copy fails on unsettled fonts', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json(
+        { error: 'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.' },
+        { status: 500 },
+      ),
+    ),
+  )
+  const { written } = stubClipboard()
+
+  await copyFramePng(frame)
+
+  expect(written).toHaveLength(0)
+  expect(useStore.getState().notice?.text).toBe(
+    'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.',
+  )
+})
+
 it('says so without rendering when the browser has no async clipboard', async () => {
   vi.stubGlobal('fetch', vi.fn())
   vi.stubGlobal('navigator', {})

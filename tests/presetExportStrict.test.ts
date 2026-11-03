@@ -103,6 +103,33 @@ describe('strict preset-download boundary', () => {
     expect(mocks.renderFrame).toHaveBeenCalledTimes(1)
   })
 
+  it('charges a single budget slot for concurrent duplicate strict downloads', async () => {
+    mocks.renderFrame.mockImplementation(() => new Promise((res) => setTimeout(() => res(Buffer.from('x')), 50)))
+    const ip = `dup-budget${seq++}`
+    const f = frame({ preset: 'ig-post' })
+    const results = await Promise.all(Array.from({ length: 12 }, () => getImage(f, base({ download: true, ip }))))
+    expect(results.every((r) => r.status === 'ok')).toBe(true)
+    expect(mocks.renderFrame).toHaveBeenCalledTimes(1)
+    // only one slot consumed: the next distinct render on the same IP is allowed
+    const next = await getImage(frame({ preset: 'ig-post' }), base({ download: true, ip }))
+    expect(next.status).toBe('ok')
+  })
+
+  it('lets exhausted-budget authenticated duplicates share the in-flight render', async () => {
+    const ip = `authed-dup${seq++}`
+    mocks.renderFrame.mockResolvedValue(Buffer.from('x'))
+    for (let i = 0; i < 12; i++) await getImage(frame({ preset: 'ig-post' }), base({ download: true, ip }))
+    expect((await getImage(frame({ preset: 'ig-post' }), base({ download: true, ip }))).status).toBe('rate-limited')
+    mocks.renderFrame.mockClear()
+    mocks.renderFrame.mockImplementation(() => new Promise((res) => setTimeout(() => res(Buffer.from('y')), 50)))
+    const f = frame({ preset: 'ig-post' })
+    const authed = () => base({ download: true, ip, isAuthenticated: () => Promise.resolve(true) })
+    const [a, b] = await Promise.all([getImage(f, authed()), getImage(f, authed())])
+    expect(a.status).toBe('ok')
+    expect(b.status).toBe('ok')
+    expect(mocks.renderFrame).toHaveBeenCalledTimes(1)
+  })
+
   it('evicts a failed strict render so the next request retries', async () => {
     mocks.renderFrame.mockRejectedValueOnce(fontFailure())
     const preset = frame({ preset: 'ig-post' })

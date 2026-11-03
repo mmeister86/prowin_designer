@@ -84,11 +84,18 @@ export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageRe
   }
 
   if (!pending) {
-    if (!(await consumeRenderBudget(req.ip, req.isAuthenticated))) return { status: 'rate-limited' }
-    /* The budget await above is the last yield before claiming: re-check so
-       concurrent downloads single-flight on one render instead of booting
-       Chromium twice. */
-    pending = fresh()
+    /* The charge must not yield: concurrent duplicates that miss the cache in
+       the same tick share one budget slot and one render instead of each
+       consuming a slot. Only an exhausted budget resolves authentication
+       (async) — and then re-checks, because a render may have started while
+       auth resolved. */
+    if (chargeRenderBudget(req.ip)) {
+      pending = fresh()
+    } else if (await req.isAuthenticated()) {
+      pending = fresh()
+    } else {
+      return { status: 'rate-limited' }
+    }
     if (!pending) {
       pending = preview
         ? /* renders AND persists — the next cold start serves from storage */
@@ -142,10 +149,14 @@ function remember(key: string, pending: Promise<Buffer>, updatedAt: number) {
   }
 }
 
-async function consumeRenderBudget(ip: string, isAuthenticated: () => Promise<boolean>): Promise<boolean> {
+/* Synchronous: charging must not yield, so concurrent duplicates that miss the
+   cache in the same tick share one budget slot and one render instead of each
+   consuming a slot. Returns whether a slot was consumed; when the per-minute
+   budget for this IP is exhausted the caller resolves authentication. */
+function chargeRenderBudget(ip: string): boolean {
   const now = Date.now()
   const hits = (renderHits.get(ip) ?? []).filter((t) => now - t < 60_000)
-  if (hits.length >= RENDERS_PER_MIN) return isAuthenticated()
+  if (hits.length >= RENDERS_PER_MIN) return false
   hits.push(now)
   renderHits.set(ip, hits)
   return true
