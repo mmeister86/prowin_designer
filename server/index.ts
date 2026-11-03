@@ -1139,7 +1139,7 @@ app.post('/api/canvases/:id/pages/:pageId/duplicate', async (req, res) => {
 
 app.post('/api/canvases/:id/frames', (req, res) => {
   if (!requireCanvas(req, res, req.params.id)) return
-  const { name, pageId, x, y, width, height, preset, html, hidden, locked } = req.body ?? {}
+  const { name, pageId, x, y, width, height, preset, safeZoneOverride, html, hidden, locked } = req.body ?? {}
   if (pageId !== undefined && !store.getCanvas(req.params.id)?.pages?.some((p) => p.id === pageId))
     return res.status(400).json({ error: 'Seite nicht gefunden' })
   const actor = actions.resolveActor({ name: req.user!.name, kind: 'user' })
@@ -1156,6 +1156,8 @@ app.post('/api/canvases/:id/frames', (req, res) => {
         width,
         height,
         preset,
+        /* explicit null on create means "no override", exactly like omitting it */
+        ...(safeZoneOverride ? { safeZoneOverride } : {}),
         restoreDimensions: req.body?.restoreDimensions === true,
         html,
         hidden: hidden === true,
@@ -1184,7 +1186,7 @@ app.patch('/api/frames/:id', (req, res) => {
     !store.getCanvas(store.getFrame(req.params.id)!.canvasId)?.pages?.some((p) => p.id === patch.pageId)
   )
     return res.status(400).json({ error: 'Seite nicht gefunden' })
-  const allowed = ['name', 'pageId', 'x', 'y', 'width', 'height', 'preset', 'html'] as const
+  const allowed = ['name', 'pageId', 'x', 'y', 'width', 'height', 'preset', 'safeZoneOverride', 'html'] as const
   const clean: Record<string, unknown> = {}
   for (const k of allowed) if (patch[k] !== undefined) clean[k] = patch[k]
   /* the eye in the Layers panel: anything but a literal true shows the frame */

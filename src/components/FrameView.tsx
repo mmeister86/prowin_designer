@@ -344,6 +344,7 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
               name: src.name,
               html: src.html,
               preset: src.preset,
+              ...(src.safeZoneOverride ? { safeZoneOverride: { ...src.safeZoneOverride } } : {}),
               sourceFrameId: src.id,
               ...g.orig,
             })

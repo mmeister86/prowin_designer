@@ -85,6 +85,8 @@ beforeEach(() => {
       ...current,
       ...patch,
       preset: patch.preset === null ? undefined : (patch.preset ?? current.preset),
+      safeZoneOverride:
+        patch.safeZoneOverride === null ? undefined : (patch.safeZoneOverride ?? current.safeZoneOverride),
       updatedAt: current.updatedAt + 1,
     }
     db.set(id, frame)
@@ -463,6 +465,8 @@ describe('moving drawings between frames and canvas', () => {
         ...current,
         ...patch,
         preset: patch.preset === null ? undefined : (patch.preset ?? current.preset),
+        safeZoneOverride:
+          patch.safeZoneOverride === null ? undefined : (patch.safeZoneOverride ?? current.safeZoneOverride),
       }
       db.set(id, saved)
       return saved

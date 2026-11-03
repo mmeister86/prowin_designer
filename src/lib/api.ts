@@ -286,7 +286,10 @@ export const api = {
     }),
   updateFrame: (
     frameId: string,
-    patch: Partial<Omit<Frame, 'preset'>> & { preset?: Frame['preset'] | null },
+    patch: Partial<Omit<Frame, 'preset' | 'safeZoneOverride'>> & {
+      preset?: Frame['preset'] | null
+      safeZoneOverride?: Frame['safeZoneOverride'] | null
+    },
     expectedUpdatedAt?: number,
   ) =>
     req<Frame>('/api/frames/' + frameId, {

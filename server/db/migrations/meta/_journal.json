@@ -288,6 +288,13 @@
       "when": 1793615688869,
       "tag": "0041_frame_presets",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793717081361,
+      "tag": "0042_frame_safe_zones",
+      "breakpoints": true
     }
   ]
 }

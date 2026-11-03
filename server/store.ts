@@ -2,7 +2,7 @@ import { nanoid } from 'nanoid'
 import { normalizeFrameHtml } from './prowin/frameBrand.ts'
 import { createBrandGuideline } from './prowin/brand.ts'
 import { canvasPages, copyPageName, pageFrames, samePages } from '../shared/pages.ts'
-import type { FormatPresetId } from '../shared/prowin/formats.ts'
+import type { FormatPresetId, Insets } from '../shared/prowin/formats.ts'
 import * as persist from './db/persist.ts'
 import type {
   Canvas,
@@ -532,6 +532,7 @@ class Store {
       width?: number
       height?: number
       preset?: FormatPresetId
+      safeZoneOverride?: Insets
       html?: string
       demo?: boolean
       hidden?: boolean
@@ -569,6 +570,7 @@ class Store {
     }
     if (input.demo) frame.demo = true
     if (input.preset !== undefined) frame.preset = input.preset
+    if (input.safeZoneOverride !== undefined) frame.safeZoneOverride = input.safeZoneOverride
     if (input.hidden) frame.hidden = true
     if (input.locked) frame.locked = true
     c.frames.push(frame)
@@ -583,6 +585,7 @@ class Store {
     frameId: string,
     patch: Partial<Pick<Frame, 'name' | 'pageId' | 'x' | 'y' | 'width' | 'height' | 'html' | 'hidden' | 'locked'>> & {
       preset?: FormatPresetId | null
+      safeZoneOverride?: Insets | null
     },
     by: string,
   ): Frame | undefined {
@@ -593,10 +596,12 @@ class Store {
       !canvasPages(this.canvases.get(frame.canvasId)!).some((p) => p.id === patch.pageId)
     )
       return undefined
-    const { preset, ...fields } = patch
+    const { preset, safeZoneOverride, ...fields } = patch
     Object.assign(frame, fields)
     if (preset === null) delete frame.preset
     else if (preset !== undefined) frame.preset = preset
+    if (safeZoneOverride === null) delete frame.safeZoneOverride
+    else if (safeZoneOverride !== undefined) frame.safeZoneOverride = safeZoneOverride
     frame.html = normalizeFrameHtml(frame.html)
     // Also serves as the optimistic-save version, including writes in the same millisecond.
     frame.updatedAt = Math.max(Date.now(), frame.updatedAt + 1)

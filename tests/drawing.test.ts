@@ -56,6 +56,7 @@ beforeEach(() => {
     ...useStore.getState().canvas!.frames.find((f) => f.id === id)!,
     ...input,
     preset: input.preset === null ? undefined : input.preset,
+    safeZoneOverride: input.safeZoneOverride === null ? undefined : input.safeZoneOverride,
   }))
 })
 
@@ -246,6 +247,7 @@ describe('saving and targeting drawings', () => {
       ...frame,
       ...patch,
       preset: patch.preset === null ? undefined : patch.preset,
+      safeZoneOverride: patch.safeZoneOverride === null ? undefined : patch.safeZoneOverride,
     }))
     const first = saveDrawing(box, target)
     const layer = saveDrawing(box, { ...target, frameId: 'f' })

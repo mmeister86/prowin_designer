@@ -7,10 +7,23 @@ import { useStore } from './store'
  *  inverse through the normal API, so every collaborator sees it live —
  *  remote actors' work is never undone from here. */
 
-type Patch = Partial<Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'>>
+type Patch = Partial<
+  Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked' | 'safeZoneOverride'>
+>
 type Snapshot = Pick<
   Frame,
-  'canvasId' | 'pageId' | 'name' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked' | 'preset'
+  | 'canvasId'
+  | 'pageId'
+  | 'name'
+  | 'html'
+  | 'x'
+  | 'y'
+  | 'width'
+  | 'height'
+  | 'hidden'
+  | 'locked'
+  | 'preset'
+  | 'safeZoneOverride'
 >
 
 type Entry =
@@ -80,6 +93,8 @@ function snapshot(f: Frame): Snapshot {
     width: f.width,
     height: f.height,
     ...(f.preset ? { preset: f.preset } : {}),
+    /* overrides compare by value, not reference — JSON survives the round trip */
+    ...(f.safeZoneOverride ? { safeZoneOverride: { ...f.safeZoneOverride } } : {}),
     /* a hidden or locked frame comes back as it was when its deletion is undone */
     hidden: f.hidden,
     locked: f.locked,
@@ -89,7 +104,11 @@ function snapshot(f: Frame): Snapshot {
 type UpdateEntry = Extract<Entry, { type: 'update' }>
 
 function updateEntry(frameId: string, before: Patch, after: Patch): UpdateEntry | null {
-  const keys = (Object.keys(after) as (keyof Patch)[]).filter((k) => before[k] !== after[k])
+  const keys = (Object.keys(after) as (keyof Patch)[]).filter((k) =>
+    k === 'safeZoneOverride'
+      ? JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null)
+      : before[k] !== after[k],
+  )
   if (!keys.length) return null
   const b: Patch = {}
   const a: Patch = {}
@@ -279,9 +298,12 @@ async function recreate(e: Extract<Entry, { type: 'create' | 'delete' }>) {
 }
 
 function sameTransferState(a: Frame, b: Frame) {
-  return (Object.keys(snapshot(a)) as (keyof Snapshot)[]).every((key) =>
-    key === 'hidden' || key === 'locked' ? !!a[key] === !!b[key] : a[key] === b[key],
-  )
+  const keys = new Set([...Object.keys(snapshot(a)), ...Object.keys(snapshot(b))] as (keyof Snapshot)[])
+  return [...keys].every((key) => {
+    if (key === 'safeZoneOverride')
+      return JSON.stringify(a.safeZoneOverride ?? null) === JSON.stringify(b.safeZoneOverride ?? null)
+    return key === 'hidden' || key === 'locked' ? !!a[key] === !!b[key] : a[key] === b[key]
+  })
 }
 
 /* Only our own successful inverses can advance a matching history state's
