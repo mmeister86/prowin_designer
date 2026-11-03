@@ -27,6 +27,7 @@ import { getIdentity } from '../lib/identity'
 import { FRAME_BOOTSTRAP } from '../lib/frameRuntime'
 import { FRAME_DOCUMENTS_TAKE_ZOOM_AS_DENSITY, counterZoom } from '../lib/layoutZoom'
 import { recordCreate, recordUpdate, recordUpdates, trackSave } from '../lib/history'
+import { enqueueGeometrySave, isGeometrySaving } from '../lib/geometrySaves'
 import { snapFrame } from '../lib/snap'
 import { gesture } from '../lib/gesture'
 import { resolvePointerAction } from '../lib/tools'
@@ -308,6 +309,27 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       useStore.getState().pickElement(null)
       closePopovers() // and its outline, so a stale target never lingers
     }
+    /* a move carries every selected frame along (locked ones stay put — a
+       Layers-panel selection may hold one); a resize is this frame only.
+       Computed before any drag visuals so a pending geometry save can block
+       the gesture before it starts from a rejected optimistic rect. */
+    const frames = currentPageCanvas()?.frames ?? []
+    const selectedIds = mode === 'move' ? useStore.getState().selectedIds : [frame.id]
+    const group = frames
+      .filter((f) => selectedIds.includes(f.id) && !f.locked)
+      .map((f) => ({
+        id: f.id,
+        orig: { x: f.x, y: f.y, width: f.width, height: f.height },
+        /* the committed revision this gesture started from: a rejection only
+           rolls back to it while nothing newer landed meanwhile */
+        updatedAt: f.updatedAt,
+      }))
+    const groupIds = new Set(group.map((g) => g.id))
+    /* a geometry save (drag or Inspector) is still resolving its authoritative
+       baseline: a second gesture would inherit a possibly rejected optimistic
+       rect as its own rollback/history baseline, so it waits until
+       save+record complete instead of poisoning undo */
+    if (group.some((g) => isGeometrySaving(g.id))) return undefined
     setDragging(true)
     clearHover()
     const start = { x: e.clientX, y: e.clientY }
@@ -321,20 +343,6 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     let moved = false
     let dupDropped = false
     if (duplicating) setDuping(true)
-    /* a move carries every selected frame along (locked ones stay put — a
-       Layers-panel selection may hold one); a resize is this frame only */
-    const frames = currentPageCanvas()?.frames ?? []
-    const selectedIds = mode === 'move' ? useStore.getState().selectedIds : [frame.id]
-    const group = frames
-      .filter((f) => selectedIds.includes(f.id) && !f.locked)
-      .map((f) => ({
-        id: f.id,
-        orig: { x: f.x, y: f.y, width: f.width, height: f.height },
-        /* the committed revision this gesture started from: a rejection only
-           rolls back to it while nothing newer landed meanwhile */
-        updatedAt: f.updatedAt,
-      }))
-    const groupIds = new Set(group.map((g) => g.id))
 
     function onMove(ev: PointerEvent) {
       if (ev.pointerId !== e.pointerId) return
@@ -410,51 +418,53 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       useStore.getState().setSnapGuides([])
       const live = useStore.getState().canvas?.frames ?? []
       const updates: { frameId: string; before: typeof orig; after: typeof orig }[] = []
-      /* one barrier for the whole gesture: tracked synchronously so an undo
-         starting mid-save waits for every member plus the grouped history
-         entry, instead of resuming after the first tracked inner save */
-      const groupTask = (async () => {
-        for (const g of group) {
-          const f = live.find((x) => x.id === g.id)
-          if (!f) continue
-          const after = { x: f.x, y: f.y, width: f.width, height: f.height }
-          /* a rejected save (e.g. a resize that no longer fits the safe-zone
-             override) must leave neither history nor bad local geometry behind */
-          try {
-            await api.updateFrame(f.id, after)
-          } catch (err) {
-            console.error(err)
-            /* only the attempt's own geometry is stale: a second drag or a
-               remote save that landed meanwhile owns the current rect, so a
-               blind restore would overwrite the newer edit */
-            const cur = useStore.getState().canvas?.frames.find((x) => x.id === g.id)
-            const untouched =
-              cur !== undefined &&
-              cur.updatedAt === g.updatedAt &&
-              cur.x === after.x &&
-              cur.y === after.y &&
-              cur.width === after.width &&
-              cur.height === after.height
-            if (untouched) {
-              useStore.getState().patchFrameLocal(g.id, g.orig)
-              /* peers relayed the optimistic rects live: retract the gesture
-                 with the restored geometry so they converge instead of
-                 keeping the refused rect indefinitely */
-              cancelDragSend(g.id)
-              sendWs({ type: 'frame:drag', frameId: g.id, ...g.orig })
+      /* shared geometry queue with Inspector commits: the whole gesture runs
+         as one barrier (save plus grouped history) so an undo starting
+         mid-save waits for it; queued behind any pending Inspector save */
+      void enqueueGeometrySave(
+        group.map((g) => g.id),
+        async () => {
+          for (const g of group) {
+            const f = live.find((x) => x.id === g.id)
+            if (!f) continue
+            const after = { x: f.x, y: f.y, width: f.width, height: f.height }
+            /* a rejected save (e.g. a resize that no longer fits the safe-zone
+               override) must leave neither history nor bad local geometry behind */
+            try {
+              await api.updateFrame(f.id, after)
+            } catch (err) {
+              console.error(err)
+              /* only the attempt's own geometry is stale: a second drag or a
+                 remote save that landed meanwhile owns the current rect, so a
+                 blind restore would overwrite the newer edit */
+              const cur = useStore.getState().canvas?.frames.find((x) => x.id === g.id)
+              const untouched =
+                cur !== undefined &&
+                cur.updatedAt === g.updatedAt &&
+                cur.x === after.x &&
+                cur.y === after.y &&
+                cur.width === after.width &&
+                cur.height === after.height
+              if (untouched) {
+                useStore.getState().patchFrameLocal(g.id, g.orig)
+                /* peers relayed the optimistic rects live: retract the gesture
+                   with the restored geometry so they converge instead of
+                   keeping the refused rect indefinitely */
+                cancelDragSend(g.id)
+                sendWs({ type: 'frame:drag', frameId: g.id, ...g.orig })
+              }
+              useStore
+                .getState()
+                .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
+              continue
             }
-            useStore
-              .getState()
-              .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
-            continue
+            updates.push({ frameId: f.id, before: g.orig, after })
           }
-          updates.push({ frameId: f.id, before: g.orig, after })
-        }
-        const [only, ...more] = updates
-        if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
-        else recordUpdates(updates)
-      })()
-      trackSave(groupTask)
+          const [only, ...more] = updates
+          if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
+          else recordUpdates(updates)
+        },
+      ).catch(() => undefined)
       /* a click (no drag) on the frame surface targets the element under
          the cursor: probe it and show the element toolbar */
       if (!moved && probeOnClick) probeAt(off.x, off.y)

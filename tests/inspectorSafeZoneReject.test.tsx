@@ -47,10 +47,12 @@ const flush = () => new Promise((r) => setTimeout(r, 0))
 
 let root: Root
 let container: HTMLDivElement
-beforeEach(() => {
+beforeEach(async () => {
   permissions.manageLocks = true
   vi.clearAllMocks()
   history.clearHistory()
+  const { resetGeometrySaves } = await import('../src/lib/geometrySaves')
+  resetGeometrySaves()
   useStore.getState().setCanvas({ id: 'c', name: 'Canvas', frames: [{ ...framed }] } as Canvas)
   useStore.setState({ notice: null })
   container = document.createElement('div')
@@ -201,4 +203,45 @@ it('rejected resize resets the numeric draft to the retained value', async () =>
   /* the draft remounts on rejection: the field shows the stored height again */
   const reset = container.querySelector<HTMLInputElement>('[aria-label="Höhe"]')!
   expect(reset.value).toBe('1080')
+})
+
+it('rejected height save keeps an unrelated X draft and focus', async () => {
+  const gate = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => gate.promise)
+  const heightEl = await heightInput()
+  const xEl = container.querySelector<HTMLInputElement>('[aria-label="X-Position"]')!
+
+  /* height save pending */
+  await act(async () => {
+    heightEl.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(heightEl, '900')
+    heightEl.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    heightEl.blur()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+
+  /* user editing X while height save pending */
+  await act(async () => {
+    xEl.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(xEl, '123')
+    xEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await flush()
+  })
+  expect(xEl.value).toBe('123')
+  expect(document.activeElement).toBe(xEl)
+
+  /* height rejects: X draft and focus survive, height resets */
+  await act(async () => {
+    gate.reject(rejectedResize())
+    await flush()
+    await flush()
+  })
+  const xAfter = container.querySelector<HTMLInputElement>('[aria-label="X-Position"]')!
+  const hAfter = container.querySelector<HTMLInputElement>('[aria-label="Höhe"]')!
+  expect(xAfter.value).toBe('123')
+  expect(document.activeElement).toBe(xAfter)
+  expect(hAfter.value).toBe('1080')
 })

@@ -18,6 +18,7 @@ vi.mock('../src/lib/api', async (original) => ({
   },
 }))
 const { FrameView } = await import('../src/components/FrameView')
+const { Inspector } = await import('../src/components/Inspector')
 const { TooltipProvider } = await import('../src/components/ui/tooltip')
 const { useStore } = await import('../src/lib/store')
 const { ApiError, api } = await import('../src/lib/api')
@@ -58,10 +59,12 @@ function deferred<T>() {
 
 let root: Root
 let container: HTMLDivElement
-beforeEach(() => {
+beforeEach(async () => {
   permissions.manageLocks = true
   vi.clearAllMocks()
   history.clearHistory()
+  const { resetGeometrySaves } = await import('../src/lib/geometrySaves')
+  resetGeometrySaves()
   useStore.getState().setCanvas({ id: 'c', name: 'Canvas', frames: [{ ...zoned }] } as Canvas)
   useStore.setState({ selectedIds: ['zoned'], selectedId: 'zoned', tool: 'select', panMode: false, notice: null })
   container = document.createElement('div')
@@ -245,4 +248,189 @@ it('group drag tracks the whole operation: undo during pending saves waits and r
   expect(updateFrame).toHaveBeenCalledTimes(4)
   expect(useStore.getState().canvas!.frames.find((f) => f.id === 'a')).toMatchObject({ x: 0 })
   expect(useStore.getState().canvas!.frames.find((f) => f.id === 'b')).toMatchObject({ x: 300 })
+})
+
+async function dragDy(el: HTMLElement, dy: number) {
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 0, clientY: dy }))
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+}
+
+it('overlapping drag-resize is blocked until the pending save resolves, then a fresh gesture uses 1080', async () => {
+  const first = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => first.promise)
+  const el = await grip()
+
+  /* 1080 -> 900 invalid, save pending */
+  await dragDy(el, -180)
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 900 })
+
+  /* second gesture to 800 while first pending must not save */
+  await dragDy(el, -280)
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 900 })
+
+  /* first rejects: authoritative 1080 restored with peer correction */
+  await act(async () => {
+    first.reject(rejectedResize())
+    await flush()
+    await flush()
+  })
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+  expect(wsSend.mock.calls.at(-1)).toEqual([
+    { type: 'frame:drag', frameId: 'zoned', x: 0, y: 0, width: 1080, height: 1080 },
+  ])
+
+  /* fresh gesture after resolution to 800 fails and restores 1080 (both orders converge) */
+  updateFrame.mockRejectedValueOnce(rejectedResize())
+  await dragDy(el, -280)
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+})
+
+it('failed 900 then valid 1100 uses authoritative 1080 baseline for undo', async () => {
+  const first = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => first.promise)
+  const el = await grip()
+
+  await dragDy(el, -180)
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+
+  /* valid 1100 attempt while invalid save pending must not save */
+  await dragDy(el, 20)
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 900 })
+
+  await act(async () => {
+    first.reject(rejectedResize())
+    await flush()
+    await flush()
+  })
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+
+  /* fresh valid gesture from 1080 succeeds; undo restores 1080, never 900 */
+  updateFrame.mockResolvedValueOnce({ ...zoned, height: 1100, updatedAt: 2 })
+  await dragDy(el, 20)
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1100 })
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).toHaveBeenLastCalledWith('zoned', expect.objectContaining({ height: 1080 }))
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+})
+
+async function renderBoth() {
+  await act(async () =>
+    root.render(
+      <TooltipProvider>
+        <FrameView frame={{ ...zoned }} layoutZoom={1} />
+        <Inspector frame={{ ...zoned }} />
+      </TooltipProvider>,
+    ),
+  )
+  const gripEl = container
+    .querySelector(`iframe[title="${zoned.name}"]`)!
+    .parentElement!.parentElement!.querySelector<HTMLElement>('.cursor-nwse-resize')!
+  const heightEl = container.querySelector<HTMLInputElement>('[aria-label="Höhe"]')!
+  return { gripEl, heightEl }
+}
+
+it('Inspector commit waits for a pending drag and uses restored 1080 baseline', async () => {
+  const { gripEl, heightEl } = await renderBoth()
+  const dragGate = deferred<Frame>()
+  const inspectorGate = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => dragGate.promise).mockImplementationOnce(() => inspectorGate.promise)
+
+  /* drag 1080 -> 900 invalid, save pending */
+  await act(async () => {
+    gripEl.dispatchEvent(
+      new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: 0, clientY: 0 }),
+    )
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: 0, clientY: -180 }))
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+
+  /* Inspector 1100 commit while drag pending must queue, not save yet */
+  await act(async () => {
+    heightEl.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(heightEl, '1100')
+    heightEl.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    heightEl.blur()
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+
+  /* drag rejects -> 1080 restored; Inspector then saves 1100 from 1080 */
+  await act(async () => {
+    dragGate.reject(rejectedResize())
+    await flush()
+    await flush()
+  })
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+  expect(updateFrame).toHaveBeenNthCalledWith(2, 'zoned', { height: 1100 })
+
+  await act(async () => {
+    inspectorGate.resolve({ ...zoned, height: 1100, updatedAt: 2 } as Frame)
+    await flush()
+    await flush()
+  })
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1100 })
+  await act(async () => {
+    await history.undo()
+  })
+  expect(updateFrame).toHaveBeenLastCalledWith('zoned', expect.objectContaining({ height: 1080 }))
+})
+
+it('drag is blocked while an Inspector save is pending', async () => {
+  const { gripEl, heightEl } = await renderBoth()
+  const inspectorGate = deferred<Frame>()
+  updateFrame.mockImplementationOnce(() => inspectorGate.promise)
+
+  /* Inspector 900 commit pending (not optimistic: live stays 1080) */
+  await act(async () => {
+    heightEl.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(heightEl, '900')
+    heightEl.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => {
+    heightEl.blur()
+    await flush()
+  })
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+
+  /* drag attempt while Inspector pending must not start */
+  await dragDy(gripEl, -280)
+  expect(updateFrame).toHaveBeenCalledTimes(1)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
+
+  /* Inspector rejects -> height input resets; fresh drag then uses 1080 */
+  await act(async () => {
+    inspectorGate.reject(rejectedResize())
+    await flush()
+    await flush()
+  })
+  updateFrame.mockRejectedValueOnce(rejectedResize())
+  await dragDy(gripEl, -280)
+  expect(updateFrame).toHaveBeenCalledTimes(2)
+  expect(useStore.getState().canvas!.frames.find((f) => f.id === 'zoned')).toMatchObject({ height: 1080 })
 })
