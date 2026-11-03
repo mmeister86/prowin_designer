@@ -184,6 +184,35 @@ describe.skipIf(!findBrowserPath())('preset export dimensions in real Chromium',
     }
   })
 
+  it('renders a fractional free 100.4×200.6 frame at 200×402 (png+jpg)', async () => {
+    seedCanvas()
+    const f = await makeFrame({ width: 100.4, height: 200.6 })
+    expect(f.preset).toBeUndefined()
+    expect(f.width).toBe(100.4)
+    for (const ext of ['png', 'jpg'] as const) {
+      const { width, height } = await dims(await renderDownload(f, ext))
+      expect(width).toBe(200)
+      expect(height).toBe(402)
+    }
+  })
+
+  it('renders fractional creator-resized A4 at 313×628 (png+jpg)', async () => {
+    seedCanvas()
+    const f = await makeFrame({ preset: 'a4' })
+    await withUserPermissions(CREATOR, () => {
+      actions.updateFrame(f.id, { width: 100.4, height: 200.6 }, { ...creatorActor })
+    })
+    const resized = store.getFrame(f.id)!
+    expect(resized.preset).toBe('a4')
+    expect(resized.width).toBe(100.4)
+    for (const ext of ['png', 'jpg'] as const) {
+      const { width, height } = await dims(await renderDownload(resized, ext))
+      // viewport 100×201 × 3.125, per-axis rounded — not 314 from stored×scale
+      expect(width).toBe(313)
+      expect(height).toBe(628)
+    }
+  })
+
   it('exports creator-resized preset frames at actual stored geometry, not canonical', async () => {
     seedCanvas()
     const f = await makeFrame({ preset: 'ig-post' })

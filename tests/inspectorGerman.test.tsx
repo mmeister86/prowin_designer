@@ -56,3 +56,40 @@ it('shows German saving and saved messages while retaining the technical save st
     vi.useRealTimers()
   }
 })
+
+it('labels export actions without a stale 2× scale promise', async () => {
+  ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
+  const frame: Frame = {
+    id: 'g',
+    canvasId: 'c',
+    name: 'Export titles',
+    html: '<p>x</p>',
+    x: 0,
+    y: 0,
+    width: 100,
+    height: 100,
+    createdAt: 0,
+    updatedAt: 0,
+    updatedBy: 'Ada',
+  }
+  useStore.setState({ canvas: { id: 'c', frames: [frame] } as Canvas })
+  const container = document.createElement('div')
+  document.body.append(container)
+  const root = createRoot(container)
+  try {
+    await act(async () =>
+      root.render(
+        <TooltipProvider>
+          <Inspector frame={frame} />
+        </TooltipProvider>,
+      ),
+    )
+    const titles = [...container.querySelectorAll('[title]')].map((el) => el.getAttribute('title')!)
+    expect(titles).toContain('Als PNG herunterladen')
+    expect(titles).toContain('Als JPG herunterladen')
+    expect(titles.some((t) => t.includes('2×'))).toBe(false)
+  } finally {
+    act(() => root.unmount())
+    container.remove()
+  }
+})

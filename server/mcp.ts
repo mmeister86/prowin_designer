@@ -959,13 +959,19 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       /* the download renders at the preset default — actual stored geometry
          times defaultExportScale, never forced canonical or cropped */
       const downloadScale = defaultExportScale(f.preset)
+      /* two-stage raster contract: the renderer snaps each stored axis to an
+         integer viewport first, then scales — reported fields match those
+         bytes, including fractional stored sizes (100.4 A4 → viewport 100
+         → 313px, not round(100.4 × 3.125) = 314) */
+      const viewportWidth = Math.max(1, Math.round(f.width))
+      const viewportHeight = Math.max(1, Math.round(f.height))
       return text({
         image_url: `${env.BETTER_AUTH_URL}/i/${frame_id}.${ext}?scale=2${q}`,
         download_url: `${env.BETTER_AUTH_URL}/i/${frame_id}.${ext}?download${q}`,
-        width: f.width * 2,
-        height: f.height * 2,
-        download_width: Math.round(f.width * downloadScale),
-        download_height: Math.round(f.height * downloadScale),
+        width: Math.round(viewportWidth * 2),
+        height: Math.round(viewportHeight * 2),
+        download_width: Math.round(viewportWidth * downloadScale),
+        download_height: Math.round(viewportHeight * downloadScale),
         note: 'Public URL, no auth needed. To publish: fetch the URL and upload the bytes to the target platform (e.g. WordPress POST /wp/v2/media), or hotlink it directly — it always shows the current design.',
       })
     },

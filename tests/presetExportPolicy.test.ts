@@ -149,4 +149,45 @@ describe('MCP export_frame', () => {
       await server.close()
     }
   })
+
+  it('reports two-stage rounded dimensions for fractional stored sizes', async () => {
+    const { buildMcpServer } = await import('../server/mcp.ts')
+    const { Client } = await import('@modelcontextprotocol/sdk/client/index.js')
+    const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js')
+    const { store } = await import('../server/store.ts')
+    const canvasId = 'policy-fractional'
+    const a4 = frame({ canvasId, width: 100.4, height: 200.6, preset: 'a4' }) as Frame
+    const free = frame({ canvasId, width: 100.4, height: 200.6 }) as Frame
+    store.init([{ id: canvasId, ownerId: 'o', name: 'C', frames: [a4, free], createdAt: 0, updatedAt: 0 }] as never)
+    const server = buildMcpServer('Owner', 'o')
+    const client = new Client({ name: 't', version: '1.0.0' })
+    const [c, s] = InMemoryTransport.createLinkedPair()
+    await server.connect(s)
+    await client.connect(c)
+    try {
+      const call = async (frame_id: string) =>
+        JSON.parse(
+          (
+            (await client.callTool({ name: 'export_frame', arguments: { frame_id } })) as {
+              content: { text: string }[]
+            }
+          ).content[0]!.text,
+        )
+      // viewport 100×201: image stays scale=2, download uses the preset scale
+      const a4payload = await call(a4.id)
+      expect(a4payload.image_url).toContain('?scale=2')
+      expect(a4payload.width).toBe(200)
+      expect(a4payload.height).toBe(402)
+      expect(a4payload.download_width).toBe(313)
+      expect(a4payload.download_height).toBe(628)
+      const freepayload = await call(free.id)
+      expect(freepayload.width).toBe(200)
+      expect(freepayload.height).toBe(402)
+      expect(freepayload.download_width).toBe(200)
+      expect(freepayload.download_height).toBe(402)
+    } finally {
+      await client.close()
+      await server.close()
+    }
+  })
 })
