@@ -1305,9 +1305,12 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
        Design-panel styles, or the server's normalized echo of one): adopt
        its expected-document token only when the live document is exactly
        that HTML — byte-equal, or canonicalizing equal through this
-       document's own parser (byte flavors differ across serializers). A
-       stale acknowledgement for newer or different contents is ignored, so
-       it can never bless the wrong document. Metadata only: no render, no
+       document's own parser (byte flavors differ across serializers). Tokens
+       grow with every minted document, so a delayed ack with an older token
+       for canonically identical bytes — after a newer ack or a stamped
+       render/revert — is stale and ignored, as is an acknowledgement for
+       newer or different contents, so it can never bless the wrong document
+       or rewind a newer identity. Metadata only: no render, no
        remorph, the caret stays where it is. */
     if (d.type === 'doop:edited-ack' && typeof d.html === 'string'
         && typeof d.docToken === 'number' && isFinite(d.docToken)) {
@@ -1317,7 +1320,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
         var want = canonicalHtml(d.html)
         same = want !== null && want === canonicalHtml(live)
       }
-      if (same) {
+      if (same && (safeZoneDocument === null || d.docToken >= safeZoneDocument)) {
         safeZoneDocument = d.docToken
         notifyFrameUpdated()
       }

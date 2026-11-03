@@ -212,4 +212,107 @@ describe('frame runtime edited identity acknowledgement', () => {
     expect(live.hasAttribute('data-v-active')).toBe(true)
     await stopEdit()
   })
+
+  it('rejects a stale canonically-identical ack after a newer ack (107->102)', async () => {
+    await render(H0, 101)
+    await editMode()
+    click(document.querySelector('#t')!)
+    document.querySelector('#t')!.textContent = 'Hallo!'
+    document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+    await slow()
+    const live = edited()[0]!
+    // The server's normalized echo: same DOM, different bytes, newer token.
+    const echo = live.replace('id="t"', "id='t'")
+    expect(echo).not.toBe(live)
+    posted.length = 0
+    send({ type: 'doop:edited-ack', html: echo, docToken: 107 })
+    await tick()
+    expect(updates().at(-1)).toMatchObject({ docToken: 107 })
+    // A delayed ack for canonically identical bytes with the older token
+    // must not replace the newer identity.
+    posted.length = 0
+    send({ type: 'doop:edited-ack', html: live, docToken: 102 })
+    await tick()
+    expect(updates()).toHaveLength(0)
+    send({ type: 'doop:safe-zones', reqId: 9 })
+    await tick()
+    expect(posted.filter((p) => p.type === 'doop:safe-zones-result').at(-1)).toMatchObject({ docToken: 107 })
+    await stopEdit()
+  })
+
+  it('rejects a stale equivalent ack after a newer stamped render', async () => {
+    await render(H0, 101)
+    // A stamped render of canonically identical bytes with a newer token.
+    const echoRender = H0.replace('id="t"', "id='t'")
+    expect(echoRender).not.toBe(H0)
+    await render(echoRender, 112)
+    expect(updates().at(-1)).toMatchObject({ docToken: 112 })
+    posted.length = 0
+    send({ type: 'doop:edited-ack', html: H0, docToken: 102 })
+    await tick()
+    expect(updates()).toHaveLength(0)
+    send({ type: 'doop:safe-zones', reqId: 10 })
+    await tick()
+    expect(posted.filter((p) => p.type === 'doop:safe-zones-result').at(-1)).toMatchObject({ docToken: 112 })
+  })
+
+  it('rejects a stale equivalent ack after a revert', async () => {
+    await render(H0, 101)
+    const echoRevert = H0.replace('id="t"', "id='t'")
+    send({ type: 'doop:revert', html: echoRevert, docToken: 115 })
+    await tick()
+    expect(updates().at(-1)).toMatchObject({ docToken: 115 })
+    posted.length = 0
+    send({ type: 'doop:edited-ack', html: H0, docToken: 102 })
+    await tick()
+    expect(updates()).toHaveLength(0)
+    send({ type: 'doop:safe-zones', reqId: 11 })
+    await tick()
+    expect(posted.filter((p) => p.type === 'doop:safe-zones-result').at(-1)).toMatchObject({ docToken: 115 })
+  })
+
+  it('accepts a newer canonical echo and a same-token re-ack', async () => {
+    await render(H0, 101)
+    await editMode()
+    click(document.querySelector('#t')!)
+    document.querySelector('#t')!.textContent = 'Hallo!'
+    document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+    await slow()
+    const live = edited()[0]!
+    const echo = live.replace('id="t"', "id='t'")
+    expect(echo).not.toBe(live)
+    posted.length = 0
+    send({ type: 'doop:edited-ack', html: live, docToken: 102 })
+    await tick()
+    expect(updates().at(-1)).toMatchObject({ docToken: 102 })
+    // Newer equivalent byte form advances the identity; repeating the same
+    // token is idempotent and stays accepted.
+    send({ type: 'doop:edited-ack', html: echo, docToken: 107 })
+    await tick()
+    expect(updates().at(-1)).toMatchObject({ docToken: 107 })
+    send({ type: 'doop:edited-ack', html: echo, docToken: 107 })
+    await tick()
+    expect(updates().at(-1)).toMatchObject({ docToken: 107 })
+    expect(updates()).toHaveLength(3)
+    await stopEdit()
+  })
+
+  it('rejects a malformed-token ack even for matching content', async () => {
+    await render(H0, 101)
+    await editMode()
+    click(document.querySelector('#t')!)
+    document.querySelector('#t')!.textContent = 'Hallo!'
+    document.querySelector('#t')!.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+    await slow()
+    const live = edited()[0]!
+    posted.length = 0
+    send({ type: 'doop:edited-ack', html: live, docToken: NaN })
+    await tick()
+    send({ type: 'doop:edited-ack', html: live })
+    await tick()
+    send({ type: 'doop:edited-ack', html: live, docToken: '102' })
+    await tick()
+    expect(updates()).toHaveLength(0)
+    await stopEdit()
+  })
 })
