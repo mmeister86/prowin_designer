@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { FORMAT_PRESETS } from '../shared/prowin/formats.ts'
-import { effectiveSafeZone, isSafeZoneOverride, safeZoneFits, safeZoneIntrudes } from '../shared/prowin/safeZones.ts'
+import {
+  effectiveSafeZone,
+  isSafeZoneOverride,
+  safeZoneEquals,
+  safeZoneFits,
+  safeZoneIntrudes,
+} from '../shared/prowin/safeZones.ts'
 
 describe('isSafeZoneOverride', () => {
   it('accepts exact four-sided integer insets including zeroes', () => {
@@ -18,6 +24,19 @@ describe('isSafeZoneOverride', () => {
     ['array', [1, 2, 3, 4]],
   ])('rejects %s input', (_label, value) => {
     expect(isSafeZoneOverride(value)).toBe(false)
+  })
+})
+
+describe('safeZoneEquals', () => {
+  it('compares by side, ignoring key order; absent and null are equal', () => {
+    expect(safeZoneEquals({ top: 1, right: 2, bottom: 3, left: 4 }, { left: 4, bottom: 3, right: 2, top: 1 })).toBe(
+      true,
+    )
+    expect(safeZoneEquals({ top: 1, right: 2, bottom: 3, left: 4 }, { top: 1, right: 2, bottom: 3, left: 5 })).toBe(
+      false,
+    )
+    expect(safeZoneEquals(undefined, null)).toBe(true)
+    expect(safeZoneEquals(undefined, { top: 0, right: 0, bottom: 0, left: 0 })).toBe(false)
   })
 })
 

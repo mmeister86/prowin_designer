@@ -10,6 +10,13 @@ export function isSafeZoneOverride(value: unknown): value is Insets {
   return SIDES.every((side) => Number.isInteger(record[side]) && (record[side] as number) >= 0)
 }
 
+/** Side-by-side value equality — never JSON key order. Absent (undefined) and null both mean "no override". */
+export function safeZoneEquals(a: Insets | null | undefined, b: Insets | null | undefined): boolean {
+  const x = a ?? null
+  const y = b ?? null
+  if (x === null || y === null) return x === y
+  return x.top === y.top && x.right === y.right && x.bottom === y.bottom && x.left === y.left
+}
 /** The preset default, fully replaced by a valid override; null without a preset. */
 export function effectiveSafeZone(
   frame: Pick<{ preset?: FormatPresetId; safeZoneOverride?: Insets }, 'preset' | 'safeZoneOverride'>,

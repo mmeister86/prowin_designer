@@ -82,6 +82,25 @@ it('rejects corrupt stored overrides gracefully on load', async () => {
   expect(await reloadFrame(frame.id)).not.toHaveProperty('safeZoneOverride')
 })
 
+it('drops overrides without a valid preset or exceeding the stored size', async () => {
+  const noPreset = store.createFrame('safe', { name: 'Plain', width: 1080, height: 1080 }, 'test')!
+  const oversized = store.createFrame(
+    'safe',
+    { name: 'Post', preset: 'ig-post', safeZoneOverride: { top: 600, right: 0, bottom: 600, left: 0 } },
+    'test',
+  )!
+  await persist.flush((id) => store.getFrame(id))
+  /* bypass in-memory validation: plant corrupt rows directly */
+  await pg.exec(
+    `UPDATE frames SET preset = NULL, safe_zone_override = '{"top":10,"right":10,"bottom":10,"left":10}' WHERE id = '${noPreset.id}'`,
+  )
+  await pg.exec(
+    `UPDATE frames SET preset = 'ig-post', safe_zone_override = '{"top":600,"right":0,"bottom":600,"left":0}' WHERE id = '${oversized.id}'`,
+  )
+  expect(await reloadFrame(noPreset.id)).not.toHaveProperty('safeZoneOverride')
+  expect(await reloadFrame(oversized.id)).not.toHaveProperty('safeZoneOverride')
+})
+
 it('adds a nullable safe_zone_override to legacy rows', async () => {
   const legacy = new PGlite()
   try {

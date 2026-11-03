@@ -156,7 +156,10 @@ interface State {
   setComments(comments: ElementComment[]): void
   upsertComment(c: ElementComment): void
   upsertFrame(f: Frame): void
-  patchFrameLocal(frameId: string, patch: Partial<Frame>): void
+  patchFrameLocal(
+    frameId: string,
+    patch: Omit<Partial<Frame>, 'safeZoneOverride'> & { safeZoneOverride?: Frame['safeZoneOverride'] | null },
+  ): void
   removeFrame(frameId: string): void
   renameCanvasLocal(name: string): void
   /** upsert (doc set) or remove (doc null) a style guide on the open canvas */
@@ -413,7 +416,15 @@ export const useStore = create<State>((set, get) => ({
       return {
         canvas: {
           ...s.canvas,
-          frames: s.canvas.frames.map((f) => (f.id === frameId ? { ...f, ...patch } : f)),
+          /* a null reset removes the override instead of storing null */
+          frames: s.canvas.frames.map((f) => {
+            if (f.id !== frameId) return f
+            if (patch.safeZoneOverride === null) {
+              const { safeZoneOverride: _removed, ...rest } = { ...f, ...patch }
+              return rest
+            }
+            return { ...f, ...patch }
+          }),
         },
       }
     }),

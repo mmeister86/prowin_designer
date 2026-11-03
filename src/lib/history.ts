@@ -1,4 +1,5 @@
 import { applyPageChanges, canvasPages, samePages } from '../../shared/pages'
+import { safeZoneEquals } from '../../shared/prowin/safeZones.ts'
 import type { CanvasPageInfo, Frame } from '../../shared/types'
 import { api, ApiError, errorMessage, UserFacingError } from './api'
 import { useStore } from './store'
@@ -7,9 +8,9 @@ import { useStore } from './store'
  *  inverse through the normal API, so every collaborator sees it live —
  *  remote actors' work is never undone from here. */
 
-type Patch = Partial<
-  Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked' | 'safeZoneOverride'>
->
+type Patch = Partial<Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'>> & {
+  safeZoneOverride?: Frame['safeZoneOverride'] | null
+}
 type Snapshot = Pick<
   Frame,
   | 'canvasId'
@@ -105,16 +106,21 @@ type UpdateEntry = Extract<Entry, { type: 'update' }>
 
 function updateEntry(frameId: string, before: Patch, after: Patch): UpdateEntry | null {
   const keys = (Object.keys(after) as (keyof Patch)[]).filter((k) =>
-    k === 'safeZoneOverride'
-      ? JSON.stringify(before[k] ?? null) !== JSON.stringify(after[k] ?? null)
-      : before[k] !== after[k],
+    k === 'safeZoneOverride' ? !safeZoneEquals(before[k] ?? null, after[k] ?? null) : before[k] !== after[k],
   )
   if (!keys.length) return null
   const b: Patch = {}
   const a: Patch = {}
   for (const k of keys) {
-    b[k] = before[k] as never
-    a[k] = after[k] as never
+    /* absent means "no override": store it as an explicit null reset so JSON
+       replay sends a reset instead of dropping the key */
+    if (k === 'safeZoneOverride') {
+      b[k] = (before[k] ?? null) as never
+      a[k] = (after[k] ?? null) as never
+    } else {
+      b[k] = before[k] as never
+      a[k] = after[k] as never
+    }
   }
   return { type: 'update', frameId, before: b, after: a, at: Date.now() }
 }
@@ -300,8 +306,7 @@ async function recreate(e: Extract<Entry, { type: 'create' | 'delete' }>) {
 function sameTransferState(a: Frame, b: Frame) {
   const keys = new Set([...Object.keys(snapshot(a)), ...Object.keys(snapshot(b))] as (keyof Snapshot)[])
   return [...keys].every((key) => {
-    if (key === 'safeZoneOverride')
-      return JSON.stringify(a.safeZoneOverride ?? null) === JSON.stringify(b.safeZoneOverride ?? null)
+    if (key === 'safeZoneOverride') return safeZoneEquals(a.safeZoneOverride ?? null, b.safeZoneOverride ?? null)
     return key === 'hidden' || key === 'locked' ? !!a[key] === !!b[key] : a[key] === b[key]
   })
 }

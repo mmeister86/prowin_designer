@@ -8,7 +8,7 @@ import { extractAssetIds } from '../assets.ts'
 import { roleByAgentName } from '../../shared/agents.ts'
 import { isCommunityCategory } from '../../shared/types.ts'
 import { isFormatPresetId } from '../../shared/prowin/formats.ts'
-import { isSafeZoneOverride } from '../../shared/prowin/safeZones.ts'
+import { isSafeZoneOverride, safeZoneFits } from '../../shared/prowin/safeZones.ts'
 import type {
   ActivityItem,
   ActorKind,
@@ -806,8 +806,13 @@ export async function hydrate(): Promise<Hydrated> {
     byId.get(f.canvasId)?.frames.push({
       ...f,
       ...(isFormatPresetId(preset) ? { preset } : {}),
-      /* corrupt stored overrides never reach resolvers: inherit the preset default */
-      ...(isSafeZoneOverride(safeZoneOverride) ? { safeZoneOverride } : {}),
+      /* corrupt stored overrides never reach resolvers: require a valid preset
+         and a fitting size, else inherit the preset default */
+      ...(isFormatPresetId(preset) &&
+      isSafeZoneOverride(safeZoneOverride) &&
+      safeZoneFits(safeZoneOverride, f.width, f.height)
+        ? { safeZoneOverride }
+        : {}),
       pageId: f.pageId ?? undefined,
       demo: f.demo ?? undefined,
       hidden: f.hidden ?? undefined,

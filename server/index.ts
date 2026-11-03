@@ -1156,8 +1156,9 @@ app.post('/api/canvases/:id/frames', (req, res) => {
         width,
         height,
         preset,
-        /* explicit null on create means "no override", exactly like omitting it */
-        ...(safeZoneOverride ? { safeZoneOverride } : {}),
+        /* explicit null on create means "no override", exactly like omitting it;
+           anything else defined reaches central validation (falsy values 400) */
+        ...(safeZoneOverride !== undefined && safeZoneOverride !== null ? { safeZoneOverride } : {}),
         restoreDimensions: req.body?.restoreDimensions === true,
         html,
         hidden: hidden === true,

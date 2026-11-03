@@ -5,7 +5,7 @@ import {
   currentPermissionUserId,
 } from './prowin/permissions.ts'
 import { FORMAT_PRESETS, isFormatPresetId, type FormatPresetId, type Insets } from '../shared/prowin/formats.ts'
-import { isSafeZoneOverride, safeZoneFits } from '../shared/prowin/safeZones.ts'
+import { isSafeZoneOverride, safeZoneEquals, safeZoneFits } from '../shared/prowin/safeZones.ts'
 import { assertCanChangeTemplateMeta } from './prowin/templateMeta.ts'
 import { assertTemplateDelete, hasTemplateFields } from './prowin/templateGuard.ts'
 import { canAccessCanvas } from './access.ts'
@@ -1478,12 +1478,9 @@ export function createFrame(
   if (!canvas) return undefined
   if (input.preset !== undefined) assertValidPreset(input.preset)
   assertCanChangeLock(canvas, false, input.locked)
-  /* an explicitly supplied override needs Creator rights; stored metadata
-     inherited from a source copy is validated for fit only */
-  const explicitSafeZone = input.safeZoneOverride !== undefined
-  /* normalize once, then validate exactly that candidate before any side effect */
   const candidate = input.html !== undefined ? normalizeFrameHtml(repairEscapedHtml(input.html)) : ''
   let copiedFormat = false
+  let sourceOverride: Insets | undefined
   if (input.html !== undefined || input.sourceFrameId !== undefined) {
     let baseline = ''
     if (input.sourceFrameId !== undefined) {
@@ -1492,13 +1489,13 @@ export function createFrame(
       if (!source || !sourceCanvas) throw new TemplateSourceError()
       if (!canAccessCanvas(currentPermissionUserId(), sourceCanvas)) throw new CreatorPermissionError()
       baseline = source.html
+      sourceOverride = source.safeZoneOverride
       if (!canvasCapabilities(canvas).manageLocks) {
         if (
           (input.preset !== undefined && input.preset !== source.preset) ||
           (input.width !== undefined && input.width !== source.width) ||
           (input.height !== undefined && input.height !== source.height) ||
-          (input.safeZoneOverride !== undefined &&
-            JSON.stringify(input.safeZoneOverride) !== JSON.stringify(source.safeZoneOverride))
+          (input.safeZoneOverride !== undefined && !safeZoneEquals(input.safeZoneOverride, source.safeZoneOverride))
         )
           throw new CreatorPermissionError()
       }
@@ -1535,7 +1532,9 @@ export function createFrame(
     const height = input.height ?? size?.height
     if (width === undefined || height === undefined)
       throw new SafeZoneError('Ein Safe-Zone-Abstand erfordert ein Format-Preset.')
-    if (explicitSafeZone) assertSafeZoneValue(canvas, input.safeZoneOverride, width, height, input.preset)
+    /* matching stored-source metadata inherits without a Creator gate; anything else explicit needs it */
+    const inherited = sourceOverride !== undefined && safeZoneEquals(input.safeZoneOverride, sourceOverride)
+    if (!inherited) assertSafeZoneValue(canvas, input.safeZoneOverride, width, height, input.preset)
     else if (!isSafeZoneOverride(input.safeZoneOverride) || !safeZoneFits(input.safeZoneOverride, width, height))
       throw new SafeZoneError()
   }
@@ -1579,8 +1578,10 @@ export function updateFrame(
       const { width, height } = FORMAT_PRESETS[patch.preset]
       patch = { ...patch, width, height }
     }
-    /* changing/removing the preset clears the override unless a replacement is supplied */
-    if (patch.safeZoneOverride === undefined) patch = { ...patch, safeZoneOverride: null }
+    /* changing/removing the preset clears the override unless a replacement is supplied;
+       a frame with nothing to clear keeps no privileged write */
+    if (patch.safeZoneOverride === undefined && before.safeZoneOverride !== undefined)
+      patch = { ...patch, safeZoneOverride: null }
   }
   if (patch.safeZoneOverride !== undefined) {
     const preset = patch.preset === null ? undefined : (patch.preset ?? before.preset)

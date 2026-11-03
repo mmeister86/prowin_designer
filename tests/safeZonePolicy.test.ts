@@ -20,21 +20,26 @@ vi.mock('../server/prowin/templateMeta.ts', () => ({
   assertCanChangeTemplateMeta: () => undefined,
 }))
 vi.mock('../server/db/persist.ts', () => ({
-  saveFrame: () => undefined,
-  saveCanvas: () => undefined,
+  saveFrame: vi.fn(),
+  saveCanvas: vi.fn(),
   saveCanvasCopy: async () => undefined,
   savePageCopy: async () => undefined,
-  saveFrameVersion: () => undefined,
-  saveActivity: () => undefined,
-  saveTask: () => undefined,
-  saveFeedback: () => undefined,
-  saveComment: () => undefined,
-  deleteFrame: () => undefined,
+  saveFrameVersion: vi.fn(),
+  getFrameVersion: vi.fn(),
+  saveActivity: vi.fn(),
+  saveTask: vi.fn(),
+  saveFeedback: vi.fn(),
+  saveComment: vi.fn(),
+  deleteFrame: vi.fn(),
 }))
 
 import { store } from '../server/store.ts'
 import * as actions from '../server/actions.ts'
+import * as persist from '../server/db/persist.ts'
 import { CreatorPermissionError } from '../server/prowin/permissions.ts'
+
+const broadcast = vi.fn()
+actions.wire(broadcast, () => {})
 
 const actor = (name: string) => ({ name, kind: 'user' as const, color: '#000' })
 
@@ -59,6 +64,8 @@ function canvasWith(preset?: Canvas['frames'][number]['preset']) {
 describe('safe-zone policy', () => {
   beforeEach(() => {
     canAccess.current = true
+    broadcast.mockClear()
+    vi.mocked(persist.getFrameVersion).mockReset()
   })
 
   it('creator set and reset succeeds', () => {
@@ -76,11 +83,17 @@ describe('safe-zone policy', () => {
   it('member differing values and reset are denied without mutation', () => {
     const f = canvasWith('ig-post')
     canAccess.current = false
+    const activityBefore = structuredClone(actions.getActivity('c1'))
+    broadcast.mockClear()
+    vi.mocked(persist.saveActivity).mockClear()
     expect(() =>
       actions.updateFrame(f.id, { safeZoneOverride: { top: 10, right: 10, bottom: 10, left: 10 } }, actor('m')),
     ).toThrow(CreatorPermissionError)
     expect(() => actions.updateFrame(f.id, { safeZoneOverride: null }, actor('m'))).toThrow(CreatorPermissionError)
     expect(store.getFrame(f.id)).not.toHaveProperty('safeZoneOverride')
+    expect(actions.getActivity('c1')).toEqual(activityBefore)
+    expect(broadcast).not.toHaveBeenCalled()
+    expect(persist.saveActivity).not.toHaveBeenCalled()
   })
 
   it('rejects overrides without a preset', () => {
@@ -138,5 +151,65 @@ describe('safe-zone policy', () => {
         actor('m'),
       ),
     ).toThrow(CreatorPermissionError)
+  })
+
+  it('lets members send back the stored override explicitly, regardless of key order', () => {
+    const f = canvasWith('ig-post')
+    actions.updateFrame(f.id, { safeZoneOverride: { top: 10, right: 20, bottom: 30, left: 40 } }, actor('c'))
+    canAccess.current = false
+    /* paste/duplicate/Alt-drag echo the override alongside the source id */
+    for (const override of [
+      { top: 10, right: 20, bottom: 30, left: 40 },
+      { left: 40, bottom: 30, right: 20, top: 10 },
+    ]) {
+      const copy = actions.createFrame(
+        'c1',
+        { name: 'Copy', html: '<p>x</p>', sourceFrameId: f.id, safeZoneOverride: override },
+        actor('m'),
+      )!
+      expect(copy.safeZoneOverride).toEqual({ top: 10, right: 20, bottom: 30, left: 40 })
+    }
+  })
+
+  it('lets members pick a first preset on a preset-less frame', () => {
+    const f = canvasWith(undefined)
+    canAccess.current = false
+    const updated = actions.updateFrame(f.id, { preset: 'ig-post' }, actor('m'))!
+    expect(updated.preset).toBe('ig-post')
+    expect(updated).not.toHaveProperty('safeZoneOverride')
+  })
+
+  it('rejects a version restore when the retained override no longer fits, keeping metadata otherwise', async () => {
+    const f = canvasWith('ig-post')
+    actions.updateFrame(f.id, { safeZoneOverride: { top: 500, right: 0, bottom: 500, left: 0 } }, actor('c'))
+    vi.mocked(persist.getFrameVersion).mockResolvedValue({
+      id: 'v-small',
+      frameId: f.id,
+      canvasId: 'c1',
+      html: '<p>Earlier</p>',
+      width: 1080,
+      height: 900,
+      savedAt: 1,
+      savedBy: 'Creator',
+      htmlBytes: 12,
+    })
+    const before = structuredClone(store.getFrame(f.id))
+    broadcast.mockClear()
+    await expect(actions.restoreFrameVersion(f.id, 'v-small', actor('c'))).rejects.toThrow(/Safe-Zone/)
+    expect(store.getFrame(f.id)).toEqual(before)
+    expect(broadcast).not.toHaveBeenCalled()
+    vi.mocked(persist.getFrameVersion).mockResolvedValue({
+      id: 'v-ok',
+      frameId: f.id,
+      canvasId: 'c1',
+      html: '<p>Earlier</p>',
+      width: 1080,
+      height: 1080,
+      savedAt: 1,
+      savedBy: 'Creator',
+      htmlBytes: 12,
+    })
+    const restored = (await actions.restoreFrameVersion(f.id, 'v-ok', actor('c')))!
+    expect(restored.frame.safeZoneOverride).toEqual({ top: 500, right: 0, bottom: 500, left: 0 })
   })
 })
