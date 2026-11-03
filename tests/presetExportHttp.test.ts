@@ -69,3 +69,48 @@ describe('GET /i/:id.:ext scale and download policy', () => {
     expect(res.headers.get('content-type')).toContain('image/jpeg')
   }, 60_000)
 })
+
+describe('GET /i/:id.:ext invalid-scale downloads', () => {
+  it('falls back to the preset default on A4 downloads (2481×3509)', async () => {
+    const f = await makeFrame({ preset: 'a4' })
+    for (const q of ['?download&scale=3', '?download&scale=0', '?download&scale=abc']) {
+      const res = await fetch(`${server.base}/i/${f.id}.png${q}`)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-disposition')).toContain('attachment')
+      expect(await dims(Buffer.from(await res.arrayBuffer()))).toEqual({ width: 2481, height: 3509 })
+    }
+  }, 180_000)
+
+  it('falls back to the 2x free-frame default on downloads', async () => {
+    const f = await makeFrame({ preset: undefined, width: 300, height: 200 })
+    expect(f.preset).toBeUndefined()
+    for (const q of ['?download&scale=3', '?download&scale=abc']) {
+      const res = await fetch(`${server.base}/i/${f.id}.png${q}`)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-disposition')).toContain('attachment')
+      expect(await dims(Buffer.from(await res.arrayBuffer()))).toEqual({ width: 600, height: 400 })
+    }
+  }, 120_000)
+})
+
+describe('GET /i/:id.:ext unsettled-font downloads', () => {
+  const FONT_ERROR = 'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.'
+  const broken = (base: string) =>
+    `<!doctype html><html><head><style>@font-face{font-family:'Nope';src:url('${base}/fonts/does-not-exist-400.woff2')}body{font-family:'Nope'}</style></head><body>Hi</body></html>`
+
+  it('rejects preset downloads with a controlled German error and no bytes', async () => {
+    const f = await makeFrame({ html: broken(server.base) })
+    const res = await fetch(`${server.base}/i/${f.id}.png?download`)
+    expect(res.status).toBe(500)
+    expect(res.headers.get('content-type')).toContain('application/json')
+    expect(await res.json()).toEqual({ error: FONT_ERROR })
+  }, 60_000)
+
+  it('still serves free-frame downloads leniently with the same broken font', async () => {
+    const f = await makeFrame({ preset: undefined, width: 300, height: 200, html: broken(server.base) })
+    const res = await fetch(`${server.base}/i/${f.id}.png?download`)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    expect(await dims(Buffer.from(await res.arrayBuffer()))).toEqual({ width: 600, height: 400 })
+  }, 60_000)
+})

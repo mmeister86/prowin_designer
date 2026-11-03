@@ -57,10 +57,17 @@ export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageRe
   const scale = req.scale ?? (req.download ? defaultExportScale(frame.preset) : 1)
   /* a download is the full-size render, never the persisted card thumb */
   const preview = req.preview && req.ext === 'jpg' && !req.download
-  const key = imageKey(frame.id, req.ext, scale, req.ext === 'jpg' ? req.quality : '', preview)
-  const cached = imgCache.get(key)
-  let pending =
-    cached && cached.updatedAt === frame.updatedAt && Date.now() - cached.at < IMG_CACHE_MS ? cached.buf : null
+  /* Strict settled-font exports are preset downloads only (explicit scale
+     included); free-frame downloads keep the lenient bounded fallback. The
+     strict intent joins the cache key so primed/lenient bytes at the same
+     scale can never satisfy a strict download. */
+  const strict = req.download === true && frame.preset !== undefined
+  const key = imageKey(frame.id, req.ext, scale, req.ext === 'jpg' ? req.quality : '', preview, strict)
+  const fresh = (): Promise<Buffer> | null => {
+    const cached = imgCache.get(key)
+    return cached && cached.updatedAt === frame.updatedAt && Date.now() - cached.at < IMG_CACHE_MS ? cached.buf : null
+  }
+  let pending = fresh()
 
   /* previews first try the persisted thumbnail: survives redeploys, serves
      instantly even when stale (thumbs revalidates in the background), and
@@ -70,34 +77,56 @@ export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageRe
     if (stored) {
       pending = Promise.resolve(stored)
       remember(key, pending, frame.updatedAt)
+    } else {
+      /* a render may have started while storage was awaited — share it */
+      pending = fresh()
     }
   }
 
   if (!pending) {
     if (!(await consumeRenderBudget(req.ip, req.isAuthenticated))) return { status: 'rate-limited' }
-    pending = preview
-      ? /* renders AND persists — the next cold start serves from storage */
-        thumbs.create(frame)
-      : loadScreenshot().then(({ renderFrame }) =>
-          renderFrame(frame, scale, { type: req.ext === 'jpg' ? 'jpeg' : 'png', quality: req.quality }),
-        )
-    remember(key, pending, frame.updatedAt)
+    /* The budget await above is the last yield before claiming: re-check so
+       concurrent downloads single-flight on one render instead of booting
+       Chromium twice. */
+    pending = fresh()
+    if (!pending) {
+      pending = preview
+        ? /* renders AND persists — the next cold start serves from storage */
+          thumbs.create(frame)
+        : loadScreenshot().then(({ renderFrame }) =>
+            renderFrame(frame, scale, {
+              type: req.ext === 'jpg' ? 'jpeg' : 'png',
+              quality: req.quality,
+              ...(strict ? { requireSettledFonts: true as const } : {}),
+            }),
+          )
+      remember(key, pending, frame.updatedAt)
+    }
   }
 
   return { status: 'ok', buf: await pending }
 }
 
-function imageKey(id: string, ext: 'png' | 'jpg', scale: number, quality: number | '', preview: boolean): string {
-  return `${id}:${ext}:${scale}:${quality}:${preview ? 'p' : ''}`
+function imageKey(
+  id: string,
+  ext: 'png' | 'jpg',
+  scale: number,
+  quality: number | '',
+  preview: boolean,
+  strict: boolean,
+): string {
+  return `${id}:${ext}:${scale}:${quality}:${preview ? 'p' : ''}${strict ? 's' : ''}`
 }
 
 /** Seeds the cache with a render another path already paid for. The MCP
  *  screenshot tool renders through `renderFrame` directly, and the ChatGPT
  *  preview card loads `/i/<id>.png` right after it from a cookie-less sandbox
  *  iframe — anonymous, so metered. Priming turns that load into a free
- *  cached serve instead of a second render against the per-IP budget. */
-export function primeImage(frame: Frame, scale: number, png: Buffer): void {
-  remember(imageKey(frame.id, 'png', scale, '', false), Promise.resolve(png), frame.updatedAt)
+ *  cached serve instead of a second render against the per-IP budget.
+ *  Lenient 1x/2x captures only — never fractional export scales, and never
+ *  strict: a primed render proves nothing about settled fonts. */
+export function primeImage(frame: Frame, scale: 1 | 2, png: Buffer): void {
+  remember(imageKey(frame.id, 'png', scale, '', false, false), Promise.resolve(png), frame.updatedAt)
 }
 
 function remember(key: string, pending: Promise<Buffer>, updatedAt: number) {

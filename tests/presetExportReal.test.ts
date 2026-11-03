@@ -139,17 +139,26 @@ describe.skipIf(!findBrowserPath())('preset export dimensions in real Chromium',
 
   const PRESETS = ['ig-post', 'ig-story', 'wa-status', 'fb-post', 'a4'] as const satisfies FormatPresetId[]
 
-  it.each(PRESETS)('renders %s downloads at stored geometry × default scale (png+jpg)', async (preset) => {
+  it.each(PRESETS)('renders %s downloads at hardcoded export pixels (png+jpg)', async (preset) => {
+    // Hardcoded export pixels per preset — not derived from production
+    // constants, so a factor regression fails here rather than agreeing
+    // with itself.
+    const expected: Record<FormatPresetId, { width: number; height: number }> = {
+      'ig-post': { width: 1080, height: 1080 },
+      'ig-story': { width: 1080, height: 1920 },
+      'wa-status': { width: 1080, height: 1920 },
+      'fb-post': { width: 1200, height: 630 },
+      a4: { width: 2481, height: 3509 },
+    }
     seedCanvas()
     const f = await makeFrame({ preset })
     expect(f.width).toBe(FORMAT_PRESETS[preset].width)
     expect(f.height).toBe(FORMAT_PRESETS[preset].height)
-    const scale = FORMAT_PRESETS[preset].exportScale
     for (const ext of ['png', 'jpg'] as const) {
       const buf = await renderDownload(f, ext)
       const { width, height } = await dims(buf)
-      expect(width).toBe(Math.round(f.width * scale))
-      expect(height).toBe(Math.round(f.height * scale))
+      expect(width).toBe(expected[preset].width)
+      expect(height).toBe(expected[preset].height)
       await expectSolidGround(buf, ext === 'png' ? 0 : 12)
     }
   })
