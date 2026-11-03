@@ -1,4 +1,5 @@
 import { applyPageChanges, canvasPages, samePages } from '../../shared/pages'
+import { safeZoneEquals } from '../../shared/prowin/safeZones.ts'
 import type { CanvasPageInfo, Frame } from '../../shared/types'
 import { api, ApiError, errorMessage, UserFacingError } from './api'
 import { useStore } from './store'
@@ -7,10 +8,23 @@ import { useStore } from './store'
  *  inverse through the normal API, so every collaborator sees it live —
  *  remote actors' work is never undone from here. */
 
-type Patch = Partial<Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'>>
+type Patch = Partial<Pick<Frame, 'name' | 'pageId' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked'>> & {
+  safeZoneOverride?: Frame['safeZoneOverride'] | null
+}
 type Snapshot = Pick<
   Frame,
-  'canvasId' | 'pageId' | 'name' | 'html' | 'x' | 'y' | 'width' | 'height' | 'hidden' | 'locked' | 'preset'
+  | 'canvasId'
+  | 'pageId'
+  | 'name'
+  | 'html'
+  | 'x'
+  | 'y'
+  | 'width'
+  | 'height'
+  | 'hidden'
+  | 'locked'
+  | 'preset'
+  | 'safeZoneOverride'
 >
 
 type Entry =
@@ -80,6 +94,8 @@ function snapshot(f: Frame): Snapshot {
     width: f.width,
     height: f.height,
     ...(f.preset ? { preset: f.preset } : {}),
+    /* overrides compare by value, not reference — JSON survives the round trip */
+    ...(f.safeZoneOverride ? { safeZoneOverride: { ...f.safeZoneOverride } } : {}),
     /* a hidden or locked frame comes back as it was when its deletion is undone */
     hidden: f.hidden,
     locked: f.locked,
@@ -89,13 +105,22 @@ function snapshot(f: Frame): Snapshot {
 type UpdateEntry = Extract<Entry, { type: 'update' }>
 
 function updateEntry(frameId: string, before: Patch, after: Patch): UpdateEntry | null {
-  const keys = (Object.keys(after) as (keyof Patch)[]).filter((k) => before[k] !== after[k])
+  const keys = (Object.keys(after) as (keyof Patch)[]).filter((k) =>
+    k === 'safeZoneOverride' ? !safeZoneEquals(before[k] ?? null, after[k] ?? null) : before[k] !== after[k],
+  )
   if (!keys.length) return null
   const b: Patch = {}
   const a: Patch = {}
   for (const k of keys) {
-    b[k] = before[k] as never
-    a[k] = after[k] as never
+    /* absent means "no override": store it as an explicit null reset so JSON
+       replay sends a reset instead of dropping the key */
+    if (k === 'safeZoneOverride') {
+      b[k] = (before[k] ?? null) as never
+      a[k] = (after[k] ?? null) as never
+    } else {
+      b[k] = before[k] as never
+      a[k] = after[k] as never
+    }
   }
   return { type: 'update', frameId, before: b, after: a, at: Date.now() }
 }
@@ -279,9 +304,11 @@ async function recreate(e: Extract<Entry, { type: 'create' | 'delete' }>) {
 }
 
 function sameTransferState(a: Frame, b: Frame) {
-  return (Object.keys(snapshot(a)) as (keyof Snapshot)[]).every((key) =>
-    key === 'hidden' || key === 'locked' ? !!a[key] === !!b[key] : a[key] === b[key],
-  )
+  const keys = new Set([...Object.keys(snapshot(a)), ...Object.keys(snapshot(b))] as (keyof Snapshot)[])
+  return [...keys].every((key) => {
+    if (key === 'safeZoneOverride') return safeZoneEquals(a.safeZoneOverride ?? null, b.safeZoneOverride ?? null)
+    return key === 'hidden' || key === 'locked' ? !!a[key] === !!b[key] : a[key] === b[key]
+  })
 }
 
 /* Only our own successful inverses can advance a matching history state's

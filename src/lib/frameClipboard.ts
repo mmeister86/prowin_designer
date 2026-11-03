@@ -18,6 +18,7 @@ interface ClipFrame {
   width: number
   height: number
   preset?: Frame['preset']
+  safeZoneOverride?: Frame['safeZoneOverride']
   /** Provenance hint: the copied frame's id, so pasting a template frame
    *  validates against the stored source instead of failing closed */
   sourceId?: string
@@ -40,6 +41,7 @@ export function copyFrames(frames: Frame[]) {
       width: f.width,
       height: f.height,
       ...(f.preset ? { preset: f.preset } : {}),
+      ...(f.safeZoneOverride ? { safeZoneOverride: { ...f.safeZoneOverride } } : {}),
       ...(f.preset || extractTemplateFields(f.html).length > 0 ? { sourceId: f.id } : {}),
     })),
   }
@@ -139,6 +141,7 @@ function createFromClip(canvasId: string, x: number, y: number) {
         width: f.width,
         height: f.height,
         ...(f.preset ? { preset: f.preset } : {}),
+        ...(f.safeZoneOverride ? { safeZoneOverride: { ...f.safeZoneOverride } } : {}),
         x: Math.round(x + f.x),
         y: Math.round(y + f.y),
         ...(f.sourceId ? { sourceFrameId: f.sourceId } : {}),
@@ -312,6 +315,7 @@ export function duplicateFrames(frames: Frame[]) {
         width: frame.width,
         height: frame.height,
         ...(frame.preset ? { preset: frame.preset } : {}),
+        ...(frame.safeZoneOverride ? { safeZoneOverride: { ...frame.safeZoneOverride } } : {}),
         sourceFrameId: frame.id,
       },
     })),

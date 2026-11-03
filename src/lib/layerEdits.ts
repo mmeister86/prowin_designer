@@ -10,6 +10,7 @@ import { useStore } from './store'
 import { api, errorMessage } from './api'
 import { enqueueHtmlSave } from './frameHtmlSaves'
 import { requestFrame } from './frameBridge'
+import { safeZoneDocumentToken } from './safeZoneDocument'
 import { deleteFramesTracked, recordUpdate, recordUpdates, trackSave } from './history'
 import {
   duplicateElement,
@@ -47,7 +48,7 @@ export function saveFrameHtml(frame: Frame, html: string) {
       before,
       refusedNotice: 'Die Ebene konnte nicht gespeichert werden',
       resetLive: (id, target) => {
-        void requestFrame(id, 'doop:revert', { html: target })
+        void requestFrame(id, 'doop:revert', { html: target, docToken: safeZoneDocumentToken(id, target) })
       },
     }),
   )

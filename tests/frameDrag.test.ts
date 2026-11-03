@@ -241,6 +241,20 @@ it('drops a pending position-only relay after source canvas access is revoked', 
   expect(relay).not.toHaveBeenCalled()
 })
 
+it('drops a live drag that would break the stored safe-zone override but still relays valid drags', async () => {
+  frame.safeZoneOverride = { top: 500, right: 0, bottom: 500, left: 0 }
+  const relay = vi.fn()
+  /* shrinking to 880 leaves no room for top+bottom 1000: never reach peers */
+  await relayFrameDrag('c', drag(10, { width: 1080, height: 880 }), session, relay)
+  expect(relay).not.toHaveBeenCalled()
+  /* the same position at a fitting size still relays */
+  await relayFrameDrag('c', drag(10, { width: 1080, height: 1080 }), session, relay)
+  expect(relay).toHaveBeenCalledTimes(1)
+  /* position-only messages carry no size change and still relay */
+  await relayFrameDrag('c', { type: 'frame:drag', frameId: 'f', x: 30, y: 77 } as Drag, session, relay)
+  expect(relay).toHaveBeenCalledTimes(2)
+})
+
 it('does not discard a pending drag just because another frame is being dragged', async () => {
   const other = { ...frame, id: 'other' }
   canvas.frames.push(other)

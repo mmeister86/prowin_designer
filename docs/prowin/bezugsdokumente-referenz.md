@@ -186,17 +186,19 @@ Fabric.js-Editor (Formen, Filter-Paletten, Freihand, Strichmuster, Gruppen) · C
 
 ### R2.2 Safe-Zone-Werte ✅
 
-| Preset                        | Safe Zone                                   | Grund                                |
-| ----------------------------- | ------------------------------------------- | ------------------------------------ |
-| Instagram Post (1080²)        | 50 px allseitig                             | Feed-Crop, Profilbild-Overlay        |
-| Instagram Story (1080 × 1920) | oben 200, unten 250                         | Statusleiste, Sticker-/Swipe-Bereich |
-| Facebook Post (1200 × 630)    | 50 px allseitig                             | Feed-Beschnitt                       |
-| Facebook Cover (820 × 312)    | links 170, unten 75                         | Profilbild-Overlay                   |
-| WhatsApp Status (1080 × 1920) | oben 150, unten 200                         | Statusleiste, Antwortfeld            |
-| A4 Druck                      | 3 mm allseitig (85 px @300 dpi ≙ 11 CSS-px) | Druckbeschnitt                       |
-| Visitenkarte                  | 3 mm allseitig (35 px @300 dpi)             | Druckbeschnitt                       |
+| Preset                        | Safe Zone                                             | Grund                                      |
+| ----------------------------- | ----------------------------------------------------- | ------------------------------------------ |
+| Instagram Post (1080²)        | 50 px allseitig                                       | Feed-Crop, Profilbild-Overlay              |
+| Instagram Story (1080 × 1920) | oben 200, unten 250                                   | Statusleiste, Sticker-/Swipe-Bereich       |
+| Facebook Post (1200 × 630)    | 50 px allseitig                                       | Feed-Beschnitt                             |
+| Facebook Cover (820 × 312)    | links 170, unten 75                                   | Profilbild-Overlay                         |
+| WhatsApp Status (1080 × 1920) | oben 150, unten 200                                   | Statusleiste, Antwortfeld                  |
+| A4 Druck                      | 3 mm allseitig (11 CSS-px ≈ 35,43 Raster-px @300 dpi) | innerer Sicherheitsabstand, kein Beschnitt |
+| Visitenkarte                  | 3 mm allseitig (35,43 px @300 dpi)                    | innerer Sicherheitsabstand, kein Beschnitt |
 
 **Verhalten (gilt weiter):** halbtransparentes rötliches Overlay (ca. 10 %) · orangene Umrandung an Elementen, die hineinragen · per Toggle ein- und ausblendbar · nie im Export · Creator darf pro Vorlage überschreiben (z. B. Hintergrundbild bis zum Rand).
+
+**Rechenweg (gilt weiter):** 3 mm × 96 / 25,4 = 11,34 CSS-px, gerundet 11. Dieselben 3 mm × 300 / 25,4 = 35,43 Raster-px (nicht 85). Gerundete 11 CSS-px × Exportfaktor 3,125 = 34,375 Raster-px. Die Zone ist ein **innerer Sicherheitsabstand**, kein Anschnitt (Bleed) und keine Druckfreigabe.
 
 ### R2.3 Übertragbare Prinzipien ✅
 

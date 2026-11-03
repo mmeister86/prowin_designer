@@ -1,5 +1,6 @@
 import type { BillingInterval, WorkspaceStatus } from './billing.ts'
 import type { FormatPresetId } from './prowin/formats.ts'
+import type { Insets } from './prowin/formats.ts'
 
 export interface Frame {
   id: string
@@ -12,6 +13,9 @@ export interface Frame {
   width: number
   height: number
   preset?: FormatPresetId
+  /** explicit safe-zone insets: fully replaces the preset default; omitted
+   *  inherits, PATCH null resets, four zeroes remove the margins */
+  safeZoneOverride?: Insets
   html: string
   createdAt: number
   updatedAt: number

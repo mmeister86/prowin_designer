@@ -4,7 +4,8 @@ import {
   CreatorPermissionError,
   currentPermissionUserId,
 } from './prowin/permissions.ts'
-import { FORMAT_PRESETS, isFormatPresetId, type FormatPresetId } from '../shared/prowin/formats.ts'
+import { FORMAT_PRESETS, isFormatPresetId, type FormatPresetId, type Insets } from '../shared/prowin/formats.ts'
+import { isSafeZoneOverride, safeZoneEquals, safeZoneFits } from '../shared/prowin/safeZones.ts'
 import { assertCanChangeTemplateMeta } from './prowin/templateMeta.ts'
 import { assertTemplateDelete, hasTemplateFields } from './prowin/templateGuard.ts'
 import { canAccessCanvas } from './access.ts'
@@ -1120,6 +1121,10 @@ export async function restoreFrameVersion(
      is rejected without touching streams, reveals, history or broadcasts */
   assertCanChangeTemplateMeta(canvas, before.html, version.html)
   assertFrameGeometry(canvas, before, { width: version.width, height: version.height })
+  /* the restore keeps the frame's current safe-zone metadata: an explicit
+     override must still fit the restored size */
+  if (before.safeZoneOverride !== undefined && !safeZoneFits(before.safeZoneOverride, version.width, version.height))
+    throw new SafeZoneError('Der Safe-Zone-Abstand ist größer als die Zeichenfläche. Verkleinere die Abstände.')
   takeOverDraft(frameId)
   finishReveal(frameId)
   if (before.html === version.html && before.width === version.width && before.height === version.height)
@@ -1183,6 +1188,35 @@ export class FormatPresetError extends Error {
 
 function assertValidPreset(preset: unknown): asserts preset is FormatPresetId {
   if (!isFormatPresetId(preset)) throw new FormatPresetError()
+}
+
+export class SafeZoneError extends Error {
+  readonly status = 400
+  constructor(
+    message = 'Ungültiger Safe-Zone-Abstand. Verwende vier ganze Zahlen ab 0, die einen positiven Innenbereich lassen.',
+  ) {
+    super(message)
+  }
+}
+
+/** Explicit overrides require a preset plus Creator rights, and must leave a positive inner area. */
+function assertSafeZoneValue(
+  canvas: import('../shared/types.ts').Canvas,
+  value: unknown,
+  width: number,
+  height: number,
+  preset: FormatPresetId | undefined,
+): asserts value is Insets {
+  if (value === null) {
+    if (!canvasCapabilities(canvas).manageLocks) throw new CreatorPermissionError()
+    return
+  }
+  if (preset === undefined) throw new SafeZoneError('Ein Safe-Zone-Abstand erfordert ein Format-Preset.')
+  if (!isSafeZoneOverride(value)) throw new SafeZoneError()
+  if (!Number.isFinite(width) || !Number.isFinite(height)) throw new SafeZoneError()
+  if (!safeZoneFits(value, width, height))
+    throw new SafeZoneError('Der Safe-Zone-Abstand ist größer als die Zeichenfläche. Verkleinere die Abstände.')
+  if (!canvasCapabilities(canvas).manageLocks) throw new CreatorPermissionError()
 }
 
 /** Shared by committed writes, restores and live drags; actor labels confer no rights. */
@@ -1427,6 +1461,7 @@ export function createFrame(
     width?: number
     height?: number
     preset?: FormatPresetId
+    safeZoneOverride?: Insets
     html?: string
     demo?: boolean
     hidden?: boolean
@@ -1443,9 +1478,9 @@ export function createFrame(
   if (!canvas) return undefined
   if (input.preset !== undefined) assertValidPreset(input.preset)
   assertCanChangeLock(canvas, false, input.locked)
-  /* normalize once, then validate exactly that candidate before any side effect */
   const candidate = input.html !== undefined ? normalizeFrameHtml(repairEscapedHtml(input.html)) : ''
   let copiedFormat = false
+  let sourceOverride: Insets | undefined
   if (input.html !== undefined || input.sourceFrameId !== undefined) {
     let baseline = ''
     if (input.sourceFrameId !== undefined) {
@@ -1454,11 +1489,13 @@ export function createFrame(
       if (!source || !sourceCanvas) throw new TemplateSourceError()
       if (!canAccessCanvas(currentPermissionUserId(), sourceCanvas)) throw new CreatorPermissionError()
       baseline = source.html
+      sourceOverride = source.safeZoneOverride
       if (!canvasCapabilities(canvas).manageLocks) {
         if (
           (input.preset !== undefined && input.preset !== source.preset) ||
           (input.width !== undefined && input.width !== source.width) ||
-          (input.height !== undefined && input.height !== source.height)
+          (input.height !== undefined && input.height !== source.height) ||
+          (input.safeZoneOverride !== undefined && !safeZoneEquals(input.safeZoneOverride, source.safeZoneOverride))
         )
           throw new CreatorPermissionError()
       }
@@ -1468,6 +1505,10 @@ export function createFrame(
           preset: source.preset,
           width: input.width ?? source.width,
           height: input.height ?? source.height,
+          /* non-Creator source copies inherit stored metadata, including zeroes */
+          ...(input.safeZoneOverride === undefined && source.safeZoneOverride !== undefined
+            ? { safeZoneOverride: source.safeZoneOverride }
+            : {}),
         }
         copiedFormat = true
       }
@@ -1484,6 +1525,18 @@ export function createFrame(
     if ((width !== format.width || height !== format.height) && !canvasCapabilities(canvas).manageLocks)
       throw new CreatorPermissionError()
     input = { ...input, width, height }
+  }
+  if (input.safeZoneOverride !== undefined) {
+    const size = input.preset !== undefined ? FORMAT_PRESETS[input.preset] : undefined
+    const width = input.width ?? size?.width
+    const height = input.height ?? size?.height
+    if (width === undefined || height === undefined)
+      throw new SafeZoneError('Ein Safe-Zone-Abstand erfordert ein Format-Preset.')
+    /* matching stored-source metadata inherits without a Creator gate; anything else explicit needs it */
+    const inherited = sourceOverride !== undefined && safeZoneEquals(input.safeZoneOverride, sourceOverride)
+    if (!inherited) assertSafeZoneValue(canvas, input.safeZoneOverride, width, height, input.preset)
+    else if (!isSafeZoneOverride(input.safeZoneOverride) || !safeZoneFits(input.safeZoneOverride, width, height))
+      throw new SafeZoneError()
   }
   const frame = store.createFrame(canvasId, input, actor.name)
   if (!frame) return undefined
@@ -1510,6 +1563,7 @@ export function updateFrame(
   frameId: string,
   patch: Partial<Pick<Frame, 'name' | 'pageId' | 'x' | 'y' | 'width' | 'height' | 'html' | 'hidden' | 'locked'>> & {
     preset?: FormatPresetId | null
+    safeZoneOverride?: Insets | null
   },
   actor: Actor,
   opts: { replace?: boolean } = {},
@@ -1519,9 +1573,35 @@ export function updateFrame(
   const canvas = store.getCanvas(before.canvasId)
   if (!canvas) return undefined
   if (patch.preset !== undefined && patch.preset !== null) assertValidPreset(patch.preset)
-  if (patch.preset && patch.preset !== before.preset) {
-    const { width, height } = FORMAT_PRESETS[patch.preset]
-    patch = { ...patch, width, height }
+  if (patch.preset !== undefined && patch.preset !== before.preset) {
+    if (patch.preset) {
+      const { width, height } = FORMAT_PRESETS[patch.preset]
+      patch = { ...patch, width, height }
+    }
+    /* changing/removing the preset clears the override unless a replacement is supplied;
+       a frame with nothing to clear keeps no privileged write */
+    if (patch.safeZoneOverride === undefined && before.safeZoneOverride !== undefined)
+      patch = { ...patch, safeZoneOverride: null }
+  }
+  if (patch.safeZoneOverride !== undefined) {
+    const preset = patch.preset === null ? undefined : (patch.preset ?? before.preset)
+    assertSafeZoneValue(
+      canvas,
+      patch.safeZoneOverride,
+      patch.width ?? before.width,
+      patch.height ?? before.height,
+      preset,
+    )
+  } else if (
+    before.safeZoneOverride !== undefined &&
+    patch.preset !== null &&
+    (patch.width !== undefined ||
+      patch.height !== undefined ||
+      (patch.preset !== undefined && patch.preset !== before.preset))
+  ) {
+    /* a resize must not leave the retained override invalid */
+    if (!safeZoneFits(before.safeZoneOverride, patch.width ?? before.width, patch.height ?? before.height))
+      throw new SafeZoneError('Der Safe-Zone-Abstand ist größer als die Zeichenfläche. Verkleinere die Abstände.')
   }
   assertCanChangeLock(canvas, !!before.locked, patch.locked)
   assertFrameGeometry(canvas, before, patch)

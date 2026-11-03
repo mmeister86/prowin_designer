@@ -1,0 +1,1 @@
+ALTER TABLE "frames" ADD COLUMN "safe_zone_override" jsonb;

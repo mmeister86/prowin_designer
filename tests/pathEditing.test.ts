@@ -71,6 +71,7 @@ beforeEach(() => {
     ...useStore.getState().canvas!.frames.find((f) => f.id === id)!,
     ...patch,
     preset: patch.preset === null ? undefined : patch.preset,
+    safeZoneOverride: patch.safeZoneOverride === null ? undefined : patch.safeZoneOverride,
   }))
 })
 
@@ -163,7 +164,13 @@ describe('editable vector paths', () => {
     const remote = { ...frame, updatedAt: 2, html: frame.html.replace('</body>', '<p>Newer edit</p></body>') }
     vi.mocked(api.updateFrame).mockImplementationOnce(async (_id, patch) => {
       useStore.getState().upsertFrame(remote)
-      return { ...frame, ...patch, preset: patch.preset === null ? undefined : patch.preset, updatedAt: 1 }
+      return {
+        ...frame,
+        ...patch,
+        preset: patch.preset === null ? undefined : patch.preset,
+        safeZoneOverride: patch.safeZoneOverride === null ? undefined : patch.safeZoneOverride,
+        updatedAt: 1,
+      }
     })
     expect(await savePathEdit(frame, source, source)).not.toBeNull()
     expect(useStore.getState().canvas!.frames[0]).toEqual(remote)

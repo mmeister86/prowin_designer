@@ -10,6 +10,10 @@ import { PathEditor } from './PathEditor'
 import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
 import { registerFrameWindow, unregisterFrameWindow, inspectElement } from '../lib/frameBridge'
+import { safeZoneDocumentToken } from '../lib/safeZoneDocument'
+import { useSafeZoneMeasure } from '../lib/useSafeZoneMeasure'
+import { effectiveSafeZone } from '../../shared/prowin/safeZones.ts'
+import { SafeZoneOverlay } from '../prowin/SafeZoneOverlay'
 import { dropTemplateBlockedSelection } from '../lib/layerEdits'
 import { useCanvasCapabilities } from '../prowin/canvasPermissions'
 import {
@@ -18,7 +22,7 @@ import {
   selectionBlockReason,
   templatePolicyOf,
 } from '../prowin/templatePolicy'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import { enqueueHtmlSave } from '../lib/frameHtmlSaves'
 import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
@@ -27,6 +31,7 @@ import { getIdentity } from '../lib/identity'
 import { FRAME_BOOTSTRAP } from '../lib/frameRuntime'
 import { FRAME_DOCUMENTS_TAKE_ZOOM_AS_DENSITY, counterZoom } from '../lib/layoutZoom'
 import { recordCreate, recordUpdate, recordUpdates, trackSave } from '../lib/history'
+import { beginGeometryGesture, isGeometrySaving } from '../lib/geometrySaves'
 import { snapFrame } from '../lib/snap'
 import { gesture } from '../lib/gesture'
 import { resolvePointerAction } from '../lib/tools'
@@ -216,9 +221,19 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
      lands in the store — otherwise a stale post would morph the edit away */
   const [suspendPost, setSuspendPost] = useState(false)
 
+  /* the reservation of a still-running gesture: unmount (frame deleted, page
+     switched) releases it so busy and the undo barrier never stick */
+  const activeGestureCancel = useRef<(() => void) | null>(null)
+  useEffect(
+    () => () => {
+      activeGestureCancel.current?.()
+    },
+    [],
+  )
+
   /* one throttle per frame, so a group drag broadcasts every member —
      a single throttle would keep only the last frame written each tick */
-  const dragSenders = useRef(new Map<string, (f: DragRect) => void>()).current
+  const dragSenders = useRef(new Map<string, { (f: DragRect): void; cancel: () => void }>()).current
   function sendDrag(id: string, f: DragRect) {
     let send = dragSenders.get(id)
     if (!send) {
@@ -228,6 +243,11 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       dragSenders.set(id, send)
     }
     send(f)
+  }
+  /* drop a frame's trailing relay before a rejection correction goes out,
+     so the stale timer cannot re-poison peers after it */
+  function cancelDragSend(id: string) {
+    dragSenders.get(id)?.cancel()
   }
 
   function startDrag(
@@ -303,6 +323,32 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       useStore.getState().pickElement(null)
       closePopovers() // and its outline, so a stale target never lingers
     }
+    /* a move carries every selected frame along (locked ones stay put — a
+       Layers-panel selection may hold one); a resize is this frame only.
+       Computed before any drag visuals so a pending geometry save can block
+       the gesture before it starts from a rejected optimistic rect. */
+    const frames = currentPageCanvas()?.frames ?? []
+    const selectedIds = mode === 'move' ? useStore.getState().selectedIds : [frame.id]
+    const group = frames
+      .filter((f) => selectedIds.includes(f.id) && !f.locked)
+      .map((f) => ({
+        id: f.id,
+        orig: { x: f.x, y: f.y, width: f.width, height: f.height },
+        /* the committed revision this gesture started from: a rejection only
+           rolls back to it while nothing newer landed meanwhile */
+        updatedAt: f.updatedAt,
+      }))
+    const groupIds = new Set(group.map((g) => g.id))
+    /* a geometry save (drag or Inspector) is still resolving its authoritative
+       baseline — or another gesture is still holding its reservation: a second
+       gesture would inherit a possibly rejected optimistic rect as its own
+       rollback/history baseline, so it never starts while any member is busy */
+    if (group.some((g) => isGeometrySaving(g.id))) return undefined
+    /* reserve every member synchronously at pointer-down through the async
+       save plus history finish: Inspector commits queue behind this slot, so
+       they read their baseline after (never inside) the uncommitted drag */
+    const slot = beginGeometryGesture(group.map((g) => g.id))
+    let finished = false
     setDragging(true)
     clearHover()
     const start = { x: e.clientX, y: e.clientY }
@@ -315,15 +361,23 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     let base = { x: start.x, y: start.y, rect: orig }
     let moved = false
     let dupDropped = false
+    /* a cancelled duplicate must leave no copy behind: resolved ids are
+       deleted on cancel, pending creates delete on resolve instead of
+       recording history. History is recorded only when the gesture commits
+       (pointer-up): a resolved-then-cancelled copy never reaches the undo
+       stack, so undo/redo cannot act on or recreate it. A failed cleanup
+       keeps its data and reports. */
+    let dupCancelled = false
+    let dupCommitted = false
+    const dupCopyIds: string[] = []
+    const dupPendingHistory: { frame: Frame; srcId: string }[] = []
+    function cleanupDupCopy(id: string) {
+      api.deleteFrame(id).catch((err) => {
+        console.error(err)
+        useStore.getState().pushNotice('Die Duplikat-Bereinigung ist fehlgeschlagen. Prüfe die Zeichenfläche.')
+      })
+    }
     if (duplicating) setDuping(true)
-    /* a move carries every selected frame along (locked ones stay put — a
-       Layers-panel selection may hold one); a resize is this frame only */
-    const frames = currentPageCanvas()?.frames ?? []
-    const selectedIds = mode === 'move' ? useStore.getState().selectedIds : [frame.id]
-    const group = frames
-      .filter((f) => selectedIds.includes(f.id) && !f.locked)
-      .map((f) => ({ id: f.id, orig: { x: f.x, y: f.y, width: f.width, height: f.height } }))
-    const groupIds = new Set(group.map((g) => g.id))
 
     function onMove(ev: PointerEvent) {
       if (ev.pointerId !== e.pointerId) return
@@ -344,11 +398,24 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
               name: src.name,
               html: src.html,
               preset: src.preset,
+              ...(src.safeZoneOverride ? { safeZoneOverride: { ...src.safeZoneOverride } } : {}),
               sourceFrameId: src.id,
               ...g.orig,
             })
             .then((f) => {
-              recordCreate(f, src.id)
+              /* a cancel that landed first owns the copy: delete it
+                 instead of recording history for a gesture that died */
+              if (dupCancelled) {
+                if (f?.id) cleanupDupCopy(f.id)
+                return
+              }
+              if (!f?.id) return
+              dupCopyIds.push(f.id)
+              /* the gesture has not committed yet: hold the copy for
+                 pointer-up instead of recording history for a drag that may
+                 still cancel */
+              if (dupCommitted) recordCreate(f, src.id)
+              else dupPendingHistory.push({ frame: f, srcId: src.id })
             })
             .catch(console.error)
         }
@@ -390,24 +457,69 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         if (f) sendDrag(f.id, { id: f.id, x: f.x, y: f.y, width: f.width, height: f.height })
       }
     }
-    function onUp() {
+    function finishUp() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       setDragging(false)
       if (duplicating) setDuping(false)
       useStore.getState().setSnapGuides([])
+      activeGestureCancel.current = null
+      finished = true
+      /* the gesture commits: resolved duplicates join history now, and copies
+         that resolve afterwards record on arrival (dupCommitted) */
+      dupCommitted = true
+      for (const c of dupPendingHistory) recordCreate(c.frame, c.srcId)
+      dupPendingHistory.length = 0
       const live = useStore.getState().canvas?.frames ?? []
       const updates: { frameId: string; before: typeof orig; after: typeof orig }[] = []
-      for (const g of group) {
-        const f = live.find((x) => x.id === g.id)
-        if (!f) continue
-        const after = { x: f.x, y: f.y, width: f.width, height: f.height }
-        trackSave(api.updateFrame(f.id, after).catch(console.error))
-        updates.push({ frameId: f.id, before: g.orig, after })
-      }
-      const [only, ...more] = updates
-      if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
-      else recordUpdates(updates)
+      /* the slot was reserved at pointer-down: finalize inside it (never
+         enqueued behind commits that arrived mid-gesture), so the whole
+         gesture runs as one barrier — save plus grouped history — and queued
+         commits rebase onto its result */
+      void slot
+        .finish(async () => {
+          for (const g of group) {
+            const f = live.find((x) => x.id === g.id)
+            if (!f) continue
+            const after = { x: f.x, y: f.y, width: f.width, height: f.height }
+            /* a rejected save (e.g. a resize that no longer fits the safe-zone
+               override) must leave neither history nor bad local geometry behind */
+            try {
+              await api.updateFrame(f.id, after)
+            } catch (err) {
+              console.error(err)
+              /* only the attempt's own geometry is stale: a second drag or a
+                 remote save that landed meanwhile owns the current rect, so a
+                 blind restore would overwrite the newer edit */
+              const cur = useStore.getState().canvas?.frames.find((x) => x.id === g.id)
+              const untouched =
+                cur !== undefined &&
+                cur.updatedAt === g.updatedAt &&
+                cur.x === after.x &&
+                cur.y === after.y &&
+                cur.width === after.width &&
+                cur.height === after.height
+              if (untouched) {
+                useStore.getState().patchFrameLocal(g.id, g.orig)
+                /* peers relayed the optimistic rects live: retract the gesture
+                   with the restored geometry so they converge instead of
+                   keeping the refused rect indefinitely */
+                cancelDragSend(g.id)
+                sendWs({ type: 'frame:drag', frameId: g.id, ...g.orig })
+              }
+              useStore
+                .getState()
+                .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
+              continue
+            }
+            updates.push({ frameId: f.id, before: g.orig, after })
+          }
+          const [only, ...more] = updates
+          if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
+          else recordUpdates(updates)
+        })
+        .catch(() => undefined)
       /* a click (no drag) on the frame surface targets the element under
          the cursor: probe it and show the element toolbar */
       if (!moved && probeOnClick) probeAt(off.x, off.y)
@@ -415,9 +527,54 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       /* a click (no drag) on the frame name opens the details panel */
       if (!moved && panelOnClick) useStore.getState().setInspectorOpen(true)
     }
+    /* the global release only completes its own gesture: another pointer's
+       release must not commit this drag, record its copy or release its
+       reservation — the drawing handoff below completes explicitly instead */
+    function onUp(ev: PointerEvent) {
+      if (ev.pointerId !== e.pointerId) return
+      finishUp()
+    }
+    function onCancel(ev?: PointerEvent) {
+      /* a different pointer's cancellation must not abort this gesture;
+         the unmount path calls with no event and always runs */
+      if (ev && typeof ev.pointerId === 'number' && ev.pointerId !== e.pointerId) return
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
+      setDragging(false)
+      if (duplicating) setDuping(false)
+      dupCancelled = true
+      for (const id of dupCopyIds) cleanupDupCopy(id)
+      dupCopyIds.length = 0
+      /* never committed: resolved copies are deleted above, pending ones
+         delete on resolve, and nothing reaches history */
+      dupPendingHistory.length = 0
+      useStore.getState().setSnapGuides([])
+      activeGestureCancel.current = null
+      finished = true
+      /* an aborted gesture never saved: drop its optimistic rects (unless a
+         committed revision landed meanwhile) and release without history */
+      const live = useStore.getState().canvas?.frames ?? []
+      for (const g of group) {
+        const cur = live.find((x) => x.id === g.id)
+        if (!cur || cur.updatedAt !== g.updatedAt) continue
+        if (cur.x === g.orig.x && cur.y === g.orig.y && cur.width === g.orig.width && cur.height === g.orig.height)
+          continue
+        useStore.getState().patchFrameLocal(g.id, g.orig)
+        cancelDragSend(g.id)
+        sendWs({ type: 'frame:drag', frameId: g.id, ...g.orig })
+      }
+      slot.cancel()
+    }
+    activeGestureCancel.current = () => {
+      if (!finished) onCancel()
+    }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-    return { move: onMove, up: onUp }
+    window.addEventListener('pointercancel', onCancel)
+    /* the drawing handoff replays a buffered release explicitly: it bypasses
+       the owning-pointer check above, which guards only the global listener */
+    return { move: onMove, up: finishUp }
   }
 
   const html = useThrottledValue(frame.html, 150)
@@ -458,10 +615,38 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     iframeRef.current?.contentWindow?.postMessage({ type: 'doop:policy', manageLocks }, '*')
   }, [runtimeReady, manageLocks, frame.id])
   useEffect(() => {
-    if (!runtimeReady || editing || suspendPost || html !== frame.html || html === localHtml.current) return
-    localHtml.current = null
-    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:html', html }, '*')
-  }, [runtimeReady, html, frame.html, editing, suspendPost])
+    if (!runtimeReady || html !== frame.html) return
+    if (!editing && !suspendPost && html !== localHtml.current) {
+      localHtml.current = null
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'doop:html', html, docToken: safeZoneDocumentToken(frame.id, html) },
+        '*',
+      )
+      return
+    }
+    /* an echo or remote html landed for a document the runtime already
+       holds live (edit session, exit flush pending): confirm its identity
+       without re-posting — a re-post would remorph the DOM and drop the
+       caret. The runtime adopts the token only when its live document is
+       exactly this HTML, so a remote change can never bless the wrong
+       document. */
+    if (localHtml.current !== null && html !== localHtml.current) {
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: 'doop:edited-ack', html, docToken: safeZoneDocumentToken(frame.id, html) },
+        '*',
+      )
+    }
+  }, [runtimeReady, html, frame.html, frame.id, editing, suspendPost])
+
+  const showSafeZones = useStore((s) => s.showSafeZones)
+  const safeInsets = useMemo(() => effectiveSafeZone(frame), [frame])
+  /* Advisory geometry for the parent-only overlay: the shared hook owns
+     freshness (rendered-document generation), hidden suspension and
+     coalesced refresh after renders, live edits, resizes and
+     resource/layout changes. */
+  const { boxes: safeBoxes } = useSafeZoneMeasure(frame, {
+    enabled: runtimeReady && !!safeInsets && !frame.hidden,
+  })
 
   /* ---- element comments ---- */
   const frameComments = useStore((s) => s.comments).filter((c) => c.frameId === frame.id)
@@ -902,7 +1087,10 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     setActiveHit(null)
     setComposing(false)
     activeSelRef.current = null
-    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:revert', html }, '*')
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'doop:revert', html, docToken: safeZoneDocumentToken(frameId, html) },
+      '*',
+    )
   }, [])
 
   /* switching to Hand or Comment ends a text-edit session: both put the
@@ -929,6 +1117,15 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
         // The runtime already has this document. Echoing it through the HTML
         // throttle can overwrite a newer style edit still waiting to save.
         localHtml.current = ev.data.html
+        /* the runtime already renders this exact document: confirm its
+           identity without re-posting (a re-post would remorph the DOM and
+           drop the caret), so advisory measurement can trust it. The runtime
+           adopts the token only while its live document is exactly this
+           HTML, byte-equal or canonicalizing equal. */
+        iframeRef.current?.contentWindow?.postMessage(
+          { type: 'doop:edited-ack', html: ev.data.html, docToken: safeZoneDocumentToken(frame.id, ev.data.html) },
+          '*',
+        )
         const before = useStore.getState().canvas?.frames.find((f) => f.id === frame.id)?.html
         let save: Promise<unknown> = Promise.resolve()
         if (before !== ev.data.html) {
@@ -1151,6 +1348,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
             {/* shield keeps pointer events on the canvas, not the iframe;
             lifted while editing so clicks land in the editable document */}
             {(!editing || panMode || tool !== 'select') && <div className="absolute inset-0" />}
+            <SafeZoneOverlay
+              width={frame.width}
+              height={frame.height}
+              insets={safeInsets}
+              boxes={safeBoxes}
+              visible={showSafeZones}
+            />
             {/* above the selection outline (z-[3]), or that outline covers the
             hovered element's tag */}
             {hover && !editing && !pathEdit && !dragging && !resizing && (

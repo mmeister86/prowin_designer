@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '../lib/store'
 import { FRAME_BOOTSTRAP } from '../lib/frameRuntime'
+import { safeZoneDocumentToken } from '../lib/safeZoneDocument'
 import { Button } from './ui/button'
 import { XIcon } from './ui/icons'
 
@@ -26,10 +27,14 @@ export function PresentMode({ frameId, onClose }: { frameId: string; onClose: ()
   }, [onClose])
 
   const html = frame?.html ?? ''
+  const docFrameId = frame?.id ?? null
   useEffect(() => {
     if (!ready) return
-    iframeRef.current?.contentWindow?.postMessage({ type: 'doop:html', html }, '*')
-  }, [ready, html])
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: 'doop:html', html, docToken: docFrameId ? safeZoneDocumentToken(docFrameId, html) : null },
+      '*',
+    )
+  }, [ready, html, docFrameId])
 
   useEffect(() => {
     function onResize() {

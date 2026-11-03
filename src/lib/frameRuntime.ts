@@ -89,6 +89,9 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
   }
 
   function render(html) {
+    /* every render replaces the live document: the parent matches advisory
+       measurements to this generation and never trusts a previous one */
+    safeZoneGeneration += 1
     var doc
     try {
       doc = new DOMParser().parseFromString(html, 'text/html')
@@ -493,6 +496,20 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     return '<!doctype html>\\n' + root.outerHTML
   }
 
+  /* canonical form for identity comparison: both sides through this
+     document's own parser and serializer, so semantically identical
+     documents compare equal whatever byte flavor each side produced (the
+     server parse-round-trips every save; the parent serializes the live
+     DOM). A newer or different document still canonicalizes differently
+     and is rejected. */
+  function canonicalHtml(html) {
+    try {
+      return new DOMParser().parseFromString(html, 'text/html').documentElement.outerHTML
+    } catch (e) {
+      return null
+    }
+  }
+
   function postEdited(discrete, flushId) {
     var message = { type: 'doop:edited', html: serialize(), discrete: discrete === true }
     if (typeof flushId === 'number') message.flushId = flushId
@@ -844,7 +861,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
      a summary of one element and writes changes back as inline styles; the
      edited document then goes to the parent through the usual save path. */
   function notifyFrameUpdated() {
-    parent.postMessage({ type: 'doop:frame-updated' }, '*')
+    parent.postMessage({ type: 'doop:frame-updated', generation: safeZoneGeneration, docToken: safeZoneDocument }, '*')
   }
   document.fonts.addEventListener('loadingdone', notifyFrameUpdated)
   /* A linked sheet can declare unused faces without loading any font files.
@@ -853,6 +870,108 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     var el = ev.target
     if (el && el.tagName === 'LINK' && el.relList.contains('stylesheet')) notifyFrameUpdated()
   }, true)
+
+  /* ---- advisory safe-zone geometry (TASK-33 step 2) ----
+     Parent-only overlays: the runtime only measures, never adds warning
+     DOM, so serialized HTML stays untouched. Coalesced refresh pings keep
+     the parent's overlay fresh after live edits, resources and layout
+     changes without polling. */
+  var safeZoneTimer = null
+  function scheduleFrameUpdated() {
+    if (safeZoneTimer) return
+    safeZoneTimer = setTimeout(function () {
+      safeZoneTimer = null
+      notifyFrameUpdated()
+    }, 150)
+  }
+  try {
+    var safeZoneMut = new MutationObserver(scheduleFrameUpdated)
+    safeZoneMut.observe(document.documentElement, {
+      childList: true, attributes: true, characterData: true, subtree: true,
+    })
+  } catch (e) {}
+  try {
+    var safeZoneResize = new ResizeObserver(scheduleFrameUpdated)
+    safeZoneResize.observe(document.documentElement)
+    safeZoneResize.observe(document.body)
+  } catch (e) {}
+  window.addEventListener('resize', scheduleFrameUpdated)
+  /* resource loads (images, fonts via <link>) change boxes without a render */
+  document.addEventListener('load', function (ev) {
+    var el = ev.target
+    if (el && (el.tagName === 'IMG' || el.tagName === 'VIDEO' || (el.tagName === 'LINK' && el.rel && el.relList && el.relList.contains('stylesheet')))) scheduleFrameUpdated()
+  }, true)
+  /* a class-triggered transform transition longer than the debounce settles
+     without further DOM churn: completion and cancellation remeasure the
+     final geometry (capture covers non-bubbling delivery too; continuous
+     tracking during the flight stays advisory) */
+  document.addEventListener('transitionend', scheduleFrameUpdated, true)
+  document.addEventListener('transitioncancel', scheduleFrameUpdated, true)
+  document.addEventListener('animationend', scheduleFrameUpdated, true)
+  document.addEventListener('animationcancel', scheduleFrameUpdated, true)
+
+  /* Visible semantic boxes in frame-local CSS px. Includes display:contents
+     descendants (the selector finds nested roles even when an ancestor has
+     no box). Hidden documents suspend: the parent treats the reply as
+     unavailable rather than trusted success. Bounded at 200 boxes: more
+     visible roles degrade to incomplete so an omitted intruder can never
+     read as trusted success. The generation stamps the rendered document
+     the boxes were measured in; the docToken is the parent's
+     expected-document identity for that HTML, so the parent can tell the
+     desired document apart from a stale render. */
+  var safeZoneGeneration = 0
+  var safeZoneDocument = null
+  /* Fully transparent content warns about nothing visible: computed opacity
+     is not inherited, so a child still computes 1 under an opacity:0 parent
+     and only an ancestor walk excludes it. All roles stay covered. */
+  function effectivelyTransparent(el, cs) {
+    if (parseFloat(cs.opacity) === 0) return true
+    for (var node = el.parentElement; node; node = node.parentElement) {
+      var ncs = null
+      try {
+        ncs = getComputedStyle(node)
+      } catch (e) {
+        return false
+      }
+      if (parseFloat(ncs.opacity) === 0) return true
+    }
+    return false
+  }
+  function safeZoneBoxes() {
+    var viewport = { width: innerWidth, height: innerHeight }
+    if (document.hidden)
+      return { status: 'unavailable', boxes: [], viewport: viewport, generation: safeZoneGeneration,
+        docToken: safeZoneDocument }
+    var out = []
+    var overflow = false
+    var nodes = document.querySelectorAll('[data-od-role]')
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i]
+      if (!(el instanceof Element)) continue
+      if (el.hasAttribute('hidden')) continue
+      var cs = getComputedStyle(el)
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse') continue
+      if (effectivelyTransparent(el, cs)) continue
+      var r
+      try {
+        r = el.getBoundingClientRect()
+      } catch (e) { continue }
+      if (!isFinite(r.x) || !isFinite(r.y) || !isFinite(r.width) || !isFinite(r.height)) continue
+      if (r.width <= 0 || r.height <= 0) continue
+      if (out.length >= 200) {
+        overflow = true
+        break
+      }
+      out.push({ x: r.left, y: r.top, width: r.width, height: r.height })
+    }
+    return {
+      status: overflow ? 'incomplete' : 'ok',
+      boxes: out,
+      viewport: viewport,
+      generation: safeZoneGeneration,
+      docToken: safeZoneDocument,
+    }
+  }
 
   function px(v) {
     var n = parseFloat(v)
@@ -1186,6 +1305,7 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       parent.postMessage({ type: 'doop:style-gesture-result', reqId: d.reqId, info: changed ? inspect(d.selector) : null }, '*')
     }
     if (d.type === 'doop:html' && typeof d.html === 'string' && !editing) {
+      safeZoneDocument = typeof d.docToken === 'number' && isFinite(d.docToken) ? d.docToken : null
       render(d.html)
       notifyFrameUpdated()
       if (d.reqId) parent.postMessage({ type: 'doop:html-result', reqId: d.reqId }, '*')
@@ -1202,8 +1322,33 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       clearHover()
       var editStyle = document.querySelector('style[data-v-edit]')
       if (editStyle && editStyle.parentNode) editStyle.parentNode.removeChild(editStyle)
+      safeZoneDocument = typeof d.docToken === 'number' && isFinite(d.docToken) ? d.docToken : null
       render(d.html)
       notifyFrameUpdated()
+    }
+    /* an already-live edit the parent saved without re-posting (inline text,
+       Design-panel styles, or the server's normalized echo of one): adopt
+       its expected-document token only when the live document is exactly
+       that HTML — byte-equal, or canonicalizing equal through this
+       document's own parser (byte flavors differ across serializers). Tokens
+       grow with every minted document, so a delayed ack with an older token
+       for canonically identical bytes — after a newer ack or a stamped
+       render/revert — is stale and ignored, as is an acknowledgement for
+       newer or different contents, so it can never bless the wrong document
+       or rewind a newer identity. Metadata only: no render, no
+       remorph, the caret stays where it is. */
+    if (d.type === 'doop:edited-ack' && typeof d.html === 'string'
+        && typeof d.docToken === 'number' && isFinite(d.docToken)) {
+      var live = serialize()
+      var same = d.html === live
+      if (!same) {
+        var want = canonicalHtml(d.html)
+        same = want !== null && want === canonicalHtml(live)
+      }
+      if (same && (safeZoneDocument === null || d.docToken >= safeZoneDocument)) {
+        safeZoneDocument = d.docToken
+        notifyFrameUpdated()
+      }
     }
     if (d.type === 'doop:edit') setEdit(!!d.on, d.flushId)
     // Mirror the Layers eye in the live document, including during text edits.
@@ -1327,6 +1472,12 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
         if (target) found = designRect(target)
       } catch (e) { /* bad selector -> null */ }
       parent.postMessage({ type: 'doop:located', reqId: d.reqId, selector: d.selector, rect: found, sizable: !!target && sizable(target) }, '*')
+    }
+    if (d.type === 'doop:safe-zones') {
+      var measured = safeZoneBoxes()
+      parent.postMessage({ type: 'doop:safe-zones-result', reqId: d.reqId, status: measured.status,
+        boxes: measured.boxes, viewport: measured.viewport || null, generation: measured.generation,
+        docToken: measured.docToken }, '*')
     }
   })
   parent.postMessage({ type: 'doop:frame-ready' }, '*')

@@ -17,6 +17,7 @@ import { capture, captureThrottled } from './analytics.ts'
 import { renderFrame } from './screenshot.ts'
 import { primeImage } from './previews.ts'
 import { DOOP_GUIDE, GUIDE_TOPICS } from './guide.ts'
+import { effectiveSafeZone, safeZoneSource } from '../shared/prowin/safeZones.ts'
 import { describeInspiration, INSPIRATION_USAGE_NOTE, searchInspiration } from './inspiration.ts'
 import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 import { ESCAPED_HTML_NOTE, looksEscapedHtml } from './escapedHtml.ts'
@@ -71,7 +72,7 @@ const REVIEW_NUDGE =
   'You have not seen this design yet. Call get_frame_screenshot on it now, judge it against the review checkpoints (fit, spacing, hierarchy, contrast, alignment, realism), and fix any issues before moving on.'
 
 import type { Actor } from '../shared/types.ts'
-import { FORMAT_PRESETS, type FormatPresetId } from '../shared/prowin/formats.ts'
+import { FORMAT_PRESETS, type FormatPresetId, type Insets } from '../shared/prowin/formats.ts'
 
 const presetId = z.enum(Object.keys(FORMAT_PRESETS) as [FormatPresetId, ...FormatPresetId[]])
 
@@ -182,6 +183,7 @@ function frameSummary(f: {
   hidden?: boolean
   locked?: boolean
   preset?: FormatPresetId
+  safeZoneOverride?: Insets
 }) {
   return {
     id: f.id,
@@ -195,6 +197,12 @@ function frameSummary(f: {
     width: f.width,
     height: f.height,
     ...(f.preset !== undefined ? { preset: f.preset } : {}),
+    /* effective advisory insets plus where they come from — the overlay
+       is a local UI preference, this context always reports them.
+       safeZoneUnit names the unit of every safeZone side, additively. */
+    safeZone: effectiveSafeZone(f),
+    safeZoneSource: safeZoneSource(f),
+    safeZoneUnit: 'css-px',
     updatedAt: new Date(f.updatedAt).toISOString(),
     updatedBy: f.updatedBy,
     htmlBytes: f.html.length,

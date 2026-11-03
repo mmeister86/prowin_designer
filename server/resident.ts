@@ -17,7 +17,8 @@ import * as imageSearch from './imageSearch.ts'
 import * as imageGen from './imageGen.ts'
 import * as assets from './assets.ts'
 import * as backgrounds from './backgrounds.ts'
-import { DESIGN_BRIEF, DESIGN_QUALITY, TEMPLATE_GUIDE } from './guide.ts'
+import { DESIGN_BRIEF, DESIGN_QUALITY, SAFE_ZONE_GUIDE, TEMPLATE_GUIDE } from './guide.ts'
+import { describeSafeZone } from '../shared/prowin/safeZones.ts'
 import { OPTIONAL_FEATURES } from '../shared/prowin/features.ts'
 import { describeInspiration, INSPIRATION_USAGE_NOTE, searchInspiration } from './inspiration.ts'
 import type { Actor, AgentTask, Canvas, ElementComment, Frame } from '../shared/types.ts'
@@ -122,6 +123,8 @@ Rules:
 - Your final message should be one or two sentences: what you changed and where.
 
 ${TEMPLATE_GUIDE}
+
+${SAFE_ZONE_GUIDE}
 
 Design quality — the bar for anything you originate or restyle (global brand rules take precedence, then compatible canvas guidelines and pinned style references, then this general advice; a frame you are only editing keeps its established direction where compatible with global brand rules):
 ${DESIGN_QUALITY}
@@ -456,7 +459,7 @@ async function runAgent(canvasId: string, agentName: string, stalled: Set<string
     const frameList = visibleFrames
       .map(
         (f, index) =>
-          `- Frame ${index + 1}: id=${f.id}, name="${redactPii(f.name)}", ${Math.round(f.width)}x${Math.round(f.height)}${f.preset ? `, preset=${f.preset}` : ''} (last edit: ${f.updatedBy}, ${f.html.length} bytes${f.html.length > LARGE_HTML_CHARS ? '; large document — avoid a full read for visual-reference work' : ''})`,
+          `- Frame ${index + 1}: id=${f.id}, name="${redactPii(f.name)}", ${Math.round(f.width)}x${Math.round(f.height)}${f.preset ? `, preset=${f.preset}` : ''}, ${describeSafeZone(f)} (last edit: ${f.updatedBy}, ${f.html.length} bytes${f.html.length > LARGE_HTML_CHARS ? '; large document — avoid a full read for visual-reference work' : ''})`,
       )
       .join('\n')
 
@@ -1240,7 +1243,7 @@ async function execTool(
         runState.mutatedFrames.add(f.id)
         runState.verifiedFrames.delete(f.id)
         return ok(
-          `created frame ${f.id} ("${f.name}", ${Math.round(f.width)}x${Math.round(f.height)}${f.preset ? `, preset=${f.preset}` : ''}) — it is revealing to viewers now`,
+          `created frame ${f.id} ("${f.name}", ${Math.round(f.width)}x${Math.round(f.height)}${f.preset ? `, preset=${f.preset}` : ''}, ${describeSafeZone(f)}) — it is revealing to viewers now`,
         )
       }
       case 'inspect_frame': {
@@ -1250,13 +1253,14 @@ async function execTool(
            and the JSON pass catches anything the copy could not (titles,
            CSS variables) before it reaches the model */
         const inspection = await inspectFrame({ ...f, html: runState.redaction.redact(f.html ?? '') })
-        return ok(runState.redaction.redact(JSON.stringify(inspection)))
+        return ok(runState.redaction.redact(JSON.stringify({ ...inspection, safeZone: describeSafeZone(f) })))
       }
       case 'get_frame_html': {
         const f = store.getFrame(input.frame_id)
         if (!f || f.canvasId !== canvasId) return fail('frame not found on this canvas')
         if (typeof f.html !== 'string') return fail('frame HTML is unavailable; retry after the frame reloads')
         const html = runState.redaction.redact(f.html)
+        const zone = `Effective safe zone (CSS px, advisory): ${describeSafeZone(f)}.`
         const raw = block.input as { query?: string; offset?: number; limit?: number }
         const query = String(raw.query || '').trim()
         const limit = Math.max(1000, Math.min(Number(raw.limit) || 20_000, MAX_HTML_READ_CHARS))
@@ -1279,13 +1283,13 @@ async function execTool(
             return `--- match ${match + 1} at ${index}, chars ${start}-${end} ---\n${html.slice(start, end)}`
           })
           return ok(
-            `Frame HTML: ${html.length} characters; ${matches.length} match(es) for "${query}".\n${snippets.join('\n')}`,
+            `${zone}\nFrame HTML: ${html.length} characters; ${matches.length} match(es) for "${query}".\n${snippets.join('\n')}`,
           )
         }
         const offset = Math.max(0, Math.min(Number(raw.offset) || 0, html.length))
         const end = Math.min(html.length, offset + limit)
         return ok(
-          `Frame HTML: ${html.length} characters. Returning chars ${offset}-${end}.${end < html.length ? ` Continue with offset=${end}, or use query for a targeted snippet.` : ''}\n\n${html.slice(offset, end)}`,
+          `${zone}\nFrame HTML: ${html.length} characters. Returning chars ${offset}-${end}.${end < html.length ? ` Continue with offset=${end}, or use query for a targeted snippet.` : ''}\n\n${html.slice(offset, end)}`,
         )
       }
       case 'edit_frame_html': {

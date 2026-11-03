@@ -3,10 +3,12 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import type { Frame } from '../../shared/types'
 import { FORMAT_PRESETS } from '../../shared/prowin/formats'
 import { useStore } from '../lib/store'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import { copyFramePng, downloadFrameExport, downloadFrameHtml } from '../lib/frameExport'
 import { deleteFrameTracked, recordUpdate } from '../lib/history'
+import { enqueueGeometrySave } from '../lib/geometrySaves'
 import { setFramesLocked } from '../lib/layerEdits'
+import { SafeZoneSection } from '../prowin/SafeZoneSection'
 import { FrameHistoryModal } from './FrameHistoryModal'
 import { cn } from '@/lib/utils'
 import { Panel, PanelClose, PanelHeader } from './ui/panel'
@@ -43,6 +45,9 @@ export function Inspector({
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [htmlCopy, setHtmlCopy] = useState<'idle' | 'copied' | 'failed'>('idle')
+  /* bumped whenever a commit is rejected: only the rejected field's numeric
+     draft resets to the retained backing value, unrelated drafts keep focus */
+  const [rejectSeqs, setRejectSeqs] = useState<Record<string, number>>({})
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const saveTimer = useRef<number | null>(null)
   const copyTimer = useRef<number | null>(null)
@@ -103,11 +108,38 @@ export function Inspector({
     localStorage.setItem(HTML_OPEN_KEY, next ? '1' : '0')
   }
 
-  function commitMeta(patch: Partial<Frame>) {
+  async function commitMeta(patch: Partial<Frame>) {
     if (frame.preset && !canManageLocks && (patch.width !== undefined || patch.height !== undefined)) return
-    recordUpdate(frame.id, frame, patch)
-    useStore.getState().patchFrameLocal(frame.id, patch)
-    api.updateFrame(frame.id, patch).catch(console.error)
+    /* shared geometry queue with FrameView drags: queued behind any pending
+       drag save so the baseline is read after its resolution (never a
+       rejected optimistic rect); the whole save-and-record runs inside the
+       history barrier via the queue */
+    const fields = Object.keys(patch)
+    const next = enqueueGeometrySave([frame.id], async () => {
+      /* baseline from the store at execution time, not the render prop:
+         a commit queued behind a pending one sees the first one's result */
+      const live = useStore.getState().canvas?.frames.find((f) => f.id === frame.id) ?? frame
+      try {
+        await api.updateFrame(frame.id, patch)
+      } catch (err) {
+        /* a rejected write (e.g. a resize that no longer fits the safe-zone
+           override) must leave neither history nor bad local geometry behind */
+        console.error(err)
+        useStore
+          .getState()
+          .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
+        setRejectSeqs((prev) => {
+          const nextSeqs = { ...prev }
+          for (const f of fields) nextSeqs[f] = (nextSeqs[f] ?? 0) + 1
+          return nextSeqs
+        })
+        return
+      }
+      /* history and local state only after the server accepted the write */
+      useStore.getState().patchFrameLocal(frame.id, patch)
+      recordUpdate(frame.id, live, patch)
+    })
+    await next
   }
 
   return (
@@ -149,26 +181,29 @@ export function Inspector({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <InspectorGroup title="Position">
           <div className="grid grid-cols-2 gap-1.5">
-            <NumInput label="X" value={frame.x} onCommit={(v) => commitMeta({ x: v })} />
-            <NumInput label="Y" value={frame.y} onCommit={(v) => commitMeta({ y: v })} />
+            <NumInput key={`x-${rejectSeqs.x ?? 0}`} label="X" value={frame.x} onCommit={(v) => commitMeta({ x: v })} />
+            <NumInput key={`y-${rejectSeqs.y ?? 0}`} label="Y" value={frame.y} onCommit={(v) => commitMeta({ y: v })} />
           </div>
         </InspectorGroup>
         <InspectorGroup title="Layout">
           {frame.preset && <p className="mb-1.5 text-[12px] text-ink-soft">{FORMAT_PRESETS[frame.preset].label}</p>}
           <div className="grid grid-cols-2 gap-1.5">
             <NumInput
+              key={`w-${rejectSeqs.width ?? 0}`}
               label="W"
               value={frame.width}
               disabled={!!frame.preset && !canManageLocks}
               onCommit={(v) => commitMeta({ width: Math.max(120, v) })}
             />
             <NumInput
+              key={`h-${rejectSeqs.height ?? 0}`}
               label="H"
               value={frame.height}
               disabled={!!frame.preset && !canManageLocks}
               onCommit={(v) => commitMeta({ height: Math.max(80, v) })}
             />
           </div>
+          <SafeZoneSection frame={frame} />
         </InspectorGroup>
         <InspectorGroup title="Export">
           <div className="grid grid-cols-2 gap-1.5">

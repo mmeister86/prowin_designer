@@ -8,6 +8,7 @@ import { extractAssetIds } from '../assets.ts'
 import { roleByAgentName } from '../../shared/agents.ts'
 import { isCommunityCategory } from '../../shared/types.ts'
 import { isFormatPresetId } from '../../shared/prowin/formats.ts'
+import { isSafeZoneOverride, safeZoneFits } from '../../shared/prowin/safeZones.ts'
 import type {
   ActivityItem,
   ActorKind,
@@ -80,6 +81,7 @@ export async function saveCanvasCopy(c: Canvas): Promise<void> {
           width: frame.width,
           height: frame.height,
           preset: frame.preset ?? null,
+          safeZoneOverride: frame.safeZoneOverride ?? null,
           html: frame.html,
           createdAt: frame.createdAt,
           updatedAt: frame.updatedAt,
@@ -300,6 +302,7 @@ export async function savePageCopy(c: Canvas, frames: Frame[]): Promise<void> {
         width: frame.width,
         height: frame.height,
         preset: frame.preset ?? null,
+        safeZoneOverride: frame.safeZoneOverride ?? null,
         html: frame.html,
         createdAt: frame.createdAt,
         updatedAt: frame.updatedAt,
@@ -344,6 +347,7 @@ async function writeFrame(f: Frame) {
     width: f.width,
     height: f.height,
     preset: f.preset ?? null,
+    safeZoneOverride: f.safeZoneOverride ?? null,
     html: f.html,
     createdAt: f.createdAt,
     updatedAt: f.updatedAt,
@@ -798,10 +802,17 @@ export async function hydrate(): Promise<Hydrated> {
     const c = byId.get(m.canvasId)
     if (c) (c.memberIds ??= []).push(m.userId)
   }
-  for (const { preset, ...f } of frameRows)
+  for (const { preset, safeZoneOverride, ...f } of frameRows)
     byId.get(f.canvasId)?.frames.push({
       ...f,
       ...(isFormatPresetId(preset) ? { preset } : {}),
+      /* corrupt stored overrides never reach resolvers: require a valid preset
+         and a fitting size, else inherit the preset default */
+      ...(isFormatPresetId(preset) &&
+      isSafeZoneOverride(safeZoneOverride) &&
+      safeZoneFits(safeZoneOverride, f.width, f.height)
+        ? { safeZoneOverride }
+        : {}),
       pageId: f.pageId ?? undefined,
       demo: f.demo ?? undefined,
       hidden: f.hidden ?? undefined,

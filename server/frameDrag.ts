@@ -1,4 +1,5 @@
 import type { ClientMessage, Frame } from '../shared/types.ts'
+import { safeZoneFits } from '../shared/prowin/safeZones.ts'
 import { canAccessCanvas } from './access.ts'
 import { assertFrameGeometry } from './actions.ts'
 import { CreatorPermissionError, withUserPermissions } from './prowin/permissions.ts'
@@ -28,6 +29,17 @@ export async function relayFrameDrag(
     if (error instanceof CreatorPermissionError) return
     console.error('[ws] drag permission check failed', error)
     return
+  }
+  /* live positions relay freely, but a drag that shrinks the frame past its
+     stored safe-zone override must never reach peers: the committed save
+     will reject it, so relaying would leave every peer painting (and acting
+     on) geometry the server will refuse. No override travels here — the
+     stored server frame is the only policy source. */
+  if (frame.safeZoneOverride !== undefined) {
+    const width = msg.width ?? frame.width
+    const height = msg.height ?? frame.height
+    if ((width !== frame.width || height !== frame.height) && !safeZoneFits(frame.safeZoneOverride, width, height))
+      return
   }
   if (
     sequence <= (lastRelayedDrag.get(frame) ?? 0) ||
