@@ -87,14 +87,16 @@ export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageRe
     /* The charge must not yield: concurrent duplicates that miss the cache in
        the same tick share one budget slot and one render instead of each
        consuming a slot. Only an exhausted budget resolves authentication
-       (async) — and then re-checks, because a render may have started while
-       auth resolved. */
-    if (chargeRenderBudget(req.ip)) {
-      pending = fresh()
-    } else if (await req.isAuthenticated()) {
+       (async). A denial that arrives late still re-checks: another caller may
+       have started the same render while auth resolved, and an authorized
+       in-flight render is a cached serve under existing policy — deny only
+       when nothing is in flight. An exhausted anonymous caller never creates
+       its own uncached render. */
+    if (chargeRenderBudget(req.ip) || (await req.isAuthenticated())) {
       pending = fresh()
     } else {
-      return { status: 'rate-limited' }
+      pending = fresh()
+      if (!pending) return { status: 'rate-limited' }
     }
     if (!pending) {
       pending = preview

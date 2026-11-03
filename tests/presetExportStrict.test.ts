@@ -115,6 +115,33 @@ describe('strict preset-download boundary', () => {
     expect(next.status).toBe('ok')
   })
 
+  it('serves the in-flight render instead of a false 429 when auth denies late', async () => {
+    const ipA = `late-auth${seq++}`
+    const ipB = `late-auth${seq++}`
+    mocks.renderFrame.mockResolvedValue(Buffer.from('x'))
+    for (let i = 0; i < 12; i++) await getImage(frame({ preset: 'ig-post' }), base({ download: true, ip: ipA }))
+    mocks.renderFrame.mockClear()
+    let resolveAuth!: (v: boolean) => void
+    const deferredDeny = () => new Promise<boolean>((resolve) => (resolveAuth = resolve))
+    let releaseRender!: (buf: Buffer) => void
+    mocks.renderFrame.mockImplementation(() => new Promise<Buffer>((resolve) => (releaseRender = resolve)))
+    const f = frame({ preset: 'ig-post' })
+    const dup = getImage(f, base({ download: true, ip: ipA, isAuthenticated: deferredDeny }))
+    await new Promise((r) => setImmediate(r))
+    await new Promise((r) => setImmediate(r))
+    // same image starts via an allowed IP while the denial is still deferred
+    const viaB = getImage(f, base({ download: true, ip: ipB }))
+    await new Promise((r) => setImmediate(r))
+    await new Promise((r) => setImmediate(r))
+    resolveAuth(false)
+    releaseRender(Buffer.from('shared'))
+    const [a, b] = await Promise.all([dup, viaB])
+    expect(a.status).toBe('ok')
+    expect(b.status).toBe('ok')
+    if (a.status === 'ok' && b.status === 'ok') expect(a.buf.equals(b.buf)).toBe(true)
+    expect(mocks.renderFrame).toHaveBeenCalledTimes(1)
+  })
+
   it('lets exhausted-budget authenticated duplicates share the in-flight render', async () => {
     const ip = `authed-dup${seq++}`
     mocks.renderFrame.mockResolvedValue(Buffer.from('x'))
