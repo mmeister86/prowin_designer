@@ -18,7 +18,7 @@ import {
   selectionBlockReason,
   templatePolicyOf,
 } from '../prowin/templatePolicy'
-import { api } from '../lib/api'
+import { api, errorMessage } from '../lib/api'
 import { enqueueHtmlSave } from '../lib/frameHtmlSaves'
 import { copyElementLink } from '../lib/elementLink'
 import { sendWs } from '../lib/ws'
@@ -399,16 +399,31 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       useStore.getState().setSnapGuides([])
       const live = useStore.getState().canvas?.frames ?? []
       const updates: { frameId: string; before: typeof orig; after: typeof orig }[] = []
-      for (const g of group) {
-        const f = live.find((x) => x.id === g.id)
-        if (!f) continue
-        const after = { x: f.x, y: f.y, width: f.width, height: f.height }
-        trackSave(api.updateFrame(f.id, after).catch(console.error))
-        updates.push({ frameId: f.id, before: g.orig, after })
-      }
-      const [only, ...more] = updates
-      if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
-      else recordUpdates(updates)
+      void (async () => {
+        for (const g of group) {
+          const f = live.find((x) => x.id === g.id)
+          if (!f) continue
+          const after = { x: f.x, y: f.y, width: f.width, height: f.height }
+          /* a rejected save (e.g. a resize that no longer fits the safe-zone
+             override) must leave neither history nor bad local geometry behind */
+          const save = api.updateFrame(f.id, after)
+          trackSave(save)
+          try {
+            await save
+          } catch (err) {
+            console.error(err)
+            useStore.getState().patchFrameLocal(g.id, g.orig)
+            useStore
+              .getState()
+              .pushNotice(errorMessage(err, 'Die Änderung konnte nicht gespeichert werden. Versuche es erneut.'))
+            continue
+          }
+          updates.push({ frameId: f.id, before: g.orig, after })
+        }
+        const [only, ...more] = updates
+        if (only && !more.length) recordUpdate(only.frameId, only.before, only.after)
+        else recordUpdates(updates)
+      })()
       /* a click (no drag) on the frame surface targets the element under
          the cursor: probe it and show the element toolbar */
       if (!moved && probeOnClick) probeAt(off.x, off.y)
