@@ -25,13 +25,14 @@ export function safeZoneSource(
   return frame.safeZoneOverride !== undefined ? 'override' : 'preset'
 }
 
-/** One-line agent context, e.g. `safe-zone 50/50/50/50 (preset)` or `no safe-zone`. */
+/** One-line agent context with explicit sides and CSS-px units, e.g.
+ *  `safe-zone top 50, right 50, bottom 50, left 50 CSS px (preset)` or `no safe-zone`. */
 export function describeSafeZone(
   frame: Pick<{ preset?: FormatPresetId; safeZoneOverride?: Insets }, 'preset' | 'safeZoneOverride'>,
 ): string {
   const zone = effectiveSafeZone(frame)
   if (!zone) return 'no safe-zone'
-  return `safe-zone ${zone.top}/${zone.right}/${zone.bottom}/${zone.left} (${safeZoneSource(frame)})`
+  return `safe-zone top ${zone.top}, right ${zone.right}, bottom ${zone.bottom}, left ${zone.left} CSS px (${safeZoneSource(frame)})`
 }
 
 /** The preset default, fully replaced by a valid override; null without a preset. */

@@ -5,6 +5,7 @@ import * as actions from '../server/actions.ts'
 import { DOOP_GUIDE, SAFE_ZONE_GUIDE } from '../server/guide.ts'
 import { buildMcpServer } from '../server/mcp.ts'
 import { withUserPermissions } from '../server/prowin/permissions.ts'
+import { describeSafeZone } from '../shared/prowin/safeZones.ts'
 import { store } from '../server/store.ts'
 import type { Canvas, Frame } from '../shared/types.ts'
 
@@ -187,7 +188,9 @@ describe('SAFE_ZONE_GUIDE', () => {
     const system = captured[0]?.system.map((b) => b.text).join('\n\n') ?? ''
     expect(system).toContain(SAFE_ZONE_GUIDE)
     // Resident frame list uses effective values regardless of overlay visibility.
-    expect(JSON.stringify(captured[0]?.messages ?? '')).toContain('safe-zone 50/50/50/50 (preset)')
+    expect(JSON.stringify(captured[0]?.messages ?? '')).toContain(
+      'safe-zone top 50, right 50, bottom 50, left 50 CSS px (preset)',
+    )
   })
 })
 
@@ -200,6 +203,43 @@ describe('millimetre math', () => {
   })
 })
 
+describe('describeSafeZone', () => {
+  it('labels every side with CSS-px units for an inherited preset', () => {
+    expect(describeSafeZone({ preset: 'ig-post' })).toBe(
+      'safe-zone top 50, right 50, bottom 50, left 50 CSS px (preset)',
+    )
+  })
+
+  it('maps an asymmetric override to the right sides in order', () => {
+    expect(
+      describeSafeZone({ preset: 'ig-story', safeZoneOverride: { top: 10, right: 20, bottom: 30, left: 40 } }),
+    ).toBe('safe-zone top 10, right 20, bottom 30, left 40 CSS px (override)')
+    expect(describeSafeZone({ preset: 'ig-story' })).toBe(
+      'safe-zone top 200, right 0, bottom 250, left 0 CSS px (preset)',
+    )
+  })
+
+  it('reports zeroes as an override and falls back to the preset after reset', async () => {
+    const frame = await makeFrame()
+    await withUserPermissions(CREATOR, () => {
+      actions.updateFrame(frame.id, { safeZoneOverride: { top: 0, right: 0, bottom: 0, left: 0 } }, { ...creatorActor })
+    })
+    expect(describeSafeZone(store.getFrame(frame.id)!)).toBe(
+      'safe-zone top 0, right 0, bottom 0, left 0 CSS px (override)',
+    )
+    await withUserPermissions(CREATOR, () => {
+      actions.updateFrame(frame.id, { safeZoneOverride: null }, { ...creatorActor })
+    })
+    expect(describeSafeZone(store.getFrame(frame.id)!)).toBe(
+      'safe-zone top 50, right 50, bottom 50, left 50 CSS px (preset)',
+    )
+  })
+
+  it('reports no safe-zone without a preset', () => {
+    expect(describeSafeZone({})).toBe('no safe-zone')
+  })
+})
+
 describe('MCP frame context', () => {
   it('reports inherited preset values with a preset source', async () => {
     const frame = await makeFrame()
@@ -208,6 +248,31 @@ describe('MCP frame context', () => {
     expect(framePayload(res)).toMatchObject({
       safeZone: { top: 50, right: 50, bottom: 50, left: 50 },
       safeZoneSource: 'preset',
+      safeZoneUnit: 'css-px',
+    })
+  })
+
+  it('reports an asymmetric override side-by-side with explicit units', async () => {
+    const frame = await makeFrame({ preset: 'ig-story' })
+    await withUserPermissions(CREATOR, () => {
+      actions.updateFrame(
+        frame.id,
+        { safeZoneOverride: { top: 10, right: 20, bottom: 30, left: 40 } },
+        { ...creatorActor },
+      )
+    })
+    const single = await callMcp('Mate', MATE, 'get_frame', { frame_id: frame.id })
+    expect(framePayload(single)).toMatchObject({
+      safeZone: { top: 10, right: 20, bottom: 30, left: 40 },
+      safeZoneSource: 'override',
+      safeZoneUnit: 'css-px',
+    })
+    const canvas = await callMcp('Mate', MATE, 'get_canvas', { canvas_id: 'ctx' })
+    const body = framePayload(canvas) as { frames: Array<Record<string, unknown>> }
+    expect(body.frames.find((f) => f.id === frame.id)).toMatchObject({
+      safeZone: { top: 10, right: 20, bottom: 30, left: 40 },
+      safeZoneSource: 'override',
+      safeZoneUnit: 'css-px',
     })
   })
 
@@ -220,6 +285,7 @@ describe('MCP frame context', () => {
     expect(framePayload(res)).toMatchObject({
       safeZone: { top: 0, right: 0, bottom: 0, left: 0 },
       safeZoneSource: 'override',
+      safeZoneUnit: 'css-px',
     })
   })
 
@@ -227,15 +293,16 @@ describe('MCP frame context', () => {
     await makeFrame()
     const plain = await makeFrame({ preset: undefined })
     const single = await callMcp('Mate', MATE, 'get_frame', { frame_id: plain.id })
-    expect(framePayload(single)).toMatchObject({ safeZone: null, safeZoneSource: 'none' })
+    expect(framePayload(single)).toMatchObject({ safeZone: null, safeZoneSource: 'none', safeZoneUnit: 'css-px' })
     const canvas = await callMcp('Mate', MATE, 'get_canvas', { canvas_id: 'ctx' })
     const body = framePayload(canvas) as { frames: Array<Record<string, unknown>> }
     const listed = body.frames.find((f) => f.id === plain.id)!
-    expect(listed).toMatchObject({ safeZone: null, safeZoneSource: 'none' })
+    expect(listed).toMatchObject({ safeZone: null, safeZoneSource: 'none', safeZoneUnit: 'css-px' })
     const inherited = body.frames.find((f) => f.id !== plain.id)
     expect(inherited).toMatchObject({
       safeZone: { top: 50, right: 50, bottom: 50, left: 50 },
       safeZoneSource: 'preset',
+      safeZoneUnit: 'css-px',
     })
   })
 
@@ -252,7 +319,97 @@ describe('MCP frame context', () => {
     expect(framePayload(res).frame).toMatchObject({
       safeZone: { top: 200, right: 0, bottom: 250, left: 0 },
       safeZoneSource: 'preset',
+      safeZoneUnit: 'css-px',
     })
+  })
+})
+
+describe('Resident frame context', () => {
+  it('lists inherited and asymmetric override values with sides and units', async () => {
+    await makeFrame()
+    const zoned = await makeFrame({ preset: 'ig-story' })
+    await withUserPermissions(CREATOR, () => {
+      actions.updateFrame(
+        zoned.id,
+        { safeZoneOverride: { top: 10, right: 20, bottom: 30, left: 40 } },
+        { ...creatorActor },
+      )
+    })
+    const captured: Array<{ system: Array<{ text: string }>; messages?: unknown }> = []
+    mocks.pickModel.mockResolvedValue({
+      provider: 'test',
+      label: 'fake model',
+      userId: 'test-payer',
+      vision: false,
+      run: async (req: { system: Array<{ text: string }>; messages: unknown }) => {
+        captured.push({ system: JSON.parse(JSON.stringify(req.system)), messages: req.messages })
+        return { content: [], stop_reason: 'refusal' }
+      },
+    })
+    const card = actions.addQueuedCard('ctx', 'Zonen auflisten', 'Mate', undefined, undefined, MATE)!
+    await vi.waitFor(() => expect(card.failedAt).toBeDefined(), { timeout: 20_000 })
+    const kickoff = JSON.stringify(captured[0]?.messages ?? '')
+    expect(kickoff).toContain('safe-zone top 50, right 50, bottom 50, left 50 CSS px (preset)')
+    expect(kickoff).toContain('safe-zone top 10, right 20, bottom 30, left 40 CSS px (override)')
+  })
+
+  it('create, inspect and read report the asymmetric override with sides and units', async () => {
+    const zoned = await makeFrame({ preset: 'ig-story' })
+    await withUserPermissions(CREATOR, () => {
+      actions.updateFrame(
+        zoned.id,
+        { safeZoneOverride: { top: 10, right: 20, bottom: 30, left: 40 } },
+        { ...creatorActor },
+      )
+    })
+    const toolResults: string[] = []
+    let turn = 0
+    mocks.pickModel.mockResolvedValue({
+      provider: 'test',
+      label: 'fake model',
+      userId: 'test-payer',
+      vision: false,
+      run: async (req: { system: Array<{ text: string }>; messages: Array<{ content?: unknown }> }) => {
+        turn += 1
+        for (const m of req.messages ?? []) {
+          for (const b of (m as { content?: Array<{ type?: string; content?: unknown }> }).content ?? []) {
+            if (b?.type === 'tool_result') toolResults.push(JSON.stringify(b.content))
+          }
+        }
+        if (turn === 1) {
+          return {
+            content: [
+              { type: 'tool_use', id: 't-inspect', name: 'inspect_frame', input: { frame_id: zoned.id } },
+              { type: 'tool_use', id: 't-read', name: 'get_frame_html', input: { frame_id: zoned.id, limit: 1000 } },
+            ],
+            stop_reason: 'tool_use',
+          }
+        }
+        if (turn === 2) {
+          return {
+            content: [
+              {
+                type: 'tool_use',
+                id: 't-create',
+                name: 'create_frame',
+                input: { name: 'Neu', preset: 'ig-story', html: HTML },
+              },
+            ],
+            stop_reason: 'tool_use',
+          }
+        }
+        return { content: [{ type: 'text', text: 'fertig' }], stop_reason: 'end_turn' }
+      },
+    })
+    const card = actions.addQueuedCard('ctx', 'Zonen lesen und erstellen', 'Mate', undefined, undefined, MATE)!
+    await vi.waitFor(() => expect(card.endedAt ?? card.failedAt).toBeDefined(), { timeout: 20_000 })
+    expect(card.failedAt, JSON.stringify(toolResults)).toBeUndefined()
+    const ASYMMETRIC = 'safe-zone top 10, right 20, bottom 30, left 40 CSS px (override)'
+    expect(toolResults.some((r) => r.includes(ASYMMETRIC))).toBe(true)
+    expect(toolResults.some((r) => r.includes(`Effective safe zone (CSS px, advisory): ${ASYMMETRIC}`))).toBe(true)
+    expect(toolResults.some((r) => r.includes('safe-zone top 200, right 0, bottom 250, left 0 CSS px (preset)'))).toBe(
+      true,
+    )
   })
 })
 
@@ -272,10 +429,12 @@ describe('export isolation', () => {
     expect(store.getFrame(frame.id)!.html).toBe(before)
   })
 
-  it('renders server images from stored HTML with no overlay DOM', async () => {
+  it('renders each server image type from stored HTML with no overlay DOM', async () => {
     const { getImage } = await import('../server/previews.ts')
     const frame = await makeFrame()
+    const stored = store.getFrame(frame.id)!.html
     for (const ext of ['png', 'jpg'] as const) {
+      mocks.renderFrame.mockClear()
       const result = await getImage(
         { ...store.getFrame(frame.id)! },
         {
@@ -289,10 +448,27 @@ describe('export isolation', () => {
       )
       expect(result.status).toBe('ok')
       if (result.status !== 'ok') continue
-      const [html] = mocks.renderFrame.mock.calls.map((c) => (c[0] as Frame).html)
-      expect(html).toBe(frame.html)
-      expect(html).not.toContain('data-safe-zone')
+      expect(mocks.renderFrame).toHaveBeenCalledTimes(1)
+      const [sent, scale, opts] = mocks.renderFrame.mock.calls[0] as unknown as [
+        Frame,
+        number,
+        { type: string; quality?: number },
+      ]
+      expect(sent.html).toBe(stored)
+      expect(sent.html).not.toContain('data-safe-zone')
+      expect(scale).toBe(1)
+      expect(opts).toMatchObject(ext === 'png' ? { type: 'png' } : { type: 'jpeg', quality: 90 })
       expect(result.buf.toString('utf8')).not.toContain('data-safe-zone')
     }
+  })
+
+  it('serves downloaded frame HTML byte-identical to the store with no overlay DOM', async () => {
+    const frame = await makeFrame()
+    const stored = store.getFrame(frame.id)!.html
+    const res = await callMcp('Mate', MATE, 'get_frame', { frame_id: frame.id })
+    expect(res.isError).not.toBe(true)
+    const body = framePayload(res) as { html: string }
+    expect(body.html).toBe(stored)
+    expect(body.html).not.toContain('data-safe-zone')
   })
 })

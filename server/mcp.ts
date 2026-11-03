@@ -197,10 +197,12 @@ function frameSummary(f: {
     width: f.width,
     height: f.height,
     ...(f.preset !== undefined ? { preset: f.preset } : {}),
-    /* effective advisory insets in CSS px plus where they come from — the
-       overlay is a local UI preference, this context always reports them */
+    /* effective advisory insets plus where they come from — the overlay
+       is a local UI preference, this context always reports them.
+       safeZoneUnit names the unit of every safeZone side, additively. */
     safeZone: effectiveSafeZone(f),
     safeZoneSource: safeZoneSource(f),
+    safeZoneUnit: 'css-px',
     updatedAt: new Date(f.updatedAt).toISOString(),
     updatedBy: f.updatedBy,
     htmlBytes: f.html.length,
