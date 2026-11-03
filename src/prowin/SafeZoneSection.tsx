@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Frame } from '../../shared/types'
 import { effectiveSafeZone, isSafeZoneOverride, safeZoneFits, safeZoneIntrudes } from '../../shared/prowin/safeZones.ts'
 import { useCanvasCapabilities } from './canvasPermissions'
 import { useStore } from '../lib/store'
 import { api, errorMessage } from '../lib/api'
-import { onFrameChange, requestSafeZones } from '../lib/frameBridge'
-import { validateSafeZoneReply, type SafeZoneBox, type SafeZoneStatus } from '../lib/safeZoneMeasure.ts'
+import { useSafeZoneMeasure } from '../lib/useSafeZoneMeasure.ts'
 import { enqueueGeometrySave } from '../lib/geometrySaves'
 import { recordUpdate } from '../lib/history'
 import { Button } from '../components/ui/button'
@@ -13,12 +12,37 @@ import { Input } from '../components/ui/input'
 
 const fillBtn = 'h-7 rounded-[7px] bg-sub px-2 text-[12px] font-normal text-ink hover:bg-paper-deep max-md:min-h-10'
 
-function statusText(status: SafeZoneStatus, warnings: number): string {
+function statusText(status: string, warnings: number, showSafeZones: boolean): string {
+  if (!showSafeZones) return 'Warnungen ausgeblendet'
   if (status === 'unavailable') return 'Messung nicht verfügbar'
   if (status === 'incomplete')
     return warnings > 0 ? `Messung unvollständig – ${warnings} Elemente im Randbereich` : 'Messung unvollständig'
   if (warnings === 0) return 'Keine Warnungen'
   return warnings === 1 ? '1 Element im Randbereich' : `${warnings} Elemente im Randbereich`
+}
+
+type Draft = { top: string; right: string; bottom: string; left: string }
+
+function draftFrom(frame: Frame): Draft {
+  const current = frame.safeZoneOverride ?? effectiveSafeZone(frame)
+  return {
+    top: current ? String(current.top) : '',
+    right: current ? String(current.right) : '',
+    bottom: current ? String(current.bottom) : '',
+    left: current ? String(current.left) : '',
+  }
+}
+
+/* Draft input is only valid as written: four non-empty digit strings. Empty
+   fields (Number('') is 0) and fractions (Math.round hides intent) must never
+   silently become zeroes — the Creator sees a German error instead. */
+function parseDraft(draft: Draft): { top: number; right: number; bottom: number; left: number } | null {
+  const parsed = {} as Record<keyof Draft, number>
+  for (const side of ['top', 'right', 'bottom', 'left'] as const) {
+    if (!/^\d+$/.test(draft[side])) return null
+    parsed[side] = Number(draft[side])
+  }
+  return parsed
 }
 
 /** Inspector controls for the advisory safe zone. Toggle is local
@@ -29,60 +53,17 @@ export function SafeZoneSection({ frame }: { frame: Frame }) {
   const showSafeZones = useStore((s) => s.showSafeZones)
   const setShowSafeZones = useStore((s) => s.setShowSafeZones)
   const insets = effectiveSafeZone(frame)
-  const [boxes, setBoxes] = useState<SafeZoneBox[]>([])
-  const [measureStatus, setMeasureStatus] = useState<SafeZoneStatus>('unavailable')
-  const [draft, setDraft] = useState({ top: '', right: '', bottom: '', left: '' })
-  const [seen, setSeen] = useState(frame.id + JSON.stringify(frame.safeZoneOverride ?? null))
+  /* advisory measurement: the shared hook with the canvas overlay, so both
+     surfaces invalidate and refresh together */
+  const { boxes, status: measureStatus } = useSafeZoneMeasure(frame, { enabled: !!insets })
+  const [draft, setDraft] = useState<Draft>(() => draftFrom(frame))
+  const [seen, setSeen] = useState(frame.id + frame.preset + JSON.stringify(frame.safeZoneOverride ?? null))
   const [saving, setSaving] = useState(false)
-  const seq = useRef(0)
 
-  /* advisory measurement: same bridge as the canvas overlay, latest wins */
-  useEffect(() => {
-    let live = true
-    seq.current += 1
-    const my = seq.current
-    if (typeof document !== 'undefined' && document.hidden) {
-      // eslint-disable-next-line react/set-state-in-effect -- syncs advisory measurement from the sandboxed iframe
-      setMeasureStatus('unavailable')
-      setBoxes([])
-      return () => {
-        live = false
-      }
-    }
-    void requestSafeZones(frame.id).then((reply) => {
-      if (!live || my !== seq.current) return
-      const validated = validateSafeZoneReply(reply)
-      // eslint-disable-next-line react/set-state-in-effect -- syncs advisory measurement from the sandboxed iframe
-      setMeasureStatus(validated.status)
-      setBoxes(validated.boxes)
-    })
-    const off = onFrameChange(frame.id, () => {
-      seq.current += 1
-      const cur = seq.current
-      void requestSafeZones(frame.id).then((reply) => {
-        if (!live || cur !== seq.current) return
-        const validated = validateSafeZoneReply(reply)
-        // eslint-disable-next-line react/set-state-in-effect -- syncs advisory measurement from the sandboxed iframe
-        setMeasureStatus(validated.status)
-        setBoxes(validated.boxes)
-      })
-    })
-    return () => {
-      live = false
-      off()
-    }
-  }, [frame.id, frame.html, frame.width, frame.height])
-
-  const key = frame.id + JSON.stringify(frame.safeZoneOverride ?? null)
+  const key = frame.id + frame.preset + JSON.stringify(frame.safeZoneOverride ?? null)
   if (seen !== key) {
     setSeen(key)
-    const current = frame.safeZoneOverride ?? insets
-    setDraft({
-      top: current ? String(current.top) : '',
-      right: current ? String(current.right) : '',
-      bottom: current ? String(current.bottom) : '',
-      left: current ? String(current.left) : '',
-    })
+    setDraft(draftFrom(frame))
   }
 
   const warnings = insets ? boxes.filter((b) => safeZoneIntrudes(b, insets, frame.width, frame.height)).length : 0
@@ -109,13 +90,8 @@ export function SafeZoneSection({ frame }: { frame: Frame }) {
   }
 
   async function save() {
-    const parsed = {
-      top: Math.round(Number(draft.top)),
-      right: Math.round(Number(draft.right)),
-      bottom: Math.round(Number(draft.bottom)),
-      left: Math.round(Number(draft.left)),
-    }
-    if (!isSafeZoneOverride(parsed)) {
+    const parsed = parseDraft(draft)
+    if (!parsed || !isSafeZoneOverride(parsed)) {
       useStore.getState().pushNotice('Ungültige Safe-Zone: vier ganze Zahlen ≥ 0 erforderlich.')
       return
     }
@@ -149,7 +125,7 @@ export function SafeZoneSection({ frame }: { frame: Frame }) {
           : 'Kein Format – keine Safe-Zone'}
       </p>
       <p role="status" className="text-[12px] text-ink-soft">
-        {insets ? statusText(measureStatus, warnings) : 'Messung nicht verfügbar'}
+        {insets ? statusText(measureStatus, warnings, showSafeZones) : 'Messung nicht verfügbar'}
       </p>
       {canManageLocks && insets ? (
         <div className="space-y-1.5">

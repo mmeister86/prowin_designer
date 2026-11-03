@@ -177,3 +177,83 @@ it('reset sends an explicit null reset', async () => {
   })
   expect(updateFrame).toHaveBeenCalledWith('zoned', { safeZoneOverride: null })
 })
+
+it('creator fields start from the effective preset insets, not blank', async () => {
+  await renderSection()
+  // ig-post defaults to 50 px on every side: the draft shows them on first mount.
+  const top = container.querySelector<HTMLInputElement>('input[aria-label="Abstand oben"]')!
+  expect(top.value).toBe('50')
+  const left = container.querySelector<HTMLInputElement>('input[aria-label="Abstand links"]')!
+  expect(left.value).toBe('50')
+})
+
+it('creator draft follows effective preset changes', async () => {
+  await renderSection()
+  expect(container.querySelector<HTMLInputElement>('input[aria-label="Abstand oben"]')!.value).toBe('50')
+  const story: Frame = { ...framed, preset: 'ig-story' }
+  useStore.getState().setCanvas({ id: 'c', name: 'Canvas', frames: [{ ...story }] } as Canvas)
+  await renderSection(story)
+  // ig-story defaults to top 200: the draft tracks the new effective insets.
+  expect(container.querySelector<HTMLInputElement>('input[aria-label="Abstand oben"]')!.value).toBe('200')
+})
+
+it('untouched empty fields never save zeroes', async () => {
+  const withOverride: Frame = { ...framed, safeZoneOverride: { top: 10, right: 10, bottom: 10, left: 10 } }
+  useStore.getState().setCanvas({ id: 'c', name: 'Canvas', frames: [{ ...withOverride }] } as Canvas)
+  await renderSection(withOverride)
+  await act(async () => {
+    // Clear one field without typing a replacement: save must refuse, not zero the margins.
+    const top = container.querySelector<HTMLInputElement>('input[aria-label="Abstand oben"]')!
+    top.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(top, '')
+    top.dispatchEvent(new Event('input', { bubbles: true }))
+    top.blur()
+    await flush()
+  })
+  await act(async () => {
+    const buttons = [...container.querySelectorAll('button')]
+    buttons.find((b) => b.textContent === 'Speichern')!.click()
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).not.toHaveBeenCalled()
+  expect(useStore.getState().notice?.text).toMatch(/Ungültige Safe-Zone/)
+})
+
+it('fractional input is rejected without rounding', async () => {
+  await renderSection()
+  await act(async () => {
+    const top = container.querySelector<HTMLInputElement>('input[aria-label="Abstand oben"]')!
+    top.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(top, '10.5')
+    top.dispatchEvent(new Event('input', { bubbles: true }))
+    top.blur()
+    await flush()
+  })
+  await act(async () => {
+    const buttons = [...container.querySelectorAll('button')]
+    buttons.find((b) => b.textContent === 'Speichern')!.click()
+    await flush()
+    await flush()
+  })
+  expect(updateFrame).not.toHaveBeenCalled()
+  expect(useStore.getState().notice?.text).toMatch(/Ungültige Safe-Zone/)
+})
+
+it('toggle off reports hidden warnings instead of warning counts', async () => {
+  const { requestSafeZones } = await import('../src/lib/frameBridge')
+  vi.mocked(requestSafeZones).mockResolvedValueOnce({
+    status: 'ok',
+    boxes: [{ x: 0, y: 0, width: 200, height: 200 }],
+    viewport: { width: 1080, height: 1080 },
+    generation: 1,
+  })
+  await renderSection()
+  await act(async () => {
+    await flush()
+  })
+  await act(async () => {
+    container.querySelector<HTMLInputElement>('input[aria-label="Safe-Zone-Warnungen anzeigen"]')!.click()
+  })
+  expect(container.querySelector('[role="status"]')!.textContent).toMatch(/ausgeblendet/i)
+})

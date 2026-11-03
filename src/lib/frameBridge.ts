@@ -114,7 +114,7 @@ interface PendingAsk {
 const REPLY_TIMEOUT_MS = 2000
 
 const windows = new Map<string, Window>()
-const changeListeners = new Map<string, Set<() => void>>()
+const changeListeners = new Map<string, Set<(generation?: number) => void>>()
 const pending = new Map<number, PendingAsk>()
 let nextReq = 0
 let listening = false
@@ -123,10 +123,12 @@ function listen() {
   if (listening) return
   listening = true
   window.addEventListener('message', (ev: MessageEvent) => {
-    const data = ev.data as { type?: string; reqId?: number } | null
+    const data = ev.data as { type?: string; reqId?: number; generation?: number } | null
     if (data?.type === 'doop:frame-updated') {
+      const generation =
+        typeof data.generation === 'number' && Number.isFinite(data.generation) ? data.generation : undefined
       for (const [frameId, win] of windows) {
-        if (ev.source === win) changeListeners.get(frameId)?.forEach((cb) => cb())
+        if (ev.source === win) changeListeners.get(frameId)?.forEach((cb) => cb(generation))
       }
       return
     }
@@ -150,8 +152,9 @@ export function unregisterFrameWindow(frameId: string, win: Window) {
 }
 
 /** Re-read after the runtime registers, renders HTML, or loads font faces.
- *  Store updates can precede the frame's throttled render. */
-export function onFrameChange(frameId: string, cb: () => void): () => void {
+ *  Store updates can precede the frame's throttled render. The callback
+ *  receives the runtime's rendered-document generation when known. */
+export function onFrameChange(frameId: string, cb: (generation?: number) => void): () => void {
   listen()
   const set = changeListeners.get(frameId) ?? new Set()
   set.add(cb)

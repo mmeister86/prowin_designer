@@ -146,6 +146,91 @@ it('cancelled duplicate drag with a resolved copy removes the copy and records n
   expect(updateFrame).not.toHaveBeenCalled()
 })
 
+it('a cancelled resolved duplicate leaves no undo/redo trace of the copy', async () => {
+  const el = await surface()
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        altKey: true,
+        shiftKey: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 1, clientX: 40, clientY: 0, altKey: true, shiftKey: true }),
+    )
+    await flush()
+    await flush()
+  })
+  expect(createFrame).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+  expect(deleteFrame).toHaveBeenCalledTimes(1)
+  // Undo must not delete again and redo must not recreate the cancelled copy.
+  await act(async () => {
+    await history.undo()
+    await flush()
+  })
+  expect(deleteFrame).toHaveBeenCalledTimes(1)
+  expect(createFrame).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    await history.redo()
+    await flush()
+    await flush()
+  })
+  expect(createFrame).toHaveBeenCalledTimes(1)
+  expect(deleteFrame).toHaveBeenCalledTimes(1)
+})
+
+it('a committed duplicate drag records its create exactly once on pointer-up', async () => {
+  updateFrame.mockResolvedValue({ ...base, x: 40 })
+  createFrame.mockResolvedValue({ ...base, id: 'copy', x: 0, y: 0 })
+  const el = await surface()
+  await act(async () => {
+    el.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerId: 1,
+        clientX: 0,
+        clientY: 0,
+        altKey: true,
+        shiftKey: true,
+      }),
+    )
+    window.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 1, clientX: 40, clientY: 0, altKey: true, shiftKey: true }),
+    )
+    await flush()
+    await flush()
+  })
+  expect(createFrame).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1 }))
+    await flush()
+    await flush()
+  })
+  // Committed: first undo reverts the move, second undo removes the copy exactly once.
+  await act(async () => {
+    await history.undo()
+    await flush()
+  })
+  await act(async () => {
+    await history.undo()
+    await flush()
+  })
+  expect(deleteFrame).toHaveBeenCalledTimes(1)
+  expect(deleteFrame).toHaveBeenCalledWith('copy')
+  expect(createFrame).toHaveBeenCalledTimes(1)
+})
+
 it('cancelled duplicate drag with a pending copy deletes it on resolve and records no history', async () => {
   const gate = deferred<Frame>()
   createFrame.mockImplementationOnce(() => gate.promise)

@@ -9,14 +9,8 @@ import { FrameLabelLayer } from './FrameLabelLayer'
 import { PathEditor } from './PathEditor'
 import { loadPathEdit, type PathEditSource } from '../lib/pathEditing'
 import { currentPageCanvas } from '../lib/pages'
-import {
-  registerFrameWindow,
-  unregisterFrameWindow,
-  inspectElement,
-  onFrameChange,
-  requestSafeZones,
-} from '../lib/frameBridge'
-import { validateSafeZoneReply, type SafeZoneBox } from '../lib/safeZoneMeasure'
+import { registerFrameWindow, unregisterFrameWindow, inspectElement } from '../lib/frameBridge'
+import { useSafeZoneMeasure } from '../lib/useSafeZoneMeasure'
 import { effectiveSafeZone } from '../../shared/prowin/safeZones.ts'
 import { SafeZoneOverlay } from '../prowin/SafeZoneOverlay'
 import { dropTemplateBlockedSelection } from '../lib/layerEdits'
@@ -368,9 +362,14 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
     let dupDropped = false
     /* a cancelled duplicate must leave no copy behind: resolved ids are
        deleted on cancel, pending creates delete on resolve instead of
-       recording history. A failed cleanup keeps its data and reports. */
+       recording history. History is recorded only when the gesture commits
+       (pointer-up): a resolved-then-cancelled copy never reaches the undo
+       stack, so undo/redo cannot act on or recreate it. A failed cleanup
+       keeps its data and reports. */
     let dupCancelled = false
+    let dupCommitted = false
     const dupCopyIds: string[] = []
+    const dupPendingHistory: { frame: Frame; srcId: string }[] = []
     function cleanupDupCopy(id: string) {
       api.deleteFrame(id).catch((err) => {
         console.error(err)
@@ -409,8 +408,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
                 if (f?.id) cleanupDupCopy(f.id)
                 return
               }
-              if (f?.id) dupCopyIds.push(f.id)
-              recordCreate(f, src.id)
+              if (!f?.id) return
+              dupCopyIds.push(f.id)
+              /* the gesture has not committed yet: hold the copy for
+                 pointer-up instead of recording history for a drag that may
+                 still cancel */
+              if (dupCommitted) recordCreate(f, src.id)
+              else dupPendingHistory.push({ frame: f, srcId: src.id })
             })
             .catch(console.error)
         }
@@ -461,6 +465,11 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       useStore.getState().setSnapGuides([])
       activeGestureCancel.current = null
       finished = true
+      /* the gesture commits: resolved duplicates join history now, and copies
+         that resolve afterwards record on arrival (dupCommitted) */
+      dupCommitted = true
+      for (const c of dupPendingHistory) recordCreate(c.frame, c.srcId)
+      dupPendingHistory.length = 0
       const live = useStore.getState().canvas?.frames ?? []
       const updates: { frameId: string; before: typeof orig; after: typeof orig }[] = []
       /* the slot was reserved at pointer-down: finalize inside it (never
@@ -529,6 +538,9 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
       dupCancelled = true
       for (const id of dupCopyIds) cleanupDupCopy(id)
       dupCopyIds.length = 0
+      /* never committed: resolved copies are deleted above, pending ones
+         delete on resolve, and nothing reaches history */
+      dupPendingHistory.length = 0
       useStore.getState().setSnapGuides([])
       activeGestureCancel.current = null
       finished = true
@@ -600,52 +612,13 @@ export const FrameView = memo(function FrameView({ frame, layoutZoom }: { frame:
 
   const showSafeZones = useStore((s) => s.showSafeZones)
   const safeInsets = useMemo(() => effectiveSafeZone(frame), [frame])
-  const [safeBoxes, setSafeBoxes] = useState<SafeZoneBox[]>([])
-  const safeSeq = useRef(0)
-  const safeTimer = useRef<number | null>(null)
-
-  /* Advisory geometry for the parent-only overlay: latest request wins,
-     invalid replies degrade to empty rather than trusted success, and no
-     request fires while the document is hidden. Refresh follows renders,
-     live edits, resizes and resource/layout changes via onFrameChange. */
-  useEffect(() => {
-    if (!runtimeReady || !safeInsets || frame.hidden) {
-      setSafeBoxes([])
-      return
-    }
-    if (typeof document !== 'undefined' && document.hidden) {
-      setSafeBoxes([])
-      return
-    }
-    let live = true
-    const fetchSafe = () => {
-      safeSeq.current += 1
-      const my = safeSeq.current
-      void requestSafeZones(frame.id).then((reply) => {
-        if (!live || my !== safeSeq.current) return
-        setSafeBoxes(validateSafeZoneReply(reply).boxes)
-      })
-    }
-    fetchSafe()
-    const schedule = () => {
-      if (safeTimer.current) return
-      safeTimer.current = window.setTimeout(() => {
-        safeTimer.current = null
-        fetchSafe()
-      }, 150)
-    }
-    const off = onFrameChange(frame.id, schedule)
-    window.addEventListener('resize', schedule)
-    return () => {
-      live = false
-      off()
-      window.removeEventListener('resize', schedule)
-      if (safeTimer.current) {
-        window.clearTimeout(safeTimer.current)
-        safeTimer.current = null
-      }
-    }
-  }, [runtimeReady, frame.id, frame.html, frame.width, frame.height, frame.hidden, safeInsets])
+  /* Advisory geometry for the parent-only overlay: the shared hook owns
+     freshness (rendered-document generation), hidden suspension and
+     coalesced refresh after renders, live edits, resizes and
+     resource/layout changes. */
+  const { boxes: safeBoxes } = useSafeZoneMeasure(frame, {
+    enabled: runtimeReady && !!safeInsets && !frame.hidden,
+  })
 
   /* ---- element comments ---- */
   const frameComments = useStore((s) => s.comments).filter((c) => c.frameId === frame.id)
