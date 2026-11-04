@@ -47,9 +47,12 @@ Instanz-Adminrechte. Der Owner kann Mitglieder entfernen oder ihre Rolle ändern
 - Instanz-Admins erhalten durch dieses Modell keinen pauschalen Zugriff auf
   private fremde Canvases. Privilegierte Aktionen benötigen vorhandenen Zugriff;
   „View as“ bleibt schreibgeschützt.
-- Viewer bezeichnet nicht angemeldete Galerie-Besucherinnen. Die Galerie erlaubt
-  Vorschauen; zum Kopieren braucht es Anmeldung. Ein Ansichts-Link für private
-  Canvases und eine zusätzliche Viewer-Mitgliedschaft sind nicht enthalten.
+- Galerie-Ansehen und Kopieren setzen eine Anmeldung voraus (`community.ts`,
+  `index.ts` Session-Gate); Veröffentlichen gewährt keinen Bearbeitungszugriff
+  auf das Original. Ein aktivierter Bearbeitungslink bedeutet Mitbearbeiten,
+  keine Vorlagenrechte. Export/„Als Datei teilen“ liefert eine Momentaufnahme
+  ohne Zugriff auf die Arbeitsfläche. Ein privater Ansichts-Link und eine
+  zusätzliche Viewer-Mitgliedschaft sind bewusst nicht enthalten (Q11, TASK-36).
 
 ## Serverseitige Prüfung
 

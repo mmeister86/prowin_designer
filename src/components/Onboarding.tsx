@@ -98,6 +98,11 @@ export function Onboarding({ canvasId }: { canvasId: string }) {
     <>
       {showChecklist && (
         <>
+          <p className={obHint}>
+            Teilen: Ein aktivierter Bearbeitungslink erlaubt angemeldeten Personen die Mitbearbeitung. Zum reinen Zeigen
+            exportiere Dein Design als Datei.
+          </p>
+
           <Step done={!!progress.connected} label="Verbinde Deinen eigenen Agenten">
             {!progress.connected && (
               <>
