@@ -11,8 +11,9 @@ struct NativeCanvasView: View {
     /// The scope key the person dismissed with the chip's ×; a new selection brings the chip back.
     @State private var dismissedScope: String?
     @State private var exportURL: URL?
+    @State private var imageFrame: DesignFrame?
     private let summary: CanvasSummary
-    private enum Panel: String, Identifiable { case frames, inspector, tasks, comments, export; var id: String { rawValue } }
+    private enum Panel: String, Identifiable { case frames, inspector, tasks, comments, export, imageExport; var id: String { rawValue } }
 
     init(summary: CanvasSummary, client: DoopClient) {
         self.summary = summary
@@ -91,7 +92,10 @@ struct NativeCanvasView: View {
                     Button { sheet = .tasks } label: { Label("Agentenaufgaben", systemImage: "sparkles") }
                     Button { sheet = .comments } label: { Label("Kommentare", systemImage: "bubble.left.and.bubble.right") }
                     ShareLink(item: model.client.server.origin.appendingPathComponent("c/\(model.id)")) { Label("Link zur Arbeitsfläche teilen", systemImage: "square.and.arrow.up") }
-                    if model.selected != nil { Button("HTML der ausgewählten Zeichenfläche exportieren") { exportFrame() } }
+                    if model.selected != nil {
+                        Button("Bild der ausgewählten Zeichenfläche teilen") { shareImage() }
+                        Button("HTML der ausgewählten Zeichenfläche exportieren") { exportFrame() }
+                    }
                 } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Aktionen der Arbeitsfläche")
             }
         }
@@ -109,6 +113,8 @@ struct NativeCanvasView: View {
                         if let exportURL { ShareLink("HTML speichern oder teilen", item: exportURL).buttonStyle(.borderedProminent) }
                     }.navigationTitle("Zeichenfläche exportieren").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { sheet = nil } } }
                 }
+            case .imageExport:
+                if let imageFrame { FrameImageExportView(frame: imageFrame, client: model.client) }
             }
         }
         .onAppear { if scenePhase == .active { model.start() } }
@@ -157,6 +163,11 @@ struct NativeCanvasView: View {
             }.navigationTitle("Zeichenflächen")
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { sheet = nil } } }
         }
+    }
+    private func shareImage() {
+        guard let frame = model.selected else { return }
+        imageFrame = frame
+        sheet = .imageExport
     }
     private func exportFrame() {
         guard let frame = model.selected else { return }

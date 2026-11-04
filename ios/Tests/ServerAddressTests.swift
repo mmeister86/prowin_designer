@@ -19,6 +19,7 @@ struct ServerAddressChecks {
         AppleSignInChecks.run()
         try CanvasSocketChecks.run()
         NativeMessagesChecks.run()
+        FrameImageExportChecks.run()
         print("All core checks passed.")
     }
     func testNormalizesOriginAndStartsAtAuthentication() {

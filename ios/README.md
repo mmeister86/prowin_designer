@@ -11,7 +11,9 @@ HTML/CSS engine (Stylo + Taffy + Parley), compiled into the app as a static libr
   Sign in with Apple (whichever the server advertises on `/api/login-providers`), canvas library, search,
   workspace filtering, canvas creation/rename/duplicate/delete, navigation,
   account/server settings, frame list and properties, HTML editing, frame and
-  element comments, agent tasks, sharing, and HTML export.
+  element comments, agent tasks, sharing (canvas link, HTML export, and native
+  PNG/JPG file sharing through an explicit ShareLink with a file representation),
+  and HTML export.
 - **Swift networking**: `DoopClient` talks to the existing REST API using session
   cookies. `CanvasModel` owns the canvas state and its authenticated WebSocket room,
   including reconnection, frame updates, agent tasks, comments and presence.
@@ -318,6 +320,22 @@ end local activities. Apple controls delivery timing and activity availability.
 APNs delivery was verified on a physical iPhone against doop.design on 2026-10-08.
 
 Server checks: `bunx vitest run tests/liveActivities.test.ts tests/liveActivityDelivery.test.ts`.
+
+## Native image sharing
+
+The canvas menu offers “Bild der ausgewählten Zeichenfläche teilen” for the
+selected frame. `FrameImageExportView` prepares the PNG/JPG once through
+`DoopClient.exportImage` (same session cookies, same-server check, 120-second
+request, expected MIME validation, atomic temp write) and shows an explicit
+`ShareLink` with a `FileRepresentation`, so targets receive the file bytes, not
+a URL. Cancellation is neutral and never reported as delivered; the prepared
+file stays in tmp while the system reads it. No photo-library access is
+requested proactively (`NSPhotoLibraryAddUsageDescription` only covers the
+optional Save Image action).
+
+Pending manual checklist (not yet executed): PNG/JPG share, Save to
+Files/Photos, cancel, offline error, slow render, retry, and unchanged HTML
+export plus canvas-link sharing.
 
 ## Working agents
 
