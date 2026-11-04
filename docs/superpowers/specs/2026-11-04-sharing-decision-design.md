@@ -30,6 +30,9 @@ den ShareModal-Hinweis allein für ausreichend. Kein neuer Onboarding-Schritt.
 - Copy-Button bei aktivem Link: „Bearbeitungslink kopieren“, sonst „Link kopieren“.
   Kopieren ändert keine Rechte. Inaktiver Link: Zugriff für Eigentümer,
   eingeladene Personen und gegebenenfalls Workspace-Mitglieder korrekt erklären.
+- Historische Arbeitsflächen ohne Eigentümer ausdrücklich als offen kennzeichnen:
+  `server/access.ts` erlaubt dort Zugriff unabhängig von `linkAccess`. Keine
+  Datenschutz-Zusage oder Rechteänderung für diesen Altbestand.
 - Dateiexport als Alternative zum reinen Zeigen nennen. Galerie nur im bereits
   berechtigten Veröffentlichungsbereich bewerben. Dort keine pauschale Zusage
   „bleibt privat“, da ein unabhängiger Bearbeitungslink aktiv sein kann.

@@ -27,6 +27,7 @@
 - Publishing while edit link is enabled: gallery copy must not claim overall privacy.
 - Copy success/failure: no implicit access mutation, retain clipboard error feedback.
 - Desktop/mobile onboarding before connection: hint visible without changing progress or AI notice.
+- Ownerless legacy canvases: warn that existing open access is independent of the link setting, never claim privacy.
 
 ---
 
@@ -51,6 +52,7 @@
 - [ ] **Step 1: Add focused failing tests.** In `tests/sharingDecision.test.tsx`, mock session/capabilities/workspaces and mobile hook with existing test conventions. Render actual components, no source-string tests. Assert:
   - Owner and non-owner with `linkAccess: 'edit'`: visible warning includes „kein reiner Ansichts-Link“, label says „Angemeldeten“, button „Bearbeitungslink kopieren“.
   - Owner with `none` and non-owner with omitted access: „Link kopieren“, no active-link warning; inactive status explains existing access, including workspace members when `workspaceId` is set.
+  - Legacy canvas without owner for omitted, `none` and `edit` link settings: visible legacy open-access warning, no restrictive owner/invitation claim, no owner management checkbox.
   - Clipboard success copies the unchanged URL and calls `onCopied`, without calling `setLinkAccess`/`onChange`; failure preserves error feedback and does not claim success.
   - Checkbox still requests `edit`/`none`; rejection does not report a changed access setting.
   - Publish capability false hides gallery promotion; true plus published canvas and active edit link describes public browsing/copying without promising overall privacy.
@@ -63,6 +65,7 @@
   - Active visible warning for both roles: „Angemeldete Personen mit diesem Link können Deine Arbeitsfläche mitbearbeiten. Dies ist kein reiner Ansichts-Link.“
   - Always-visible alternative: „Nur zeigen? Exportiere Dein Design als Datei oder nutze „Als Datei teilen“. Die Datei ist eine Momentaufnahme ohne Zugriff auf Deine Arbeitsfläche.“
   - Inactive link helper/status, separate from the owner's checkbox label: „Zugriff haben nur der Eigentümer, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.“ Include workspace qualification only when there is one. Fix the owner checkbox tooltip consistently. Keep existing access behavior.
+  - Ownerless legacy canvas status takes precedence in both link states: „Diese ältere Arbeitsfläche hat keinen Eigentümer und ist für alle zugänglich. Der Bearbeitungslink schränkt diesen Zugriff nicht ein.“ Existing `server/access.ts:28` stays unchanged.
   - Active copy label „Bearbeitungslink kopieren“; inactive „Link kopieren“.
   - Gallery description: „Alle angemeldeten Nutzerinnen können veröffentlichte Vorlagen ansehen und in ihr eigenes Konto kopieren. Die Veröffentlichung allein gewährt keinen Bearbeitungszugriff auf das Original.“ Update its tooltip consistently.
   - Onboarding, inside existing `showChecklist` fragment, before agent steps: „Teilen: Ein aktivierter Bearbeitungslink erlaubt angemeldeten Personen die Mitbearbeitung. Zum reinen Zeigen exportiere Dein Design als Datei.“ Use `obHint`; no progress changes.

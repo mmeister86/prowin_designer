@@ -72,9 +72,11 @@ export function ShareModal({
   }, [canvas.id])
 
   const workspace = canvas.workspaceId ? workspaces.find((w) => w.id === canvas.workspaceId) : undefined
-  const existingAccess = canvas.workspaceId
-    ? 'Zugriff haben nur der Eigentümer, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.'
-    : 'Zugriff haben nur der Eigentümer und eingeladene Personen.'
+  const existingAccess = !canvas.ownerId
+    ? 'Diese ältere Arbeitsfläche hat keinen Eigentümer und ist für alle zugänglich. Der Bearbeitungslink schränkt diesen Zugriff nicht ein.'
+    : canvas.workspaceId
+      ? 'Zugriff haben nur der Eigentümer, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.'
+      : 'Zugriff haben nur der Eigentümer und eingeladene Personen.'
 
   async function move(target: string) {
     if (busy) return
@@ -269,7 +271,7 @@ export function ShareModal({
             </label>
           ) : (
             <span className="text-label text-ink-faint">
-              {linkEdits ? 'Alle Angemeldeten mit dem Link können bearbeiten' : existingAccess}
+              {canvas.ownerId && linkEdits ? 'Alle Angemeldeten mit dem Link können bearbeiten' : existingAccess}
             </span>
           )}
           <Button className="justify-center gap-2" onClick={copy}>

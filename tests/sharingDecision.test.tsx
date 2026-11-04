@@ -122,6 +122,18 @@ it('does not promise workspace access when the canvas has none', async () => {
   })
 })
 
+it.each([undefined, 'none', 'edit'] as const)(
+  'warns that ownerless legacy canvases stay open regardless of link setting %s',
+  async (linkAccess) => {
+    await withPage(shareModal({ id: 'legacy', name: 'Alte Arbeitsfläche', linkAccess, workspaceId: 'w1' }), () => {
+      expect(dialogText()).toContain('Diese ältere Arbeitsfläche hat keinen Eigentümer und ist für alle zugänglich.')
+      expect(dialogText()).toContain('Der Bearbeitungslink schränkt diesen Zugriff nicht ein.')
+      expect(dialogText()).not.toContain('Zugriff haben nur')
+      expect(document.body.querySelector('input[type="checkbox"]')).toBeNull()
+    })
+  },
+)
+
 it('copies the unchanged link without changing access or reporting a copy failure', async () => {
   const onChange = vi.fn()
   const onCopied = vi.fn()
