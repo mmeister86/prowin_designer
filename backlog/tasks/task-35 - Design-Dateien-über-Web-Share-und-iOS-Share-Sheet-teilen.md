@@ -4,7 +4,7 @@ title: Design-Dateien über Web Share und iOS Share Sheet teilen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-04T09:56:00Z'
+updated_date: '2026-11-04T10:23:00Z'
 labels:
   - prowin
   - implementation
@@ -58,4 +58,9 @@ BLOCKIERENDER RESTBEFUND aus Terra final-review-2: Native DesignFrame dekodiert 
 Weiter offen: Swift DoopCoreChecks, Xcode-Simulatorbuild und reale Web/Desktop/iOS-Dateifreigabe inkl. Photos/Files/Abbruch; Linux ohne Apple-Toolchain. Bericht/Entscheidungen: docs/superpowers/reports/2026-11-04-file-sharing.md. Branch feat/task-35-file-sharing lokal erhalten, kein Push/Merge/PR. Task bleibt In Progress, nicht Done.
 
 Benutzer fordert neue Council-Lösung für nativen Restfehler. Scoped Council Runde1: Opus5.5 5/10, GPT-6.1Sol 5/10, MuseWonder4/10; alle empfehlen optionales updatedAt + vorhandene Inhaltsidentität statt Eventzähler. Server-Version ist bereits streng monoton (store.ts607). Sol ergänzt konkreten verspäteten REST-/Snapshot-Rückschritt: gemeinsame native Zuweisungsgrenze soll streng ältere bekannte Frame-Versionen verwerfen, gleiche/unbekannte Versionen und Löschungen weiterhin zulassen. Task3 ergänzt im bestehenden Plan; Muse implementiert, Terra prüft, danach scoped Council Runde2. Keine erneute Umsetzung abgeschlossener Teile; Apple-Abnahme/AC3 bleibt offen.
+
+Council-Fortsetzung erfolgreich auf Quellcode-Ebene: native updatedAt-/Edit-Revert-Lücke behoben. Muse-Commits7dcddd3/2352d1a; gemeinsamer Eingang schützt vor älteren bekannten Frame-Versionen, erlaubt gleiche Reveal-/unbekannte Legacy-Versionen, erhält Pending-Move-Overlay und Auswahlbereinigung. Controller korrigiert isolierte Test-Assertion in5e26ba0; Terra bestätigt alle Quellcode-Befunde adressiert.
+Scoped Council2Runden: ClaudeOpus5.5 5→8/10, GPT-6.1Sol5→9/10, MuseWonder4→8/10. Alle akzeptieren Quellcode-Lösung; keine offenen scoped Critical/Important. Native Freigabe wird ausdrücklich NICHT behauptet.
+Controllerfinal auf5e26ba0: 238Dateien/2145Tests bestanden(292,47s), Typecheck/Lint/Build bestanden. Bekannte Bundle-Warnung und doc-lintmtime-Heuristik offengelegt. Log /tmp/opencode/task35-final-5e26ba0-tests.log. Bericht docs/superpowers/reports/2026-11-04-file-sharing.md.
+Noch erforderlich: macOS Swift DoopCoreChecks, ios/ConnectionTests/run.sh, Xcode-Simulatorbuild, reale Browser/Desktop/iOS-ShareSheet-Abnahme. AC3 bleibt offen, Task bleibt InProgress bis explizite Benutzerbestätigung. Legacy ohne Revision und HTTP-vor-WS-Korrelation bleiben dokumentierte Protokollgrenzen. Nichtblockierender Duplicate-ID-Härtungswunsch separat TASK-81 ToDo. Kein Push/Merge/PR.
 <!-- SECTION:NOTES:END -->
