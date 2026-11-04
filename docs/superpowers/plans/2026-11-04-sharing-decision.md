@@ -49,7 +49,7 @@
 - Produce no new interfaces, only accurate visible copy, documentation and tests.
 - Read `tests/germanUiReview.test.tsx` for createRoot/act, API mocks, portal-aware dialog queries and cleanup patterns. Read `tests/prowinCreatorUi.test.tsx` if needed for capability mocks.
 
-- [ ] **Step 1: Add focused failing tests.** In `tests/sharingDecision.test.tsx`, mock session/capabilities/workspaces and mobile hook with existing test conventions. Render actual components, no source-string tests. Assert:
+- [x] **Step 1: Add focused failing tests.** In `tests/sharingDecision.test.tsx`, mock session/capabilities/workspaces and mobile hook with existing test conventions. Render actual components, no source-string tests. Assert:
   - Owner and non-owner with `linkAccess: 'edit'`: visible warning includes „kein reiner Ansichts-Link“, label says „Angemeldeten“, button „Bearbeitungslink kopieren“.
   - Owner with `none` and non-owner with omitted access: „Link kopieren“, no active-link warning; inactive status explains existing access, including workspace members when `workspaceId` is set.
   - Legacy canvas without owner for omitted, `none` and `edit` link settings: visible legacy open-access warning, no restrictive owner/invitation claim, no owner management checkbox.
@@ -58,9 +58,9 @@
   - Publish capability false hides gallery promotion; true plus published canvas and active edit link describes public browsing/copying without promising overall privacy.
   - Unconnected Onboarding on desktop and mobile contains the sharing hint; mobile remains `0/2` and has the two-step description. Existing dismissed+notice state remains hidden; dismissed without notice still shows AI notice, not checklist.
 
-- [ ] **Step 2: Run tests red.** `bun run test tests/sharingDecision.test.tsx`; record actual missing-copy failures, not environment/import errors.
+- [x] **Step 2: Run tests red.** `bun run test tests/sharingDecision.test.tsx`; record actual missing-copy failures, not environment/import errors.
 
-- [ ] **Step 3: Update the two components with minimal copy changes.** Use these texts verbatim, broken across JSX lines as appropriate:
+- [x] **Step 3: Update the two components with minimal copy changes.** Use these texts verbatim, broken across JSX lines as appropriate:
   - Owner checkbox in both states and active non-owner status: „Alle Angemeldeten mit dem Link können bearbeiten“.
   - Active visible warning for both roles: „Angemeldete Personen mit diesem Link können Deine Arbeitsfläche mitbearbeiten. Dies ist kein reiner Ansichts-Link.“
   - Always-visible alternative: „Nur zeigen? Exportiere Dein Design als Datei oder nutze „Als Datei teilen“. Die Datei ist eine Momentaufnahme ohne Zugriff auf Deine Arbeitsfläche.“
@@ -71,8 +71,8 @@
   - Onboarding, inside existing `showChecklist` fragment, before agent steps: „Teilen: Ein aktivierter Bearbeitungslink erlaubt angemeldeten Personen die Mitbearbeitung. Zum reinen Zeigen exportiere Dein Design als Datei.“ Use `obHint`; no progress changes.
   - Retain existing named text tokens or a plain paragraph matching neighboring copy; no new helper/component needed for these few static strings. Never advertise gallery outside the existing publish-capability block.
 
-- [ ] **Step 4: Update decision docs.** Q11 status „entschieden (04.11.2026, TASK-36)“; recommendation explicitly chooses existing export/file-sharing for private snapshots and gallery for published templates, no private read-only link. R5.2 references this deliberate decision. Roles paragraph must say gallery browsing/copying requires login (confirmed in community.ts and index.ts session gate), publication does not grant editing, export is a snapshot, existing enabled link means coediting not template privileges. Do not format unrelated tables/sections wholesale.
+- [x] **Step 4: Update decision docs.** Q11 status „entschieden (04.11.2026, TASK-36)“; recommendation explicitly chooses existing export/file-sharing for private snapshots and gallery for published templates, no private read-only link. R5.2 references this deliberate decision. Roles paragraph must say gallery browsing/copying requires login (confirmed in community.ts and index.ts session gate), publication does not grant editing, export is a snapshot, existing enabled link means coediting not template privileges. Do not format unrelated tables/sections wholesale.
 
-- [ ] **Step 5: Verify green and quality.** Run focused new tests plus `tests/germanUiReview.test.tsx`, `tests/access.test.ts`, `tests/community.test.ts`, `tests/frameExportModal.test.tsx`, `tests/nativeFrameShare.test.ts`. Run `bun run typecheck`, `bun run lint`, targeted `bunx prettier --check` on changed source/test/new plan/spec files, `bun run doc-lint`. Run full `bun run test` once, capture output to this plan's workspace and report existing failures honestly; do not fix unrelated failures. Baseline focused set: 51 tests passed, known stderr localStorage warning and connection refusal localhost:3000 from existing component test.
+- [x] **Step 5: Verify green and quality.** Run focused new tests plus `tests/germanUiReview.test.tsx`, `tests/access.test.ts`, `tests/community.test.ts`, `tests/frameExportModal.test.tsx`, `tests/nativeFrameShare.test.ts`. Run `bun run typecheck`, `bun run lint`, targeted `bunx prettier --check` on changed source/test/new plan/spec files, `bun run doc-lint`. Run full `bun run test` once, capture output to this plan's workspace and report existing failures honestly; do not fix unrelated failures. Baseline focused set: 51 tests passed, known stderr localStorage warning and connection refusal localhost:3000 from existing component test.
 
-- [ ] **Step 6: Self-review and commit.** Stage only the six implementation files above. `git commit -m "fix: Clarify coediting links for Q11"`. Write report with red/green commands/results, full-suite result, quality commands and limitations. Do not change Backlog status or commit controller-owned planning/backlog files; controller handles those. Do not push, create PR, merge, or spawn agents.
+- [x] **Step 6: Self-review and commit.** Stage only the six implementation files above. `git commit -m "fix: clarify coediting links for Q11"`. Write report with red/green commands/results, full-suite result, quality commands and limitations. Do not change Backlog status or commit controller-owned planning/backlog files; controller handles those. Do not push, create PR, merge, or spawn agents.
