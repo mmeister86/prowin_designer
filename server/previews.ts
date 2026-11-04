@@ -1,5 +1,6 @@
 import { env } from './env.ts'
 import type { Frame } from '../shared/types.ts'
+import { defaultExportScale } from '../shared/prowin/formats.ts'
 import * as thumbs from './thumbs.ts'
 
 /**
@@ -33,7 +34,10 @@ const RENDERS_PER_MIN = env.PREVIEW_RENDERS_PER_MIN
 
 export interface ImageRequest {
   ext: 'png' | 'jpg'
-  scale: 1 | 2
+  /** explicit density; omitted: downloads use the preset default, views 1 */
+  scale?: 1 | 2
+  /** download intent: resolves the preset default scale, never the persisted thumb */
+  download?: boolean
   quality: number
   /** dashboard-card variant: small, clipped, jpeg, persisted. Only
    *  meaningful for jpg — a png?preview would serve jpeg bytes under an
@@ -48,11 +52,22 @@ export type ImageResult = { status: 'ok'; buf: Buffer } | { status: 'rate-limite
 
 /** May reject when the render itself fails — the caller owns the 500. */
 export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageResult> {
-  const preview = req.preview && req.ext === 'jpg'
-  const key = imageKey(frame.id, req.ext, req.scale, req.ext === 'jpg' ? req.quality : '', preview)
-  const cached = imgCache.get(key)
-  let pending =
-    cached && cached.updatedAt === frame.updatedAt && Date.now() - cached.at < IMG_CACHE_MS ? cached.buf : null
+  /* explicit scale wins; otherwise downloads render at the preset default
+     (free frames 2x) and plain views at 1x */
+  const scale = req.scale ?? (req.download ? defaultExportScale(frame.preset) : 1)
+  /* a download is the full-size render, never the persisted card thumb */
+  const preview = req.preview && req.ext === 'jpg' && !req.download
+  /* Strict settled-font exports are preset downloads only (explicit scale
+     included); free-frame downloads keep the lenient bounded fallback. The
+     strict intent joins the cache key so primed/lenient bytes at the same
+     scale can never satisfy a strict download. */
+  const strict = req.download === true && frame.preset !== undefined
+  const key = imageKey(frame.id, req.ext, scale, req.ext === 'jpg' ? req.quality : '', preview, strict)
+  const fresh = (): Promise<Buffer> | null => {
+    const cached = imgCache.get(key)
+    return cached && cached.updatedAt === frame.updatedAt && Date.now() - cached.at < IMG_CACHE_MS ? cached.buf : null
+  }
+  let pending = fresh()
 
   /* previews first try the persisted thumbnail: survives redeploys, serves
      instantly even when stale (thumbs revalidates in the background), and
@@ -62,34 +77,65 @@ export async function getImage(frame: Frame, req: ImageRequest): Promise<ImageRe
     if (stored) {
       pending = Promise.resolve(stored)
       remember(key, pending, frame.updatedAt)
+    } else {
+      /* a render may have started while storage was awaited — share it */
+      pending = fresh()
     }
   }
 
   if (!pending) {
-    if (!(await consumeRenderBudget(req.ip, req.isAuthenticated))) return { status: 'rate-limited' }
-    pending = preview
-      ? /* renders AND persists — the next cold start serves from storage */
-        thumbs.create(frame)
-      : loadScreenshot().then(({ renderFrame }) =>
-          renderFrame(frame, req.scale, { type: req.ext === 'jpg' ? 'jpeg' : 'png', quality: req.quality }),
-        )
-    remember(key, pending, frame.updatedAt)
+    /* The charge must not yield: concurrent duplicates that miss the cache in
+       the same tick share one budget slot and one render instead of each
+       consuming a slot. Only an exhausted budget resolves authentication
+       (async). A denial that arrives late still re-checks: another caller may
+       have started the same render while auth resolved, and an authorized
+       in-flight render is a cached serve under existing policy — deny only
+       when nothing is in flight. An exhausted anonymous caller never creates
+       its own uncached render. */
+    if (chargeRenderBudget(req.ip) || (await req.isAuthenticated())) {
+      pending = fresh()
+    } else {
+      pending = fresh()
+      if (!pending) return { status: 'rate-limited' }
+    }
+    if (!pending) {
+      pending = preview
+        ? /* renders AND persists — the next cold start serves from storage */
+          thumbs.create(frame)
+        : loadScreenshot().then(({ renderFrame }) =>
+            renderFrame(frame, scale, {
+              type: req.ext === 'jpg' ? 'jpeg' : 'png',
+              quality: req.quality,
+              ...(strict ? { requireSettledFonts: true as const } : {}),
+            }),
+          )
+      remember(key, pending, frame.updatedAt)
+    }
   }
 
   return { status: 'ok', buf: await pending }
 }
 
-function imageKey(id: string, ext: 'png' | 'jpg', scale: 1 | 2, quality: number | '', preview: boolean): string {
-  return `${id}:${ext}:${scale}:${quality}:${preview ? 'p' : ''}`
+function imageKey(
+  id: string,
+  ext: 'png' | 'jpg',
+  scale: number,
+  quality: number | '',
+  preview: boolean,
+  strict: boolean,
+): string {
+  return `${id}:${ext}:${scale}:${quality}:${preview ? 'p' : ''}${strict ? 's' : ''}`
 }
 
 /** Seeds the cache with a render another path already paid for. The MCP
  *  screenshot tool renders through `renderFrame` directly, and the ChatGPT
  *  preview card loads `/i/<id>.png` right after it from a cookie-less sandbox
  *  iframe — anonymous, so metered. Priming turns that load into a free
- *  cached serve instead of a second render against the per-IP budget. */
+ *  cached serve instead of a second render against the per-IP budget.
+ *  Lenient 1x/2x captures only — never fractional export scales, and never
+ *  strict: a primed render proves nothing about settled fonts. */
 export function primeImage(frame: Frame, scale: 1 | 2, png: Buffer): void {
-  remember(imageKey(frame.id, 'png', scale, '', false), Promise.resolve(png), frame.updatedAt)
+  remember(imageKey(frame.id, 'png', scale, '', false, false), Promise.resolve(png), frame.updatedAt)
 }
 
 function remember(key: string, pending: Promise<Buffer>, updatedAt: number) {
@@ -105,10 +151,14 @@ function remember(key: string, pending: Promise<Buffer>, updatedAt: number) {
   }
 }
 
-async function consumeRenderBudget(ip: string, isAuthenticated: () => Promise<boolean>): Promise<boolean> {
+/* Synchronous: charging must not yield, so concurrent duplicates that miss the
+   cache in the same tick share one budget slot and one render instead of each
+   consuming a slot. Returns whether a slot was consumed; when the per-minute
+   budget for this IP is exhausted the caller resolves authentication. */
+function chargeRenderBudget(ip: string): boolean {
   const now = Date.now()
   const hits = (renderHits.get(ip) ?? []).filter((t) => now - t < 60_000)
-  if (hits.length >= RENDERS_PER_MIN) return isAuthenticated()
+  if (hits.length >= RENDERS_PER_MIN) return false
   hits.push(now)
   renderHits.set(ip, hits)
   return true

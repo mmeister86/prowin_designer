@@ -279,7 +279,9 @@ app.get('/i/:id.:ext', async (req, res) => {
   try {
     result = await getImage(frame, {
       ext,
-      scale: req.query.scale === '2' ? 2 : 1,
+      /* only literal densities; anything else falls back to the policy default */
+      scale: req.query.scale === '2' ? 2 : req.query.scale === '1' ? 1 : undefined,
+      download: req.query.download !== undefined,
       quality: Math.min(100, Math.max(1, Number(req.query.quality) || 90)),
       /* ?preview — the dashboard-card variant; see previews.ts */
       preview: req.query.preview !== undefined,
@@ -291,7 +293,16 @@ app.get('/i/:id.:ext', async (req, res) => {
       isAuthenticated: async () =>
         !!(await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null)),
     })
-  } catch {
+  } catch (e) {
+    /* Strict preset downloads reject with UnsettledFontsError when a used
+       font fails or never settles. Matched by name so this route never
+       imports the screenshot module eagerly (Puppeteer stays lazy); the
+       message is fixed — never engine text or URLs. */
+    if ((e as Error)?.name === 'UnsettledFontsError') {
+      return res
+        .status(500)
+        .json({ error: 'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.' })
+    }
     return res.status(500).json({ error: 'Die Vorschau konnte nicht erstellt werden.' })
   }
   if (result.status === 'rate-limited') {

@@ -88,18 +88,18 @@ Fabric.js speicherte die Editierbarkeit als Objekt-Metadaten (`EditableFieldMeta
 
 Vollständige Liste aus Architektur § 11. Die Umsetzung startet mit den fett markierten Formaten.
 
-| Preset              | Maße (px)                                                 | Kategorie    |
-| ------------------- | --------------------------------------------------------- | ------------ |
-| **Instagram Post**  | 1080 × 1080                                               | Social Media |
-| **Instagram Story** | 1080 × 1920                                               | Social Media |
-| **Facebook Post**   | 1200 × 630                                                | Social Media |
-| Facebook-Titelbild  | 820 × 312                                                 | Social Media |
-| **WhatsApp Status** | 1080 × 1920                                               | Messaging    |
-| LinkedIn-Post       | 1200 × 627                                                | Social Media |
-| **A4 Hochformat**   | 2480 × 3508 @300 dpi (im Fork: 794 × 1123 CSS-px × 3,125) | Print        |
-| A4 Querformat       | 3508 × 2480 @300 dpi                                      | Print        |
-| A5-Flyer            | 1748 × 2480 @300 dpi                                      | Print        |
-| Visitenkarte        | 1050 × 600 @300 dpi                                       | Print        |
+| Preset              | Maße (px)                                                                                                | Kategorie    |
+| ------------------- | -------------------------------------------------------------------------------------------------------- | ------------ |
+| **Instagram Post**  | 1080 × 1080                                                                                              | Social Media |
+| **Instagram Story** | 1080 × 1920                                                                                              | Social Media |
+| **Facebook Post**   | 1200 × 630                                                                                               | Social Media |
+| Facebook-Titelbild  | 820 × 312                                                                                                | Social Media |
+| **WhatsApp Status** | 1080 × 1920                                                                                              | Messaging    |
+| LinkedIn-Post       | 1200 × 627                                                                                               | Social Media |
+| **A4 Hochformat**   | 2480 × 3508 @300 dpi (im Fork: 794 × 1123 CSS-px × 3,125 → 2481 × 3509 Export-px durch Chromium-Rundung) | Print        |
+| A4 Querformat       | 3508 × 2480 @300 dpi                                                                                     | Print        |
+| A5-Flyer            | 1748 × 2480 @300 dpi                                                                                     | Print        |
+| Visitenkarte        | 1050 × 600 @300 dpi                                                                                      | Print        |
 
 Instagram Portrait (1080 × 1350) fehlt in der Architektur und sollte ergänzt werden.
 
@@ -144,13 +144,13 @@ function cleanAlpha(a: number): number {
 
 **Rybbit (ursprüngliche Events):**
 
-| Event                | Auslöser               |
-| -------------------- | ---------------------- |
-| `template_published` | Vorlage veröffentlicht |
-| `template_forked`    | Vorlage verwendet      |
-| `design_exported`    | Export                 |
-| `upgrade_clicked`    | Paywall/Upgrade        |
-| `ai_feature_used`    | KI-Funktion genutzt    |
+| Event                | Auslöser                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| `template_published` | Vorlage veröffentlicht                                                                |
+| `template_forked`    | Vorlage verwendet                                                                     |
+| `design_exported`    | Export (rendert gespeicherte Geometrie × Preset-Standardskala, ohne Dichte-Metadaten) |
+| `upgrade_clicked`    | Paywall/Upgrade                                                                       |
+| `ai_feature_used`    | KI-Funktion genutzt                                                                   |
 
 - SPA-Navigation-Tracking in Rybbit aktivieren.
 - **Sobald CSP gesetzt ist:** Rybbit-Host in `script-src` und `connect-src` aufnehmen.

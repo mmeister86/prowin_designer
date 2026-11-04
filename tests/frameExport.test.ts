@@ -43,7 +43,7 @@ it('shows a busy toast while rendering, then saves through a download link named
   )
 
   const done = downloadFrameExport(frame, 'jpg')
-  expect(fetch).toHaveBeenCalledWith('/i/export-frame.jpg?scale=2&download', expect.anything())
+  expect(fetch).toHaveBeenCalledWith('/i/export-frame.jpg?download', expect.anything())
   expect(useStore.getState().notice).toMatchObject({ text: 'JPG wird exportiert…', busy: true })
 
   respond(new Response('jpg-bytes', { headers: { 'Content-Disposition': 'attachment; filename="Poster.jpg"' } }))
@@ -67,7 +67,7 @@ it('reports the server error instead of saving a failed render', async () => {
   expect(useStore.getState().notice?.text).toBe('JPG export rate limit — wait a minute')
 })
 
-it('requests PNG and JPG at 2x', async () => {
+it('requests PNG and JPG as downloads without a forced scale', async () => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async () => new Response('img')),
@@ -75,8 +75,8 @@ it('requests PNG and JPG at 2x', async () => {
   await downloadFrameExport(frame, 'png')
   await downloadFrameExport(frame, 'jpg')
   expect(vi.mocked(fetch).mock.calls.map(([url]) => url)).toEqual([
-    '/i/export-frame.png?scale=2&download',
-    '/i/export-frame.jpg?scale=2&download',
+    '/i/export-frame.png?download',
+    '/i/export-frame.jpg?download',
   ])
   expect(clicked.map((a) => a.download)).toEqual(['Poster.png', 'Poster.jpg'])
 })
@@ -140,7 +140,7 @@ it('copies the PNG, handing the clipboard the pending render so the click still 
   const { written, write } = stubClipboard()
 
   const done = copyFramePng(frame)
-  expect(fetch).toHaveBeenCalledWith('/i/export-frame.png?scale=2&download', expect.anything())
+  expect(fetch).toHaveBeenCalledWith('/i/export-frame.png?download', expect.anything())
   expect(write).toHaveBeenCalledTimes(1)
   expect(useStore.getState().notice).toMatchObject({ text: 'PNG wird kopiert…', busy: true })
 
@@ -169,6 +169,46 @@ it('reports the server error when the PNG to copy fails to render', async () => 
   expect(written).toHaveLength(0)
   expect(useStore.getState().notice?.text).toBe(
     'Zu viele Vorschauanfragen. Bereits zwischengespeicherte URLs bleiben verfügbar.',
+  )
+})
+
+it('surfaces the controlled font error with no download and no busy leak', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json(
+        { error: 'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.' },
+        { status: 500 },
+      ),
+    ),
+  )
+
+  await downloadFrameExport(frame, 'png')
+
+  expect(clicked).toHaveLength(0)
+  expect(useStore.getState().notice).toMatchObject({
+    text: 'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.',
+    busy: false,
+  })
+})
+
+it('reports the controlled font error when the PNG to copy fails on unsettled fonts', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json(
+        { error: 'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.' },
+        { status: 500 },
+      ),
+    ),
+  )
+  const { written } = stubClipboard()
+
+  await copyFramePng(frame)
+
+  expect(written).toHaveLength(0)
+  expect(useStore.getState().notice?.text).toBe(
+    'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.',
   )
 })
 

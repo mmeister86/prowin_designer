@@ -210,7 +210,7 @@ export function Inspector({
             <Button
               variant="bare"
               className={fillBtn}
-              title="Als PNG herunterladen (2×)"
+              title="Als PNG herunterladen"
               onClick={() => void downloadFrameExport(frame, 'png')}
             >
               PNG
@@ -218,7 +218,7 @@ export function Inspector({
             <Button
               variant="bare"
               className={fillBtn}
-              title="Als JPG herunterladen (2×)"
+              title="Als JPG herunterladen"
               onClick={() => void downloadFrameExport(frame, 'jpg')}
             >
               JPG
@@ -226,7 +226,7 @@ export function Inspector({
             <Button
               variant="bare"
               className={cn(fillBtn, 'col-span-2')}
-              title="Bild kopieren (2×), um es überall einzufügen"
+              title="Bild kopieren, um es überall einzufügen"
               onClick={() => void copyFramePng(frame)}
             >
               Als PNG kopieren

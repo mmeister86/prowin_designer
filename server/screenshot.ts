@@ -69,6 +69,17 @@ export interface IsolatedPage {
   close: () => Promise<void>
 }
 
+/** Thrown when a preset download render cannot prove every used font settled.
+ *  Carries a constant message (never URLs or engine text) — HTTP maps it to a
+ *  controlled German error. Lives here so the HTTP layer stays lazy: the route
+ *  matches on `name` without importing Puppeteer at startup. */
+export class UnsettledFontsError extends Error {
+  constructor() {
+    super('Fonts did not settle')
+    this.name = 'UnsettledFontsError'
+  }
+}
+
 /** External pages never share cookies, cache or service workers across users
  *  or imports. Closing the wrapper tears down the entire browser context. */
 export async function openIsolatedPage(): Promise<IsolatedPage> {
@@ -91,7 +102,10 @@ export async function openIsolatedPage(): Promise<IsolatedPage> {
   }
 }
 
-async function loadFramePage(frame: Frame): Promise<IsolatedPage> {
+async function loadFramePage(
+  frame: Frame,
+  opts: { viewport?: { width: number; height: number; deviceScaleFactor: number }; settleFonts?: boolean } = {},
+): Promise<IsolatedPage> {
   const loaded = await openIsolatedPage()
   const { page } = loaded
   try {
@@ -100,13 +114,17 @@ async function loadFramePage(frame: Frame): Promise<IsolatedPage> {
       allowUrl: (url) =>
         url.origin === assetOrigin && (url.pathname.startsWith('/a/') || url.pathname.startsWith('/fonts/')),
     })
-    await page.setViewport({
+    /* Strict downloads pass the final export viewport (full height, final
+       density) so fonts the export needs are requested before readiness is
+       judged; every other capture keeps the capped inspection viewport. */
+    const viewport = opts.viewport ?? {
       width: Math.max(1, Math.round(frame.width)),
       /* A viewport does not need to span an entire imported landing page for
          layout/computed-style inspection; full-page content remains in the DOM. */
       height: Math.max(1, Math.min(Math.round(frame.height), 4000)),
       deviceScaleFactor: 1,
-    })
+    }
+    await page.setViewport(viewport)
     try {
       await page.setContent(frame.html || '<!doctype html><html><body></body></html>', {
         waitUntil: 'load',
@@ -116,12 +134,15 @@ async function loadFramePage(frame: Frame): Promise<IsolatedPage> {
       /* Slow external resources: inspect whatever has rendered. */
     }
     /* Font loads do not consistently block the document load event. Keep the
-       existing slow-resource boundary while giving every capture the same
-       settled-font contract. */
-    await page
-      .evaluate('Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 8000))])')
-      .catch(() => {})
-    await new Promise((resolve) => setTimeout(resolve, 120))
+       existing slow-resource boundary while giving every lenient capture the
+       same settled-font contract. Strict downloads skip this: they run their
+       own single 8s font bound after load (never two successive waits). */
+    if (opts.settleFonts !== false) {
+      await page
+        .evaluate('Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 8000))])')
+        .catch(() => {})
+      await new Promise((resolve) => setTimeout(resolve, 120))
+    }
     return loaded
   } catch (error) {
     await loaded.close()
@@ -351,20 +372,78 @@ export async function inspectFrame(frame: Frame): Promise<FrameInspection> {
   }
 }
 
+/* Strict font boundary for preset downloads: one 8s server-side bound on top of
+ *  the existing 8s content bound (not two successive font waits). The deadline
+ *  lives in Node, so it fires even when page timers/microtasks never settle;
+ *  the caller closes the isolated context on every path, which settles the
+ *  dangling page evaluation. Faces that stayed `unloaded` were never used and
+ *  are ignored — only `error` faces fail the export. */
+async function requireSettledFonts(page: Page): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const failed = await Promise.race([
+      page.evaluate(async () => {
+        /* Page-side bound inside the same 8s font window: fires even if the
+           server-side deadline could not observe this evaluation. Never a
+           second wait — it races the font check concurrently and is cleared
+           below on every settlement. */
+        let pageTimer: ReturnType<typeof setTimeout> | undefined
+        try {
+          const settled = (async () => {
+            await document.fonts.ready
+            return [...document.fonts].filter((face) => face.status === 'error').length
+          })()
+          const deadline = new Promise<never>((_, reject) => {
+            pageTimer = setTimeout(() => reject(new Error('font settlement timed out')), 8000)
+          })
+          return await Promise.race([settled, deadline])
+        } finally {
+          if (pageTimer !== undefined) clearTimeout(pageTimer)
+        }
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new UnsettledFontsError()), 8000)
+      }),
+    ])
+    if (failed > 0) throw new UnsettledFontsError()
+  } catch (error) {
+    if (error instanceof UnsettledFontsError) throw error
+    /* Fail closed: a font check that cannot run proves nothing about the fonts. */
+    throw new UnsettledFontsError()
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
 export async function renderFrame(
   frame: Frame,
   /* output pixel density — fractional values downscale huge frames */
   scale: number = 1,
-  opts: { type?: 'png' | 'jpeg'; quality?: number; maxHeight?: number } = {},
+  opts: { type?: 'png' | 'jpeg'; quality?: number; maxHeight?: number; requireSettledFonts?: boolean } = {},
 ): Promise<Buffer> {
-  const loaded = await loadFramePage(frame)
+  const strict = opts.requireSettledFonts === true
+  const loaded = strict
+    ? await loadFramePage(frame, {
+        viewport: {
+          width: Math.max(1, Math.round(frame.width)),
+          height: Math.max(1, Math.round(frame.height)),
+          deviceScaleFactor: scale,
+        },
+        settleFonts: false,
+      })
+    : await loadFramePage(frame)
   const { page } = loaded
   try {
-    await page.setViewport({
-      width: Math.max(1, Math.round(frame.width)),
-      height: Math.max(1, Math.round(frame.height)),
-      deviceScaleFactor: scale,
-    })
+    if (strict) {
+      /* Viewport is already final — judge the fonts the export will use. */
+      await requireSettledFonts(page)
+    } else {
+      await page.setViewport({
+        width: Math.max(1, Math.round(frame.width)),
+        height: Math.max(1, Math.round(frame.height)),
+        deviceScaleFactor: scale,
+      })
+    }
     const type = opts.type ?? 'png'
     const clip =
       opts.maxHeight && frame.height > opts.maxHeight

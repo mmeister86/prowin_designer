@@ -449,6 +449,11 @@ export const FORMAT_PRESETS = {
 } as const satisfies Record<string, { label: string; width: number; height: number; safe: Insets; exportScale: number }>
 
 export type FormatPresetId = keyof typeof FORMAT_PRESETS
+
+/** Pixel density a download renders at: the preset's exportScale, 2 for free frames. */
+export function defaultExportScale(preset?: FormatPresetId): number {
+  return preset === undefined ? 2 : FORMAT_PRESETS[preset].exportScale
+}
 ```
 
 ### 10.2 Datenmodell
@@ -467,6 +472,8 @@ export type FormatPresetId = keyof typeof FORMAT_PRESETS
 ### 10.4 Export & Teilen
 
 - `FrameExportModal.tsx` → PNG/JPG in Preset-Größe (`exportScale` als `deviceScaleFactor` in `screenshot.ts`). A4 zusätzlich als PDF über `page.pdf()` (später).
+- **Download-Maße:** UI/Clipboard fordern `/i/<id>.<ext>?download` ohne erzwungene Skalierung an; der Server löst auf (`defaultExportScale` in `shared/prowin/formats.ts`): Preset-Exportfaktor, freie Frames 2×, reine Ansicht 1×, explizites `scale=1|2` gewinnt. Der Export rendert die tatsächlich gespeicherte Geometrie (eine vom Creator geänderte Preset-Größe wird nicht auf kanonisch zurückgesetzt oder beschnitten). **Zweistufige Rundung:** Der Renderer rastet jede gespeicherte Achse zuerst auf einen ganzzahligen Viewport (`Math.max(1, Math.round(gespeichert))`) und rundet dann Viewport × Exportfaktor — auch MCP-`export_frame`-Felder (`width`/`height`, `download_width`/`download_height`) beschreiben diese Rasterpixel, inkl. gebrochener gespeicherter Maße (A4-Breite 100,4 → Viewport 100 → 313 px, nicht 314).
+- **A4-Pixelmaß:** 794 × 3,125 = 2481, 1123 × 3,125 = 3509 (Chromium-Rundung) — zu unterscheiden vom physischen 2480 × 3508 @300 dpi. Die PNG/JPG-Bytes tragen keine Dichte-Metadaten und sind keine Druckfreigabe.
 - **Teilen:** Web Share API (`navigator.share({ files })`) mit Download als Fallback. iOS nativ über das Share Sheet.
 
 ---

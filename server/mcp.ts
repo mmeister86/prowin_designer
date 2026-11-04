@@ -72,7 +72,7 @@ const REVIEW_NUDGE =
   'You have not seen this design yet. Call get_frame_screenshot on it now, judge it against the review checkpoints (fit, spacing, hierarchy, contrast, alignment, realism), and fix any issues before moving on.'
 
 import type { Actor } from '../shared/types.ts'
-import { FORMAT_PRESETS, type FormatPresetId, type Insets } from '../shared/prowin/formats.ts'
+import { FORMAT_PRESETS, defaultExportScale, type FormatPresetId, type Insets } from '../shared/prowin/formats.ts'
 
 const presetId = z.enum(Object.keys(FORMAT_PRESETS) as [FormatPresetId, ...FormatPresetId[]])
 
@@ -956,11 +956,22 @@ export function buildMcpServer(owner?: string, ownerId?: string): McpServer {
       if (!f) return noFrame(frame_id)
       const ext = format === 'jpg' ? 'jpg' : 'png'
       const q = ext === 'jpg' ? `&quality=${quality ?? 90}` : ''
+      /* the download renders at the preset default — actual stored geometry
+         times defaultExportScale, never forced canonical or cropped */
+      const downloadScale = defaultExportScale(f.preset)
+      /* two-stage raster contract: the renderer snaps each stored axis to an
+         integer viewport first, then scales — reported fields match those
+         bytes, including fractional stored sizes (100.4 A4 → viewport 100
+         → 313px, not round(100.4 × 3.125) = 314) */
+      const viewportWidth = Math.max(1, Math.round(f.width))
+      const viewportHeight = Math.max(1, Math.round(f.height))
       return text({
         image_url: `${env.BETTER_AUTH_URL}/i/${frame_id}.${ext}?scale=2${q}`,
-        download_url: `${env.BETTER_AUTH_URL}/i/${frame_id}.${ext}?scale=2${q}&download`,
-        width: f.width * 2,
-        height: f.height * 2,
+        download_url: `${env.BETTER_AUTH_URL}/i/${frame_id}.${ext}?download${q}`,
+        width: Math.round(viewportWidth * 2),
+        height: Math.round(viewportHeight * 2),
+        download_width: Math.round(viewportWidth * downloadScale),
+        download_height: Math.round(viewportHeight * downloadScale),
         note: 'Public URL, no auth needed. To publish: fetch the URL and upload the bytes to the target platform (e.g. WordPress POST /wp/v2/media), or hotlink it directly — it always shows the current design.',
       })
     },
