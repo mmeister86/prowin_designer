@@ -9,9 +9,10 @@ struct FrameImageFile: Transferable {
     let format: FrameImageFormat
 
     static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: { $0.format == .png ? .png : .jpeg }) {
-            SentTransferredFile($0.url)
-        }
+        FileRepresentation(exportedContentType: .png) { SentTransferredFile($0.url) }
+            .exportingCondition { $0.format == .png }
+        FileRepresentation(exportedContentType: .jpeg) { SentTransferredFile($0.url) }
+            .exportingCondition { $0.format == .jpg }
     }
 }
 

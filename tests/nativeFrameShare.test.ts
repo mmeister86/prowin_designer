@@ -27,6 +27,7 @@ it('sanitizes the local filename and preserves the extension', () => {
   const source = core()
   expect(source).toMatch(/safeFilename|safe.*[Ff]ilename/i)
   expect(source).toContain('Zeichenfläche')
+  expect(source).toMatch(/utf8\.count/)
 })
 
 it('validates HTTP status, expected MIME and non-empty body with safe German errors', () => {
@@ -52,6 +53,14 @@ it('shares an explicit file representation, never a remote URL', () => {
   expect(source).toContain('SentTransferredFile')
   expect(source).toContain('ShareLink')
   expect(source).not.toMatch(/ShareLink\(item:.*http|ShareLink\(item:.*url.*http/i)
+})
+
+it('uses fixed UTType file representations with per-format applicability', () => {
+  const source = view()
+  expect(source).toContain('exportedContentType: .png')
+  expect(source).toContain('exportedContentType: .jpeg')
+  expect(source).toContain('exportingCondition')
+  expect(source).not.toContain('exportedContentType: {')
 })
 
 it('guards preparation with identity capture, duplicate protection and cancellation', () => {

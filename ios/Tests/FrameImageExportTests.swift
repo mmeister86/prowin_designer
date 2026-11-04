@@ -47,6 +47,19 @@ enum FrameImageExportChecks {
         precondition(cut == String(repeating: "a", count: 80) + ".jpg", cut)
         let longSpaced = String(repeating: "a", count: 79) + "   b"
         precondition(FrameImageExport.safeFilename(name: longSpaced, format: .png).hasSuffix(".png"))
+        // Filesystem components top out at 255 bytes: multibyte names must
+        // fit in UTF-8 bytes, keep the extension and stay valid Unicode.
+        let emoji = String(repeating: "🙂", count: 80)
+        let emojiName = FrameImageExport.safeFilename(name: emoji, format: .png)
+        precondition(emojiName.hasSuffix(".png"), emojiName)
+        precondition(emojiName.utf8.count <= 255, "\(emojiName.utf8.count)")
+        precondition(emojiName.dropLast(4).utf8.count <= 200, emojiName)
+        let combined = String(repeating: "e\u{0301}🇩🇪", count: 40)
+        let combinedName = FrameImageExport.safeFilename(name: combined, format: .jpg)
+        precondition(combinedName.hasSuffix(".jpg"), combinedName)
+        precondition(combinedName.utf8.count <= 255, "\(combinedName.utf8.count)")
+        // Truncation drops whole grapheme clusters: never a dangling mark.
+        precondition(combinedName.dropLast(4).last != "\u{0301}", combinedName)
     }
 
     private static func checkValidation() {

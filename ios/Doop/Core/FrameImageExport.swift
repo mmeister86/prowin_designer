@@ -41,6 +41,13 @@ public enum FrameImageExport {
         if base.isEmpty || base == "." || base == ".." { base = "Zeichenfläche" }
         if base.count > 80 { base = String(base.prefix(80)).trimmingCharacters(in: .whitespacesAndNewlines) }
         if base.isEmpty { base = "Zeichenfläche" }
+        // Filesystem components top out at 255 bytes: cap the UTF-8 encoded
+        // basename as well (emoji and combined marks cost several bytes per
+        // character), dropping whole grapheme clusters so Unicode stays valid.
+        while base.utf8.count > 200 { base = String(base.dropLast()) }
+        base = base.trimmingCharacters(in: .whitespacesAndNewlines)
+        while base.hasSuffix(".") { base.removeLast() }
+        if base.isEmpty { base = "Zeichenfläche" }
         return "\(base).\(format.fileExtension)"
     }
 
