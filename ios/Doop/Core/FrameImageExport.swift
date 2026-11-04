@@ -17,6 +17,13 @@ public enum FrameImageExport {
     /// Server renders can take seconds; a request still open after this is stuck.
     public static let requestTimeout: TimeInterval = 120
 
+    /// What the export sheet watches: the rendered bytes and the label both
+    /// come from these fields, so any change here invalidates a pending or
+    /// already-prepared file. The id pins the sheet to its frame.
+    public static func identity(of frame: DesignFrame) -> String {
+        "\(frame.id)|\(frame.name)|\(frame.width)|\(frame.height)|\(frame.html)"
+    }
+
     /// Encoded frame-id path component, no forced scale: the server resolves
     /// the preset default for downloads on its own.
     public static func path(frameID: String, format: FrameImageFormat) -> String {

@@ -11,7 +11,7 @@ struct NativeCanvasView: View {
     /// The scope key the person dismissed with the chip's ×; a new selection brings the chip back.
     @State private var dismissedScope: String?
     @State private var exportURL: URL?
-    @State private var imageFrame: DesignFrame?
+    @State private var imageFrameID: String?
     private let summary: CanvasSummary
     private enum Panel: String, Identifiable { case frames, inspector, tasks, comments, export, imageExport; var id: String { rawValue } }
 
@@ -114,7 +114,7 @@ struct NativeCanvasView: View {
                     }.navigationTitle("Zeichenfläche exportieren").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { sheet = nil } } }
                 }
             case .imageExport:
-                if let imageFrame { FrameImageExportView(frame: imageFrame, client: model.client) }
+                if let imageFrameID { FrameImageExportView(model: model, frameID: imageFrameID) }
             }
         }
         .onAppear { if scenePhase == .active { model.start() } }
@@ -166,7 +166,7 @@ struct NativeCanvasView: View {
     }
     private func shareImage() {
         guard let frame = model.selected else { return }
-        imageFrame = frame
+        imageFrameID = frame.id
         sheet = .imageExport
     }
     private func exportFrame() {

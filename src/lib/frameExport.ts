@@ -88,7 +88,12 @@ async function exportOutcome(frame: Frame, format: FrameExportFormat): Promise<s
     /* the existing download keeps the exact server filename; only the
        prepared share copy is sanitized (see prepareFrameExport) */
     const { bytes, fileName } = await fetchFrameExport(frame, format)
-    saveBlob(bytes, fileName)
+    try {
+      saveBlob(bytes, fileName)
+    } catch {
+      // FIX: save/DOM failures carry raw platform text; report the controlled error instead
+      throw new Error(`Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`)
+    }
     return isDesktopShell() ? null : `„${fileName}“ ist bereit`
   } catch (err) {
     return err instanceof Error ? err.message : `Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`

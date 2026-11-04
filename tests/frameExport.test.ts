@@ -491,3 +491,18 @@ it('treats an aborted error-body read as caller cancellation', async () => {
   expect(error).toBeInstanceOf(DOMException)
   expect((error as DOMException).name).toBe('AbortError')
 })
+
+it('maps a thrown save failure to the generic export error', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('png-bytes')),
+  )
+  URL.createObjectURL = vi.fn(() => {
+    throw new Error('DOM boom')
+  })
+
+  await downloadFrameExport(frame, 'png')
+
+  expect(clicked).toHaveLength(0)
+  expect(useStore.getState().notice).toMatchObject({ text: 'Das PNG konnte nicht exportiert werden', busy: false })
+})

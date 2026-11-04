@@ -341,7 +341,7 @@ it('clears the prepared file when a replacement fails', async () => {
   expect(container.textContent).not.toContain('Poster.png')
 })
 
-it('holds the preparation guard until the newest request settles', async () => {
+it('ignores a stale preparation that settles while the newer one is pending', async () => {
   stubShare()
   const resolvers: Array<(res: Response) => void> = []
   vi.stubGlobal(
@@ -365,22 +365,14 @@ it('holds the preparation guard until the newest request settles', async () => {
   })
   await flush()
   expect(fetch).toHaveBeenCalledTimes(2)
+  /* the stale PNG run settles while JPG still owns the run: it must not
+     publish its file or disturb the newer preparation. */
   await act(async () => {
     resolvers[0]!(new Response('old-bytes'))
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
   await flush()
-  /* the stale run must not disturb the newer one: it settles while the newer
-     preparation still owns the run, so only the newer fetch may deliver.
-     (A literal duplicate fetch through the disabled buttons is already
-     impossible in the browser and in happy-dom, which both suppress
-     activation on disabled buttons; the generation-owned guard above is
-     hardening for that pairing, verified by inspection.) */
-  await act(async () => {
-    resolvers[0]!(new Response('old-bytes'))
-    await new Promise((resolve) => setTimeout(resolve, 0))
-  })
-  await flush()
+  expect(container.textContent).not.toContain('Teilen')
   expect(fetch).toHaveBeenCalledTimes(2)
   await act(async () => {
     resolvers[1]!(new Response('new-bytes'))

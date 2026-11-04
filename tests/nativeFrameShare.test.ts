@@ -30,6 +30,12 @@ it('sanitizes the local filename and preserves the extension', () => {
   expect(source).toMatch(/utf8\.count/)
 })
 
+it('exposes a live frame identity over the rendered and labelled fields', () => {
+  const source = core()
+  expect(source).toMatch(/identity\(of/)
+  expect(source).toContain('html')
+})
+
 it('validates HTTP status, expected MIME and non-empty body with safe German errors', () => {
   const source = core()
   expect(source).toMatch(/200\.\.<300|200\.\.\.300/)
@@ -70,11 +76,26 @@ it('guards preparation with identity capture, duplicate protection and cancellat
   expect(source).toMatch(/vorbereitet|Vorbereiten|Erneut versuchen/)
 })
 
+it('observes the live frame and invalidates pending and prepared files on change or deletion', () => {
+  const source = view()
+  // Live wiring, not a captured snapshot: the sheet reads the current frame each time.
+  expect(source).toMatch(/model\.canvas\?\.frames\.first/)
+  expect(source).toMatch(/liveFrame/)
+  expect(source).toMatch(/FrameImageExport\.identity/)
+  // The request carries the revision it rendered; stale results never publish.
+  expect(source).toMatch(/revision/)
+  expect(source).toMatch(/identity\(of:.*\) == .*revision|revision.*==.*identity/s)
+  // Updates and deletion reset both pending and prepared state with an explanation.
+  expect(source).toMatch(/onChange\(of: liveFrame\)/)
+  expect(source).toMatch(/gelöscht/)
+})
+
 it('keeps the HTML export panel and canvas link sharing intact', () => {
   const source = canvas()
   expect(source).toContain('HTML speichern oder teilen')
   expect(source).toContain('Link zur Arbeitsfläche teilen')
-  expect(source).toContain('FrameImageExportView')
+  expect(source).toContain('FrameImageExportView(model:')
+  expect(source).toContain('imageFrameID')
 })
 
 it('registers new sources and the photo usage description in Debug and Release', () => {

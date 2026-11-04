@@ -6,6 +6,7 @@ enum FrameImageExportChecks {
         checkFormats()
         checkPaths()
         checkFilenames()
+        checkIdentity()
         checkValidation()
         print("Frame image export checks passed.")
     }
@@ -60,6 +61,25 @@ enum FrameImageExportChecks {
         precondition(combinedName.utf8.count <= 255, "\(combinedName.utf8.count)")
         // Truncation drops whole grapheme clusters: never a dangling mark.
         precondition(combinedName.dropLast(4).last != "\u{0301}", combinedName)
+    }
+
+    private static func checkIdentity() {
+        func frame(id: String = "f1", name: String = "Hero", width: Double = 390,
+                   height: Double = 844, html: String = "<p>a</p>") -> DesignFrame {
+            let json = #"{"id":"\#(id)","canvasId":"c","name":"\#(name)","x":0,"y":0,"width":\#(width),"height":\#(height),"html":"\#(html)"}"#
+            return try! JSONDecoder().decode(DesignFrame.self, from: Data(json.utf8))
+        }
+        let original = frame()
+        precondition(FrameImageExport.identity(of: original) == FrameImageExport.identity(of: frame()))
+        // Position alone does not relabel or re-render the bytes.
+        var moved = original
+        moved.x = 50
+        moved.y = 60
+        precondition(FrameImageExport.identity(of: moved) == FrameImageExport.identity(of: original))
+        precondition(FrameImageExport.identity(of: frame(name: "Other")) != FrameImageExport.identity(of: original))
+        precondition(FrameImageExport.identity(of: frame(width: 400)) != FrameImageExport.identity(of: original))
+        precondition(FrameImageExport.identity(of: frame(html: "<p>b</p>")) != FrameImageExport.identity(of: original))
+        precondition(FrameImageExport.identity(of: frame(id: "f2")) != FrameImageExport.identity(of: original))
     }
 
     private static func checkValidation() {
