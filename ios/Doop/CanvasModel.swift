@@ -9,22 +9,22 @@ final class CanvasModel: ObservableObject {
     let client: DoopClient
     @Published var canvas: CanvasDocument? {
         didSet {
-            // Delayed full-frame snapshots must not overwrite newer revisions:
-            // keep the current entry when both revisions are known and the
-            // current one is newer. Membership stays incoming-authoritative,
-            // so deletions never resurrect and different canvases never mix.
-            if let document = canvas, let previous = oldValue, document.id == previous.id {
-                let merged = keepingNewerFrameRevisions(document.frames, than: previous.frames)
-                if merged != document.frames {
-                    var fixed = document
-                    fixed.frames = merged
-                    canvas = fixed
-                    return
+            // Delayed full-frame snapshots must not overwrite newer revisions.
+            // Normalize the incoming document locally — same-canvas revision
+            // merge first, then the pending-move overlay — assign only when
+            // that changed anything, and always prune the selection. Correct
+            // whether or not this runtime re-enters observers on self-assign.
+            if var document = canvas {
+                if let previous = oldValue, document.id == previous.id {
+                    document.frames = keepingNewerFrameRevisions(document.frames, than: previous.frames)
+                }
+                // Full frame events and reconnect snapshots can still contain
+                // the pre-drop position. Overlay pending moves at every entry.
+                pendingMoves.apply(to: &document.frames)
+                if let current = canvas, document.frames != current.frames {
+                    canvas = document
                 }
             }
-            // Full frame events and reconnect snapshots can still contain the
-            // pre-drop position. Overlay pending moves at every model entry.
-            if var document = canvas, pendingMoves.apply(to: &document.frames) { canvas = document }
             pruneSelection()
         }
     }

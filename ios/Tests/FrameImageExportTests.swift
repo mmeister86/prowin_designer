@@ -140,6 +140,17 @@ enum FrameImageExportChecks {
         precondition(keepingNewerFrameRevisions([frame(id: "a", html: "<p>x</p>")], than: [frame(id: "a")]) == [frame(id: "a", html: "<p>x</p>")])
         // A3 followed by a delayed A1 keeps A3.
         precondition(keepingNewerFrameRevisions([a1], than: [a3, b2]) == [a3])
+        // Same-frame A1 -> B2 -> A3 content cycle: A1 and A3 share identical
+        // HTML on the same id but differ by revision; a delayed A1 cannot
+        // replace the applied A3.
+        let cycleA1 = frame(id: "f", html: "<p>A</p>", revision: "1")
+        let cycleB2 = frame(id: "f", html: "<p>B</p>", revision: "2")
+        let cycleA3 = frame(id: "f", html: "<p>A</p>", revision: "3")
+        precondition(cycleA1.html == cycleA3.html && cycleA1 != cycleA3)
+        precondition(FrameImageExport.identity(of: cycleA1) != FrameImageExport.identity(of: cycleA3))
+        precondition(keepingNewerFrameRevisions([cycleB2], than: [cycleA1]) == [cycleB2])
+        precondition(keepingNewerFrameRevisions([cycleA3], than: [cycleB2]) == [cycleA3])
+        precondition(keepingNewerFrameRevisions([cycleA1], than: [cycleA3]) == [cycleA3])
         // Snapshot deletion never resurrects; new ids join; order follows incoming.
         precondition(keepingNewerFrameRevisions([], than: [a3]) == [])
         precondition(keepingNewerFrameRevisions([b2], than: [a3, b2]) == [b2])

@@ -130,9 +130,38 @@ it('[task3-wiring] export identity carries an explicit revision/legacy marker', 
 
 it('[task3-wiring] common canvas ingress merges newer revisions before the pending-move overlay', () => {
   const model = read('ios/Doop/CanvasModel.swift')
-  expect(model).toMatch(/keepingNewerFrameRevisions/)
-  expect(model).toMatch(/didSet/)
-  expect(model).toMatch(/pendingMoves\.apply/)
+  // Scope to the didSet block only (brace-balanced from its opening brace).
+  const start = model.indexOf('var canvas: CanvasDocument?')
+  let depth = 0
+  let end = model.length
+  let opened = false
+  for (let i = model.indexOf('{', start); i < model.length; i++) {
+    if (model[i] === '{') {
+      depth++
+      opened = true
+    } else if (model[i] === '}') {
+      depth--
+    }
+    if (opened && depth === 0) {
+      end = i
+      break
+    }
+  }
+  const didSet = model.slice(start, end)
+  expect(didSet).toContain('keepingNewerFrameRevisions')
+  expect(didSet).toContain('pendingMoves.apply')
+  expect(didSet).toContain('pruneSelection()')
+  // Same-canvas guard: the merge only runs against the previous same-canvas document.
+  expect(didSet).toMatch(/oldValue[\s\S]{0,200}document\.id == previous\.id|document\.id == previous\.id/)
+  // Order inside the observer: merge first, then overlay, then prune — and no
+  // early return may skip the overlay or pruning on the revision path.
+  const mergeAt = didSet.indexOf('keepingNewerFrameRevisions')
+  const overlayAt = didSet.indexOf('pendingMoves.apply')
+  const pruneAt = didSet.indexOf('pruneSelection()')
+  expect(mergeAt).toBeGreaterThanOrEqual(0)
+  expect(overlayAt).toBeGreaterThan(mergeAt)
+  expect(pruneAt).toBeGreaterThan(overlayAt)
+  expect(didSet).not.toMatch(/^\s*return\b/m)
 })
 
 it('[task3-wiring] merge keeps same-canvas frames only and never resurrects deletions', () => {
