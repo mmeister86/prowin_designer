@@ -1,10 +1,10 @@
 ---
 id: TASK-34
 title: PNG/JPG in Preset-Größe zuverlässig exportieren
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:51:00Z'
-updated_date: '2026-11-03T22:24:00Z'
+updated_date: '2026-11-04T07:09:00Z'
 labels:
   - prowin
   - implementation
@@ -50,4 +50,12 @@ Quellen: Umsetzung §§ 10.1, 10.4; Referenz R1.6, R1.8
 Starte Umsetzung in isoliertem Worktree /home/matthias/.local/share/opencode/worktree/9d3066/task-34-preset-export. Bestehende Änderungen im Haupt-Checkout bleiben unangetastet. Council-Beratung läuft; keine Codeänderungen bisher.
 
 Implementiere TASK-34 auf feat/task-34-preset-export (Code-HEAD cca5e90). Council-Beratung: Claude Opus 5.5, GPT-6.1 Sol Ultrafast, Muse Wonder je 8/10 Vorgehensbereitschaft; Code durch Muse Spark 1.3, Reviews GPT-6.1 Terra. Social-Downloads in Preset-Größe, A4 2481×3509 bei 3,125×, strikte Font-Prüfung für Preset-Downloads samt kontrollierten Fehlern und isoliertem Cache; freie Alt-Frames behalten 2× und begrenzten Font-Fallback. Fractional Frame-Größen: zuerst vorhandene ganzzahlige Viewport-Rundung, dann Skalierung/Raster-Rundung; MCP-Maße stimmen mit Bytes überein. Eigener finaler unveränderter Gesamtlauf: 235 Dateien / 2086 Tests bestanden in 512,58 s; Typprüfung, offizielles Lint und Build erfolgreich. Letzte Terra-Nachprüfung 9/10, beide Gesamtbefunde behoben, keine neuen Findings. Bekannte Hinweise: Node localStorage-ExperimentalWarning und Build-Chunkgrößenwarnung. Native Desktop/iOS-Speicherdialoge und physischer Druck nicht manuell geprüft. Kein Push/Merge. Status bleibt In Progress bis expliziter manueller Abnahme. Nachweise: docs/superpowers/reports/2026-11-03-preset-export.md.
+
+Bestätige den Merge von https://github.com/mmeister86/prowin_designer/pull/11 am 04.11.2026 (Merge-Commit 7aa9c8c). Setze den Task auf ausdrückliche Anweisung des Nutzers auf Done. Führe keine zusätzliche manuelle Desktop/iOS- oder Druckabnahme durch; diese wurde durch den Agenten nicht behauptet.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Schließe TASK-34 nach ausdrücklicher Nutzerfreigabe und Merge von PR #11. Liefere presetgenaue PNG/JPG-Exporte ohne Overlays, A4 mit 2481×3509 Pixeln bei 3,125×, kontrollierte Font-Fehler und korrekte MCP-Pixelmaße. Verweise auf 2086 bestandene Tests, erfolgreiche Typprüfung/Lint/Build und die abschließende Terra-Nachprüfung mit 9/10.
+<!-- SECTION:FINAL_SUMMARY:END -->
