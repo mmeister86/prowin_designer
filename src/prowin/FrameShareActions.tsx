@@ -68,6 +68,9 @@ export function FrameShareActions({ frame }: { frame: Frame }) {
     aborter.current = controller
     const my = ++seq.current
     setActiveFormat(format)
+    /* the previous file must not survive a new run: a failed replacement
+       would otherwise keep showing a stale name with a dead Share button */
+    setFile(null)
     setPhase('preparing')
     setMessage(null)
     let prepared: File | null = null
@@ -77,8 +80,10 @@ export function FrameShareActions({ frame }: { frame: Frame }) {
     } catch (err) {
       failure = err
     }
+    /* a stale run must not release the newer run's guard */
+    if (seq.current !== my) return
     preparing.current = false
-    if (!mounted.current || seq.current !== my) return
+    if (!mounted.current) return
     if (failure instanceof DOMException && failure.name === 'AbortError') {
       setPhase('idle')
       setActiveFormat(null)
@@ -108,8 +113,9 @@ export function FrameShareActions({ frame }: { frame: Frame }) {
     setPhase('sharing')
     setMessage(null)
     const failure = await shareFrameFile(current)
+    if (seq.current !== my) return
     sharing.current = false
-    if (!mounted.current || seq.current !== my) return
+    if (!mounted.current) return
     setPhase('ready')
     setMessage(failure)
   }

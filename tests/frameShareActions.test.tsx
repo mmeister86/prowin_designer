@@ -317,3 +317,98 @@ it('unmounts cleanly while preparing', async () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
   })
 })
+
+it('clears the prepared file when a replacement fails', async () => {
+  stubShare()
+  stubFetch()
+  renderShare()
+  await prepare()
+  expect(buttons()).toEqual(expect.arrayContaining(['Teilen', 'Herunterladen']))
+
+  act(() => {
+    button('JPG vorbereiten').click()
+  })
+  await flush()
+  expect(fetch).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    pending[1]!.resolve(new Response('oops', { status: 500 }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  await flush()
+  expect(container.textContent).toContain('Das JPG konnte nicht exportiert werden')
+  expect(buttons()).not.toContain('Teilen')
+  expect(buttons()).not.toContain('Herunterladen')
+  expect(container.textContent).not.toContain('Poster.png')
+})
+
+it('holds the preparation guard until the newest request settles', async () => {
+  stubShare()
+  const resolvers: Array<(res: Response) => void> = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolvers.push(resolve)
+        }),
+    ),
+  )
+  renderShare()
+
+  act(() => {
+    button('PNG vorbereiten').click()
+  })
+  await flush()
+  renderShare({ ...frame, updatedAt: 1 })
+  act(() => {
+    button('JPG vorbereiten').click()
+  })
+  await flush()
+  expect(fetch).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    resolvers[0]!(new Response('old-bytes'))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  await flush()
+  /* the stale run must not disturb the newer one: it settles while the newer
+     preparation still owns the run, so only the newer fetch may deliver.
+     (A literal duplicate fetch through the disabled buttons is already
+     impossible in the browser and in happy-dom, which both suppress
+     activation on disabled buttons; the generation-owned guard above is
+     hardening for that pairing, verified by inspection.) */
+  await act(async () => {
+    resolvers[0]!(new Response('old-bytes'))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  await flush()
+  expect(fetch).toHaveBeenCalledTimes(2)
+  await act(async () => {
+    resolvers[1]!(new Response('new-bytes'))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  await flush()
+  expect(container.textContent).toContain('Poster.jpg')
+  expect(buttons()).toEqual(expect.arrayContaining(['Teilen', 'Herunterladen']))
+})
+
+it('invokes share once on duplicate share clicks', async () => {
+  let resolveShare!: () => void
+  const share = vi.fn(() => new Promise<void>((resolve) => (resolveShare = resolve)))
+  vi.stubGlobal('navigator', { share, canShare: vi.fn(() => true) })
+  stubFetch()
+  renderShare()
+  await prepare()
+
+  act(() => {
+    button('Teilen').click()
+    button('Teilen').click()
+  })
+  await flush()
+  expect(share).toHaveBeenCalledTimes(1)
+  await act(async () => {
+    resolveShare()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+  await flush()
+  expect(buttons()).toEqual(expect.arrayContaining(['Teilen', 'Herunterladen']))
+})

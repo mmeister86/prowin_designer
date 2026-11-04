@@ -372,3 +372,122 @@ it('saves a prepared blob through a download link without fetching', async () =>
   expect(clicked[0]!.download).toBe('Poster.png')
   expect(clicked[0]!.href).toBe('blob:export')
 })
+
+it('preserves the original server filename for downloads while preparing a safe name', async () => {
+  const serverName = `exports/${'n'.repeat(100)}.jpeg`
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response('jpg-bytes', { headers: { 'Content-Disposition': `attachment; filename="${serverName}"` } }),
+    ),
+  )
+
+  const file = await prepareFrameExport(frame, 'jpg')
+  expect(file.name).not.toContain('/')
+  expect(file.name.endsWith('.jpg')).toBe(true)
+  expect(file.name.length).toBeLessThanOrEqual(84)
+  expect(clicked).toHaveLength(0)
+
+  await downloadFrameExport(frame, 'jpg')
+
+  expect(clicked).toHaveLength(1)
+  expect(clicked[0]!.download).toBe(serverName)
+  expect(useStore.getState().notice).toMatchObject({ text: `„${serverName}“ ist bereit`, busy: false })
+})
+
+it('reports caller cancellation while the body is still reading', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+      const res = new Response('body-bytes')
+      vi.spyOn(res, 'blob').mockImplementation(
+        () =>
+          new Promise<Blob>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+          }),
+      )
+      return Promise.resolve(res)
+    }),
+  )
+  const controller = new AbortController()
+  const pending = prepareFrameExport(frame, 'png', controller.signal)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  controller.abort()
+  const error = await pending.catch((err: unknown) => err)
+  expect(error).toBeInstanceOf(DOMException)
+  expect((error as DOMException).name).toBe('AbortError')
+  expect(clicked).toHaveLength(0)
+})
+
+it('reports the timeout when the body stalls past 120 seconds', async () => {
+  vi.useFakeTimers()
+  try {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+        const res = new Response('body-bytes')
+        vi.spyOn(res, 'blob').mockImplementation(
+          () =>
+            new Promise<Blob>((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+            }),
+        )
+        return Promise.resolve(res)
+      }),
+    )
+    const pending = prepareFrameExport(frame, 'png')
+    const assertion = expect(pending).rejects.toThrow('Der PNG-Export hat zu lange gedauert. Versuche es erneut.')
+    await vi.advanceTimersByTimeAsync(120_000)
+    await assertion
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('reports the timeout when the error body stalls past 120 seconds', async () => {
+  vi.useFakeTimers()
+  try {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+        const failed = {
+          ok: false,
+          headers: new Headers(),
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+            }),
+        } as unknown as Response
+        return Promise.resolve(failed)
+      }),
+    )
+    const pending = prepareFrameExport(frame, 'png')
+    const assertion = expect(pending).rejects.toThrow('Der PNG-Export hat zu lange gedauert. Versuche es erneut.')
+    await vi.advanceTimersByTimeAsync(120_000)
+    await assertion
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('treats an aborted error-body read as caller cancellation', async () => {
+  let rejectJson!: (err: unknown) => void
+  const failed = {
+    ok: false,
+    headers: new Headers(),
+    json: () => new Promise((_resolve, reject) => (rejectJson = reject)),
+  } as unknown as Response
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => failed),
+  )
+  const controller = new AbortController()
+  const pending = prepareFrameExport(frame, 'png', controller.signal)
+  await Promise.resolve()
+  controller.abort()
+  rejectJson(controller.signal.reason)
+  const error = await pending.catch((err: unknown) => err)
+  expect(error).toBeInstanceOf(DOMException)
+  expect((error as DOMException).name).toBe('AbortError')
+})

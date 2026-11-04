@@ -85,22 +85,49 @@ function report(outcome: string | null) {
 
 async function exportOutcome(frame: Frame, format: FrameExportFormat): Promise<string | null> {
   try {
-    const file = await prepareFrameExport(frame, format)
-    saveBlob(file, file.name)
-    return isDesktopShell() ? null : `„${file.name}“ ist bereit`
+    /* the existing download keeps the exact server filename; only the
+       prepared share copy is sanitized (see prepareFrameExport) */
+    const { bytes, fileName } = await fetchFrameExport(frame, format)
+    saveBlob(bytes, fileName)
+    return isDesktopShell() ? null : `„${fileName}“ ist bereit`
   } catch (err) {
     return err instanceof Error ? err.message : `Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`
   }
 }
 
-/* Render once, use twice: the same prepared File backs the share sheet and
-   the prepared download, so the server renders only once per explicit click.
-   Throws controlled German Error messages; a caller abort stays a
-   DOMException AbortError so the caller can tell it apart. */
-export async function prepareFrameExport(frame: Frame, format: FrameExportFormat, signal?: AbortSignal): Promise<File> {
+/* Classify a read failure after the fact: a caller abort stays a
+   distinguishable AbortError, a 120-second stall anywhere in the response
+   lifecycle stays a timeout, everything else is the controlled export error. */
+function readFailure(
+  err: unknown,
+  format: FrameExportFormat,
+  signal: AbortSignal | undefined,
+  combined: AbortController,
+): unknown {
+  if (signal?.aborted) return signal.reason ?? new DOMException('Aborted', 'AbortError')
+  const timedOut =
+    (combined.signal.reason instanceof DOMException && combined.signal.reason.name === 'TimeoutError') ||
+    (err instanceof DOMException && err.name === 'TimeoutError')
+  if (timedOut)
+    return new Error(`Der ${FORMAT_LABEL[format]}-Export hat zu lange gedauert. Versuche es erneut.`, { cause: err })
+  return new Error(`Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`, { cause: err })
+}
+
+type FetchedFrameExport = { bytes: Blob; fileName: string }
+
+/* One shared fetch block for downloads and prepared shares: exact export
+   URL, 120-second render boundary combined with the caller's signal without
+   AbortSignal.any, server filename and controlled German errors. The
+   returned filename is the original server name; callers decide whether to
+   sanitize it for a prepared File. */
+async function fetchFrameExport(
+  frame: Frame,
+  format: FrameExportFormat,
+  signal?: AbortSignal,
+): Promise<FetchedFrameExport> {
   if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
-  /* the render timeout combined with the caller's signal without
-     AbortSignal.any: either side aborts the fetch below */
+  /* the render timeout combined with the caller's signal: either side aborts
+     the fetch below, including a stalled body read */
   const combined = new AbortController()
   const timer = setTimeout(
     () => combined.abort(new DOMException('Export timed out', 'TimeoutError')),
@@ -113,25 +140,39 @@ export async function prepareFrameExport(frame: Frame, format: FrameExportFormat
     try {
       res = await fetch(frameExportUrl(frame, format), { signal: combined.signal })
     } catch (err) {
+      throw readFailure(err, format, signal, combined)
+    }
+    if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
+    if (!res.ok) {
+      const message = await failureOf(res, format)
+      /* an aborted error-body read must not become a generic export error */
       if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
-      if (err instanceof DOMException && err.name === 'TimeoutError')
-        throw new Error(`Der ${FORMAT_LABEL[format]}-Export hat zu lange gedauert. Versuche es erneut.`, { cause: err })
-      throw new Error(`Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`, { cause: err })
+      if (combined.signal.reason instanceof DOMException && combined.signal.reason.name === 'TimeoutError')
+        throw new Error(`Der ${FORMAT_LABEL[format]}-Export hat zu lange gedauert. Versuche es erneut.`, {
+          cause: combined.signal.reason,
+        })
+      throw new Error(message)
     }
-    if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
-    if (!res.ok) throw new Error(await failureOf(res, format))
-    let bytes: Blob
     try {
-      bytes = await res.blob()
-    } catch {
-      throw new Error(`Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`)
+      const bytes = await res.blob()
+      if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
+      return { bytes, fileName: fileNameOf(res, frame, format) }
+    } catch (err) {
+      throw readFailure(err, format, signal, combined)
     }
-    if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
-    return new File([bytes], safeExportFileName(fileNameOf(res, frame, format), format), { type: FORMAT_MIME[format] })
   } finally {
     clearTimeout(timer)
     signal?.removeEventListener('abort', onCallerAbort)
   }
+}
+
+/* Render once, use twice: the same prepared File backs the share sheet and
+   the prepared download, so the server renders only once per explicit click.
+   Throws controlled German Error messages; a caller abort stays a
+   DOMException AbortError so the caller can tell it apart. */
+export async function prepareFrameExport(frame: Frame, format: FrameExportFormat, signal?: AbortSignal): Promise<File> {
+  const { bytes, fileName } = await fetchFrameExport(frame, format, signal)
+  return new File([bytes], safeExportFileName(fileName, format), { type: FORMAT_MIME[format] })
 }
 
 /** Render and download a frame export, reporting through the canvas toast:
