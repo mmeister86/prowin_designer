@@ -4,7 +4,7 @@ title: Design-Dateien über Web Share und iOS Share Sheet teilen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-04T08:42:00Z'
+updated_date: '2026-11-04T09:56:00Z'
 labels:
   - prowin
   - implementation
@@ -56,4 +56,6 @@ Web-Implementierung: d51c08b, Terra-Review und Korrektur e8af516. Terra bestäti
 Abschlussstand Quellcode ccb98a7: Web-Freigabe und native iOS-Quellen implementiert; Muse Spark1.3, unabhängige Terra-Reviews. Controller: 238 Dateien/2140 Tests bestanden, Typecheck/Lint/Build bestanden. Build mit bekanntem Bundle-Warning, doc-lint mit erklärter mtime-Warnung. AC1/2 anhand automatisierter Web-Datei-/Abbruch-/Fallbacktests verifiziert; keine reale Browser-/iOS-UI-Abnahme behauptet. AC3 bleibt offen.
 BLOCKIERENDER RESTBEFUND aus Terra final-review-2: Native DesignFrame dekodiert updatedAt nicht; Revision-only Update oder Edit/Revert vor SwiftUI-onChange kann veraltete vorbereitete Bytes teilen. Live-Inhaltsänderungen/Löschung werden bereits erkannt, tatsächliche Revision fehlt aber. Nächster eng begrenzter Schritt: updatedAt/Eventgeneration dekodieren und in Pending/Prepared-Identität aufnehmen, Revision-only-/Edit-Revert-Tests und Terra-Nachprüfung. Finaler SDD-Fixlauf ist ausgeschöpft; Befund ausdrücklich übergeben statt als erledigt zu markieren. Keine Freigabeempfehlung.
 Weiter offen: Swift DoopCoreChecks, Xcode-Simulatorbuild und reale Web/Desktop/iOS-Dateifreigabe inkl. Photos/Files/Abbruch; Linux ohne Apple-Toolchain. Bericht/Entscheidungen: docs/superpowers/reports/2026-11-04-file-sharing.md. Branch feat/task-35-file-sharing lokal erhalten, kein Push/Merge/PR. Task bleibt In Progress, nicht Done.
+
+Benutzer fordert neue Council-Lösung für nativen Restfehler. Scoped Council Runde1: Opus5.5 5/10, GPT-6.1Sol 5/10, MuseWonder4/10; alle empfehlen optionales updatedAt + vorhandene Inhaltsidentität statt Eventzähler. Server-Version ist bereits streng monoton (store.ts607). Sol ergänzt konkreten verspäteten REST-/Snapshot-Rückschritt: gemeinsame native Zuweisungsgrenze soll streng ältere bekannte Frame-Versionen verwerfen, gleiche/unbekannte Versionen und Löschungen weiterhin zulassen. Task3 ergänzt im bestehenden Plan; Muse implementiert, Terra prüft, danach scoped Council Runde2. Keine erneute Umsetzung abgeschlossener Teile; Apple-Abnahme/AC3 bleibt offen.
 <!-- SECTION:NOTES:END -->
