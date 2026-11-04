@@ -9,6 +9,7 @@ import { expect, it } from 'vitest'
 const read = (path: string) => readFileSync(path, 'utf8')
 
 const core = () => read('ios/Doop/Core/FrameImageExport.swift')
+const models = () => read('ios/Doop/Core/Models.swift')
 const client = () => read('ios/Doop/DoopClient.swift')
 const view = () => read('ios/Doop/FrameImageExportView.swift')
 const canvas = () => read('ios/Doop/NativeCanvasView.swift')
@@ -109,4 +110,40 @@ it('registers new sources and the photo usage description in Debug and Release',
 it('documents the implemented flow with a pending manual checklist', () => {
   expect(read('docs/prowin/doop-fork-umsetzung.md')).toMatch(/10\.4[\s\S]{0,2000}ShareLink|Share Sheet/)
   expect(read('ios/README.md')).toMatch(/ShareLink|Share Sheet/)
+})
+
+// Task 3 (revision follow-up): labelled source-wiring checks only. They assert
+// the production merge boundary is wired, not native runtime behavior — Swift
+// core checks in ios/Tests/FrameImageExportTests.swift remain the behavior proof
+// and must run on macOS CI (no Swift toolchain on Linux).
+
+it('[task3-wiring] decodes an optional revision on the frame model', () => {
+  const source = models()
+  expect(source).toMatch(/updatedAt:\s*Double\?/)
+})
+
+it('[task3-wiring] export identity carries an explicit revision/legacy marker', () => {
+  const source = core()
+  expect(source).toMatch(/updatedAt/)
+  expect(source).toMatch(/legacy/i)
+})
+
+it('[task3-wiring] common canvas ingress merges newer revisions before the pending-move overlay', () => {
+  const model = read('ios/Doop/CanvasModel.swift')
+  expect(model).toMatch(/keepingNewerFrameRevisions/)
+  expect(model).toMatch(/didSet/)
+  expect(model).toMatch(/pendingMoves\.apply/)
+})
+
+it('[task3-wiring] merge keeps same-canvas frames only and never resurrects deletions', () => {
+  const source = core()
+  expect(source).toMatch(/keepingNewerFrameRevisions/)
+  expect(source).toMatch(/canvasId/)
+})
+
+it('[task3-wiring] live export invalidation and both completion guards use the revision-bearing identity', () => {
+  const source = view()
+  expect(source).toMatch(/onChange\(of: liveFrame\)/)
+  const guards = source.match(/identity\(of: live\) == current\.revision/g) ?? []
+  expect(guards.length).toBeGreaterThanOrEqual(2)
 })

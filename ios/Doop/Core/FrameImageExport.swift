@@ -19,9 +19,12 @@ public enum FrameImageExport {
 
     /// What the export sheet watches: the rendered bytes and the label both
     /// come from these fields, so any change here invalidates a pending or
-    /// already-prepared file. The id pins the sheet to its frame.
+    /// already-prepared file. The id pins the sheet to its frame. The trailing
+    /// marker carries the server revision so revision-only updates invalidate
+    /// too; payloads without a revision fall back to the legacy marker and
+    /// keep content-only protection.
     public static func identity(of frame: DesignFrame) -> String {
-        "\(frame.id)|\(frame.name)|\(frame.width)|\(frame.height)|\(frame.html)"
+        "\(frame.id)|\(frame.name)|\(frame.width)|\(frame.height)|\(frame.html)|\(frame.updatedAt.map(String.init) ?? "legacy")"
     }
 
     /// Encoded frame-id path component, no forced scale: the server resolves
@@ -79,6 +82,25 @@ public enum FrameImageExport {
             throw APIError(status: 0, message: "Das \(format.label) ist leer. Versuche es erneut.")
         }
         return data
+    }
+}
+
+/// Monotonic ingress for full-frame snapshots (init/reconnect): the incoming
+/// snapshot stays authoritative for membership, but a frame present in both
+/// states keeps the current entry only when both revisions are known and the
+/// current one is newer. Equal revisions pass through so changed reveal HTML
+/// under an unchanged version is never rejected; unknown (legacy) revisions
+/// pass through; deletions never resurrect; order follows the incoming
+/// snapshot. Canvas mismatches are left to the caller.
+/// shortcut: legacy payloads without updatedAt keep content-only protection; closing the export-request/response version gap needs a separate protocol change.
+public func keepingNewerFrameRevisions(_ incoming: [DesignFrame], than current: [DesignFrame]) -> [DesignFrame] {
+    guard !current.isEmpty else { return incoming }
+    let known = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) })
+    return incoming.map { next in
+        guard let prev = known[next.id], prev.canvasId == next.canvasId,
+              let old = prev.updatedAt, let fresh = next.updatedAt,
+              old > fresh else { return next }
+        return prev
     }
 }
 

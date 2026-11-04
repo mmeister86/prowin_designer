@@ -9,6 +9,19 @@ final class CanvasModel: ObservableObject {
     let client: DoopClient
     @Published var canvas: CanvasDocument? {
         didSet {
+            // Delayed full-frame snapshots must not overwrite newer revisions:
+            // keep the current entry when both revisions are known and the
+            // current one is newer. Membership stays incoming-authoritative,
+            // so deletions never resurrect and different canvases never mix.
+            if let document = canvas, let previous = oldValue, document.id == previous.id {
+                let merged = keepingNewerFrameRevisions(document.frames, than: previous.frames)
+                if merged != document.frames {
+                    var fixed = document
+                    fixed.frames = merged
+                    canvas = fixed
+                    return
+                }
+            }
             // Full frame events and reconnect snapshots can still contain the
             // pre-drop position. Overlay pending moves at every model entry.
             if var document = canvas, pendingMoves.apply(to: &document.frames) { canvas = document }

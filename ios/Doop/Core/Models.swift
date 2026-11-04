@@ -34,6 +34,7 @@ public struct DesignFrame: Codable, Identifiable, Equatable {
     public var width: Double
     public var height: Double
     public var html: String
+    public var updatedAt: Double? = nil
 }
 
 /// What a prompt is about: the frame the person had selected when they asked, and

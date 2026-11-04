@@ -7,6 +7,8 @@ enum FrameImageExportChecks {
         checkPaths()
         checkFilenames()
         checkIdentity()
+        checkRevisions()
+        checkMerge()
         checkValidation()
         print("Frame image export checks passed.")
     }
@@ -80,6 +82,73 @@ enum FrameImageExportChecks {
         precondition(FrameImageExport.identity(of: frame(width: 400)) != FrameImageExport.identity(of: original))
         precondition(FrameImageExport.identity(of: frame(html: "<p>b</p>")) != FrameImageExport.identity(of: original))
         precondition(FrameImageExport.identity(of: frame(id: "f2")) != FrameImageExport.identity(of: original))
+    }
+
+    private static func checkRevisions() {
+        func decode(_ json: String) -> DesignFrame {
+            try! JSONDecoder().decode(DesignFrame.self, from: Data(json.utf8))
+        }
+        func frame(id: String = "f1", html: String = "<p>a</p>", revision: String = "3") -> DesignFrame {
+            // revision fragment: a number, "null", or "" for an absent key.
+            let key = revision.isEmpty ? "" : #","updatedAt":\#(revision)"#
+            return decode(#"{"id":"\#(id)","canvasId":"c","name":"Hero","x":0,"y":0,"width":390,"height":844,"html":"\#(html)"\#(key)}"#)
+        }
+        // Numeric, missing and null revisions decode; legacy stays stable.
+        precondition(frame(revision: "3").updatedAt == 3)
+        precondition(frame(revision: "").updatedAt == nil)
+        precondition(frame(revision: "null").updatedAt == nil)
+        let legacy = frame(revision: "")
+        precondition(legacy == frame(revision: ""))
+        precondition(frame(revision: "null") == frame(revision: ""))
+        precondition(FrameImageExport.identity(of: legacy) == FrameImageExport.identity(of: frame(revision: "")))
+        precondition(FrameImageExport.identity(of: legacy).contains("legacy"))
+        // Same content, different revision: equality and identity both change.
+        precondition(frame(revision: "1") != frame(revision: "3"))
+        precondition(FrameImageExport.identity(of: frame(revision: "1")) != FrameImageExport.identity(of: frame(revision: "3")))
+        // A1/B2/A3 identities are pairwise distinct.
+        let a1 = frame(id: "a", revision: "1")
+        let b2 = frame(id: "b", revision: "2")
+        let a3 = frame(id: "a", html: "<p>c</p>", revision: "3")
+        precondition(FrameImageExport.identity(of: a1) != FrameImageExport.identity(of: b2))
+        precondition(FrameImageExport.identity(of: a1) != FrameImageExport.identity(of: a3))
+        precondition(FrameImageExport.identity(of: b2) != FrameImageExport.identity(of: a3))
+        // Same revision with changed reveal HTML still differs.
+        precondition(frame(html: "<p>a</p>") != frame(html: "<p>b</p>"))
+        precondition(FrameImageExport.identity(of: frame(html: "<p>a</p>")) != FrameImageExport.identity(of: frame(html: "<p>b</p>")))
+    }
+
+    private static func checkMerge() {
+        func decode(_ json: String) -> DesignFrame {
+            try! JSONDecoder().decode(DesignFrame.self, from: Data(json.utf8))
+        }
+        func frame(id: String, canvas: String = "c", html: String = "<p>a</p>", revision: String = "") -> DesignFrame {
+            let key = revision.isEmpty ? "" : #","updatedAt":\#(revision)"#
+            return decode(#"{"id":"\#(id)","canvasId":"\#(canvas)","name":"Hero","x":0,"y":0,"width":390,"height":844,"html":"\#(html)"\#(key)}"#)
+        }
+        let a1 = frame(id: "a", revision: "1")
+        let a3 = frame(id: "a", html: "<p>c</p>", revision: "3")
+        let b2 = frame(id: "b", revision: "2")
+        // Newer incoming wins; older incoming is rejected.
+        precondition(keepingNewerFrameRevisions([a3], than: [a1]) == [a3])
+        precondition(keepingNewerFrameRevisions([a1], than: [a3]) == [a3])
+        // Equal revisions pass through so changed reveal HTML is kept.
+        let a3changed = frame(id: "a", html: "<p>new</p>", revision: "3")
+        precondition(keepingNewerFrameRevisions([a3changed], than: [a3]) == [a3changed])
+        // Unknown (legacy) revisions pass through either way.
+        precondition(keepingNewerFrameRevisions([frame(id: "a")], than: [a3]) == [frame(id: "a")])
+        precondition(keepingNewerFrameRevisions([a3], than: [frame(id: "a")]) == [a3])
+        precondition(keepingNewerFrameRevisions([frame(id: "a", html: "<p>x</p>")], than: [frame(id: "a")]) == [frame(id: "a", html: "<p>x</p>")])
+        // A3 followed by a delayed A1 keeps A3.
+        precondition(keepingNewerFrameRevisions([a1], than: [a3, b2]) == [a3])
+        // Snapshot deletion never resurrects; new ids join; order follows incoming.
+        precondition(keepingNewerFrameRevisions([], than: [a3]) == [])
+        precondition(keepingNewerFrameRevisions([b2], than: [a3, b2]) == [b2])
+        let c1 = frame(id: "c", revision: "1")
+        precondition(keepingNewerFrameRevisions([a3, c1], than: [a3]) == [a3, c1])
+        precondition(keepingNewerFrameRevisions([c1, a3], than: [a3]) == [c1, a3])
+        // Different canvas IDs never mix: incoming wins.
+        let foreign = frame(id: "a", canvas: "other", revision: "1")
+        precondition(keepingNewerFrameRevisions([foreign], than: [a3]) == [foreign])
     }
 
     private static func checkValidation() {
