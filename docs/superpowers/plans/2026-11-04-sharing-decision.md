@@ -59,10 +59,10 @@
 - [ ] **Step 2: Run tests red.** `bun run test tests/sharingDecision.test.tsx`; record actual missing-copy failures, not environment/import errors.
 
 - [ ] **Step 3: Update the two components with minimal copy changes.** Use these texts verbatim, broken across JSX lines as appropriate:
-  - Active owner checkbox and active non-owner status: „Alle Angemeldeten mit dem Link können bearbeiten“.
+  - Owner checkbox in both states and active non-owner status: „Alle Angemeldeten mit dem Link können bearbeiten“.
   - Active visible warning for both roles: „Angemeldete Personen mit diesem Link können Deine Arbeitsfläche mitbearbeiten. Dies ist kein reiner Ansichts-Link.“
   - Always-visible alternative: „Nur zeigen? Exportiere Dein Design als Datei oder nutze „Als Datei teilen“. Die Datei ist eine Momentaufnahme ohne Zugriff auf Deine Arbeitsfläche.“
-  - Inactive link helper/status: „Zugriff haben nur Du, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.“ Include workspace qualification only when there is one. Fix the owner checkbox tooltip consistently. Keep existing access behavior.
+  - Inactive link helper/status, separate from the owner's checkbox label: „Zugriff haben nur der Eigentümer, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.“ Include workspace qualification only when there is one. Fix the owner checkbox tooltip consistently. Keep existing access behavior.
   - Active copy label „Bearbeitungslink kopieren“; inactive „Link kopieren“.
   - Gallery description: „Alle angemeldeten Nutzerinnen können veröffentlichte Vorlagen ansehen und in ihr eigenes Konto kopieren. Die Veröffentlichung allein gewährt keinen Bearbeitungszugriff auf das Original.“ Update its tooltip consistently.
   - Onboarding, inside existing `showChecklist` fragment, before agent steps: „Teilen: Ein aktivierter Bearbeitungslink erlaubt angemeldeten Personen die Mitbearbeitung. Zum reinen Zeigen exportiere Dein Design als Datei.“ Use `obHint`; no progress changes.

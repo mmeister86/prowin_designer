@@ -103,8 +103,11 @@ it('explains existing access for an inactive link, including workspace members',
   await withPage(shareModal({ ...OWNER, id: 'inactive-workspace', linkAccess: 'none', workspaceId: 'w1' }), () => {
     expect(dialogButton('Link kopieren')).toBeTruthy()
     expect(dialogText()).not.toContain('kein reiner Ansichts-Link')
+    const checkbox = document.body.querySelector<HTMLInputElement>('input[type="checkbox"]')!
+    expect(checkbox.checked).toBe(false)
+    expect(checkbox.closest('label')?.textContent).toContain('Alle Angemeldeten mit dem Link können bearbeiten')
     expect(dialogText()).toContain(
-      'Zugriff haben nur Du, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.',
+      'Zugriff haben nur der Eigentümer, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.',
     )
   })
 })
@@ -114,7 +117,7 @@ it('does not promise workspace access when the canvas has none', async () => {
   await withPage(shareModal({ ...OWNER, id: 'inactive-guest', memberIds: ['guest'] }), () => {
     expect(dialogButton('Link kopieren')).toBeTruthy()
     expect(dialogText()).not.toContain('kein reiner Ansichts-Link')
-    expect(dialogText()).toContain('Zugriff haben nur Du und eingeladene Personen.')
+    expect(dialogText()).toContain('Zugriff haben nur der Eigentümer und eingeladene Personen.')
     expect(dialogText()).not.toContain('Mitglieder des zugehörigen Arbeitsbereichs')
   })
 })
@@ -157,7 +160,7 @@ it('still requests edit or none from the checkbox and stays unchanged when rejec
     expect(api.setLinkAccess).toHaveBeenLastCalledWith('toggle-off', 'none')
     expect(rejected).not.toHaveBeenCalled()
     expect(dialogText()).toContain('Alle Angemeldeten mit dem Link können bearbeiten')
-    expect(dialogText()).not.toContain('Zugriff haben nur Du')
+    expect(dialogText()).not.toContain('Zugriff haben nur der Eigentümer')
     expect(dialogText()).toContain('Zugriffsänderung fehlgeschlagen')
   })
 })

@@ -73,8 +73,8 @@ export function ShareModal({
 
   const workspace = canvas.workspaceId ? workspaces.find((w) => w.id === canvas.workspaceId) : undefined
   const existingAccess = canvas.workspaceId
-    ? 'Zugriff haben nur Du, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.'
-    : 'Zugriff haben nur Du und eingeladene Personen.'
+    ? 'Zugriff haben nur der Eigentümer, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.'
+    : 'Zugriff haben nur der Eigentümer und eingeladene Personen.'
 
   async function move(target: string) {
     if (busy) return
@@ -265,7 +265,7 @@ export function ShareModal({
               }
             >
               <Checkbox checked={linkEdits} disabled={busy} onChange={(event) => toggleLink(event.target.checked)} />
-              {linkEdits ? 'Alle Angemeldeten mit dem Link können bearbeiten' : existingAccess}
+              Alle Angemeldeten mit dem Link können bearbeiten
             </label>
           ) : (
             <span className="text-label text-ink-faint">
@@ -277,6 +277,7 @@ export function ShareModal({
             {linkEdits ? 'Bearbeitungslink kopieren' : 'Link kopieren'}
           </Button>
         </div>
+        {isOwner && !linkEdits && <p className="mt-2 text-label leading-snug text-ink-faint">{existingAccess}</p>}
         {linkEdits && (
           <p className="mt-2 text-label leading-snug text-ink-soft">
             Angemeldete Personen mit diesem Link können Deine Arbeitsfläche mitbearbeiten. Dies ist kein reiner
