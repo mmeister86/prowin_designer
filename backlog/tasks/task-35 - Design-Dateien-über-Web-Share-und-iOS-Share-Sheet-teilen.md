@@ -4,7 +4,7 @@ title: Design-Dateien über Web Share und iOS Share Sheet teilen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-04T10:23:00Z'
+updated_date: '2026-11-04T10:48:00Z'
 labels:
   - prowin
   - implementation
@@ -63,4 +63,6 @@ Council-Fortsetzung erfolgreich auf Quellcode-Ebene: native updatedAt-/Edit-Reve
 Scoped Council2Runden: ClaudeOpus5.5 5→8/10, GPT-6.1Sol5→9/10, MuseWonder4→8/10. Alle akzeptieren Quellcode-Lösung; keine offenen scoped Critical/Important. Native Freigabe wird ausdrücklich NICHT behauptet.
 Controllerfinal auf5e26ba0: 238Dateien/2145Tests bestanden(292,47s), Typecheck/Lint/Build bestanden. Bekannte Bundle-Warnung und doc-lintmtime-Heuristik offengelegt. Log /tmp/opencode/task35-final-5e26ba0-tests.log. Bericht docs/superpowers/reports/2026-11-04-file-sharing.md.
 Noch erforderlich: macOS Swift DoopCoreChecks, ios/ConnectionTests/run.sh, Xcode-Simulatorbuild, reale Browser/Desktop/iOS-ShareSheet-Abnahme. AC3 bleibt offen, Task bleibt InProgress bis explizite Benutzerbestätigung. Legacy ohne Revision und HTTP-vor-WS-Korrelation bleiben dokumentierte Protokollgrenzen. Nichtblockierender Duplicate-ID-Härtungswunsch separat TASK-81 ToDo. Kein Push/Merge/PR.
+
+PR geöffnet und überwacht nach expliziter Benutzerfreigabe: https://github.com/mmeister86/prowin_designer/pull/12 (kein Merge erlaubt). Erster Apple-CI-Lauf auf daed423 scheitert beim Kompilieren der CoreChecks: FrameImageExport.swift27 map(String.init) mehrdeutig. Enger einzeiliger Controller-CI-Fix ersetzt dies durch map { String($0) }; keine Änderung der Revisionslogik. Bestehende Swift-Tests für numerische/fehlende/null Revisionen laufen nach erfolgreicher Kompilierung erneut in macOS-CI. Native Grünmeldung/AC3 weiterhin nicht behauptet.
 <!-- SECTION:NOTES:END -->

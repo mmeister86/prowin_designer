@@ -24,7 +24,7 @@ public enum FrameImageExport {
     /// too; payloads without a revision fall back to the legacy marker and
     /// keep content-only protection.
     public static func identity(of frame: DesignFrame) -> String {
-        "\(frame.id)|\(frame.name)|\(frame.width)|\(frame.height)|\(frame.html)|\(frame.updatedAt.map(String.init) ?? "legacy")"
+        "\(frame.id)|\(frame.name)|\(frame.width)|\(frame.height)|\(frame.html)|\(frame.updatedAt.map { String($0) } ?? "legacy")"
     }
 
     /// Encoded frame-id path component, no forced scale: the server resolves

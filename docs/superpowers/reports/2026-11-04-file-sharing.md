@@ -4,7 +4,13 @@
 
 Web file sharing and native iOS image-sharing source are implemented. **The native revision defect is fixed at source level**, accepted by Terra and all three Council members. No scoped Critical/Important source findings remain. **TASK-35 stays In Progress:** Apple core/integration/build/runtime/manual acceptance has not run, so native deployment readiness is not established.
 
-Final reviewed product/test source: **`5e26ba0`**, branch **`feat/task-35-file-sharing`**. Product implementation: **Muse Spark 1.3**; task/fix/whole-branch reviews: **GPT-6.1 Terra**. Controller made one isolated four-line source-wiring-test correction (not product code). Fresh scoped Council rounds below. No substitute models, pushes, merges or PRs.
+Final reviewed product/test source: **`5e26ba0`**, branch **`feat/task-35-file-sharing`**. Product implementation: **Muse Spark 1.3**; task/fix/whole-branch reviews: **GPT-6.1 Terra**. Controller made one isolated four-line source-wiring-test correction (not product code). Fresh scoped Council rounds below. No substitute models or merges; PR opened only after explicit user authorization (details below).
+
+## PR monitoring — compiler correction
+
+After explicit user authorization, branch pushed and PR **https://github.com/mmeister86/prowin_designer/pull/12** opened with native T3 monitoring (no merge authorization). Apple CI on `daed423` reached Swift compilation and failed in `FrameImageExport.identity(of:)`: `updatedAt.map(String.init)` was ambiguous under the runner compiler. The controller applied the one-line mechanical correction `updatedAt.map { String($0) }` under the T3 small-fix rule; existing numeric/missing/null identity tests cover the intended behavior. Native CI remains the compile/execution proof; no local Swift run is claimed. The source reviews/scores below refer to `5e26ba0` before this syntax-only CI correction, not a fresh Council round.
+
+Post-correction local checks: six focused suites **75/75 passed**, `bun run typecheck` and `bun run lint` passed. Existing Node/localhost diagnostics remain disclosed. A fresh full native/web CI run on the pushed correction is still required.
 
 ## Implemented behavior
 
@@ -128,4 +134,4 @@ In ledger order, including consequences if wrong:
 2. Verify real browser/desktop/iOS files, cancel/retry, Save to Files/Photos, offline and slow-render cases.
 3. Obtain explicit user acceptance before closing TASK-35. No merge/push authorization is inferred. TASK-81 stays separate To Do.
 
-No push, merge or pull request was created.
+PR12 was opened and its branch pushed after explicit user authorization; monitoring remains active. No merge or Backlog closure is authorized.
