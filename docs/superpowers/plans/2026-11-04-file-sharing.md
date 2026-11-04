@@ -109,3 +109,7 @@ Product source `ccb98a7`: web and native source implemented by Muse Spark1.3, ta
 ## Final follow-up result
 
 Reviewed source `5e26ba0`: native revision blocker resolved by Muse `7dcddd3`/`2352d1a`, isolated source-test correction `5e26ba0`, Terra source findings accepted. Council2rounds: **Opus5.5 5→8/10, Sol6.1 5→9/10, MuseWonder4→8/10**; all accept scoped source correctness, native runtime gate explicitly open. Controller **238files/2145tests PASS**, typecheck/lint/build PASS, doc-lint PASS with disclosed freshness heuristic; build has known large-chunk warning. No remaining scoped Critical/Important source finding. Swift core/ConnectionChecks/Xcode/manual acceptance remain unrun on Linux, AC3 open and TASK-35 In Progress. Optional duplicate-ID hardening tracked as TASK-81 To Do. Detailed evidence and decisions in persistent report; do not repeat completed work.
+
+## Accepted completion
+
+PR12 merged as `0d9f0d0`. Subsequent Apple CI on `704ed5c` passed Swift core checks, real CanvasModel connection/integration checks and iPhone/iPad simulator build; web CI passed. User explicitly confirmed task completion, so TASK-35/AC3 are now Done through CLI. The agent did not personally perform manual Share Sheet interaction. Earlier open-gate records above are historical; TASK-81 stays To Do. Local/remote main synchronization and non-main branch cleanup follow the user's explicit request while preserving unrelated uncommitted files and detached worktree contents.

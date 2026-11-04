@@ -1,10 +1,10 @@
 ---
 id: TASK-35
 title: Design-Dateien über Web Share und iOS Share Sheet teilen
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-04T10:48:00Z'
+updated_date: '2026-11-04T11:14:00Z'
 labels:
   - prowin
   - implementation
@@ -30,7 +30,7 @@ Quellen: Umsetzung § 10.4
 <!-- AC:BEGIN -->
 - [x] #1 Unterstützte Browser teilen PNG/JPG als Dateien; andernfalls ist ein Download verfügbar.
 - [x] #2 Abbruch des Share-Dialogs wird nicht als erfolgreicher Share gewertet; Fehler sind verständlich.
-- [ ] #3 iOS verwendet das native Share Sheet; Web/Desktop und iOS sind mit einer Exportdatei geprüft.
+- [x] #3 iOS verwendet das native Share Sheet; Web/Desktop und iOS sind mit einer Exportdatei geprüft.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -65,4 +65,14 @@ Controllerfinal auf5e26ba0: 238Dateien/2145Tests bestanden(292,47s), Typecheck/L
 Noch erforderlich: macOS Swift DoopCoreChecks, ios/ConnectionTests/run.sh, Xcode-Simulatorbuild, reale Browser/Desktop/iOS-ShareSheet-Abnahme. AC3 bleibt offen, Task bleibt InProgress bis explizite Benutzerbestätigung. Legacy ohne Revision und HTTP-vor-WS-Korrelation bleiben dokumentierte Protokollgrenzen. Nichtblockierender Duplicate-ID-Härtungswunsch separat TASK-81 ToDo. Kein Push/Merge/PR.
 
 PR geöffnet und überwacht nach expliziter Benutzerfreigabe: https://github.com/mmeister86/prowin_designer/pull/12 (kein Merge erlaubt). Erster Apple-CI-Lauf auf daed423 scheitert beim Kompilieren der CoreChecks: FrameImageExport.swift27 map(String.init) mehrdeutig. Enger einzeiliger Controller-CI-Fix ersetzt dies durch map { String($0) }; keine Änderung der Revisionslogik. Bestehende Swift-Tests für numerische/fehlende/null Revisionen laufen nach erfolgreicher Kompilierung erneut in macOS-CI. Native Grünmeldung/AC3 weiterhin nicht behauptet.
+
+Abschluss nach expliziter Benutzerbestätigung „task done, remote und lokal abgleichen“. PR https://github.com/mmeister86/prowin_designer/pull/12 wurde bereits am 2026-11-04 gemergt (0d9f0d00e5f0d050361bafeac4ddfd839f834acd). Auf704ed5c sind Web-CI sowie Apple Swift-Core-Checks, echte CanvasModel-ConnectionChecks und iPhone/iPad-Simulatorbuild erfolgreich. AC3 aufgrund Benutzerabnahme abgeschlossen; keine vom Agenten selbst ausgeführte manuelle Share-Sheet-Bedienung behauptet. TASK-81 bleibt separater ToDo-Follow-up. Andere lokale Änderungen bleiben unberührt; main wird mit origin/main synchronisiert, übrige Branches werden auf ausdrücklichen Wunsch entfernt.
+
+Lokalen main nach gemergtem PR per Fast-forward übernommen. Vorhandene root-Änderungen (TASK29/31/32/79) und zusätzliche Task33-Worktree-Änderung per SHA256 vor/nach Abgleich identisch bestätigt. Fehlendes lokal installiertes parse5 über bun install --frozen-lockfile ergänzt; kein Lockfile geändert. Anschließend komplette Testsuite, Typecheck und Lint auf main bestanden. Nur TASK35-Abschluss und zugehörige Berichte werden committed; andere Änderungen bleiben uncommitted erhalten. Alle sechs übrigen lokalen/origin-Branches sind in main enthalten; Worktrees werden zur Inhaltssicherung detached belassen.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Implementiere PNG/JPG-Dateifreigabe für Web und iOS mit Download-Fallback, neutralem Abbruch und revisionssicherer Vorbereitung. Übernehme die Council-/Terra-geprüfte Lösung aus PR #12; bestätige grüne Web-/Apple-CI und Benutzerabnahme. Schließe TASK-35; belasse optionale Duplicate-ID-Härtung in TASK-81.
+<!-- SECTION:FINAL_SUMMARY:END -->

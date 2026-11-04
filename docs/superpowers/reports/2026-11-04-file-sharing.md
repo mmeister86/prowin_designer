@@ -1,6 +1,18 @@
-# TASK-35 execution report — source accepted, native gate open
+# TASK-35 execution report — accepted and complete
 
-## Outcome
+## Closure after user acceptance
+
+The user explicitly confirmed **“task done, remote und lokal abgleichen”** on2026-11-04. TASK-35 and AC3 are now closed through the Backlog CLI on that acceptance, not inferred from CI alone. PR **https://github.com/mmeister86/prowin_designer/pull/12** was already merged at **`0d9f0d00e5f0d050361bafeac4ddfd839f834acd`**.
+
+Verified Apple CI on source **`704ed5c`** succeeded: Blitz bridge tests, Swift core contracts, actual CanvasModel connection/integration checks, and the iPhone/iPad simulator build ([run41816717599](https://github.com/mmeister86/prowin_designer/actions/runs/41816717599)). Web CI is green too; a single unchanged composer-focus timing flake passed its targeted rerun. CodeRabbit was policy-skipped, not treated as a required gate. The agent did not personally operate the Share Sheet; manual acceptance is recorded as the user's confirmation, not invented execution evidence.
+
+Local `main` was fast-forwarded to the merged remote commit without stashing or overwriting unrelated changes. The user's additional request authorizes deleting all non-main local and `origin` branches; merged worktree contents are preserved detached, including uncommitted work. TASK-81 remains a separate To Do hardening follow-up.
+
+Fresh local post-merge verification: after `bun install --frozen-lockfile` restored missing installed `parse5` (lockfile unchanged), **238files/2145tests passed** in319.63s; typecheck and repo-wide lint passed. Test log `/tmp/opencode/task35-synced-main-tests.log`. SHA256 checks confirmed the four pre-existing root task edits and the separate Task33-worktree edit remained byte-identical.
+
+The sections below preserve development/review history. Their pre-acceptance open-gate statements are superseded by this closure and verified CI evidence.
+
+## Outcome before user acceptance (historical)
 
 Web file sharing and native iOS image-sharing source are implemented. **The native revision defect is fixed at source level**, accepted by Terra and all three Council members. No scoped Critical/Important source findings remain. **TASK-35 stays In Progress:** Apple core/integration/build/runtime/manual acceptance has not run, so native deployment readiness is not established.
 
