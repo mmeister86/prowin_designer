@@ -152,7 +152,10 @@ it('[task3-wiring] common canvas ingress merges newer revisions before the pendi
   expect(didSet).toContain('pendingMoves.apply')
   expect(didSet).toContain('pruneSelection()')
   // Same-canvas guard: the merge only runs against the previous same-canvas document.
-  expect(didSet).toMatch(/oldValue[\s\S]{0,200}document\.id == previous\.id|document\.id == previous\.id/)
+  const sameCanvas = /if let previous = oldValue,\s*document\.id == previous\.id\s*\{([^{}]*)\}/.exec(didSet)
+  expect(sameCanvas?.[1]).toContain(
+    'document.frames = keepingNewerFrameRevisions(document.frames, than: previous.frames)',
+  )
   // Order inside the observer: merge first, then overlay, then prune — and no
   // early return may skip the overlay or pruning on the revision path.
   const mergeAt = didSet.indexOf('keepingNewerFrameRevisions')
