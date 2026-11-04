@@ -4,7 +4,7 @@ title: Design-Dateien über Web Share und iOS Share Sheet teilen
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-04T07:20:00Z'
+updated_date: '2026-11-04T07:23:00Z'
 labels:
   - prowin
   - implementation
@@ -49,4 +49,6 @@ Quellen: Umsetzung § 10.4
 
 <!-- SECTION:NOTES:BEGIN -->
 Council: Claude Opus 5.5, GPT-6.1 Sol und Muse Wonder (high) beraten. Empfehlung: Export vorbereiten, zweiter Klick zum Teilen, keine Erfolgsmeldung bei Abbruch/Share-Auflösung, Download bleibt verfügbar. Isolierter Branch feat/task-35-file-sharing. Design/Plan: docs/superpowers/{specs/2026-11-04-file-sharing-design.md,plans/2026-11-04-file-sharing.md}. Keine automatische Done-Markierung. Linux ohne Swift/Xcode; native Ausführung/AC3 bleibt ohne zusätzliche Evidenz offen. Baseline voller Testlauf nach 120s abgebrochen; zwei UI-Timeouts im fokussierten Wiederholungslauf bestanden (50/50). Session-Verzeichnis bleibt wegen T3-Tool-Verfügbarkeit im Hauptcheckout; sämtliche Implementation arbeitet ausschließlich im isolierten Worktree.
+
+BLOCKIERT: Muse Spark 1.3 (opencodex/meta-muse/muse-spark-1.3 via OpenCode) konnte am 2026-11-04 nicht starten. T3 delegate_task: failed; ECONNREFUSED: Unable to connect. Is the computer able to access the url? Kein Ersatzmodell verwendet. Council/Design/Plan abgeschlossen; keine Produktcode-Änderungen und kein Terra-Code-Review. Fortsetzung sobald exakt dieses Modell erreichbar ist oder der Benutzer einen Ersatz ausdrücklich erlaubt. Plan-Basis f51e14d; Task-1-Brief und SDD-Ledger im isolierten Worktree vorhanden. Status bleibt In Progress, da die Projektkonfiguration nur To Do/In Progress/Done erlaubt; Blocked wurde vom CLI ohne Änderung abgelehnt.
 <!-- SECTION:NOTES:END -->
