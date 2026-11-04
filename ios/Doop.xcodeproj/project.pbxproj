@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		000000000000000000000370 /* Core/NativeMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000371 /* Core/NativeMessages.swift */; };
+		000000000000000000000373 /* Core/FrameImageExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000372 /* Core/FrameImageExport.swift */; };
+		000000000000000000000375 /* FrameImageExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000374 /* FrameImageExportView.swift */; };
 		000000000000000000000360 /* Core/CanvasSocket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000361 /* Core/CanvasSocket.swift */; };
 		000000000000000000000352 /* Core/PendingFrameMoves.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000353 /* Core/PendingFrameMoves.swift */; };
 		000000000000000000000354 /* Core/ProviderSignIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000355 /* Core/ProviderSignIn.swift */; };
@@ -67,6 +69,8 @@
 
 /* Begin PBXFileReference section */
 		000000000000000000000371 /* Core/NativeMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/NativeMessages.swift; sourceTree = "<group>"; };
+		000000000000000000000372 /* Core/FrameImageExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/FrameImageExport.swift; sourceTree = "<group>"; };
+		000000000000000000000374 /* FrameImageExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FrameImageExportView.swift; sourceTree = "<group>"; };
 		000000000000000000000361 /* Core/CanvasSocket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/CanvasSocket.swift; sourceTree = "<group>"; };
 		000000000000000000000353 /* Core/PendingFrameMoves.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/PendingFrameMoves.swift; sourceTree = "<group>"; };
 		000000000000000000000355 /* Core/ProviderSignIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/ProviderSignIn.swift; sourceTree = "<group>"; };
@@ -136,6 +140,7 @@
 			isa = PBXGroup;
 			children = (
 				000000000000000000000371 /* Core/NativeMessages.swift */,
+				000000000000000000000372 /* Core/FrameImageExport.swift */,
 				00000000000000000000012C /* Core/Models.swift */,
 				000000000000000000000351 /* Core/FrameSnapping.swift */,
 				000000000000000000000361 /* Core/CanvasSocket.swift */,
@@ -146,6 +151,7 @@
 				00000000000000000000012D /* DoopClient.swift */,
 				00000000000000000000012E /* CanvasModel.swift */,
 				000000000000000000000130 /* NativeCanvasView.swift */,
+				000000000000000000000374 /* FrameImageExportView.swift */,
 				000000000000000000000310 /* Blitz/BlitzDocument.swift */,
 				000000000000000000000315 /* Blitz/AgentMark.swift */,
 				000000000000000000000311 /* Blitz/BlitzCanvasView.swift */,
@@ -282,6 +288,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				000000000000000000000370 /* Core/NativeMessages.swift in Sources */,
+				000000000000000000000373 /* Core/FrameImageExport.swift in Sources */,
+				000000000000000000000375 /* FrameImageExportView.swift in Sources */,
 				000000000000000000000262 /* Doop/Core/AgentActivityState.swift in Sources */,
 				000000000000000000000263 /* Shared/AgentActivityAttributes.swift in Sources */,
 				000000000000000000000264 /* Doop/AgentLiveActivities.swift in Sources */,
@@ -365,6 +373,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = doop;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Speichere Deine exportierten Designs in Deinen Fotos.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -421,6 +430,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = doop;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Speichere Deine exportierten Designs in Deinen Fotos.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

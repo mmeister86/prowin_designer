@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import type { Frame } from '../shared/types'
@@ -102,4 +102,25 @@ it('hands focus from the frame menu to a persistent export dialog and dismisses 
   })
   expect(document.querySelector('[role="dialog"]')).toBeNull()
   expect(document.body.style.pointerEvents).not.toBe('none')
+})
+
+it('offers file sharing preparation in the export dialog and still dismisses with Escape', async () => {
+  vi.stubGlobal('navigator', { share: vi.fn(), canShare: vi.fn(() => true) })
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('img')),
+  )
+  try {
+    const dialog = await openExportDialog()
+    expect(dialog.textContent).toContain('PNG herunterladen')
+    expect(dialog.textContent).toContain('PNG vorbereiten')
+    await act(async () => {
+      document.activeElement!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      )
+    })
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })

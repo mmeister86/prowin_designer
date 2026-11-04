@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Frame } from '../shared/types'
-import { copyFramePng, downloadFrameExport } from '../src/lib/frameExport'
+import { copyFramePng, downloadFrameExport, prepareFrameExport, saveBlob } from '../src/lib/frameExport'
 import { useStore } from '../src/lib/store'
 
 const frame: Frame = {
@@ -237,4 +237,272 @@ it('leaves no unhandled rejection when the clipboard refuses before reading the 
   process.off('unhandledRejection', unhandled)
   expect(unhandled).not.toHaveBeenCalled()
   expect(useStore.getState().notice?.text).toBe('Das PNG konnte nicht kopiert werden')
+})
+
+it('prepares a PNG file with exact URL, MIME, server name and bytes and no download click', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response('png-bytes', { headers: { 'Content-Disposition': 'attachment; filename="Poster.png"' } }),
+    ),
+  )
+
+  const file = await prepareFrameExport(frame, 'png')
+
+  expect(fetch).toHaveBeenCalledWith('/i/export-frame.png?download', expect.anything())
+  expect(file).toBeInstanceOf(File)
+  expect(file.name).toBe('Poster.png')
+  expect(file.type).toBe('image/png')
+  expect(await file.text()).toBe('png-bytes')
+  expect(clicked).toHaveLength(0)
+})
+
+it('prepares a JPG file falling back to the frame name', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('jpg-bytes')),
+  )
+
+  const file = await prepareFrameExport(frame, 'jpg')
+
+  expect(fetch).toHaveBeenCalledWith('/i/export-frame.jpg?download', expect.anything())
+  expect(file.name).toBe('Poster.jpg')
+  expect(file.type).toBe('image/jpeg')
+  expect(await file.text()).toBe('jpg-bytes')
+  expect(clicked).toHaveLength(0)
+})
+
+it('throws the server font and rate-limit errors when preparing', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () =>
+      Response.json(
+        { error: 'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.' },
+        { status: 500 },
+      ),
+    ),
+  )
+  await expect(prepareFrameExport(frame, 'png')).rejects.toThrow(
+    'Die Schriftarten konnten nicht vollständig geladen werden. Der Export wurde abgebrochen.',
+  )
+
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ error: 'JPG export rate limit — wait a minute' }, { status: 429 })),
+  )
+  await expect(prepareFrameExport(frame, 'jpg')).rejects.toThrow('JPG export rate limit — wait a minute')
+  expect(clicked).toHaveLength(0)
+})
+
+it('throws a controlled message when preparing fails without a server error', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('oops', { status: 500 })),
+  )
+  await expect(prepareFrameExport(frame, 'png')).rejects.toThrow('Das PNG konnte nicht exportiert werden')
+})
+
+it('throws the controlled timeout message after 120 seconds without rendering', async () => {
+  vi.useFakeTimers()
+  try {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init?: { signal?: AbortSignal }) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+          }),
+      ),
+    )
+    const pending = prepareFrameExport(frame, 'png')
+    const assertion = expect(pending).rejects.toThrow('Der PNG-Export hat zu lange gedauert. Versuche es erneut.')
+    await vi.advanceTimersByTimeAsync(120_000)
+    await assertion
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('lets caller cancellation stay distinguishable from export errors', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      (_url: string, init?: { signal?: AbortSignal }) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+        }),
+    ),
+  )
+  const controller = new AbortController()
+  const pending = prepareFrameExport(frame, 'png', controller.signal)
+  controller.abort()
+  const error = await pending.catch((err: unknown) => err)
+  expect(error).toBeInstanceOf(DOMException)
+  expect((error as DOMException).name).toBe('AbortError')
+  expect(fetch).toHaveBeenCalledWith('/i/export-frame.png?download', expect.anything())
+})
+
+it('does not fetch when the caller signal is already aborted', async () => {
+  vi.stubGlobal('fetch', vi.fn())
+  const controller = new AbortController()
+  controller.abort()
+  const error = await prepareFrameExport(frame, 'png', controller.signal).catch((err: unknown) => err)
+  expect(error).toBeInstanceOf(DOMException)
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+it('sanitizes long path-like names keeping the extension', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('img')),
+  )
+  const file = await prepareFrameExport({ ...frame, name: `../../${'x'.repeat(200)}.txt` }, 'png')
+  expect(file.name).not.toContain('/')
+  expect(file.name).not.toContain('\\')
+  expect(file.name.endsWith('.png')).toBe(true)
+  expect(file.name.length).toBeLessThanOrEqual(84)
+})
+
+it('saves a prepared blob through a download link without fetching', async () => {
+  vi.stubGlobal('fetch', vi.fn())
+  saveBlob(new File(['ready-bytes'], 'Poster.png', { type: 'image/png' }), 'Poster.png')
+  expect(fetch).not.toHaveBeenCalled()
+  expect(clicked).toHaveLength(1)
+  expect(clicked[0]!.download).toBe('Poster.png')
+  expect(clicked[0]!.href).toBe('blob:export')
+})
+
+it('preserves the original server filename for downloads while preparing a safe name', async () => {
+  const serverName = `exports/${'n'.repeat(100)}.jpeg`
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response('jpg-bytes', { headers: { 'Content-Disposition': `attachment; filename="${serverName}"` } }),
+    ),
+  )
+
+  const file = await prepareFrameExport(frame, 'jpg')
+  expect(file.name).not.toContain('/')
+  expect(file.name.endsWith('.jpg')).toBe(true)
+  expect(file.name.length).toBeLessThanOrEqual(84)
+  expect(clicked).toHaveLength(0)
+
+  await downloadFrameExport(frame, 'jpg')
+
+  expect(clicked).toHaveLength(1)
+  expect(clicked[0]!.download).toBe(serverName)
+  expect(useStore.getState().notice).toMatchObject({ text: `„${serverName}“ ist bereit`, busy: false })
+})
+
+it('reports caller cancellation while the body is still reading', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+      const res = new Response('body-bytes')
+      vi.spyOn(res, 'blob').mockImplementation(
+        () =>
+          new Promise<Blob>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+          }),
+      )
+      return Promise.resolve(res)
+    }),
+  )
+  const controller = new AbortController()
+  const pending = prepareFrameExport(frame, 'png', controller.signal)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  controller.abort()
+  const error = await pending.catch((err: unknown) => err)
+  expect(error).toBeInstanceOf(DOMException)
+  expect((error as DOMException).name).toBe('AbortError')
+  expect(clicked).toHaveLength(0)
+})
+
+it('reports the timeout when the body stalls past 120 seconds', async () => {
+  vi.useFakeTimers()
+  try {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+        const res = new Response('body-bytes')
+        vi.spyOn(res, 'blob').mockImplementation(
+          () =>
+            new Promise<Blob>((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+            }),
+        )
+        return Promise.resolve(res)
+      }),
+    )
+    const pending = prepareFrameExport(frame, 'png')
+    const assertion = expect(pending).rejects.toThrow('Der PNG-Export hat zu lange gedauert. Versuche es erneut.')
+    await vi.advanceTimersByTimeAsync(120_000)
+    await assertion
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('reports the timeout when the error body stalls past 120 seconds', async () => {
+  vi.useFakeTimers()
+  try {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: { signal?: AbortSignal }) => {
+        const failed = {
+          ok: false,
+          headers: new Headers(),
+          json: () =>
+            new Promise((_resolve, reject) => {
+              init?.signal?.addEventListener('abort', () => reject(init.signal!.reason))
+            }),
+        } as unknown as Response
+        return Promise.resolve(failed)
+      }),
+    )
+    const pending = prepareFrameExport(frame, 'png')
+    const assertion = expect(pending).rejects.toThrow('Der PNG-Export hat zu lange gedauert. Versuche es erneut.')
+    await vi.advanceTimersByTimeAsync(120_000)
+    await assertion
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+it('treats an aborted error-body read as caller cancellation', async () => {
+  let rejectJson!: (err: unknown) => void
+  const failed = {
+    ok: false,
+    headers: new Headers(),
+    json: () => new Promise((_resolve, reject) => (rejectJson = reject)),
+  } as unknown as Response
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => failed),
+  )
+  const controller = new AbortController()
+  const pending = prepareFrameExport(frame, 'png', controller.signal)
+  await Promise.resolve()
+  controller.abort()
+  rejectJson(controller.signal.reason)
+  const error = await pending.catch((err: unknown) => err)
+  expect(error).toBeInstanceOf(DOMException)
+  expect((error as DOMException).name).toBe('AbortError')
+})
+
+it('maps a thrown save failure to the generic export error', async () => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response('png-bytes')),
+  )
+  URL.createObjectURL = vi.fn(() => {
+    throw new Error('DOM boom')
+  })
+
+  await downloadFrameExport(frame, 'png')
+
+  expect(clicked).toHaveLength(0)
+  expect(useStore.getState().notice).toMatchObject({ text: 'Das PNG konnte nicht exportiert werden', busy: false })
 })

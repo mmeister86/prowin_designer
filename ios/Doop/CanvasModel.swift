@@ -9,9 +9,22 @@ final class CanvasModel: ObservableObject {
     let client: DoopClient
     @Published var canvas: CanvasDocument? {
         didSet {
-            // Full frame events and reconnect snapshots can still contain the
-            // pre-drop position. Overlay pending moves at every model entry.
-            if var document = canvas, pendingMoves.apply(to: &document.frames) { canvas = document }
+            // Delayed full-frame snapshots must not overwrite newer revisions.
+            // Normalize the incoming document locally — same-canvas revision
+            // merge first, then the pending-move overlay — assign only when
+            // that changed anything, and always prune the selection. Correct
+            // whether or not this runtime re-enters observers on self-assign.
+            if var document = canvas {
+                if let previous = oldValue, document.id == previous.id {
+                    document.frames = keepingNewerFrameRevisions(document.frames, than: previous.frames)
+                }
+                // Full frame events and reconnect snapshots can still contain
+                // the pre-drop position. Overlay pending moves at every entry.
+                pendingMoves.apply(to: &document.frames)
+                if let current = canvas, document.frames != current.frames {
+                    canvas = document
+                }
+            }
             pruneSelection()
         }
     }

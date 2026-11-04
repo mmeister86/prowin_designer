@@ -44,6 +44,24 @@ final class DoopClient {
         try JSONDecoder().decode(T.self, from: await data(path))
     }
 
+    /// Render the frame as a PNG/JPG file for the native share sheet, reusing
+    /// the session cookies and the same-server response boundary. Cancellation
+    /// propagates; the file stays in its temp directory while the system reads it.
+    func exportImage(frameID: String, name: String, format: FrameImageFormat) async throws -> URL {
+        var request = try request(FrameImageExport.path(frameID: frameID, format: format))
+        request.timeoutInterval = FrameImageExport.requestTimeout
+        request.setValue(format.mimeType, forHTTPHeaderField: "Accept")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, let url = http.url, server.contains(url) else {
+            throw APIError(status: 0, message: "Der Server hat unerwartet geantwortet. Prüfe Deine Serveradresse und versuche es erneut.")
+        }
+        let bytes = try FrameImageExport.validatedImage(data: data, response: http, format: format)
+        let destination = try ExportDirectory().destination(
+            suggestedFilename: FrameImageExport.safeFilename(name: name, format: format))
+        try bytes.write(to: destination, options: .atomic)
+        return destination
+    }
+
     /// Migrate an existing wrapper login; never move cookies to a different host.
     func importWebSession() async {
         guard (HTTPCookieStorage.shared.cookies(for: server.home) ?? []).isEmpty else { return }
