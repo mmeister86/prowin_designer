@@ -5,6 +5,24 @@ import { useStore } from './store'
 export type FrameExportFormat = 'png' | 'jpg'
 
 const FORMAT_LABEL: Record<FrameExportFormat, string> = { png: 'PNG', jpg: 'JPG' }
+const FORMAT_MIME: Record<FrameExportFormat, string> = { png: 'image/png', jpg: 'image/jpeg' }
+
+/* A prepared export keeps its extension after sanitation: path segments,
+   control characters and trailing dots go, overlong basenames are cut and
+   an empty rest falls back to the frame placeholder. */
+const SAFE_BASENAME_MAX = 80
+// eslint-disable-next-line no-control-regex -- server filenames may carry C0 controls; strip them
+const CONTROL_CHARS = /[\x00-\x1F\x7F]/g
+
+function safeExportFileName(raw: string, format: FrameExportFormat): string {
+  const base = String(raw).split('/').pop()!.split('\\').pop()!
+  let name = base.replace(CONTROL_CHARS, '').trim().replace(/\.+$/, '')
+  name = name.replace(/\.(png|jpe?g)$/i, '')
+  if (!name) name = 'Zeichenfläche'
+  if (name.length > SAFE_BASENAME_MAX) name = name.slice(0, SAFE_BASENAME_MAX).trimEnd()
+  if (!name) name = 'Zeichenfläche'
+  return `${name}.${format}`
+}
 
 /* Blob URLs are revoked late: in the desktop shell the save panel opens
    before WebKit reads the blob, and the person may take a while to pick. */
@@ -32,7 +50,7 @@ async function failureOf(res: Response, format: FrameExportFormat): Promise<stri
    desktop shell's webview ignores Content-Disposition for types it can
    display (PNG and JPG) and would show the file
    in the window instead; with the attribute it opens the native save panel. */
-function saveBlob(blob: Blob, fileName: string) {
+export function saveBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -67,15 +85,52 @@ function report(outcome: string | null) {
 
 async function exportOutcome(frame: Frame, format: FrameExportFormat): Promise<string | null> {
   try {
-    const res = await fetch(frameExportUrl(frame, format), { signal: AbortSignal.timeout(EXPORT_TIMEOUT_MS) })
-    if (!res.ok) return await failureOf(res, format)
-    const fileName = fileNameOf(res, frame, format)
-    saveBlob(await res.blob(), fileName)
-    return isDesktopShell() ? null : `„${fileName}“ ist bereit`
+    const file = await prepareFrameExport(frame, format)
+    saveBlob(file, file.name)
+    return isDesktopShell() ? null : `„${file.name}“ ist bereit`
   } catch (err) {
-    return err instanceof DOMException && err.name === 'TimeoutError'
-      ? `Der ${FORMAT_LABEL[format]}-Export hat zu lange gedauert. Versuche es erneut.`
-      : `Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`
+    return err instanceof Error ? err.message : `Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`
+  }
+}
+
+/* Render once, use twice: the same prepared File backs the share sheet and
+   the prepared download, so the server renders only once per explicit click.
+   Throws controlled German Error messages; a caller abort stays a
+   DOMException AbortError so the caller can tell it apart. */
+export async function prepareFrameExport(frame: Frame, format: FrameExportFormat, signal?: AbortSignal): Promise<File> {
+  if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
+  /* the render timeout combined with the caller's signal without
+     AbortSignal.any: either side aborts the fetch below */
+  const combined = new AbortController()
+  const timer = setTimeout(
+    () => combined.abort(new DOMException('Export timed out', 'TimeoutError')),
+    EXPORT_TIMEOUT_MS,
+  )
+  const onCallerAbort = () => combined.abort(signal!.reason ?? new DOMException('Aborted', 'AbortError'))
+  signal?.addEventListener('abort', onCallerAbort, { once: true })
+  try {
+    let res: Response
+    try {
+      res = await fetch(frameExportUrl(frame, format), { signal: combined.signal })
+    } catch (err) {
+      if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
+      if (err instanceof DOMException && err.name === 'TimeoutError')
+        throw new Error(`Der ${FORMAT_LABEL[format]}-Export hat zu lange gedauert. Versuche es erneut.`, { cause: err })
+      throw new Error(`Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`, { cause: err })
+    }
+    if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
+    if (!res.ok) throw new Error(await failureOf(res, format))
+    let bytes: Blob
+    try {
+      bytes = await res.blob()
+    } catch {
+      throw new Error(`Das ${FORMAT_LABEL[format]} konnte nicht exportiert werden`)
+    }
+    if (signal?.aborted) throw signal.reason ?? new DOMException('Aborted', 'AbortError')
+    return new File([bytes], safeExportFileName(fileNameOf(res, frame, format), format), { type: FORMAT_MIME[format] })
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener('abort', onCallerAbort)
   }
 }
 

@@ -1,5 +1,6 @@
 import type { Frame } from '../../shared/types'
 import { downloadFrameExport, type FrameExportFormat } from '../lib/frameExport'
+import { FrameShareActions } from '../prowin/FrameShareActions'
 import { Button } from './ui/button'
 import { Modal, ModalActions, ModalLede, ModalTitle } from './ui/modal'
 
@@ -21,6 +22,7 @@ export function FrameExportModal({ frame, onClose }: { frame: Frame; onClose: ()
           JPG herunterladen
         </Button>
       </div>
+      <FrameShareActions frame={frame} />
       <ModalActions>
         <Button variant="ghost" onClick={onClose}>
           Abbrechen
