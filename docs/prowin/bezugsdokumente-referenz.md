@@ -334,7 +334,7 @@ Offen und kostenlos, ein Community-Ökosystem statt Shop. **Pitch-Metriken:** mo
 | Veröffentlichen mit Titel, Beschreibung, Kategorie | ✅ `publishedAt`, `description`, `category` auf `canvases` | Tags, Kurzbeschreibung                                               |
 | Fork („Verwenden“)                                 | ✅ Kopie, `copyCount`                                      | Rückverweis auf Original                                             |
 | Vorschaubilder (statische Mockups)                 | 🔄 Thumbnails über `/i/<frameId>`                          | 1–5 Varianten-Bilder                                                 |
-| Sharing-Stufen privat / Team / Link / öffentlich   | ✅ privat, Workspace, Link, Gallery                        | Link heißt in doop **Mitbearbeiten**. Ein reiner Ansichts-Link fehlt |
+| Sharing-Stufen privat / Team / Link / öffentlich   | ✅ privat, Workspace, Link, Gallery                        | Link heißt Mitbearbeiten. Bewusst kein Ansichts-Link (Q11, TASK-36). |
 | Suche, Filter (Format, Kategorie)                  | prüfen                                                     | Format-Filter braucht `preset`                                       |
 | Bewertungen (nur nach Fork)                        | ❌                                                         | Phase B                                                              |
 | Creator-Profile, Badges, Trust-Level               | ❌                                                         | Phase B                                                              |

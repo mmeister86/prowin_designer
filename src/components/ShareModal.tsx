@@ -72,6 +72,11 @@ export function ShareModal({
   }, [canvas.id])
 
   const workspace = canvas.workspaceId ? workspaces.find((w) => w.id === canvas.workspaceId) : undefined
+  const existingAccess = !canvas.ownerId
+    ? 'Diese ältere Arbeitsfläche hat keinen Eigentümer und ist für alle zugänglich. Der Bearbeitungslink schränkt diesen Zugriff nicht ein.'
+    : canvas.workspaceId
+      ? 'Zugriff haben nur der Eigentümer, eingeladene Personen und Mitglieder des zugehörigen Arbeitsbereichs.'
+      : 'Zugriff haben nur der Eigentümer und eingeladene Personen.'
 
   async function move(target: string) {
     if (busy) return
@@ -255,21 +260,36 @@ export function ShareModal({
           {isOwner ? (
             <label
               className="relative flex cursor-pointer items-center gap-2 text-body font-medium text-ink"
-              title="Aus = nur Du und eingeladene Personen können diese Arbeitsfläche öffnen"
+              title={
+                linkEdits
+                  ? 'An = alle Angemeldeten mit dem Link können bearbeiten. Dies ist kein reiner Ansichts-Link.'
+                  : existingAccess
+              }
             >
               <Checkbox checked={linkEdits} disabled={busy} onChange={(event) => toggleLink(event.target.checked)} />
-              Alle mit dem Link können bearbeiten
+              Alle Angemeldeten mit dem Link können bearbeiten
             </label>
           ) : (
             <span className="text-label text-ink-faint">
-              {linkEdits ? 'Alle mit dem Link können bearbeiten' : 'Arbeitsfläche nur auf Einladung'}
+              {canvas.ownerId && linkEdits ? 'Alle Angemeldeten mit dem Link können bearbeiten' : existingAccess}
             </span>
           )}
           <Button className="justify-center gap-2" onClick={copy}>
             <CopyIcon className="size-3.5" />
-            Link kopieren
+            {linkEdits ? 'Bearbeitungslink kopieren' : 'Link kopieren'}
           </Button>
         </div>
+        {isOwner && !linkEdits && <p className="mt-2 text-label leading-snug text-ink-faint">{existingAccess}</p>}
+        {linkEdits && (
+          <p className="mt-2 text-label leading-snug text-ink-soft">
+            Angemeldete Personen mit diesem Link können Deine Arbeitsfläche mitbearbeiten. Dies ist kein reiner
+            Ansichts-Link.
+          </p>
+        )}
+        <p className="mt-2 text-label leading-snug text-ink-faint">
+          Nur zeigen? Exportiere Dein Design als Datei oder nutze „Als Datei teilen“. Die Datei ist eine Momentaufnahme
+          ohne Zugriff auf Deine Arbeitsfläche.
+        </p>
         {capabilities.publish && (
           <CommunityListing canvas={canvas} busy={busy} setBusy={setBusy} setError={setError} onChange={onChange} />
         )}
@@ -329,13 +349,14 @@ function CommunityListing({
     <div className="mt-3.5 border-t border-line-soft pt-3.5">
       <label
         className="flex cursor-pointer items-center gap-2 text-body font-medium text-ink"
-        title="Alle auf doop können eine veröffentlichte Arbeitsfläche ansehen und kopieren. Die Arbeitsfläche selbst bleibt privat."
+        title="Alle angemeldeten Nutzerinnen können veröffentlichte Vorlagen ansehen und kopieren. Die Veröffentlichung allein gewährt keinen Bearbeitungszugriff auf das Original."
       >
         <Checkbox checked={published} disabled={busy} onChange={(event) => save(event.target.checked)} />
         In der Community-Galerie anzeigen
       </label>
       <p className="mt-1 pl-[26px] text-label leading-snug text-ink-faint">
-        Andere können sie ansehen und in ihr eigenes Konto kopieren. Deine Arbeitsfläche bleibt privat.
+        Alle angemeldeten Nutzerinnen können veröffentlichte Vorlagen ansehen und in ihr eigenes Konto kopieren. Die
+        Veröffentlichung allein gewährt keinen Bearbeitungszugriff auf das Original.
       </p>
       {published && (
         <div className="mt-3 flex flex-col gap-2.5 pl-[26px]">
