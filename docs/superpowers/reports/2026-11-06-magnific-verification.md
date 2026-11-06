@@ -28,6 +28,7 @@ Opus became reachable after the user reconnected Claude. Interrupted initial Sol
 - Small controller fixes in `fc04cf7`: monotonic clock, bounded/stall-safe pause, mock evidence label, 64 KiB response stream cap. Regression tests were observed failing before each fix and passing afterward.
 - GPT-6.1 Terra scoped re-review: Approved, 9/10; all three findings addressed, no new breakage.
 - GPT-6.1 Terra whole-branch review: 7/10; requested rejection of UUID-shaped key echoes and retention of partial evidence after a paid job was created. Both fixed with regression tests; ambiguous POSTs remain explicitly unconfirmed and are never retried.
+- GPT-6.1 Terra final scoped fix review: **9/10, ready to merge the scoped tool**; both findings addressed, no new findings. This is not acceptance of TASK-38 or its missing live/legal evidence.
 
 ## Verification
 
