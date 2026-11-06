@@ -56,15 +56,18 @@ export interface ProbeEvidence {
   statuses: string[]
   generatedCount: number
   taskId?: string
+  submission?: 'unconfirmed' | 'created'
 }
 
 export class ProbeError extends Error {
   readonly code: string
+  readonly evidence?: Omit<ProbeEvidence, 'ok'> & { ok: false }
 
-  constructor(code: string) {
+  constructor(code: string, evidence?: ProbeEvidence) {
     super(code)
     this.name = 'ProbeError'
     this.code = code
+    this.evidence = evidence ? { ...evidence, ok: false } : undefined
   }
 }
 
@@ -101,7 +104,7 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
-function parseTask(text: string): TaskSnapshot {
+function parseTask(text: string, key: string): TaskSnapshot {
   let value: unknown
   try {
     value = JSON.parse(text)
@@ -120,6 +123,7 @@ function parseTask(text: string): TaskSnapshot {
     throw new ProbeError('invalid-schema')
   }
   if (!UUID.test(taskId)) throw new ProbeError('invalid-task-id')
+  if (taskId.toLowerCase().includes(key.toLowerCase())) throw new ProbeError('secret-in-task-id')
   if (!KNOWN_STATUSES.has(status)) throw new ProbeError('unknown-status')
   if (!generated.every(isHttpsUrl)) throw new ProbeError('invalid-result')
   if (status === 'COMPLETED' && generated.length === 0) throw new ProbeError('missing-result')
@@ -207,81 +211,90 @@ export async function runProbe(options: ProbeOptions = {}): Promise<ProbeEvidenc
   const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const startedAt = now()
   const deadline = startedAt + OVERALL_DEADLINE_MS
-
-  const headers = { accept: 'application/json', 'content-type': 'application/json', 'x-magnific-api-key': key }
-  const postTimeout = requestTimeout(deadline, now())
-  const post = await requestText(
-    fetchImpl,
-    GENERATE_URL,
-    {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        prompt: PROMPT,
-        mode: 'quality',
-        quality: 'medium',
-        resolution: '1k',
-        aspect_ratio: '1:1',
-      }),
-      redirect: 'error',
-    },
-    postTimeout.ms,
-    postTimeout.code,
-  )
-  if (!post.ok) throw new ProbeError(`http-${post.status}`)
-
-  const created = parseTask(post.text)
   const evidence: ProbeEvidence = {
     ok: true,
     mode: 'live',
     classification: options.fetchImpl ? 'local-mock' : 'live-observation',
     timestamp: new Date(startedAt).toISOString(),
     request: REQUEST,
-    httpStatuses: [post.status],
-    statuses: [created.status],
-    generatedCount: created.generated.length,
-    taskId: created.taskId,
+    httpStatuses: [],
+    statuses: [],
+    generatedCount: 0,
+    submission: 'unconfirmed',
   }
-  if (created.status === 'FAILED') throw new ProbeError('failed')
-  if (created.status === 'COMPLETED') return evidence
 
-  const pollUrl = `${BASE_URL}/v1/ai/magnific-one/${created.taskId}`
-  for (let polls = 0; ; polls += 1) {
-    if (polls >= MAX_POLLS) throw new ProbeError('poll-limit')
-    const remaining = deadline - now()
-    if (remaining <= 0) throw new ProbeError('deadline')
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        sleep(Math.min(POLL_INTERVAL_MS, remaining)),
-        new Promise<never>((_resolve, reject) => {
-          timer = setTimeout(() => reject(new ProbeError('deadline')), remaining)
-        }),
-      ])
-    } finally {
-      clearTimeout(timer)
-    }
-    if (now() >= deadline) throw new ProbeError('deadline')
-
-    const timeout = requestTimeout(deadline, now())
-    const poll = await requestText(
+  try {
+    const headers = { accept: 'application/json', 'content-type': 'application/json', 'x-magnific-api-key': key }
+    const postTimeout = requestTimeout(deadline, now())
+    const post = await requestText(
       fetchImpl,
-      pollUrl,
-      { method: 'GET', headers: { accept: 'application/json', 'x-magnific-api-key': key }, redirect: 'error' },
-      timeout.ms,
-      timeout.code,
+      GENERATE_URL,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          prompt: PROMPT,
+          mode: 'quality',
+          quality: 'medium',
+          resolution: '1k',
+          aspect_ratio: '1:1',
+        }),
+        redirect: 'error',
+      },
+      postTimeout.ms,
+      postTimeout.code,
     )
-    if (!poll.ok) throw new ProbeError(`http-${poll.status}`)
+    evidence.httpStatuses.push(post.status)
+    if (!post.ok) throw new ProbeError(`http-${post.status}`)
 
-    const snapshot = parseTask(poll.text)
-    if (snapshot.taskId !== created.taskId) throw new ProbeError('task-mismatch')
-    evidence.httpStatuses.push(poll.status)
-    evidence.statuses.push(snapshot.status)
-    if (snapshot.status === 'FAILED') throw new ProbeError('failed')
-    if (snapshot.status === 'COMPLETED') {
-      evidence.generatedCount = snapshot.generated.length
-      return evidence
+    const created = parseTask(post.text, key)
+    evidence.statuses.push(created.status)
+    evidence.generatedCount = created.generated.length
+    evidence.taskId = created.taskId
+    evidence.submission = 'created'
+    if (created.status === 'FAILED') throw new ProbeError('failed')
+    if (created.status === 'COMPLETED') return evidence
+
+    const pollUrl = `${BASE_URL}/v1/ai/magnific-one/${created.taskId}`
+    for (let polls = 0; ; polls += 1) {
+      if (polls >= MAX_POLLS) throw new ProbeError('poll-limit')
+      const remaining = deadline - now()
+      if (remaining <= 0) throw new ProbeError('deadline')
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          sleep(Math.min(POLL_INTERVAL_MS, remaining)),
+          new Promise<never>((_resolve, reject) => {
+            timer = setTimeout(() => reject(new ProbeError('deadline')), remaining)
+          }),
+        ])
+      } finally {
+        clearTimeout(timer)
+      }
+      if (now() >= deadline) throw new ProbeError('deadline')
+
+      const timeout = requestTimeout(deadline, now())
+      const poll = await requestText(
+        fetchImpl,
+        pollUrl,
+        { method: 'GET', headers: { accept: 'application/json', 'x-magnific-api-key': key }, redirect: 'error' },
+        timeout.ms,
+        timeout.code,
+      )
+      evidence.httpStatuses.push(poll.status)
+      if (!poll.ok) throw new ProbeError(`http-${poll.status}`)
+
+      const snapshot = parseTask(poll.text, key)
+      if (snapshot.taskId !== created.taskId) throw new ProbeError('task-mismatch')
+      evidence.statuses.push(snapshot.status)
+      if (snapshot.status === 'FAILED') throw new ProbeError('failed')
+      if (snapshot.status === 'COMPLETED') {
+        evidence.generatedCount = snapshot.generated.length
+        return evidence
+      }
     }
+  } catch (error) {
+    throw new ProbeError(error instanceof ProbeError ? error.code : 'error', evidence)
   }
 }
 
@@ -344,7 +357,11 @@ export async function main(args: string[]): Promise<number> {
     writeEvidence(evidence)
     return 0
   } catch (error) {
-    writeEvidence({ ok: false, error: error instanceof ProbeError ? error.code : 'error' })
+    writeEvidence({
+      ok: false,
+      error: error instanceof ProbeError ? error.code : 'error',
+      ...(error instanceof ProbeError && error.evidence ? { evidence: error.evidence } : {}),
+    })
     return 1
   }
 }

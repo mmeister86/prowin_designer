@@ -99,6 +99,8 @@ Der Live-Pfad sendet genau einen POST mit festem Prompt und explizit `{ mode: 'q
 
 Whitelisted Ausgabe: Zeitstempel, Modus/Evidenzklasse, feste Request-Konfiguration, HTTP-Statuscodes, beobachtete Task-Status, Ergebnisanzahl, optional validierte Task-ID. Kein Key, kein Rohbody, keine Ergebnis-URL, keine Fehlermeldung des Providers.
 
+Bei Fehlern nach dem Sendeversuch bleibt diese bereinigte Teilevidenz unter `evidence` erhalten (`ok: false`, CLI-Exitcode 1). `submission: created` bedeutet, dass eine validierte Task-ID vorliegt; `unconfirmed` bedeutet, dass keine Task bestätigt werden konnte — ein möglicherweise trotzdem gestarteter Job darf nicht automatisch erneut angelegt werden. Task-IDs, die den Schlüssel enthalten, werden vor Ausgabe oder Polling verworfen, auch bei UUID-förmigen Schlüsseln.
+
 Die Tests decken ab:
 
 - Dry-Run und Gates (kein Fetch ohne `--ack-cost`/Key);

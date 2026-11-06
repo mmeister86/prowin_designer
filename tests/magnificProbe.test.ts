@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -60,6 +61,7 @@ async function expectCode(promise: Promise<unknown>, code: string) {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllGlobals()
 })
 
 describe('gates', () => {
@@ -155,6 +157,54 @@ describe('happy path', () => {
 })
 
 describe('failures', () => {
+  it.each(['CREATED', 'COMPLETED'])('rejects a UUID-shaped key echoed as task_id in %s', async (status) => {
+    const { impl, calls } = fakeFetch(() => task(status, status === 'COMPLETED' ? [RESULT_URL] : []))
+    const error = await runProbe(options({ key: TASK_ID, fetchImpl: impl })).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ code: 'secret-in-task-id' })
+    expect(JSON.stringify(error)).not.toContain(TASK_ID)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('retains sanitized job evidence after a poll HTTP failure', async () => {
+    const { impl, calls } = fakeFetch((call) =>
+      call.url === POST_URL ? task('CREATED') : new Response(`${SERVER_BODY} ${KEY}`, { status: 429 }),
+    )
+    const error = await runProbe(options({ fetchImpl: impl })).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({
+      code: 'http-429',
+      evidence: {
+        ok: false,
+        taskId: TASK_ID,
+        submission: 'created',
+        classification: 'local-mock',
+        httpStatuses: [200, 429],
+        statuses: ['CREATED'],
+        generatedCount: 0,
+      },
+    })
+    expect(JSON.stringify(error)).not.toContain(KEY)
+    expect(JSON.stringify(error)).not.toContain(SERVER_BODY)
+    expect(calls).toHaveLength(2)
+  })
+
+  it('marks an ambiguous failed POST unconfirmed without retrying', async () => {
+    const { impl, calls } = fakeFetch(() => {
+      throw new Error(KEY)
+    })
+    const error = await runProbe(options({ fetchImpl: impl })).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({
+      code: 'network',
+      evidence: {
+        ok: false,
+        submission: 'unconfirmed',
+        httpStatuses: [],
+        statuses: [],
+      },
+    })
+    expect(JSON.stringify(error)).not.toContain(KEY)
+    expect(calls).toHaveLength(1)
+  })
+
   it('rejects oversized upstream bodies without exposing their contents', async () => {
     const { impl, calls } = fakeFetch(() => new Response(SERVER_BODY.repeat(4_000)))
     const error = await runProbe(options({ fetchImpl: impl })).catch((caught: unknown) => caught)
@@ -165,7 +215,10 @@ describe('failures', () => {
 
   it('reports a terminal FAILED task without fetching a result', async () => {
     const { impl, calls } = fakeFetch((call) => (call.url === POST_URL ? task('CREATED') : task('FAILED')))
-    await expectCode(runProbe(options({ fetchImpl: impl })), 'failed')
+    await expect(runProbe(options({ fetchImpl: impl }))).rejects.toMatchObject({
+      code: 'failed',
+      evidence: { ok: false, taskId: TASK_ID, statuses: ['CREATED', 'FAILED'] },
+    })
     expect(calls).toHaveLength(2)
   })
 
@@ -335,6 +388,41 @@ describe('time bounds', () => {
 })
 
 describe('CLI', () => {
+  it('prints partial job evidence with a nonzero exit after a poll failure', async () => {
+    const directory = await mkdtemp('/tmp/opencode/magnific-probe-')
+    const keyFile = path.join(directory, 'synthetic-key')
+    const output: string[] = []
+    const { impl, calls } = fakeFetch((call) =>
+      call.url === POST_URL ? task('CREATED') : new Response(SERVER_BODY, { status: 503 }),
+    )
+    const spy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      output.push(String(chunk))
+      return true
+    })
+    try {
+      await writeFile(keyFile, KEY)
+      vi.stubGlobal('fetch', impl)
+      expect(await main(['--live', '--ack-cost', '--key-file', keyFile])).toBe(1)
+    } finally {
+      spy.mockRestore()
+      await rm(directory, { recursive: true, force: true })
+    }
+    expect(JSON.parse(output.join(''))).toMatchObject({
+      ok: false,
+      error: 'http-503',
+      evidence: {
+        ok: false,
+        submission: 'created',
+        taskId: TASK_ID,
+        httpStatuses: [200, 503],
+        statuses: ['CREATED'],
+      },
+    })
+    expect(output.join('')).not.toContain(KEY)
+    expect(output.join('')).not.toContain(SERVER_BODY)
+    expect(calls).toHaveLength(2)
+  }, 15_000)
+
   async function cli(args: string[]) {
     return run(
       process.execPath,

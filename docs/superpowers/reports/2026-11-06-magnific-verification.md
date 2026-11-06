@@ -2,7 +2,7 @@
 
 ## Result
 
-Prepared official-source evidence, a guarded standalone probe and 38 offline tests. No runtime integration, paid provider request, key access, push or PR. TASK-37 remains unaccepted and unchanged.
+Prepared official-source evidence, a guarded standalone probe and 43 offline tests. No runtime integration, paid provider request, real key access, push or PR. Tests use synthetic keys only. TASK-37 remains unaccepted and unchanged.
 
 - Evidence and live prerequisites: [Magnific verification](../../prowin/magnific-pruefung.md).
 - Design: [verification-only scope](../specs/2026-11-06-magnific-verification-design.md).
@@ -27,14 +27,15 @@ Opus became reachable after the user reconnected Claude. Interrupted initial Sol
 - GPT-6.1 Terra task review: 7/10, requested fixes for poll-wait deadline and mock/live classification; also noted response-buffer size.
 - Small controller fixes in `fc04cf7`: monotonic clock, bounded/stall-safe pause, mock evidence label, 64 KiB response stream cap. Regression tests were observed failing before each fix and passing afterward.
 - GPT-6.1 Terra scoped re-review: Approved, 9/10; all three findings addressed, no new breakage.
+- GPT-6.1 Terra whole-branch review: 7/10; requested rejection of UUID-shaped key echoes and retention of partial evidence after a paid job was created. Both fixed with regression tests; ambiguous POSTs remain explicitly unconfirmed and are never retried.
 
 ## Verification
 
 | Check                       | Result                                                  |
 | --------------------------- | ------------------------------------------------------- |
 | Baseline full suite         | 239 files / 2162 tests passed                           |
-| Final full suite            | 240 files / 2200 tests passed                           |
-| Focused probe suite         | 38 tests passed                                         |
+| Final full suite            | 240 files / 2205 tests passed                           |
+| Focused probe suite         | 43 tests passed                                         |
 | Typecheck                   | passed                                                  |
 | Lint                        | passed                                                  |
 | Doc lint                    | passed with one freshness warning for the new test file |
