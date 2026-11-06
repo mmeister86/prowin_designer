@@ -291,13 +291,13 @@ Der [Testkorpus](evidence/requesty-benchmark-corpus.json) enthält 20 deutsche T
 
 ### R4.4 Die fünf Features im Fork 🔄
 
-| Feature (Spec)                             | Im doop-Fork                                                                                                                                                 |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Text-Assistent (Feld / alle Felder füllen) | Element-Kommentar bzw. „KI-Wunsch“ an einem `data-od`-Element. Batch über eine Agent-Aufgabe                                                                 |
-| Layout-Generator (Zonen erzeugen)          | ❌ entfällt, der Agent schreibt direkt das Layout                                                                                                            |
-| Bild-Generator                             | **Geplant, noch nicht gebaut (TASK-39/40):** Magnific-Adapter in `imageGen.ts`. Prompt-Enhancement aus Brand-Bildsprache, „no text, no logos, no watermarks“ |
-| Design-Komplettierung                      | **Ist der doop-Agent.** Die Spec-Empfehlung „schrittweise statt ein Riesen-JSON“ erfüllt der Agent-Loop von selbst                                           |
-| Brand-Extraktion (aus JPEGs)               | Teilweise durch Magnific Brand Kit und den Distiller abgedeckt. `DESIGN-prowin.md` bleibt die Quelle                                                         |
+| Feature (Spec)                             | Im doop-Fork                                                                                                                                                                                   |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text-Assistent (Feld / alle Felder füllen) | Element-Kommentar bzw. „KI-Wunsch“ an einem `data-od`-Element. Batch über eine Agent-Aufgabe                                                                                                   |
+| Layout-Generator (Zonen erzeugen)          | ❌ entfällt, der Agent schreibt direkt das Layout                                                                                                                                              |
+| Bild-Generator                             | **Geplant, noch nicht gebaut (TASK-39/40):** Magnific-Adapter in `imageGen.ts`. Prompt-Enhancement aus Brand-Bildsprache, „no text, no logos, no watermarks“ ([Prüfung](magnific-pruefung.md)) |
+| Design-Komplettierung                      | **Ist der doop-Agent.** Die Spec-Empfehlung „schrittweise statt ein Riesen-JSON“ erfüllt der Agent-Loop von selbst                                                                             |
+| Brand-Extraktion (aus JPEGs)               | Teilweise durch Magnific Brand Kit und den Distiller abgedeckt. `DESIGN-prowin.md` bleibt die Quelle                                                                                           |
 
 ### R4.5 Limits, UX und Kosten 🔄
 
@@ -312,7 +312,7 @@ Der [Testkorpus](evidence/requesty-benchmark-corpus.json) enthält 20 deutsche T
 | Frame-HTML (Struktur + Text)           | ✅ Requesty                      | ZDR. Kontaktdaten gehen als `[[PII-n]]` raus, der Store behält das Original                                                                                                                                                |
 | Screenshots für Agent-Selbstprüfung    | ✅ Requesty (Vision)             | **Neu gegenüber Spec v0.2:** Bilddaten gehen regelmäßig raus. Seit TASK-21 wird der Screenshot aus der redigierten HTML-Kopie gerendert                                                                                    |
 | Personenbezogene Daten (Name, Telefon) | ✅ Platzhalter (seit 25.10.2026) | **Q10, Option A:** E-Mail, Telefon und IBAN werden vor jedem Requesty-Request ersetzt. Namen und freie Adressen erkennt die Regex nicht (→ TASK-29), Bildinhalte gar nicht. Details: [Datenfluss zur KI](datenfluss-ki.md) |
-| Bildprompts an Magnific                | 🔜 geplant (TASK-39/40)          | Adapter noch nicht gebaut. Bei Umsetzung: nur auf Klick, ohne Kontaktdaten im Prompt (Filter im Adapter, § 11 der Umsetzung)                                                                                               |
+| Bildprompts an Magnific                | 🔜 geplant (TASK-39/40)          | Adapter noch nicht gebaut. Bei Umsetzung: nur auf Klick, ohne Kontaktdaten im Prompt (Filter im Adapter, § 11 der Umsetzung). [Prüfung](magnific-pruefung.md)                                                              |
 | Brand Kit                              | ✅                               | keine pbD                                                                                                                                                                                                                  |
 
 **Compliance-Checkliste für den Pitch** (Art. 5(1)(c), 5(1)(e), 17, 28, 44–49, kein Training): Die Struktur bleibt. Die Nachweise müssen für Requesty **und** Magnific gelten. Die pbD-Zeile lautet seit TASK-21: _E-Mail, Telefon und IBAN werden vor dem Request durch Platzhalter ersetzt; gespeicherte Designs behalten die Originale; Namen, Adressen und Bildinhalte sind nicht abgedeckt und stehen so im UI-Hinweis._ Magnific ist noch nicht angebunden — der Nachweis dafür folgt mit TASK-39/40, nicht vorher.
