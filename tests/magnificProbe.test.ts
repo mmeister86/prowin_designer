@@ -140,7 +140,7 @@ describe('happy path', () => {
     expect(evidence).toMatchObject({
       ok: true,
       mode: 'live',
-      classification: 'live-observation',
+      classification: 'local-mock',
       timestamp: '2026-11-06T12:00:00.000Z',
       taskId: TASK_ID,
       httpStatuses: [200, 200, 200],
@@ -155,6 +155,14 @@ describe('happy path', () => {
 })
 
 describe('failures', () => {
+  it('rejects oversized upstream bodies without exposing their contents', async () => {
+    const { impl, calls } = fakeFetch(() => new Response(SERVER_BODY.repeat(4_000)))
+    const error = await runProbe(options({ fetchImpl: impl })).catch((caught: unknown) => caught)
+    expect(error).toMatchObject({ code: 'response-too-large' })
+    expect(String(error)).not.toContain(SERVER_BODY)
+    expect(calls).toHaveLength(1)
+  })
+
   it('reports a terminal FAILED task without fetching a result', async () => {
     const { impl, calls } = fakeFetch((call) => (call.url === POST_URL ? task('CREATED') : task('FAILED')))
     await expectCode(runProbe(options({ fetchImpl: impl })), 'failed')
@@ -239,6 +247,47 @@ describe('failures', () => {
 })
 
 describe('time bounds', () => {
+  it('caps the poll pause at the remaining overall deadline', async () => {
+    let clock = 0
+    const waits: number[] = []
+    const { impl, calls } = fakeFetch(() => {
+      clock = 179_000
+      return task('CREATED')
+    })
+    await expectCode(
+      runProbe(
+        options({
+          fetchImpl: impl,
+          now: () => clock,
+          sleep: async (ms: number) => {
+            waits.push(ms)
+            clock += ms
+          },
+        }),
+      ),
+      'deadline',
+    )
+    expect(waits).toEqual([1_000])
+    expect(clock).toBe(180_000)
+    expect(calls).toHaveLength(1)
+  })
+
+  it('bounds a stalled poll pause by the remaining deadline', async () => {
+    vi.useFakeTimers()
+    let clock = 0
+    const { impl, calls } = fakeFetch(() => {
+      clock = 179_000
+      return task('CREATED')
+    })
+    const pending = expectCode(
+      runProbe(options({ fetchImpl: impl, now: () => clock, sleep: () => new Promise<void>(() => {}) })),
+      'deadline',
+    )
+    await vi.advanceTimersByTimeAsync(1_000)
+    await pending
+    expect(calls).toHaveLength(1)
+  })
+
   it('stops after 30 GET polls', async () => {
     const { impl, calls } = fakeFetch((call) => (call.url === POST_URL ? task('CREATED') : task('IN_PROGRESS')))
     await expectCode(runProbe(options({ fetchImpl: impl })), 'poll-limit')
@@ -266,14 +315,7 @@ describe('time bounds', () => {
 
   it('bounds a stalled request body with the per-request timeout', async () => {
     vi.useFakeTimers()
-    const { impl } = fakeFetch(
-      () =>
-        ({
-          ok: true,
-          status: 200,
-          text: () => new Promise<string>(() => {}),
-        }) as unknown as Response,
-    )
+    const { impl } = fakeFetch(() => new Response(new ReadableStream()))
     const pending = expectCode(runProbe(options({ fetchImpl: impl })), 'timeout')
     await vi.advanceTimersByTimeAsync(30_000)
     await pending
@@ -282,14 +324,7 @@ describe('time bounds', () => {
   it('does not extend the deadline for a stalled request body', async () => {
     vi.useFakeTimers()
     let clockCalls = 0
-    const { impl } = fakeFetch(
-      () =>
-        ({
-          ok: true,
-          status: 200,
-          text: () => new Promise<string>(() => {}),
-        }) as unknown as Response,
-    )
+    const { impl } = fakeFetch(() => new Response(new ReadableStream()))
     const pending = expectCode(
       runProbe(options({ fetchImpl: impl, now: () => (clockCalls++ === 0 ? 0 : 170_000) })),
       'deadline',

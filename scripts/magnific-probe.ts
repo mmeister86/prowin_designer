@@ -13,6 +13,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
+import { performance } from 'node:perf_hooks'
 import { pathToFileURL } from 'node:url'
 
 const BASE_URL = 'https://api.magnific.com'
@@ -24,6 +25,7 @@ const POLL_INTERVAL_MS = 5_000
 const REQUEST_TIMEOUT_MS = 30_000
 const OVERALL_DEADLINE_MS = 180_000
 const MAX_POLLS = 30
+const MAX_RESPONSE_BYTES = 64 * 1024
 
 const KNOWN_STATUSES = new Set(['CREATED', 'IN_PROGRESS', 'COMPLETED', 'FAILED'])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -40,7 +42,7 @@ export interface ProbeOptions {
 export interface ProbeEvidence {
   ok: true
   mode: 'dry-run' | 'live'
-  classification: 'local-dry-run' | 'live-observation'
+  classification: 'local-dry-run' | 'local-mock' | 'live-observation'
   timestamp: string
   request: {
     endpoint: string
@@ -142,7 +144,27 @@ async function requestText(
   })
   const work = (async () => {
     const response = await fetchImpl(url, { ...init, signal: controller.signal })
-    return { status: response.status, ok: response.ok, text: await response.text() }
+    const chunks: Uint8Array[] = []
+    let bytes = 0
+    const reader = response.body?.getReader()
+    if (reader) {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          bytes += value.byteLength
+          if (bytes > MAX_RESPONSE_BYTES) {
+            controller.abort()
+            void reader.cancel().catch(() => {})
+            throw new ProbeError('response-too-large')
+          }
+          chunks.push(value)
+        }
+      } finally {
+        reader.releaseLock()
+      }
+    }
+    return { status: response.status, ok: response.ok, text: Buffer.concat(chunks).toString('utf8') }
   })()
   try {
     return await Promise.race([work, expired])
@@ -174,7 +196,7 @@ function dryRunEvidence(now: number): ProbeEvidence {
 }
 
 export async function runProbe(options: ProbeOptions = {}): Promise<ProbeEvidence> {
-  const now = options.now ?? Date.now
+  const now = options.now ?? (() => performance.timeOrigin + performance.now())
   if (!options.live) return dryRunEvidence(now())
 
   if (!options.ackCost) throw new ProbeError('cost-not-acknowledged')
@@ -212,7 +234,7 @@ export async function runProbe(options: ProbeOptions = {}): Promise<ProbeEvidenc
   const evidence: ProbeEvidence = {
     ok: true,
     mode: 'live',
-    classification: 'live-observation',
+    classification: options.fetchImpl ? 'local-mock' : 'live-observation',
     timestamp: new Date(startedAt).toISOString(),
     request: REQUEST,
     httpStatuses: [post.status],
@@ -226,8 +248,19 @@ export async function runProbe(options: ProbeOptions = {}): Promise<ProbeEvidenc
   const pollUrl = `${BASE_URL}/v1/ai/magnific-one/${created.taskId}`
   for (let polls = 0; ; polls += 1) {
     if (polls >= MAX_POLLS) throw new ProbeError('poll-limit')
-    if (now() >= deadline) throw new ProbeError('deadline')
-    await sleep(POLL_INTERVAL_MS)
+    const remaining = deadline - now()
+    if (remaining <= 0) throw new ProbeError('deadline')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        sleep(Math.min(POLL_INTERVAL_MS, remaining)),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => reject(new ProbeError('deadline')), remaining)
+        }),
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
     if (now() >= deadline) throw new ProbeError('deadline')
 
     const timeout = requestTimeout(deadline, now())

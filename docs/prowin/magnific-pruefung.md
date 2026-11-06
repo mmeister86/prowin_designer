@@ -54,7 +54,7 @@ Der Probe bleibt weit darunter: ein POST, höchstens 30 GETs im Abstand von 5 s.
 
 ## 5. Kosten
 
-Pricing-Seite: Jeder API-Aufruf verbraucht Credits; „Unlimited“-Pakete gelten nur in der Web-App, nicht für API-Aufrufe.
+Pricing-Seite: Jede KI-Generierung über die API verbraucht Credits; „Unlimited“-Pakete gelten nur in der Web-App, nicht für API-Generierungen. Daraus folgt keine belegte Abrechnung von Statusabfragen.
 
 Magnific-One-Creditpreise der Preisliste (pro Bild):
 
@@ -90,6 +90,10 @@ Bright tidy kitchen, soft daylight, empty worktop and quiet left text area; no p
 ## 8. Probe und Mock-Abdeckung
 
 `scripts/magnific-probe.ts` exportiert `runProbe(options)` und `main(args)`. Standard ist ein Dry-Run ohne Netzwerk und ohne Key-Datei. Live benötigt `--live --ack-cost --key-file <pfad>`; unbekannte oder unvollständige Flags werden vor dem Dateizugriff abgelehnt.
+
+Bei injiziertem Testtransport lautet die Evidenzklasse `local-mock`, niemals `live-observation`. Die Gesamtlaufzeit wird mit einer monotonen Uhr begrenzt; auch die Pause zwischen Statusabfragen endet spätestens am lokalen Zeitlimit.
+
+Antworten werden während des Stream-Lesens auf 64 KiB begrenzt; größere Antworten enden ohne Rohbody-Ausgabe mit `response-too-large`.
 
 Der Live-Pfad sendet genau einen POST mit festem Prompt und explizit `{ mode: 'quality', quality: 'medium', resolution: '1k', aspect_ratio: '1:1' }`, `redirect: 'error'` und `x-magnific-api-key`. Danach höchstens 30 GETs auf **nur** die erzeugte Task-ID, 5 s Abstand, 180 s Gesamtdeadline, 30 s pro Request inklusive Body. Kein Retry, kein Redirect-Follow, kein Bild-Download, keine Nutzer-/Canvas-Daten.
 
