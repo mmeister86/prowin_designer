@@ -124,18 +124,19 @@ Spec-Konformität und Qualität freigegeben, ohne kritische oder wichtige Befund
 
 ## Council review
 
-Runden: 2. Runde 1 bewertet die Ausgangsbereitschaft; Runde 2 bewertet den
+Runden: 3. Runde 1 bewertet die Ausgangsbereitschaft; Runde 2 bewertet den
 gesamten implementierten Nachweisumfang (`98c9924..e142d60`), nicht die offene
-manuelle Milestone-Abnahme.
+manuelle Milestone-Abnahme. Runde 3 ist die ausschließlich auf den Fix-Diff
+`e142d60..32b48b2` begrenzte Nachprüfung, kein weiterer Gesamtaudit.
 
-| Delegate                      | Runde 1 | Runde 2 |
-| ----------------------------- | ------- | ------- |
-| Claude Opus 5.5 · Claude Code | 6/10    | 8,5/10  |
-| GPT-6.1 Sol · OpenCode        | 7/10    | 9/10    |
-| Muse Wonder · OpenCode        | 8/10    | 9/10    |
+| Delegate                      | Runde 1 | Runde 2 | Runde 3 |
+| ----------------------------- | ------- | ------- | ------- |
+| Claude Opus 5.5 · Claude Code | 6/10    | 8,5/10  | 9/10    |
+| GPT-6.1 Sol · OpenCode        | 7/10    | 9/10    | 9/10    |
+| Muse Wonder · OpenCode        | 8/10    | 9/10    | 9/10    |
 
 Alle drei geben den freigegebenen Umfang zur Integration frei; keine kritischen
-oder wichtigen Befunde. Eine begrenzte Nachprüfung der Dokumentationskorrekturen
-und zusätzlichen Dateiformat-Assertion steht noch aus. Optional vorgeschlagene
+oder wichtigen Befunde. Die begrenzte Nachprüfung bestätigt alle sieben
+Korrekturpunkte als adressiert, ohne neue Fehler im Fix-Diff. Optional vorgeschlagene
 weitere MCP-/Fehlermeldungs-Assertions wurden nicht in den Scope aufgenommen;
 beide vorhandenen Task-Reviews und der Council sehen darin keinen Freigabeblocker.
