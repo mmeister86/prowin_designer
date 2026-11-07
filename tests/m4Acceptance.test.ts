@@ -158,6 +158,7 @@ async function acceptanceChain(download: boolean) {
         expect(res.headers.get('content-type')).toBe(mime)
         expect(res.headers.get('content-disposition')).toContain('attachment')
         const metadata = await sharp(Buffer.from(await res.arrayBuffer())).metadata()
+        expect(metadata.format).toBe(ext === 'jpg' ? 'jpeg' : 'png')
         expect({ width: metadata.width, height: metadata.height }).toEqual({ width: 1080, height: 1920 })
       }
     }

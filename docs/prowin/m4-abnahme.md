@@ -17,6 +17,7 @@ Testpfade beziehen sich auf das Repository-Wurzelverzeichnis.
 
 ### Ergänzende Szenarien
 
+- `tests/templateGuard.test.ts`: Schutz außerhalb offener Felder gegen CSS-/Script-Änderungen, Neudefinition von Custom Properties sowie Verschieben und Löschen von Feldern; ergänzt die konkreten Kettenfälle für die allgemeine AC1-Aussage.
 - `tests/templateWrites.test.ts`: Member-Restore entfernt keine Sperre (403, keine Writes), quellengestützte Kopie erhält Schutz.
 - `tests/templateTransports.test.ts`: MCP und Resident verweigern gesperrte Member-Edits; gültige Creator-Edits und quellengestützte Member-Kopien sind erlaubt.
 - `tests/templateCopyProvenance.test.ts`: Clipboard/Duplizieren/Redo übergeben die Quellen-ID.
@@ -31,7 +32,7 @@ Testpfade beziehen sich auf das Repository-Wurzelverzeichnis.
 ## Schutzgrenzen
 
 - `Frame.locked` ist eine Bedienungssperre. Inhaltsschutz und Constraints entstehen durch `data-od-*` und serverseitige Prüfung von `manageLocks`.
-- Aktuelle Admin-Ausnahme: Creator-Identität plus Admin und Canvas-Zugriff darf Vorlagen verwalten; sonst erfordert ein Workspace owner/creator, ein persönlicher Canvas Eigentum. Kontostatus Creator allein genügt einem Workspace-Member nicht.
+- Aktuelle Admin-Ausnahme: Creator-Identität plus Admin und Canvas-Zugriff darf Vorlagen verwalten; sonst erfordert ein Workspace-Canvas die Rolle owner/creator, ein persönlicher Canvas Eigentum. Kontostatus Creator allein genügt einem Workspace-Member nicht.
 - Persönliche Creator-Kopien können eigene Vorlagenrechte besitzen. Dies ist keine unveränderbare Rechteverwaltung für alle späteren Kopien.
 - Öffentliche aktuelle Bild-URLs sind keine privaten Momentaufnahmen. Datenschutz-Follow-up: **TASK-82 – Prüfe öffentliche Live-Bild-URLs** (To Do); nach Suche nach public/Datenschutz/Bild/Live ohne spezifischen vorhandenen Task angelegt. Keine Umsetzung hier.
 - TASK-36 entscheidet Datei/Export für private Momentaufnahmen und Galerie für veröffentlichte Vorlagen statt privatem Ansichtslink. Keine neuen Viewer-Links.
@@ -46,6 +47,9 @@ und Backlog, keine Produkt- oder Testdateien.
 Datum: 07.11.2026. Linux, Bun **1.4.4**, packageManager-Pin **1.3.10**;
 keine Dependencies aktualisiert. `CHROME_PATH=/usr/bin/chromium` für beide Testgruppen.
 Rohlogs: `.superpowers/sdd/2026-11-07-m4-acceptance/task-2-*.log` im Planworkspace.
+Rohlogs und Agent-Berichte sind **lokal, nicht versioniert oder dauerhaft archiviert**;
+eine lokale Kopie liegt unter `/tmp/opencode/task37-evidence/`. Dauerhaft im Git
+bleiben die Prüfergebnisse und Grenzen dieser Matrix, nicht die Rohlogs.
 
 | Befehl                                                                                                 | Ergebnis                                                                                           |
 | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
@@ -56,6 +60,8 @@ Rohlogs: `.superpowers/sdd/2026-11-07-m4-acceptance/task-2-*.log` im Planworkspa
 | Serieller Diagnoselauf der vier fehlgeschlagenen Browser-Suites (`--maxWorkers=1`)                     | Exit 0: 4 Dateien / 112 Tests bestanden, 0 Skips; 105,82 s                                         |
 | Erneuter vollständiger Pflichtlauf ohne Extension, gleiche Argumente, keine parallelen Dateiänderungen | Exit 0: 239 Dateien / 2160 Tests bestanden, 0 Skips; 165,04 s                                      |
 | Erneute separate Extension-Gruppe, gleiche Argumente                                                   | Exit 0: 1 Datei / 4 Tests bestanden, 0 Skips; 9,67 s                                               |
+| Abschließender vollständiger Pflichtlauf nach Council-Testhärtung, gleiche Argumente                   | Exit 0: 239 Dateien / 2160 Tests bestanden, 0 Skips; 164,53 s                                      |
+| Abschließende separate Extension-Gruppe                                                                | Exit 0: 1 Datei / 4 Tests bestanden, 0 Skips; 9,70 s                                               |
 | `bunx prettier --check` auf den fünf geänderten Dokumentations-/Backlog-Dateien                        | Exit 0, alle fünf Dateien formatiert                                                               |
 | `bun run doc-lint`                                                                                     | Exit 0, 0 Warnungen                                                                                |
 
@@ -66,6 +72,13 @@ Gruppe liefen ohne Skip, darunter Task 1 (2 Tests) und die echten Renderer-Suite
 Exportevidenz vor; der abschließende Pflichtlauf ist mit **2164 bestandenen Tests,
 0 Fehlern und 0 Skips** insgesamt grün. Der vorherige Fehlschlag bleibt als
 Stabilitätsbeobachtung dokumentiert.
+Nach Council-Runde 2 prüft der Kettentest zusätzlich `sharp.metadata().format`
+auf echtes PNG beziehungsweise JPEG statt nur HTTP-MIME und Maße. Beide
+Pflichtgruppen wurden mit dieser Assertion nochmals vollständig ausgeführt,
+ohne parallele Dateiänderungen: **2164 bestanden, 0 Fehler, 0 Skips**.
+Geprüfter Stand: `e142d60` mit dem anschließenden Einzeilen-Testdiff, keine
+Produktänderung. Rohlogs `/tmp/opencode/task37-final-suite.log` und
+`/tmp/opencode/task37-final-extension.log` (lokal, nicht dauerhaft archiviert).
 
 Fehler im Pflichtlauf: `elementResizeBrowser.test.ts` (11), `drawingBrowser.test.ts`
 (1), `elementPanelBrowser.test.ts` (2), `safeZoneBrowser.test.ts` (1). Exakte Namen
@@ -78,6 +91,8 @@ ein Einfluss durch Vite-Watching ist nicht ausgeschlossen. Keine Produktdatei
 weicht vom geprüften Basiscommit ab; keine unbezogenen Fixes oder Runneränderungen.
 Der anschließende vollständige Lauf ohne parallele Dateiänderungen bestand; das
 ist kein Beweis für die vermutete Ursache und kein behobener Produktfehler.
+Die Stabilitätsbeobachtung gehört zur bestehenden Folgeaufgabe **TASK-73 –
+Stabilisiere parallele Browser-Tests** (To Do), nicht zu einer Produktänderung in TASK-37.
 Zusätzliche Rohlogs: `/tmp/opencode/task37-frozen-suite.log` und
 `/tmp/opencode/task37-frozen-extension.log` (lokal).
 **AC1 und AC3 automatisiert belegt; AC2 und die manuelle Nutzerabnahme bleiben offen.**
@@ -104,5 +119,23 @@ Automatisierte Chromium-Läufe ersetzen diese Prüfungen nicht.
 | iOS             | PNG und JPG per Share Sheet nach Dateien und Fotos speichern, öffnen und Maße prüfen                       | offen    | offen               | offen | offen          |
 | iOS             | Share Sheet abbrechen und erneut teilen                                                                    | offen    | offen               | offen | offen          |
 
-Nutzerbestätigung zur M4-Abnahme: **offen**. Unabhängige Task-2-Review und finaler
-Council sind Arbeit des Controllers und hier noch nicht als erfolgt dokumentiert.
+Nutzerbestätigung zur M4-Abnahme: **offen**. Beide unabhängigen Task-Reviews haben
+Spec-Konformität und Qualität freigegeben, ohne kritische oder wichtige Befunde.
+
+## Council review
+
+Runden: 2. Runde 1 bewertet die Ausgangsbereitschaft; Runde 2 bewertet den
+gesamten implementierten Nachweisumfang (`98c9924..e142d60`), nicht die offene
+manuelle Milestone-Abnahme.
+
+| Delegate                      | Runde 1 | Runde 2 |
+| ----------------------------- | ------- | ------- |
+| Claude Opus 5.5 · Claude Code | 6/10    | 8,5/10  |
+| GPT-6.1 Sol · OpenCode        | 7/10    | 9/10    |
+| Muse Wonder · OpenCode        | 8/10    | 9/10    |
+
+Alle drei geben den freigegebenen Umfang zur Integration frei; keine kritischen
+oder wichtigen Befunde. Eine begrenzte Nachprüfung der Dokumentationskorrekturen
+und zusätzlichen Dateiformat-Assertion steht noch aus. Optional vorgeschlagene
+weitere MCP-/Fehlermeldungs-Assertions wurden nicht in den Scope aufgenommen;
+beide vorhandenen Task-Reviews und der Council sehen darin keinen Freigabeblocker.
