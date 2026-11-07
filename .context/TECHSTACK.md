@@ -136,6 +136,8 @@
 
 ## 7. Testing Stack
 
+- [M4 acceptance matrix](../docs/prowin/m4-abnahme.md): role/template protection, persistence, export evidence and open manual platform checks.
+
 - Vitest 5 - unit/integration tests across `server/` and `src/`; run via `bun run test`
   (`vitest run`). Tests live in `tests/`.
 - For the local full-suite acceptance, run `bun run test --maxWorkers=4 --exclude tests/claudeExtension.test.ts`,
