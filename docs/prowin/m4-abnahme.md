@@ -40,25 +40,32 @@ Testpfade beziehen sich auf das Repository-Wurzelverzeichnis.
 ## Frische Prüfung
 
 Geprüfter Produkt-/Teststand: `7f7d288136d06d3bb02d8b52a48cb01bfe493c7c`.
-Dokumentationsänderungen dieses Tasks beeinflussen den Produktstand nicht.
+Der zweite Pflichtlauf prüfte `487e27b02550e0cb0111aec4ad739e06aba6d93c` ohne
+parallele Dateiänderungen; gegenüber `7f7d288` unterscheiden sich nur Dokumentation
+und Backlog, keine Produkt- oder Testdateien.
 Datum: 07.11.2026. Linux, Bun **1.4.4**, packageManager-Pin **1.3.10**;
 keine Dependencies aktualisiert. `CHROME_PATH=/usr/bin/chromium` für beide Testgruppen.
 Rohlogs: `.superpowers/sdd/2026-11-07-m4-acceptance/task-2-*.log` im Planworkspace.
 
-| Befehl                                                                                              | Ergebnis                                                                                           |
-| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `bun run typecheck`                                                                                 | Exit 0                                                                                             |
-| `bun run lint`                                                                                      | Exit 0                                                                                             |
-| `CHROME_PATH=/usr/bin/chromium bun run test --maxWorkers=4 --exclude tests/claudeExtension.test.ts` | Exit 1: 235 Dateien / 2145 Tests bestanden, 4 Dateien / 15 Tests fehlgeschlagen, 0 Skips; 175,47 s |
-| `CHROME_PATH=/usr/bin/chromium bun run test tests/claudeExtension.test.ts --maxWorkers=1`           | Exit 0: 1 Datei / 4 Tests bestanden, 0 Skips; 9,65 s                                               |
-| Serieller Diagnoselauf der vier fehlgeschlagenen Browser-Suites (`--maxWorkers=1`)                  | Exit 0: 4 Dateien / 112 Tests bestanden, 0 Skips; 105,82 s                                         |
-| `bunx prettier --check` auf den fünf geänderten Dokumentations-/Backlog-Dateien                     | Exit 0, alle fünf Dateien formatiert                                                               |
-| `bun run doc-lint`                                                                                  | Exit 0, 0 Warnungen                                                                                |
+| Befehl                                                                                                 | Ergebnis                                                                                           |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `bun run typecheck`                                                                                    | Exit 0                                                                                             |
+| `bun run lint`                                                                                         | Exit 0                                                                                             |
+| `CHROME_PATH=/usr/bin/chromium bun run test --maxWorkers=4 --exclude tests/claudeExtension.test.ts`    | Exit 1: 235 Dateien / 2145 Tests bestanden, 4 Dateien / 15 Tests fehlgeschlagen, 0 Skips; 175,47 s |
+| `CHROME_PATH=/usr/bin/chromium bun run test tests/claudeExtension.test.ts --maxWorkers=1`              | Exit 0: 1 Datei / 4 Tests bestanden, 0 Skips; 9,65 s                                               |
+| Serieller Diagnoselauf der vier fehlgeschlagenen Browser-Suites (`--maxWorkers=1`)                     | Exit 0: 4 Dateien / 112 Tests bestanden, 0 Skips; 105,82 s                                         |
+| Erneuter vollständiger Pflichtlauf ohne Extension, gleiche Argumente, keine parallelen Dateiänderungen | Exit 0: 239 Dateien / 2160 Tests bestanden, 0 Skips; 165,04 s                                      |
+| Erneute separate Extension-Gruppe, gleiche Argumente                                                   | Exit 0: 1 Datei / 4 Tests bestanden, 0 Skips; 9,67 s                                               |
+| `bunx prettier --check` auf den fünf geänderten Dokumentations-/Backlog-Dateien                        | Exit 0, alle fünf Dateien formatiert                                                               |
+| `bun run doc-lint`                                                                                     | Exit 0, 0 Warnungen                                                                                |
 
-Beide Pflichtgruppen wurden jeweils einmal ausgeführt. Alle 2160 Tests der ersten
+Beide Pflichtgruppen wurden zunächst jeweils einmal ausgeführt und nach der
+Diagnose auf unverändertem Produkt-/Teststand vollständig wiederholt. Alle 2160 Tests der ersten
 Gruppe liefen ohne Skip, darunter Task 1 (2 Tests) und die echten Renderer-Suites
 `presetExportReal`, `presetExportStrictReal`, `safeZoneExportReal`. Damit liegt
-Exportevidenz vor; ein insgesamt grüner Pflichtlauf liegt **nicht** vor.
+Exportevidenz vor; der abschließende Pflichtlauf ist mit **2164 bestandenen Tests,
+0 Fehlern und 0 Skips** insgesamt grün. Der vorherige Fehlschlag bleibt als
+Stabilitätsbeobachtung dokumentiert.
 
 Fehler im Pflichtlauf: `elementResizeBrowser.test.ts` (11), `drawingBrowser.test.ts`
 (1), `elementPanelBrowser.test.ts` (2), `safeZoneBrowser.test.ts` (1). Exakte Namen
@@ -69,7 +76,11 @@ einen Parallel-/Fixture-Umgebungseffekt; Ursache nicht abschließend bewiesen.
 Auch Dokumentations-/Backlog-Dateien wurden während des ersten Laufs geschrieben;
 ein Einfluss durch Vite-Watching ist nicht ausgeschlossen. Keine Produktdatei
 weicht vom geprüften Basiscommit ab; keine unbezogenen Fixes oder Runneränderungen.
-**AC1 abgehakt; AC2 und AC3 bleiben offen.**
+Der anschließende vollständige Lauf ohne parallele Dateiänderungen bestand; das
+ist kein Beweis für die vermutete Ursache und kein behobener Produktfehler.
+Zusätzliche Rohlogs: `/tmp/opencode/task37-frozen-suite.log` und
+`/tmp/opencode/task37-frozen-extension.log` (lokal).
+**AC1 und AC3 automatisiert belegt; AC2 und die manuelle Nutzerabnahme bleiben offen.**
 
 Bekannte Ausgangslage: Node meldet `ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.`
 ESLint deckt Testdateien in der bestehenden Konfiguration nicht ab; Task 1 hat scoped oxlint und Typecheck bestanden.
