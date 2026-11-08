@@ -1,10 +1,10 @@
 ---
 id: TASK-37
 title: M4 mit Creator- und Beraterinnen-Rechten abnehmen
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-07T21:22:00Z'
+updated_date: '2026-11-08T20:27:00Z'
 labels:
   - prowin
   - implementation
@@ -39,10 +39,10 @@ Quellen: Umsetzung §§ 9, 10, 14 (M4)
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Task-1-Kettentest aus 7f7d288 als gemeinsame Rollen-/Persistenz-/Exportevidenz nutzen.
-2. AC-Matrix und offene Plattformcheckliste dokumentieren; beide vollständigen Testgruppen mit Chromium sowie Typecheck/Lint/Format/doc-lint frisch ausführen.
-3. Nur vollständig belegte ACs abhaken; AC2 und Status bis manueller Nutzerabnahme offen halten.
-4. Unabhängige Task-2-Review und finaler Council durch Controller (nicht Implementierungsagent).
+1. Nutze den echten M4-Kettentest und die Abnahmematrix als automatisierte Evidenz für AC1/AC3.
+2. Halte AC2 und die manuelle Browser-/Desktop-/iOS-Share-Abnahme ausdrücklich offen.
+3. Schließe TASK-37 auf ausdrücklichen Nutzerwunsch vom 08.11.2026 administrativ ab.
+4. Öffne einen PR gegen main und begleite Checks/Reviews ohne automatischen Merge.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -57,4 +57,12 @@ Quellen: Umsetzung §§ 9, 10, 14 (M4)
 07.11.2026 Council-Runde 2: Claude Opus 5.5 8,5/10, GPT-6.1 Sol 9/10, Muse Wonder 9/10; alle integrationsbereit, keine kritischen oder wichtigen Befunde. Kleinere Korrekturen gebündelt: tatsächliches PNG/JPEG-Byteformat via sharp prüfen, allgemeine Guard-Evidenz verlinken, lokale/nicht archivierte Rohlogs und Rechtewortlaut präzisieren, Reviewstand aktualisieren. Browser-Stabilitätsbeobachtung zur bestehenden TASK-73 (To Do) ergänzt, kein neuer Fixture-Fix. Nach Testhärtung erneut beide Pflichtgruppen vollständig: 2160 + 4 bestanden, 0 Fehler, 0 Skips (164.53s / 9.70s); Typecheck und Lint grün. Logs /tmp/opencode/task37-final-suite.log und task37-final-extension.log. Begrenzte Council-Nachprüfung folgt. AC2 und manuelle Nutzerabnahme weiterhin offen, keine Produktänderung, kein Push/PR/Merge.
 
 07.11.2026 Abschluss der begrenzten Council-Nachprüfung auf 32b48b2: Claude Opus 5.5, GPT-6.1 Sol und Muse Wonder bewerten den freigegebenen Implementierungsumfang jeweils mit 9/10. Alle sieben Korrekturpunkte adressiert, keine neuen kritischen oder wichtigen Befunde. Beide unabhängigen Task-Reviews ebenfalls freigegeben. AC1/AC3 automatisch belegt; AC2/manuelles Browser-, Desktop- und iOS-Teilen sowie ausdrückliche Nutzerabnahme bleiben offen, Status In Progress. Produkt-/Rechteverhalten unverändert. Lokale Rohlogs/Agent-Berichte sind nicht dauerhaft archiviert; temporäre Evidenzkopie /tmp/opencode/task37-evidence/. Keine Pushes, PRs oder Merges vorgenommen.
+
+08.11.2026: Nutzeranweisung: „setze den task auf done, mit AC2 explizit noch offen. PR auf main öffnen mit babysit-pr“. Status deshalb ausdrücklich Done trotz offener AC2; AC2 NICHT abhaken. Die Plattformcheckliste bleibt unausgeführt und die M4-Milestone-Abnahme bleibt offen. Der administrative Taskabschluss darf nicht als erfolgreiche manuelle Share-Abnahme interpretiert werden.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Ergänze den echten M4-Kettentest und die Abnahmematrix; belege AC1 und AC3 automatisiert. Schließe TASK-37 auf ausdrücklichen Nutzerwunsch vom 08.11.2026 administrativ ab. AC2 bleibt ausdrücklich offen und ungeprüft; keine manuelle Browser-/Desktop-/iOS-Share-Abnahme und keine vollständige M4-Milestone-Freigabe.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -1,7 +1,8 @@
 # M4-Abnahmematrix (TASK-37)
 
-Stand: 07.11.2026. **Keine Milestone-Freigabe**: manuelle Nutzerabnahme und echtes
-Teilen auf den Zielplattformen stehen aus. TASK-37 bleibt In Progress.
+Stand: 08.11.2026. **TASK-37 ist auf ausdrücklichen Nutzerwunsch administrativ Done,
+AC2 bleibt ausdrücklich offen und ungeprüft. Keine Milestone-Freigabe:** manuelle
+Nutzerabnahme und echtes Teilen auf den Zielplattformen stehen weiterhin aus.
 Grundlage: [Umsetzung §§ 9, 10, 14](doop-fork-umsetzung.md).
 
 ## AC und Belege
@@ -119,7 +120,10 @@ Automatisierte Chromium-Läufe ersetzen diese Prüfungen nicht.
 | iOS             | PNG und JPG per Share Sheet nach Dateien und Fotos speichern, öffnen und Maße prüfen                       | offen    | offen               | offen | offen          |
 | iOS             | Share Sheet abbrechen und erneut teilen                                                                    | offen    | offen               | offen | offen          |
 
-Nutzerbestätigung zur M4-Abnahme: **offen**. Beide unabhängigen Task-Reviews haben
+Nutzerbestätigung zur vollständigen M4-Abnahme: **offen**. Der Nutzer hat am
+08.11.2026 ausdrücklich den administrativen Taskabschluss trotz offener AC2
+angeordnet; das ist keine Bestätigung einer manuellen Share-Abnahme.
+Beide unabhängigen Task-Reviews haben
 Spec-Konformität und Qualität freigegeben, ohne kritische oder wichtige Befunde.
 
 ## Council review
