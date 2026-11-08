@@ -108,5 +108,6 @@ Vertrag: `shared/prowin/templateAttributes.ts` (Extraktion, Validierung, Verglei
 ## Offen
 
 - Font-/Size-Locks (`data-od-lock="font,size"` laut R1.4) sind offen.
-- Beraterinnen-Sichtbarkeit (Schloss-Badges, Auswahl-/Farb-/Text-Begrenzung)
-  → TASK-31, Tasks 1–2.
+- Beraterinnen-Sichtbarkeit (Schloss-Badges, Auswahl-/Farb-/Text-Begrenzung) ist
+  implementiert und automatisiert geprüft (TASK-31, Tasks 1–2). Die manuelle
+  Plattformabnahme bleibt offen; siehe [M4-Abnahmematrix](m4-abnahme.md).
