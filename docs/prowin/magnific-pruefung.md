@@ -1,16 +1,16 @@
 # Magnific-API prüfen (TASK-38)
 
-**Stand:** 06.11.2026 · **Status:** Dokumentation und Offline-Prüfung abgeschlossen; Live-Nachweis, Preis und Rechts-/Regionsnachweise offen.
+**Stand:** 09.11.2026 · **Status:** Dokumentation, Offline-Prüfung und ein autorisierter Live-Lauf erfolgreich; konkrete Credit-Abbuchung, Preis und Rechts-/Regionsnachweise offen.
 
-**Zweck:** Belege für TASK-39 sammeln. Kein Runtime-Adapter, keine Env-/Registry-/UI-Änderung, keine bezahlten Aufrufe. TASK-38 wird erst nach Nutzerabnahme `Done`; AC1 bleibt ohne Live-Nachweis offen, AC3 ohne vollständige Kosten-/Rechts-/Regionsbelege.
+**Zweck:** Belege für TASK-39 sammeln. Kein Runtime-Adapter, keine Env-/Registry-/UI-Änderung. Am 09.11.2026 wurde genau ein kostenpflichtiger Generierungsversuch ausdrücklich autorisiert und erfolgreich ausgeführt. TASK-38 wird erst nach Nutzerabnahme `Done`; AC3 bleibt ohne vollständige Kosten-/Rechts-/Regionsbelege offen.
 
 ## 1. Evidenzklassen
 
-| Klasse                       | Bedeutung                                                                                                   |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Offizielle Dokumentation** | Direkt abgerufene Magnific-Seiten/OpenAPI am 06.11.2026. Belegt nur, was dort steht.                        |
-| **Lokaler Mock-Test**        | `tests/magnificProbe.test.ts` prüft den Probe-Vertrag gegen synthetische Antworten. Kein Provider-Nachweis. |
-| **Live-Beobachtung**         | Noch nicht vorhanden. Erst nach separater Freigabe und mit vorher geprüftem Preis/Account-Cap.              |
+| Klasse                       | Bedeutung                                                                                                                          |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Offizielle Dokumentation** | Direkt abgerufene Magnific-Seiten/OpenAPI am 06.11.2026. Belegt nur, was dort steht.                                               |
+| **Lokaler Mock-Test**        | `tests/magnificProbe.test.ts` prüft den Probe-Vertrag gegen synthetische Antworten. Kein Provider-Nachweis.                        |
+| **Live-Beobachtung**         | [Ein autorisierter Lauf am 09.11.2026](evidence/magnific-live-2026-11-09.json); Nutzer bestätigt akzeptables Anbieter-Creditlimit. |
 
 ## 2. Abgerufene Quellen (06.11.2026)
 
@@ -38,7 +38,9 @@
 - **Dokumentierte Fehler:** `400`, `401`, `500`, `503`. **Nicht dokumentiert** für diesen Pfad: `403`, `429`; ein Rate-Limit-Status ist damit nicht belegt.
 - **Async:** POST liefert sofort eine Task-ID; Ergebnis per Polling oder optionalem Webhook. Der Probe nutzt nur Polling und keinen Webhook.
 
-**Nicht beobachtet:** echte Auth-Antwort, reale Latenz, tatsächliche Statusfolge, Ergebnis-URL-Host/Lebensdauer, Kontingentverhalten, Rate-Limit-Antwort, tatsächliche Creditbuchung.
+**Live beobachtet (09.11.2026):** ein POST und sieben GET-Statusabfragen, alle HTTP 200; gültige Authentifizierung, dokumentierter Antwortumschlag und Statusfolge `CREATED → IN_PROGRESS → COMPLETED`; genau eine HTTPS-Ergebnis-URL laut API-Antwort. [Bereinigter Nachweis](evidence/magnific-live-2026-11-09.json).
+
+**Nicht beobachtet:** exakte Laufzeit, Bildinhalt/Dateimaße, Ergebnis-URL-Host/Lebensdauer, Kontingentverhalten, Rate-Limit-Antwort, tatsächliche Creditbuchung. Das Bild wurde nicht heruntergeladen. Limits und Fehlerfälle bleiben Dokumentations-/Mock-Evidenz, keine Live-Last- oder Fehlerprüfung.
 
 ## 4. Limits
 
@@ -68,6 +70,8 @@ Magnific-One-Creditpreise der Preisliste (pro Bild):
 **Für die Probe (`quality: medium`, `resolution: 1k`) ist kein Preis gelistet.** Die API kennt außerdem kein `max`-Qualitätsniveau. Die API Terms stellen klar, dass API-Credits und -Funktionen von der Website abweichen können. Der exakte Preis für genau diese Konfiguration ist deshalb **blockiert**, nicht geschätzt.
 
 Vor einem Live-Lauf müssen Preis und Account-Cap im Magnific-Dashboard bestätigt und dokumentiert werden. Ablauf für den Credit-Nachweis: Kontostand vor dem Lauf mit Zeitstempel festhalten, genau einen Lauf starten, Kontostand danach erneut festhalten; keine Parallel-/Wiederholungsläufe.
+
+**Ausdrückliche Freigabe am 09.11.2026:** Der Nutzer autorisiert einen kostenpflichtigen Lauf trotz des weiter unbekannten Einzelpreises und bestätigt ein von ihm akzeptiertes Credit-Ausgabenlimit für den bereitgestellten API-Key. Das Limit wurde nicht unabhängig aus dem Account ausgelesen; sein Betrag ist hier nicht bekannt. Der eine Lauf war erfolgreich. Ein Kontostand-/Abbuchungsnachweis liegt nicht vor; daraus wird kein Preis oder tatsächlicher Verbrauch abgeleitet.
 
 ## 6. Rechte, Attribution, Datenschutz
 
@@ -142,16 +146,17 @@ Grenzen des Laufs:
 
 ## 10. Offene Punkte
 
-| Punkt                                              | Status                                                |
-| -------------------------------------------------- | ----------------------------------------------------- |
-| Live-Auth, Statusfolge, Latenz, Ergebnisabruf      | offen (kein Live-Lauf)                                |
-| Exakter Preis `quality: medium` / `1k`             | blockiert (nicht gelistet)                            |
-| Preis/Cap-Bestätigung im Account                   | offen                                                 |
-| Output-Rechte für reine API-Kunden                 | offen (AI-Products-Verweis, Abonnentenbegriff unklar) |
-| Attribution „Powered by Magnific“ konkret für doop | offen (API Terms §7.1)                                |
-| DPA, Subprozessoren, Regionen, Retention           | nicht öffentlich gefunden                             |
-| Brand Kit / Q5                                     | offen; Fallback `DESIGN-prowin.md` §7                 |
-| AC1                                                | offen ohne Live-Nachweis                              |
-| AC3                                                | offen ohne vollständige Kosten-/Rechts-/Regionsbelege |
+| Punkt                                              | Status                                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------ |
+| Live-Auth und Statusfolge                          | belegt durch einen kontrollierten Lauf am 09.11.2026                     |
+| Exakte Latenz, Bilddownload und Dateimaße          | nicht geprüft                                                            |
+| Exakter Preis `quality: medium` / `1k`             | blockiert (nicht gelistet)                                               |
+| Preis/Cap-Bestätigung im Account                   | Cap vom Nutzer bestätigt; Preis/Betrag/Abbuchung nicht unabhängig belegt |
+| Output-Rechte für reine API-Kunden                 | offen (AI-Products-Verweis, Abonnentenbegriff unklar)                    |
+| Attribution „Powered by Magnific“ konkret für doop | offen (API Terms §7.1)                                                   |
+| DPA, Subprozessoren, Regionen, Retention           | nicht öffentlich gefunden                                                |
+| Brand Kit / Q5                                     | offen; Fallback `DESIGN-prowin.md` §7                                    |
+| AC1                                                | Doku und kontrollierter Live-Lauf belegt; Limits/Fehler nur Doku/Mock    |
+| AC3                                                | offen ohne vollständige Kosten-/Rechts-/Regionsbelege                    |
 
 Kein TASK-39-Adapter, keine Stock-Entscheidung und keine Runtime-Änderung in diesem Schritt.

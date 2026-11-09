@@ -1,13 +1,13 @@
 # TASK-38: Magnific API verification
 
-## Result
+## Result (preparation, 6–7 November 2026)
 
 Prepared official-source evidence, a guarded standalone probe and 43 offline tests. No runtime integration, paid provider request, real key access, push or PR. Tests use synthetic keys only. TASK-37 remains unaccepted and unchanged.
 
 - Evidence and live prerequisites: [Magnific verification](../../prowin/magnific-pruefung.md).
 - Design: [verification-only scope](../specs/2026-11-06-magnific-verification-design.md).
 - Plan: [implementation and checks](../plans/2026-11-06-magnific-verification.md).
-- AC2 is verified through the explicitly documented brand-language prompt fallback. AC1 and AC3 remain open. Backlog stays `In Progress` because the configured statuses do not include `Blocked`; blockers are recorded in task notes.
+- At preparation time AC2 was verified through the explicitly documented brand-language prompt fallback; AC1 and AC3 remained open. The live update below supersedes AC1's missing-live blocker. Backlog stays `In Progress`; remaining blockers are recorded in task notes.
 
 ## Council consultation
 
@@ -57,3 +57,15 @@ Existing suite noise includes localStorage warnings and localhost connection/tea
 
 1. Execute the Council's verification-only recommendation without a clarification round. If the desired scope was already TASK-39 integration, that requires a separate follow-up implementation.
 2. Keep live generation unexecuted until explicit price/key/cost prerequisites exist. This leaves a later evidence step and AC1/3 unresolved rather than incurring speculative charges.
+
+## Live update — 9 November 2026
+
+The user explicitly authorized exactly one paid generation and confirmed an acceptable provider-side credit spend limit for the supplied key. This authorizes the controlled test despite the still-unverified unit price. The cap amount and actual debit were not independently inspected. A private T3 file supplied the real key; it was not displayed or stored in repository evidence.
+
+- Ran the existing probe once, without code changes or automatic POST retries.
+- One POST and seven GET polls, all HTTP 200.
+- Observed `CREATED → IN_PROGRESS → COMPLETED`, one generated HTTPS result URL. No image download or visual/content verification.
+- Configuration: `quality` mode, `medium` quality, `1k`, `1:1`, fixed neutral non-PII prompt.
+- [Sanitized live evidence](../../prowin/evidence/magnific-live-2026-11-09.json).
+- AC1 now has official documentation plus a controlled successful live test. Rate limits/error cases retain documentation/mock coverage, not live load/error-test claims.
+- AC3 remains open: exact credits/cost, rights/attribution, DPA, subprocessors, processing regions and retention. TASK-38 is not Done; TASK-37 is unchanged.

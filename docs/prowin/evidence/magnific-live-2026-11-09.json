@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "mode": "live",
+  "classification": "live-observation",
+  "timestamp": "2026-11-09T19:58:15.644Z",
+  "request": {
+    "endpoint": "https://api.magnific.com/v1/ai/magnific-one",
+    "prompt": "Bright tidy kitchen, soft daylight, empty worktop and quiet left text area; no products; no text, no letters, no logos, no watermarks",
+    "mode": "quality",
+    "quality": "medium",
+    "resolution": "1k",
+    "aspect_ratio": "1:1"
+  },
+  "httpStatuses": [200, 200, 200, 200, 200, 200, 200, 200],
+  "statuses": [
+    "CREATED",
+    "IN_PROGRESS",
+    "IN_PROGRESS",
+    "IN_PROGRESS",
+    "IN_PROGRESS",
+    "IN_PROGRESS",
+    "IN_PROGRESS",
+    "COMPLETED"
+  ],
+  "generatedCount": 1,
+  "submission": "created",
+  "taskId": "12316706-48c5-4f52-8d0c-527940afbf56"
+}

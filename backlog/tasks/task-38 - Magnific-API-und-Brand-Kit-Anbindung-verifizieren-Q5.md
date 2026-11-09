@@ -4,7 +4,7 @@ title: Magnific-API und Brand-Kit-Anbindung verifizieren (Q5)
 status: In Progress
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-06T23:15:00Z'
+updated_date: '2026-11-09T20:01:00Z'
 labels:
   - prowin
   - decision
@@ -28,7 +28,7 @@ Quellen: Umsetzung §§ 11, 17 (Q5); Referenz R4.4, R4.6
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Offizielle API-Dokumentation und ein kontrollierter Test belegen Auth, Endpunkte, Statusmodell, Limits und Fehlerfälle.
+- [x] #1 Offizielle API-Dokumentation und ein kontrollierter Test belegen Auth, Endpunkte, Statusmodell, Limits und Fehlerfälle.
 - [x] #2 Brand-Kit-Referenzierung ist belegt oder der Brand-Bildsprache-Prompt als Fallback festgehalten.
 - [ ] #3 Kosten, Nutzungsrechte und relevante Verarbeitungsregionen sind dokumentiert; Stockfoto-Nutzung bleibt eine separate offene Entscheidung.
 <!-- AC:END -->
@@ -54,4 +54,9 @@ Blocker AC1: kein autorisierter Live-Lauf/kein API-Key. Blocker AC3: Preis mediu
 Status bleibt In Progress: Projekt erlaubt kein Blocked; Blocker stehen daher in diesen Notizen.
 
 Abschlussprüfung: Terra-Gesamtreview 7/10 fand UUID-Schlüssel-Echo und verlorene Teilevidenz. In 5d24167 mit Regressionstests behoben; Terra-Abschlussreview 9/10, beide Befunde adressiert, keine neuen Findings. Finale Verifikation: 43 Probe-Tests; 240 Testdateien / 2205 Tests; Typecheck/Lint/Format/Doc-Lint/Dry-Run erfolgreich (1 Doc-Freshness-Warning, bekannte Testausgabe-Warnungen). Kein echter Provider-Aufruf, kein echter Key, kein Push/PR/Merge. TASK-38 bleibt In Progress; AC1/3 offen, AC2 verifiziert. Bericht: docs/superpowers/reports/2026-11-06-magnific-verification.md.
+
+2026-11-09: Nutzer autorisiert genau einen kostenpflichtigen Live-Test und bestätigt ein für ihn akzeptables Credit-Ausgabenlimit im Magnific-API-Keys-Dashboard. Key ausschließlich über private T3-Datei bereitgestellt. Exakter medium/1k-Preis bleibt unbekannt; Test erfolgt auf Basis des ausdrücklich bestätigten Anbieter-Limits, ohne POST-Wiederholung. Live-Ergebnis folgt separat.
+
+2026-11-09 Live-Ergebnis: bestehende Probe genau einmal mit privater Key-Datei ausgeführt, Exit 0. Ein POST + sieben GETs, alle HTTP 200; CREATED → IN_PROGRESS → COMPLETED; generatedCount=1. Kein POST-Retry, kein Bilddownload, kein Runtime-Code geändert. Bereinigter Nachweis: docs/prowin/evidence/magnific-live-2026-11-09.json.
+AC1 verifiziert durch offizielle Doku plus kontrollierten erfolgreichen Live-Lauf; Limits und Fehlerfälle bleiben Doku-/Mock-Evidenz, kein Lasttest. AC2 bleibt verifiziert. AC3 bleibt offen: konkrete Credit-Abbuchung/Preis nicht unabhängig nachgewiesen; Nutzer bestätigt akzeptables Anbieterlimit, dessen Betrag hier nicht bekannt ist; Rechts-/Attributions-/DPA-/Regionsnachweise weiterhin offen. TASK-38 bleibt In Progress; keine implizite Abnahme, TASK-37 unverändert.
 <!-- SECTION:NOTES:END -->
