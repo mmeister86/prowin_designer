@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import { createServer as createHttpServer, type ServerResponse } from 'node:http'
 import { readFileSync } from 'node:fs'
 import type { Browser, Frame, Page } from 'puppeteer-core'
@@ -50,7 +51,7 @@ describe.skipIf(!findBrowserPath())('opaque-origin frame CSP (Chromium smoke)', 
     await new Promise<void>((resolve) => external.listen(0, '127.0.0.1', resolve))
     const address = external.address() as { port: number }
     foreign = `http://127.0.0.1:${address.port}`
-    vite = await createServer({
+    vite = await createBrowserVite({
       server: { port: 0 },
       logLevel: 'error',
       plugins: [

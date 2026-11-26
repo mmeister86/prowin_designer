@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import type { Browser, Frame as PupFrame, Page } from 'puppeteer-core'
 import { findBrowserPath, getBrowser } from '../server/screenshot'
 import { assertTemplateWrite } from '../server/prowin/templateGuard'
@@ -34,7 +35,7 @@ describe.skipIf(!findBrowserPath())('template frozen-descendant editing', { time
   const DOCUMENT = `<!doctype html><html><head></head><body>${FIELD}</body></html>`
 
   beforeAll(async () => {
-    vite = await createServer({ server: { port: 0 }, logLevel: 'error' })
+    vite = await createBrowserVite()
     await vite.listen()
     browser = await getBrowser()
     page = await browser.newPage()

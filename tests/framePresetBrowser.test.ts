@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import type { Browser, Page } from 'puppeteer-core'
 import { findBrowserPath, getBrowser } from '../server/screenshot'
 import type { Canvas, Frame } from '../shared/types'
@@ -14,7 +15,7 @@ describe.skipIf(!findBrowserPath())('frame preset manual entry points', () => {
   let origin: string
   beforeAll(async () => {
     const port = await freePort()
-    vite = await createServer({
+    vite = await createBrowserVite({
       logLevel: 'error',
       server: {
         port: 0,

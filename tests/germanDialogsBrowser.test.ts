@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import type { Browser, Page } from 'puppeteer-core'
 import { join } from 'node:path'
 import { findBrowserPath, getBrowser } from '../server/screenshot'
@@ -15,7 +16,7 @@ const name = 'Deutsche Arbeitsfläche für die Abnahme'
 
 beforeAll(async () => {
   const port = await freePort()
-  vite = await createServer({
+  vite = await createBrowserVite({
     logLevel: 'error',
     server: {
       port: 0,
