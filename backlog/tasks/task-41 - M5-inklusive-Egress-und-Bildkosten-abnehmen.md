@@ -4,6 +4,7 @@ title: M5 inklusive Egress und Bildkosten abnehmen
 status: To Do
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
+updated_date: '2026-11-27T21:30:44Z'
 labels:
   - prowin
   - implementation
@@ -11,6 +12,7 @@ milestone: m-5
 dependencies:
   - TASK-40
   - TASK-22
+  - TASK-84
 documentation:
   - docs/prowin/doop-fork-umsetzung.md
   - docs/prowin/bezugsdokumente-referenz.md
