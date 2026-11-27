@@ -6,7 +6,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import path from 'node:path'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { createServer, type Plugin, type ViteDevServer } from 'vite'
+import type { Plugin, ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import { findBrowserPath, getBrowser, renderFrame } from '../server/screenshot.ts'
 import { reloadEnv } from '../server/env.ts'
 import type { Frame } from '../shared/types.ts'
@@ -75,7 +76,7 @@ describe.skipIf(!findBrowserPath())('strict preset-download font boundary in rea
     previousPort = process.env.PORT
     process.env.PORT = String(port)
     fontCacheDir = mkdtempSync(path.join(tmpdir(), 'prowin-strict-font-'))
-    vite = await createServer({
+    vite = await createBrowserVite({
       cacheDir: fontCacheDir,
       plugins: [fontBehavior(() => origin)],
       server: { port: 0 },

@@ -25,7 +25,7 @@
   clipboard round trips, history and script-created or script-removed elements.
 - Radix UI primitives (`@radix-ui/react-*`, ^1.x-2.x) + shadcn 4.19.0 - accessible UI primitives
   generated into `src/components/ui`.
-- `@anthropic-ai/sdk` 0.115.0 and `@modelcontextprotocol/sdk` 1.12.0 - power the built-in Doop
+- `@anthropic-ai/sdk` 0.115.0 and `@modelcontextprotocol/sdk` 1.32.2 - power the built-in Doop
   Agent and the MCP server that lets external agents (e.g. Claude Code) design on a canvas.
 - `ws` 8.18.0 - WebSocket server for realtime multiplayer (cursors, presence, frame edits,
   activity feed) over one room per canvas.
@@ -122,7 +122,7 @@
 
 ## 5. Security and Secrets
 
-- better-auth 1.6.26 - authentication: email/password and Google / Apple
+- better-auth 1.6.35 - authentication: email/password and Google / Apple
   sign-in (social providers, `GOOGLE_*` / `APPLE_*` client pairs; the iOS app
   signs in with Apple natively against `APPLE_APP_BUNDLE_IDENTIFIER`). Configuration and secrets
   (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, provider client IDs/secrets) come from the
@@ -136,12 +136,16 @@
 
 ## 7. Testing Stack
 
+- [M4 acceptance matrix](../docs/prowin/m4-abnahme.md): role/template protection, persistence, export evidence and open manual platform checks.
 - Vitest 5 - unit/integration tests across `server/` and `src/`; run via `bun run test`
   (`vitest run`). Tests live in `tests/`.
 - For the local full-suite acceptance, run `bun run test --maxWorkers=4 --exclude tests/claudeExtension.test.ts`,
   then `bun run test tests/claudeExtension.test.ts --maxWorkers=1`. The extension test writes
   into `public/claude-extension`, which can reload Vite browser fixtures when run concurrently.
-  Both groups are required. The [M1 acceptance matrix](../docs/prowin/m1-abnahme.md) records
+  Both groups are required. Every suite that drives Chromium starts its Vite server through
+  `tests/browserVite.ts` (`createBrowserVite`), which turns the file watcher and HMR off, so edits
+  in the checkout during a run no longer reload open fixture pages (TASK-73).
+  The [M1 acceptance matrix](../docs/prowin/m1-abnahme.md) records
   integration removal, retained core functions, Pexels key gating, Memory decisions and native test limits.
 
 ## 8. CI/CD and Delivery

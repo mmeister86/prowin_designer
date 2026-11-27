@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import type { Browser, Page } from 'puppeteer-core'
 import { findBrowserPath, getBrowser } from '../server/screenshot'
 import type { Canvas, ElementComment, Frame } from '../shared/types'
@@ -32,7 +33,7 @@ describe.skipIf(!findBrowserPath())('drawing on the canvas', { timeout: 30_000 }
   const errors: string[] = []
 
   beforeAll(async () => {
-    vite = await createServer({ server: { port: 0 }, logLevel: 'error' })
+    vite = await createBrowserVite()
     await vite.listen()
     browser = await getBrowser()
     page = await browser.newPage()
