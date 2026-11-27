@@ -4,6 +4,7 @@ title: better-auth auf 1.7 migrieren
 status: To Do
 assignee: []
 created_date: '2026-11-27T20:59:44Z'
+updated_date: '2026-11-27T21:16:31Z'
 labels:
   - security
   - dependencies
@@ -46,4 +47,6 @@ Upstream doop ist noch auf 1.6.26. Die Migration verändert Upstream-eigene Date
 
 <!-- SECTION:NOTES:BEGIN -->
 27.11.2026: Übergangsweise better-auth 1.6.26 -> 1.6.35 (PR chore/deps-better-auth-1.6.35). Die 1.7-Advisories sind dort nicht zurückportiert. Weitere offene Major-Updates vor M6 (eigene Tasks bei Bedarf): sharp 0.34 -> 0.35 (libvips/libheif/librsvg), nodemailer 9 -> 10.0.6+ (relevant für TASK-46).
+
+27.11.2026: Entscheidung Nutzer: TASK-83 ist kein Blocker für TASK-50 (M6-Freigabe); keine Abhängigkeit eintragen.
 <!-- SECTION:NOTES:END -->

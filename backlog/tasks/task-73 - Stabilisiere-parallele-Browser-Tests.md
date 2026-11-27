@@ -1,10 +1,10 @@
 ---
 id: TASK-73
 title: Stabilisiere parallele Browser-Tests
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-28T11:29:00Z'
-updated_date: '2026-11-26T12:00:00Z'
+updated_date: '2026-11-27T21:16:31Z'
 labels: []
 dependencies: []
 priority: medium
@@ -34,3 +34,14 @@ Follow-up: Baseline-Node-localStorage-Warnungen (tests/setup.ts greift Node-Gett
 Follow-up aus TASK-37 Council (07.11.2026): Pflichtlauf mit maxWorkers=4 zeigte 15 Fehler in elementResizeBrowser (11), drawingBrowser (1), elementPanelBrowser (2), safeZoneBrowser (1). Seriell alle 112 bestanden; erneuter vollständiger Lauf ohne parallele Repository-Dateiänderungen 2160/2160 bestanden. Undefined Harness/DOM-Kontextverlust und Timing beobachtet; Vite-Reload durch gleichzeitige Dokumentations-/Backlog-Änderungen ist nur Hypothese, Ursache unbewiesen. Keine Fixture-/Produktänderung in TASK-37. Details docs/prowin/m4-abnahme.md.
 26.11.2026 (Branch fix/task-73-browser-test-isolation, Basis main 5d82cce): Ursache belegt. Alle 21 Suites mit echtem Chromium starten je einen Vite-Dev-Server im Checkout-Root mit aktivem Datei-Watcher und HMR. Reproduktion: nur die 17 *Browser-Suites mit --maxWorkers=4, dabei alle 2 s `touch src/lib/utils.ts` -> 5 Dateien / 33 von 164 Tests rot (Harness-/Selector-Timeouts in elementPanelBrowser, drawingBrowser, pageControlsBrowser, framePresetBrowser, safeZoneBrowser). Derselbe Lauf ohne touch: 17/17 Dateien, 164/164 Tests grün. Fix: `tests/browserVite.ts` (`createBrowserVite`) setzt `server.watch: null` und `hmr: false`; alle 21 Vite-Starts in tests/ nutzen ihn. Kontrolllauf mit Fix und touch alle 2 s: 164/164 grün. Keine Timeouts, Worker-Zahlen oder Produktcode geändert. Getrennte Vite-Caches pro Suite nicht nötig, solange kein Reload ausgelöst wird; die Fonttests behalten ihre eigenen Caches. Abnahmelauf mit Fix (währenddessen Doku-/Backlog-Dateien geändert): `bun run test --maxWorkers=4 --exclude tests/claudeExtension.test.ts` 239 Dateien / 2160 Tests grün, keine übersprungenen Browser-Fälle; `tests/claudeExtension.test.ts --maxWorkers=1` 4/4 grün. Status bleibt bis zur Nutzerbestätigung In Progress. Offen bleiben die Follow-ups zu localStorage-Warnungen, ECONNREFUSED :3000 und Happy-DOM-AbortError (nicht Teil dieses Fixes).
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Isoliere Browser-Fixtures von Änderungen im Checkout
+
+- Ursache belegt: Vite-Dateiwatcher und HMR der 21 Chromium-Suites luden Fixture-Seiten bei jeder Dateiänderung neu (33 von 164 Browser-Tests rot bei touch alle 2 s, ohne touch alle grün).
+- tests/browserVite.ts (createBrowserVite) schaltet Watcher und HMR ab; alle 21 Vite-Starts nutzen ihn (PR #17).
+- Abnahme: volle Suite mit vier Workern 239 Dateien / 2160 Tests grün, keine Skips; Extension-Test 4/4.
+- Schließe nach ausdrücklicher Nutzerbestätigung vom 27.11.2026.
+<!-- SECTION:FINAL_SUMMARY:END -->
