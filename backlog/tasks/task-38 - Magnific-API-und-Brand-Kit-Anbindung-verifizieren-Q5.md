@@ -1,10 +1,10 @@
 ---
 id: TASK-38
 title: Magnific-API und Brand-Kit-Anbindung verifizieren (Q5)
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-23T09:52:00Z'
-updated_date: '2026-11-09T20:01:00Z'
+updated_date: '2026-11-27T21:30:45Z'
 labels:
   - prowin
   - decision
@@ -30,7 +30,7 @@ Quellen: Umsetzung §§ 11, 17 (Q5); Referenz R4.4, R4.6
 <!-- AC:BEGIN -->
 - [x] #1 Offizielle API-Dokumentation und ein kontrollierter Test belegen Auth, Endpunkte, Statusmodell, Limits und Fehlerfälle.
 - [x] #2 Brand-Kit-Referenzierung ist belegt oder der Brand-Bildsprache-Prompt als Fallback festgehalten.
-- [ ] #3 Kosten, Nutzungsrechte und relevante Verarbeitungsregionen sind dokumentiert; Stockfoto-Nutzung bleibt eine separate offene Entscheidung.
+- [x] #3 Bekannter Stand zu Kosten, Nutzungsrechten und Verarbeitungsregionen ist samt Lücken in docs/prowin/magnific-pruefung.md dokumentiert; fehlende Nachweise sind in TASK-84 ausgelagert. Stockfoto-Nutzung bleibt eine separate offene Entscheidung.
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -59,4 +59,12 @@ Abschlussprüfung: Terra-Gesamtreview 7/10 fand UUID-Schlüssel-Echo und verlore
 
 2026-11-09 Live-Ergebnis: bestehende Probe genau einmal mit privater Key-Datei ausgeführt, Exit 0. Ein POST + sieben GETs, alle HTTP 200; CREATED → IN_PROGRESS → COMPLETED; generatedCount=1. Kein POST-Retry, kein Bilddownload, kein Runtime-Code geändert. Bereinigter Nachweis: docs/prowin/evidence/magnific-live-2026-11-09.json.
 AC1 verifiziert durch offizielle Doku plus kontrollierten erfolgreichen Live-Lauf; Limits und Fehlerfälle bleiben Doku-/Mock-Evidenz, kein Lasttest. AC2 bleibt verifiziert. AC3 bleibt offen: konkrete Credit-Abbuchung/Preis nicht unabhängig nachgewiesen; Nutzer bestätigt akzeptables Anbieterlimit, dessen Betrag hier nicht bekannt ist; Rechts-/Attributions-/DPA-/Regionsnachweise weiterhin offen. TASK-38 bleibt In Progress; keine implizite Abnahme, TASK-37 unverändert.
+
+2026-11-27: Nutzerabnahme. AC3 auf dokumentierten Kenntnisstand eingegrenzt; offene Nachweise (Credit-Preis/Abbuchung, Output-Rechte und Attribution, DPA/Subprozessoren/Regionen/Retention) in TASK-84 ausgelagert, die TASK-41 (M5) blockiert. Brand-Kit-Frage Q5 bleibt offen, Fallback DESIGN-prowin.md §7. TASK-39 nicht begonnen.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Magnific-One-API anhand offizieller Doku, 43 Offline-Tests und eines autorisierten Live-Laufs (09.11.2026, CREATED → IN_PROGRESS → COMPLETED) verifiziert. Brand-Bildsprache-Fallback festgehalten. Kosten-, Rechts- und DPA-Lücken dokumentiert und an TASK-84 übergeben.
+<!-- SECTION:FINAL_SUMMARY:END -->

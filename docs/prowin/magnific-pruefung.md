@@ -1,8 +1,8 @@
 # Magnific-API prüfen (TASK-38)
 
-**Stand:** 09.11.2026 · **Status:** Dokumentation, Offline-Prüfung und ein autorisierter Live-Lauf erfolgreich; konkrete Credit-Abbuchung, Preis und Rechts-/Regionsnachweise offen.
+**Stand:** 27.11.2026 · **Status:** TASK-38 abgenommen. Dokumentation, Offline-Prüfung und ein autorisierter Live-Lauf erfolgreich; konkrete Credit-Abbuchung, Preis und Rechts-/Regionsnachweise offen und an TASK-84 übergeben.
 
-**Zweck:** Belege für TASK-39 sammeln. Kein Runtime-Adapter, keine Env-/Registry-/UI-Änderung. Am 09.11.2026 wurde genau ein kostenpflichtiger Generierungsversuch ausdrücklich autorisiert und erfolgreich ausgeführt. TASK-38 wird erst nach Nutzerabnahme `Done`; AC3 bleibt ohne vollständige Kosten-/Rechts-/Regionsbelege offen.
+**Zweck:** Belege für TASK-39 sammeln. Kein Runtime-Adapter, keine Env-/Registry-/UI-Änderung. Am 09.11.2026 wurde genau ein kostenpflichtiger Generierungsversuch ausdrücklich autorisiert und erfolgreich ausgeführt. Am 27.11.2026 hat der Nutzer TASK-38 abgenommen; AC3 wurde auf den dokumentierten Kenntnisstand eingegrenzt, die fehlenden Kosten-/Rechts-/Regionsbelege verfolgt TASK-84 vor der M5-Abnahme (TASK-41).
 
 ## 1. Evidenzklassen
 
@@ -157,6 +157,6 @@ Grenzen des Laufs:
 | DPA, Subprozessoren, Regionen, Retention           | nicht öffentlich gefunden                                                |
 | Brand Kit / Q5                                     | offen; Fallback `DESIGN-prowin.md` §7                                    |
 | AC1                                                | Doku und kontrollierter Live-Lauf belegt; Limits/Fehler nur Doku/Mock    |
-| AC3                                                | offen ohne vollständige Kosten-/Rechts-/Regionsbelege                    |
+| AC3                                                | Kenntnisstand dokumentiert; fehlende Belege in TASK-84                   |
 
 Kein TASK-39-Adapter, keine Stock-Entscheidung und keine Runtime-Änderung in diesem Schritt.
