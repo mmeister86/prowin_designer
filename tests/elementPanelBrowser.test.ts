@@ -261,7 +261,10 @@ describe.skipIf(!findBrowserPath())('element design controls', () => {
       () => getComputedStyle(document.querySelector('#flex')!).justifyContent === 'space-between',
     )
     await page.click('[aria-label="Unterelemente unten rechts ausrichten"]')
-    await frame.waitForFunction(() => getComputedStyle(document.querySelector('#flex')!).alignItems === 'flex-end')
+    // Chrome 158+ serializes computed flex-end as flow-end.
+    await frame.waitForFunction(() =>
+      ['flex-end', 'flow-end'].includes(getComputedStyle(document.querySelector('#flex')!).alignItems),
+    )
     expect(await frame.$eval('#flex', (el) => getComputedStyle(el).justifyContent)).toBe('space-between')
     await number('Abstand', 14)
     expect(await frame.$eval('#flex', (el) => getComputedStyle(el).rowGap)).toBe('7px')

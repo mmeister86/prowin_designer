@@ -23,6 +23,12 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
     vSheet.replaceSync('html,body{overscroll-behavior-x:none}[data-v-path-hidden]{visibility:hidden!important}')
     document.adoptedStyleSheets = document.adoptedStyleSheets.concat(vSheet)
   } catch (e) {}
+  /* Chrome 158 serializes computed flex-start / flex-end as flow-start /
+     flow-end. The panel and its alignment picker speak the flex-* keywords
+     they write, so report those regardless of the engine's spelling. */
+  function flexEdge(value) {
+    return value === 'flow-start' ? 'flex-start' : value === 'flow-end' ? 'flex-end' : value
+  }
   function syncAttrs(from, to) {
     for (var i = from.attributes.length - 1; i >= 0; i--) {
       var name = from.attributes[i].name
@@ -1142,8 +1148,8 @@ export const FRAME_BOOTSTRAP = frameSrcDoc(`<!doctype html>
       display: cs.display,
       flexDirection: cs.flexDirection,
       flexWrap: cs.flexWrap,
-      justifyContent: cs.justifyContent,
-      alignItems: cs.alignItems,
+      justifyContent: flexEdge(cs.justifyContent),
+      alignItems: flexEdge(cs.alignItems),
       writingMode: cs.writingMode,
       width: px(cs.width),
       height: px(cs.height),
