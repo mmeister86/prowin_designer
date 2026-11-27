@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -389,7 +390,7 @@ describe('time bounds', () => {
 
 describe('CLI', () => {
   it('prints partial job evidence with a nonzero exit after a poll failure', async () => {
-    const directory = await mkdtemp('/tmp/opencode/magnific-probe-')
+    const directory = await mkdtemp(path.join(tmpdir(), 'magnific-probe-'))
     const keyFile = path.join(directory, 'synthetic-key')
     const output: string[] = []
     const { impl, calls } = fakeFetch((call) =>
