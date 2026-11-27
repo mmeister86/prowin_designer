@@ -142,7 +142,10 @@
 - For the local full-suite acceptance, run `bun run test --maxWorkers=4 --exclude tests/claudeExtension.test.ts`,
   then `bun run test tests/claudeExtension.test.ts --maxWorkers=1`. The extension test writes
   into `public/claude-extension`, which can reload Vite browser fixtures when run concurrently.
-  Both groups are required. The [M1 acceptance matrix](../docs/prowin/m1-abnahme.md) records
+  Both groups are required. Every suite that drives Chromium starts its Vite server through
+  `tests/browserVite.ts` (`createBrowserVite`), which turns the file watcher and HMR off, so edits
+  in the checkout during a run no longer reload open fixture pages (TASK-73).
+  The [M1 acceptance matrix](../docs/prowin/m1-abnahme.md) records
   integration removal, retained core functions, Pexels key gating, Memory decisions and native test limits.
 
 ## 8. CI/CD and Delivery

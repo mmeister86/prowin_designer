@@ -3,7 +3,8 @@ import path from 'node:path'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import type { Browser, Page } from 'puppeteer-core'
-import { createServer, type Plugin, type ViteDevServer } from 'vite'
+import type { Plugin, ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import { findBrowserPath, getBrowser, renderFrame } from '../server/screenshot.ts'
 import { reloadEnv } from '../server/env.ts'
 import type { Frame } from '../shared/types.ts'
@@ -82,7 +83,7 @@ describe.skipIf(!findBrowserPath())('proWIN browser and Chromium font parity', (
     previousPort = process.env.PORT
     process.env.PORT = String(port)
     fontCacheDir = mkdtempSync(path.join(tmpdir(), 'prowin-font-browser-'))
-    vite = await createServer({
+    vite = await createBrowserVite({
       cacheDir: fontCacheDir,
       plugins: [delayFonts()],
       server: { port: 0 },

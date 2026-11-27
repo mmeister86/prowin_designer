@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import type { Browser, Page } from 'puppeteer-core'
 import { findBrowserPath, getBrowser } from '../server/screenshot'
 
@@ -12,10 +13,7 @@ describe.skipIf(!findBrowserPath())('layer visibility during text editing', () =
   let page: Page
   let seq = 0
   beforeAll(async () => {
-    server = await createServer({
-      server: { port: 0 },
-      logLevel: 'error',
-    })
+    server = await createBrowserVite()
     await server.listen()
     browser = await getBrowser()
     page = await browser.newPage()

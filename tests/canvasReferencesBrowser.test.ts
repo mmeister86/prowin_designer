@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import type { Browser, ElementHandle, Page } from 'puppeteer-core'
 import { findBrowserPath, getBrowser } from '../server/screenshot'
 import type { AgentTask, Canvas, Frame } from '../shared/types'
@@ -26,7 +27,7 @@ describe('real canvas image reference workflows', { timeout: 30_000 }, () => {
   beforeAll(async () => {
     if (!browserPath) throw new Error('Chromium fehlt: Canvas-Referenz-Workflows wurden nicht nachgewiesen.')
     const port = await freePort()
-    vite = await createServer({
+    vite = await createBrowserVite({
       cacheDir: 'node_modules/.vite-canvas-references-test',
       logLevel: 'error',
       server: {

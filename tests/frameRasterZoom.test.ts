@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import type { Browser, Page } from 'puppeteer-core'
 import { findBrowserPath, getBrowser } from '../server/screenshot.ts'
 import { counterZoom, layoutZoomFor } from '../src/lib/layoutZoom.ts'
@@ -63,7 +64,7 @@ describe.skipIf(!findBrowserPath())('settled canvas zoom', () => {
   let browser: Browser
   let page: Page
   beforeAll(async () => {
-    server = await createServer({ server: { port: 0 }, logLevel: 'error' })
+    server = await createBrowserVite()
     await server.listen()
     browser = await getBrowser()
     page = await browser.newPage()

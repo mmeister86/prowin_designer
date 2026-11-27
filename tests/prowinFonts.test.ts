@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { createServer, type ViteDevServer } from 'vite'
+import type { ViteDevServer } from 'vite'
+import { createBrowserVite } from './browserVite.ts'
 import { startServer, type Server } from './harness.ts'
 
 const ROOT = process.cwd()
@@ -67,7 +68,7 @@ describe('proWIN font delivery', () => {
     server = await startServer()
     previousPort = process.env.PORT
     process.env.PORT = String(server.port)
-    vite = await createServer({
+    vite = await createBrowserVite({
       cacheDir: path.join(server.dataDir, 'vite-cache'),
       server: { port: 0 },
       logLevel: 'error',
