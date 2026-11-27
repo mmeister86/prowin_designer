@@ -122,7 +122,7 @@
 
 ## 5. Security and Secrets
 
-- better-auth 1.6.26 - authentication: email/password and Google / Apple
+- better-auth 1.6.35 - authentication: email/password and Google / Apple
   sign-in (social providers, `GOOGLE_*` / `APPLE_*` client pairs; the iOS app
   signs in with Apple natively against `APPLE_APP_BUNDLE_IDENTIFIER`). Configuration and secrets
   (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, provider client IDs/secrets) come from the
